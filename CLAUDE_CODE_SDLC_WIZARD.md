@@ -1705,6 +1705,8 @@ The wizard provides generic starting principles, then:
 
 **This is a partnership, not a rulebook.**
 
+**Think Iron Man:** Jarvis is nothing without Tony Stark. Tony Stark is still Tony Stark. But together? They make Iron Man. This SDLC is your suit - you build it over time, improve it for your needs, and it makes you both better.
+
 ### Evolving with Claude Code
 
 **Claude Code's agentic capabilities keep improving. This SDLC should evolve with them.**

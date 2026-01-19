@@ -14,6 +14,8 @@ An SDLC framework for AI coding agents. Makes Claude plan before coding, test be
 
 Human engineering practices (planning, TDD, confidence checks) happen to be exactly what AI agents need to stay on track. You set it up, Claude follows it.
 
+**Think Iron Man:** Jarvis is nothing without Tony Stark. Tony Stark is still Tony Stark. But together? They make Iron Man. This SDLC is your suit - you build it over time, improve it for your needs, and it makes you both better.
+
 ## Using It
 
 **Copy-paste:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and follow setup instructions inside.
