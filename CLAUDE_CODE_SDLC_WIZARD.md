@@ -1616,84 +1616,83 @@ Claude will fetch `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/ma
 
 ---
 
-## Philosophy: Lightweight and Self-Deprecating
+## Philosophy: Bespoke & Organic
 
-### Understanding This Philosophy (Read This!)
+### The Real Goal (Read This!)
 
-**Why does this SDLC exist?**
+**This SDLC becomes YOUR custom-tailored workflow.**
 
-Right now, Claude Code recommends building your own "agentic loop" - a workflow that guides Claude through planning, implementing, testing, and reviewing. That's exactly what this SDLC is. We're not fighting Claude Code; we're doing what they recommend.
+Like a bespoke suit fitted to your body, this SDLC should grow and adapt to fit YOUR project perfectly. The wizard is a starting point - generic principles that Claude Code uses to build something unique to you.
 
-**But here's the key insight:** Claude Code is actively improving. Features we built manually today may become built-in tomorrow. When that happens, we should **delete our version and use theirs**.
+**The magic:**
+- **Generic principles** - This wizard focuses on the "why", not tech specifics
+- **Claude figures out the details** - Your stack, your commands, your patterns
+- **Organic growth** - Each friction point is feedback that makes it better
+- **Recursive improvement** - The more you use it, the more tailored it becomes
 
-**Think of this SDLC as scaffolding, not architecture.** Scaffolding is meant to come down once the building is complete. Every hook, skill, and check we've added should be viewed as temporary - useful today, potentially redundant tomorrow.
+### Failure is Part of the Process
+
+**No pain, no gain.**
+
+When something doesn't work:
+1. That's feedback, not failure
+2. Claude proposes an adjustment
+3. You approve (or tweak)
+4. The SDLC gets better
+
+**Friction is information.** Every time Claude struggles, that's a signal. Maybe the docs need updating. Maybe a gotcha needs documenting. Maybe the process needs simplifying.
+
+**Don't fear mistakes.** They're how this system learns YOUR project.
 
 ### Why Lightweight Matters
 
-**Claude Code gets better constantly.** This SDLC system should be minimal because:
+**Less is more. Generic is key.**
 
-1. **Token efficiency** - Every token of context we use is a token not available for actual work
-2. **Cognitive load** - Simpler systems are easier for both humans and AI to follow
-3. **Future-proof** - Less code = less to remove when Claude Code improves
+1. **Principles over prescriptions** - "Plan before coding" not "use exactly this planning template"
+2. **Claude adapts** - Give Claude the philosophy, it figures out YOUR tech stack
+3. **Token efficiency** - Every token of context is a token not available for actual work
 4. **Anti-bloat** - Complexity compounds; simplicity scales
 
-**The temptation:** Add more features, more checks, more enforcement.
-**The discipline:** Only add what's essential. Question everything.
+**The temptation:** Add more rules, more checks, more specifics.
+**The discipline:** Keep it generic. Trust Claude to adapt. Question everything.
 
-### Goal: Obsolescence
+### How Tailoring Happens
 
-**One day this file shouldn't be needed.** Claude Code is actively developing features that may replace what we've built here. That's the goal - not to build an empire, but to bridge a gap.
+**This SDLC fits your project like custom-tailored clothes.**
 
-**Current alignment:** Claude Code recommends building your own "loop" - which is exactly what this SDLC is. We're aligned with their best practices, not fighting them.
+The wizard provides generic starting principles, then:
 
-**Signs of success:** When you can delete a hook because Claude Code added equivalent functionality, that's a win. When this wizard shrinks rather than grows, that's progress.
+1. **Claude encounters your codebase** - Learns your patterns, idioms, structure
+2. **Friction happens** - Claude struggles or makes a mistake
+3. **Claude proposes a tweak** - "Should I add this gotcha to the docs?"
+4. **You approve** - The SDLC becomes more fitted to YOUR project
+5. **Repeat** - Each iteration makes it more bespoke
 
-### Stay Up-to-Date with Claude Code
+**After a few cycles:** This SDLC feels native to your project, not bolted on.
 
-**Periodically check Claude Code documentation** to ensure:
+### The Living System
 
-1. **We're not stepping on their toes** - If Claude Code adds a feature, use theirs
-2. **We're using latest capabilities** - Skills, hooks, new features as they release
-3. **We remove redundant code** - If something becomes built-in, delete our version
+- **Claude proposes improvements** based on friction encountered
+- **Human approves changes** to the process
+- **Both sides learn** over time
+- **Organic growth** - shaped by actual use, not theoretical ideals
+- **Recursive improvement** - the system improves the system
 
-### When to Remove Parts of This SDLC
+**This is a partnership, not a rulebook.**
 
-Remove our implementation when Claude Code provides equivalent:
+### Stay Lightweight (When Claude Code Improves)
+
+Claude Code is actively improving. When they add built-in features that overlap with this SDLC:
+
+**Use theirs, delete ours.**
 
 | If Claude Code Adds... | Remove Our... |
 |------------------------|---------------|
 | Built-in TDD enforcement | `tdd-pretool-check.sh` |
 | Built-in confidence tracking | Confidence level guidance |
 | Built-in task tracking | TodoWrite reminders |
-| Built-in self-review | Self-review loop |
 
-**The rule:** Always prefer Claude Code's built-in features over our custom implementation.
-
-### Tailored to Your Project (Bespoke, Not Off-the-Rack)
-
-**This SDLC should fit your project like a tailored tuxedo, not a one-size-fits-all t-shirt.**
-
-The wizard provides a starting point, but the real value comes from organic refinement:
-
-- **Your patterns** - What naming conventions, file structures, and idioms does YOUR codebase use?
-- **Your gotchas** - What traps exist in YOUR system that Claude should know about?
-- **Your workflow** - What review process, deployment steps, and quality gates does YOUR team follow?
-
-**How tailoring happens:**
-1. Claude encounters friction or makes a mistake
-2. Claude proposes a doc update or process tweak
-3. Human approves (or adjusts)
-4. The SDLC becomes more fitted to this specific project
-
-**The goal:** After a few iterations, this SDLC should feel native to your project - not like something bolted on from outside.
-
-### This is a Living System
-
-- **Claude proposes improvements** based on friction encountered
-- **Human approves changes** to the process
-- **Both sides learn** over time
-- **The system evolves** toward simplicity, not complexity
-- **Organic growth** - shaped by actual use, not theoretical ideals
+**The goal isn't obsolescence - it's efficiency.** Use the best tool for the job. If Claude Code builds it better, use theirs.
 
 ---
 
