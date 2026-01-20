@@ -1665,6 +1665,22 @@ When something doesn't work:
 **The temptation:** Add more rules, more specifics, more enforcement.
 **The discipline:** Keep it generic. Trust Claude to adapt. KISS.
 
+### Stay Lean, Stay Engaged
+
+**Don't drown in complexity. Don't turn your brain off.**
+
+The human's job:
+- **Stay engaged** - keep the AI agent on track
+- **Build trust** - as velocity increases, you trust the process more
+- **Focus on what matters** - planning and confidence levels
+
+**Maximum efficiency for both parties:**
+- AI handles execution details
+- Human handles direction and judgment
+- Neither is passive
+
+**When you reach velocity:** You're not checking every line. You trust the process. Your brain focuses on planning and fixing confidence issues - the high-leverage work.
+
 ### How Tailoring Happens
 
 **This SDLC fits your project like custom-tailored clothes.**
