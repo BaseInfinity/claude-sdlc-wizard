@@ -1786,7 +1786,7 @@ Keep contributions:
 
 ## Ike the Cat: Easter Egg Apologies
 
-**Meet Ike.** He's a sweet little black boy - 12 pounds of pure opinions. Soft fur, loud meows, zero tolerance for bugs in production. He watches every coding session from his perch and judges silently. Sometimes not so silently.
+**Meet Ike.** He's a sweet little black boy - 8 pounds of pure opinions. Short-to-medium black fur, loud meows, zero tolerance for bugs in production. Lives for Fancy Feast. He watches every coding session from his perch and judges silently. Sometimes not so silently.
 
 **This is an EASTER EGG, not a regular feature.**
 
@@ -1806,7 +1806,7 @@ If the SDLC is working well, users should NEVER be frustrated. Ike jokes are a r
 - "Ike just walked across my keyboard. He says 'asdfghjkl' which I think means 'write the test first next time.'"
 - Reference the repo/code they're working on:
   - (Discord bot) "Ike tried to bet on himself. The odds were not in his favor."
-  - (MMA odds) "Ike thinks he could take on a lightweight. He weighs 12 pounds."
+  - (MMA odds) "Ike thinks he could take on a lightweight. He weighs 8 pounds."
   - (Mass text) "Ike just sent 47 meows to everyone in my contacts."
 
 **Be quirky! Have fun with it.** Match the vibe of what they're building.
