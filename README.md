@@ -26,6 +26,17 @@ A core SDLC principle for all development work:
 
 Applies to code, architecture, tests, and the SDLC process itself.
 
+### Stay Lean, Stay Engaged
+
+- **Human stays engaged** - keeps AI on track
+- **Build trust** - as velocity increases, you trust the process more
+- **Focus on what matters** - planning and confidence levels
+- **When you reach velocity** - your brain focuses on high-leverage work
+
+### Evolving with Claude Code
+
+This SDLC adapts to Claude Code's improving capabilities. Claude periodically checks for better patterns, new features, and proposes updates. The pipeline keeps getting better.
+
 ## Using the Wizard
 
 **Option 1: Copy-paste**
