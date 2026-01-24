@@ -17,6 +17,39 @@ Human engineering practices (planning, TDD, confidence checks) happen to be exac
 
 **Think Iron Man:** Jarvis is nothing without Tony Stark. Tony Stark is still Tony Stark. But together? They make Iron Man. This SDLC is your suit - you build it over time, improve it for your needs, and it makes you both better.
 
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ WIZARD FILE (CLAUDE_CODE_SDLC_WIZARD.md)                    │
+│ - NOT in your repo                                          │
+│ - Setup guide only - used once during initial setup         │
+│ - Lives on GitHub, fetched when needed                      │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ generates
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ GENERATED FILES (in your repo, committed to git)            │
+│ - .claude/hooks/*.sh                                        │
+│ - .claude/skills/*/SKILL.md                                 │
+│ - .claude/settings.json                                     │
+│ - CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md          │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ updates compare against
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ UPDATES (from GitHub)                                       │
+│ - Fetch CHANGELOG.md from GitHub                           │
+│ - Compare against your generated files                     │
+│ - Propose changes one by one (opt-in)                      │
+│ - Preserve your customizations                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**The wizard is a setup guide, not a file you keep.** Run it once to generate your SDLC files, then check for updates periodically.
+
 ## Tests Are The Building Blocks
 
 Tests aren't just validation - they're the foundation everything else builds on.

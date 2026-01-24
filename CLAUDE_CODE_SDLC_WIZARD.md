@@ -4,6 +4,8 @@
 
 > **For Humans**: This wizard helps you implement a battle-tested SDLC enforcement system for Claude Code. It will scan your project, ask questions, and walk you through setup step-by-step. Works for solo developers, teams, and organizations alike.
 
+> **Important**: This wizard is a **setup guide**, not a file you keep in your repo. Run it once to generate your SDLC files (hooks, skills, docs), then check for updates periodically with "Check if the SDLC wizard has updates".
+
 ## What This Is: SDLC for AI Agents
 
 **This SDLC is designed for Claude (the AI) to follow, not humans.**
