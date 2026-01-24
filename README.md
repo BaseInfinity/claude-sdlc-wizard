@@ -9,6 +9,7 @@ An SDLC framework for AI coding agents. Makes Claude plan before coding, test be
 - TDD enforced: failing test first, then implementation
 - Self-review before presenting work
 - The process adapts to YOUR project over time
+- Integrates with official plugins (`claude-md-management`, `code-review`, etc.)
 
 ## Why It Works
 
@@ -34,6 +35,18 @@ https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC
 ```
 
 **Check for updates:** Ask Claude "Check if the SDLC wizard has updates"
+
+## Official Plugin Integration
+
+The wizard integrates with Anthropic's official plugins:
+
+| Plugin | Purpose | Scope |
+|--------|---------|-------|
+| `claude-md-management` | **Required** - CLAUDE.md maintenance | CLAUDE.md only |
+| `claude-code-setup` | Recommends automations | Recommendations |
+| `code-review` | PR review (optional) | PRs only |
+
+**What the wizard still handles:** TDD enforcement, confidence levels, planning mode, feature docs, TESTING.md, ARCHITECTURE.md, hooks, skills - the full SDLC workflow.
 
 ## Contributing
 

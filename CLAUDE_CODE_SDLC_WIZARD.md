@@ -136,6 +136,14 @@ This frames the wizard as a partnership, not a constraint.
 4. Let Claude ask when uncertain
 5. **Customize what makes sense, keep what keeps AI on track**
 
+### Leverage Official Tools (Don't Reinvent)
+
+When Anthropic provides official plugins or tools that handle something:
+- **Use theirs, delete ours** - Official tools are maintained, tested, and updated automatically
+- This wizard focuses on what official tools DON'T do (TDD enforcement, confidence levels, planning integration)
+
+**Check periodically:** `/plugin > Discover` - new plugins may replace parts of our workflow.
+
 ---
 
 ## Prerequisites
@@ -577,7 +585,64 @@ For Claude to be effective at SDLC enforcement, your project should have these d
 
 ---
 
-## Step 0: Auto-Scan Your Project (Claude Does This)
+## Step 0: Auto-Scan & Plugin Setup
+
+### Step 0.1: Required Plugins
+
+**Install required plugin:**
+```bash
+/plugin install claude-md-management@claude-plugin-directory
+```
+> "Installing claude-md-management (required for CLAUDE.md maintenance)..."
+
+This plugin handles:
+- CLAUDE.md quality audits (A-F scores, specific improvement suggestions)
+- Session learning capture via `/revise-claude-md`
+
+**Scope:** CLAUDE.md only. Does NOT update feature docs, TESTING.md, ARCHITECTURE.md, hooks, or skills. The SDLC workflow still handles those (see Post-Mortem section for where learnings go).
+
+### Step 0.2: SDLC Core Setup (Wizard Creates)
+
+The wizard creates TDD-specific automations that official plugins don't provide:
+- TDD pre-tool-check hook (test-first enforcement)
+- SDLC prompt-check hook (baseline reminders)
+- SDLC skill with confidence levels
+- Planning mode integration
+
+### Step 0.3: Additional Recommendations (Optional)
+
+After SDLC setup is complete, run `claude-code-setup` for additional recommendations:
+
+```
+"Based on your codebase, recommend additional automations"
+```
+
+This may suggest:
+- MCP Servers (context7 for docs, Playwright for frontend)
+- Additional hooks (auto-format if Prettier configured)
+- Subagents (security-reviewer if auth code detected)
+
+**Claude prompts for each:**
+> "[Detected: Prettier config] Want to add auto-format hook? (y/n)"
+
+These are additive—they don't replace our TDD hooks.
+
+### Git Workflow Preference
+
+**Claude asks:**
+> "Do you use pull requests for code review? (y/n)"
+
+- **Yes → PRs**: Recommend `code-review` plugin, PR workflow guidance
+- **No → Solo/Feature branches**: Skip PR plugins, recommend feature branch workflow
+
+Feature branches still recommended for solo devs (keeps main clean, easy rollback).
+
+**Check for new plugins periodically:**
+```
+/plugin > Discover
+```
+
+### Step 0.4: Auto-Scan Your Project
 
 **Before asking questions, Claude will automatically scan your project:**
 
@@ -1229,6 +1294,13 @@ Everything else needs integration tests.
 3. Check fixtures match real API
 4. **STILL stuck?** ASK USER
 
+## After Session (Capture Learnings)
+
+If this session revealed testing insights, update the right place:
+- **Testing patterns, gotchas** → `TESTING.md`
+- **Feature-specific test quirks** → Feature docs (`*_PLAN.md`)
+- **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
+
 ---
 
 **Full reference:** TESTING.md
@@ -1583,6 +1655,17 @@ Suggested doc updates: [if any]
 Want me to file these? (yes/no/not now)
 ```
 
+**Capture learnings (update the right docs):**
+
+| Learning Type | Update Where |
+|---------------|--------------|
+| Feature-specific gotchas, decisions | Feature docs (`*_PLAN.md`, `*_DOCS.md`) |
+| Testing patterns, gotchas | `TESTING.md` |
+| Architecture decisions | `ARCHITECTURE.md` |
+| Commands, general project context | `CLAUDE.md` (or `/revise-claude-md`) |
+
+**`/revise-claude-md` scope:** Only updates CLAUDE.md. It does NOT touch feature docs, TESTING.md, hooks, or skills. Use it for general project context that applies across the codebase.
+
 **When to do mini-retro:** After features, tricky bugs, or discovering gotchas. Skip for one-line fixes or questions.
 
 **The SDLC evolves:** Claude proposes improvements, human approves. The system gets better over time.
@@ -1813,11 +1896,37 @@ Claude should periodically:
 
 **This SDLC is not static.** It grows with your project AND with Claude Code's evolution.
 
-### Stay Lightweight (When Claude Code Improves)
+### Stay Lightweight (Use Official Plugins)
 
-Claude Code is actively improving. When they add built-in features that overlap with this SDLC:
+When Anthropic provides official plugins that overlap with this SDLC:
 
 **Use theirs, delete ours.**
+
+| Official Plugin | Replaces Our... | Scope |
+|-----------------|-----------------|-------|
+| `claude-md-management` | Manual CLAUDE.md audits | CLAUDE.md only (not feature docs, TESTING.md, hooks) |
+| `code-review` | Self-review subagent (if using PRs) | PR code review |
+| `commit-commands` | Git commit guidance | Commits only |
+| `claude-code-setup` | Manual automation discovery | Recommendations only |
+
+**What we keep (not in official plugins):**
+- TDD Red-Green-Pass enforcement (hooks)
+- Confidence levels
+- Planning mode integration
+- Testing Diamond guidance
+- Feature docs, TESTING.md, ARCHITECTURE.md maintenance
+- Full SDLC workflow (planning → TDD → review)
+
+**The goal isn't obsolescence - it's efficiency.** Official plugins are maintained by Anthropic, tested across codebases, and updated automatically.
+
+**Check for new plugins periodically:**
+```
+/plugin > Discover
+```
+
+### When Claude Code Improves
+
+Claude Code is actively improving. When they add built-in features:
 
 | If Claude Code Adds... | Remove Our... |
 |------------------------|---------------|
@@ -1825,7 +1934,7 @@ Claude Code is actively improving. When they add built-in features that overlap 
 | Built-in confidence tracking | Confidence level guidance |
 | Built-in task tracking | TodoWrite reminders |
 
-**The goal isn't obsolescence - it's efficiency.** Use the best tool for the job. If Claude Code builds it better, use theirs.
+Use the best tool for the job. If Claude Code builds it better, use theirs.
 
 ---
 
