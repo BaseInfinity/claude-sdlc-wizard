@@ -2,6 +2,22 @@
 
 All notable changes to the SDLC Wizard.
 
+## [1.3.0] - 2026-01-24
+
+### Added
+- Idempotent wizard - safe to run on any existing setup
+- Setup tracking comments in SDLC.md (version, completed steps, preferences)
+- Wizard step registry for tracking what's been done
+- Backwards compatibility for old wizard users
+
+### Changed
+- "Staying Updated" section rewritten for idempotent approach
+- Update flow now checks plugins and questions, not just files
+- One unified flow for setup AND updates (no separate paths)
+
+### How It Works
+The wizard now tracks completed steps in SDLC.md metadata comments. Old users running "check for updates" will be walked through only the new steps they haven't done yet.
+
 ## [1.2.0] - 2026-01-24
 
 ### Added

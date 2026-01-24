@@ -1439,6 +1439,12 @@ These are your full reference docs. Start with stubs and expand over time:
 
 **SDLC.md:**
 ```markdown
+<!-- SDLC Wizard Version: 1.3.0 -->
+<!-- Setup Date: [DATE] -->
+<!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
+<!-- Git Workflow: [PRs or Solo] -->
+<!-- Plugins: claude-md-management -->
+
 # SDLC - Development Workflow
 
 See `.claude/skills/sdlc/SKILL.md` for the enforced checklist.
@@ -1454,6 +1460,12 @@ See `.claude/skills/sdlc/SKILL.md` for the enforced checklist.
 
 <!-- Add gotchas as you discover them -->
 ```
+
+**Why the metadata comments?**
+- Invisible to readers (HTML comments)
+- Parseable by Claude for idempotent updates
+- Survives file edits
+- Travels with the repo
 
 **TESTING.md:**
 ```markdown
@@ -1765,79 +1777,152 @@ If Claude repeatedly struggles in a codebase area:
 
 ---
 
-## Staying Updated (KISS Approach)
+## Staying Updated (Idempotent Wizard)
 
-**No hooks. No config. Just Claude being helpful.**
+**The wizard is idempotent.** Run it anytime - new setup or existing - it detects what you have and only adds what's missing.
 
-### Manual Check
+### How to Update
 
-Ask Claude:
-> "Check if the SDLC wizard has updates"
+Ask Claude any of these:
+> "Check for SDLC wizard updates"
+> "Run me through the SDLC wizard"
+> "What am I missing from the latest wizard?"
+> "Update my SDLC setup"
 
-### How Updates Work (Step by Step)
+**All of these do the same thing:** Claude fetches the latest wizard and walks you through only what's missing.
 
-**Step 1: Fetch latest**
+### What Claude Does
+
+1. **Fetches latest wizard** from GitHub
+2. **Scans your setup** for existing components
+3. **For each wizard step**, checks if you already have it:
+
+| Component | How Claude Checks | If Missing | If Present |
+|-----------|-------------------|------------|------------|
+| Plugins | Is it installed? | Prompt to install | Skip (mention you have it) |
+| Hooks | Does `.claude/hooks/*.sh` exist? | Create | Compare against latest, offer updates |
+| Skills | Does `.claude/skills/*/SKILL.md` exist? | Create | Compare against latest, offer updates |
+| Docs | Does `SDLC.md`, `TESTING.md` exist? | Create | Compare against latest, offer updates |
+| CLAUDE.md | Does it exist? | Create from template | Never modify (fully custom) |
+| Questions | Were answers recorded in SDLC.md? | Ask them | Skip |
+| Version | Check `<!-- SDLC Wizard Version: X.X.X -->` | Add it | Update it |
+
+4. **Walks you through only missing pieces** (opt-in each)
+5. **Updates version comment** in SDLC.md
+
+### Example: Old User Checking for Updates
+
 ```
-Claude fetches: https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md
+Claude: "Checking your SDLC setup against latest wizard (v1.3.0)..."
+
+Your version: 1.0.0
+
+✓ Step 2: Directory structure - exists
+✓ Step 3: settings.json - exists
+✓ Step 4: Light hook - exists
+✓ Step 5: TDD hook - exists
+✓ Step 6: SDLC skill - exists (content differs - update available)
+✓ Step 7: Testing skill - exists
+✗ Step 0.1: Required plugins - NOT DONE (new in v1.2.0)
+✗ Git workflow preference - NOT RECORDED (new in v1.2.0)
+
+Summary:
+- 1 file update available (SDLC skill)
+- 2 new wizard steps to complete
+
+Walk through missing steps? (y/n)
 ```
 
-**Step 2: Compare versions**
-- Check CHANGELOG.md for changes since user's last update
-- If no CHANGELOG exists locally, check entire wizard for differences
+**The key:** Every new thing added to the wizard becomes a trackable "step". Old users automatically get prompted for new steps they haven't done.
 
-**Step 3: Summarize what's new**
-```
-SDLC Wizard Updates Available:
+### How State is Tracked
 
-v1.2.0 (2026-01-24)
-- Added: Official plugin integration (claude-md-management)
-- Changed: Post-mortem now has learnings table
-- Changed: Step 0 restructured with plugin setup
+Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
-Affects your setup:
-- .claude/hooks/ - no changes needed
-- .claude/skills/sdlc/SKILL.md - suggest adding /revise-claude-md reminder
-- CLAUDE.md - no changes needed
+```markdown
+<!-- SDLC Wizard Version: 1.3.0 -->
+<!-- Setup Date: 2026-01-24 -->
+<!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
+<!-- Git Workflow: PRs -->
+<!-- Plugins: claude-md-management -->
+
+# SDLC - Development Workflow
+...
 ```
 
-**Step 4: Propose changes (opt-in each)**
-```
-Want to apply these updates?
-[1] Add plugin setup guidance to SDLC.md
-[2] Update testing skill with learnings reminder
-[3] Skip all
+When Claude runs the wizard:
+1. Parse the version and completed steps from SDLC.md
+2. Compare against latest wizard step registry
+3. For anything new that isn't marked complete → walk them through it
+4. Update the metadata after each step completes
 
-Your choice: ___
-```
+### Wizard Step Registry
 
-**Step 5: Apply selected changes**
-- Claude edits only what you approve
-- Your customizations preserved (commands, patterns, etc.)
-- Changes are additive, not destructive
+Every wizard step has a unique ID for tracking:
+
+| Step ID | Description | Added in Version |
+|---------|-------------|------------------|
+| `step-0.1` | Required plugins | 1.2.0 |
+| `step-0.2` | SDLC core setup | 1.0.0 |
+| `step-0.3` | Additional recommendations | 1.2.0 |
+| `step-0.4` | Auto-scan | 1.0.0 |
+| `step-1` | Confirm/customize | 1.0.0 |
+| `step-2` | Directory structure | 1.0.0 |
+| `step-3` | settings.json | 1.0.0 |
+| `step-4` | Light hook | 1.0.0 |
+| `step-5` | TDD hook | 1.0.0 |
+| `step-6` | SDLC skill | 1.0.0 |
+| `step-7` | Testing skill | 1.0.0 |
+| `step-8` | CLAUDE.md | 1.0.0 |
+| `step-9` | SDLC/TESTING/ARCH docs | 1.0.0 |
+| `question-git-workflow` | Git workflow preference | 1.2.0 |
+
+When checking for updates, Claude compares user's completed steps against this registry.
+
+### How New Wizard Features Work
+
+When we add something new to the wizard:
+
+1. **Add it as a trackable step** with a unique ID
+2. **Add it to CHANGELOG** so users know what's new
+3. **Old users who run "check for updates":**
+   - Claude sees their version is older
+   - Claude finds steps that don't exist in their tracking metadata
+   - Claude walks them through just those steps
+4. **New users:**
+   - Go through everything, all steps get marked complete
+
+**This is recursive** - every future wizard update follows the same pattern.
+
+### Why Idempotent?
+
+Like `apt-get install`:
+- If package installed → skip
+- If package missing → install
+- If package outdated → offer update
+- Never breaks existing state
+
+**Benefits:**
+- **Safe to run anytime** - won't duplicate or break existing setup
+- **One command for everyone** - new users, old users, current users
+- **Preserves customizations** - your modifications stay intact
+- **Fills gaps automatically** - detects and addresses what's missing
 
 ### What Gets Compared
 
-| Your File | Compared Against |
-|-----------|------------------|
-| `.claude/hooks/*.sh` | Wizard hook templates |
-| `.claude/skills/*/SKILL.md` | Wizard skill templates |
-| `SDLC.md`, `TESTING.md` | Wizard doc templates |
-| `CLAUDE.md` | NOT compared (fully custom) |
-
-### Version Tracking (Optional)
-
-Add to your `SDLC.md` to track which wizard version you're on:
-```markdown
-<!-- SDLC Wizard Version: 1.2.0 -->
-```
-
-Claude uses this to know what's new since your last update.
+| Your File | Compared Against | Action |
+|-----------|------------------|--------|
+| `.claude/hooks/*.sh` | Wizard hook templates | Offer update if differs |
+| `.claude/skills/*/SKILL.md` | Wizard skill templates | Offer update if differs |
+| `SDLC.md`, `TESTING.md` | Wizard doc templates | Offer update if differs |
+| `CLAUDE.md` | NOT compared | Never touch (fully custom) |
 
 ### Why This Approach?
 
 - Uses Claude Code's built-in WebFetch - zero infrastructure
 - Opt-in per change - your customizations stay safe
 - KISS: no hooks, no config files, no GitHub Actions
+- **Tracks setup steps, not just files** - old users get new features
 
 ---
 
