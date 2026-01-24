@@ -34,7 +34,7 @@ Tests aren't just validation - they're the foundation everything else builds on.
 https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
 ```
 
-**Check for updates:** Ask Claude "Check if the SDLC wizard has updates"
+**Check for updates:** Ask Claude "Check if the SDLC wizard has updates" - Claude reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each)
 
 ## Official Plugin Integration
 

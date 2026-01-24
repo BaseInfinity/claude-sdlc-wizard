@@ -1767,30 +1767,75 @@ If Claude repeatedly struggles in a codebase area:
 
 **No hooks. No config. Just Claude being helpful.**
 
-### How Updates Work
+### Manual Check
 
-Occasionally (monthly-ish), Claude may ask:
-> "Want me to check if the SDLC wizard has updates?"
+Ask Claude:
+> "Check if the SDLC wizard has updates"
 
-**If yes:** Claude uses WebSearch to fetch the latest wizard from GitHub, compares with your local copy, and reports any differences.
+### How Updates Work (Step by Step)
 
-**If no:** "Got it, I'll ask again sometime."
+**Step 1: Fetch latest**
+```
+Claude fetches: https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md
+```
 
-**If never:** Claude stores your preference and never asks again. (Probably with an Ike joke as an apology.)
+**Step 2: Compare versions**
+- Check CHANGELOG.md for changes since user's last update
+- If no CHANGELOG exists locally, check entire wizard for differences
+
+**Step 3: Summarize what's new**
+```
+SDLC Wizard Updates Available:
+
+v1.2.0 (2026-01-24)
+- Added: Official plugin integration (claude-md-management)
+- Changed: Post-mortem now has learnings table
+- Changed: Step 0 restructured with plugin setup
+
+Affects your setup:
+- .claude/hooks/ - no changes needed
+- .claude/skills/sdlc/SKILL.md - suggest adding /revise-claude-md reminder
+- CLAUDE.md - no changes needed
+```
+
+**Step 4: Propose changes (opt-in each)**
+```
+Want to apply these updates?
+[1] Add plugin setup guidance to SDLC.md
+[2] Update testing skill with learnings reminder
+[3] Skip all
+
+Your choice: ___
+```
+
+**Step 5: Apply selected changes**
+- Claude edits only what you approve
+- Your customizations preserved (commands, patterns, etc.)
+- Changes are additive, not destructive
+
+### What Gets Compared
+
+| Your File | Compared Against |
+|-----------|------------------|
+| `.claude/hooks/*.sh` | Wizard hook templates |
+| `.claude/skills/*/SKILL.md` | Wizard skill templates |
+| `SDLC.md`, `TESTING.md` | Wizard doc templates |
+| `CLAUDE.md` | NOT compared (fully custom) |
+
+### Version Tracking (Optional)
+
+Add to your `SDLC.md` to track which wizard version you're on:
+```markdown
+<!-- SDLC Wizard Version: 1.2.0 -->
+```
+
+Claude uses this to know what's new since your last update.
 
 ### Why This Approach?
 
-- Uses Claude Code's built-in WebSearch - zero infrastructure
-- Agentic and natural - Claude just asks
-- You control when/if to update
+- Uses Claude Code's built-in WebFetch - zero infrastructure
+- Opt-in per change - your customizations stay safe
 - KISS: no hooks, no config files, no GitHub Actions
-
-### Manual Check
-
-You can always ask Claude directly:
-> "Check if the SDLC wizard has updates"
-
-Claude will fetch `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` and compare.
 
 ---
 
