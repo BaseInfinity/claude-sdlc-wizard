@@ -1,6 +1,6 @@
 # Claude Code SDLC Wizard
 
-An SDLC framework for AI coding agents. Makes Claude plan before coding, test before shipping, and ask when uncertain.
+An organic **Secure Development Lifecycle** framework for AI coding agents. Makes Claude plan before coding, test before shipping, and ask when uncertain.
 
 ## What It Does
 
@@ -8,7 +8,6 @@ An SDLC framework for AI coding agents. Makes Claude plan before coding, test be
 - LOW confidence = Claude asks you instead of guessing wrong
 - TDD enforced: failing test first, then implementation
 - Self-review before presenting work
-- The process adapts to YOUR project over time
 - Integrates with official plugins (`claude-md-management`, `code-review`, etc.)
 
 ## Why It Works
@@ -16,6 +15,18 @@ An SDLC framework for AI coding agents. Makes Claude plan before coding, test be
 Human engineering practices (planning, TDD, confidence checks) happen to be exactly what AI agents need to stay on track. You set it up, Claude follows it.
 
 **Think Iron Man:** Jarvis is nothing without Tony Stark. Tony Stark is still Tony Stark. But together? They make Iron Man. This SDLC is your suit - you build it over time, improve it for your needs, and it makes you both better.
+
+## Organic & Dynamic
+
+**This isn't a static rulebook.** The SDLC evolves with your project AND with Claude Code's capabilities:
+
+- **Bespoke fit** - Starts generic, becomes tailored to YOUR codebase through use
+- **Built-in improvement loop** - Friction is feedback; Claude proposes adjustments, you approve
+- **Adapts to Claude Code** - As Claude Code adds features, the SDLC leverages them (or removes redundant custom solutions)
+- **Token-efficient** - Uses Claude Code's native tooling (hooks, skills, plugins) to enforce the process with minimal context overhead
+- **Checks and balances** - Confidence levels, self-review, and TDD gates catch problems before they compound
+
+**The goal:** A living system that gets better the more you use it - not documentation that rots.
 
 ## How It Works
 
@@ -54,7 +65,7 @@ Human engineering practices (planning, TDD, confidence checks) happen to be exac
 
 Tests aren't just validation - they're the foundation everything else builds on.
 
-- **Tests > App Code** - Critique tests harder than implementation
+- **Tests >= App Code** - Critique tests as hard (or harder) than implementation
 - **Tests prove correctness** - Without them, you're just hoping it works
 - **Tests enable fearless change** - Refactor confidently because tests catch regressions
 
