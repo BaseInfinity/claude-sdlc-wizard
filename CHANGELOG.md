@@ -85,3 +85,4 @@ The wizard now tracks completed steps in SDLC.md metadata comments. Old users ru
 - Self-review workflow
 - Testing Diamond philosophy
 - Mini-retro after tasks
+
