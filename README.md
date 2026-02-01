@@ -80,6 +80,52 @@ https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC
 
 **Check for updates:** Ask Claude "Check if the SDLC wizard has updates" - Claude reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each)
 
+## Self-Evolving System
+
+The wizard actively improves itself through automated research and human-approved updates:
+
+| Cadence | Source | Action |
+|---------|--------|--------|
+| Daily | Claude Code releases | PR with analysis |
+| Weekly | Community (Reddit, HN) | Issue digest |
+| Monthly | Deep research, papers | Trend report |
+
+Every update goes through:
+1. **Regression tests** - Does new Claude version still follow SDLC?
+2. **AI code review** - Quality check like a senior engineer
+3. **Human approval** - You always decide what merges
+
+### Why This Matters
+
+AI tools evolve fast. Yesterday's best practice is today's anti-pattern.
+The wizard watches official releases AND community sentiment so you don't have to.
+But it never auto-merges - you stay in control.
+
+### What Gets Checked
+
+| Trigger | Tests | Review | E2E Eval |
+|---------|-------|--------|----------|
+| Bot PRs | Yes | Yes | Yes |
+| Owner PRs | Yes | Yes | Yes |
+| External PRs | Yes | Yes | No |
+
+**Why PRs even for solo devs?** Not required, but good practice. PRs give you: AI code review via subagent, CI gates before merge, clean history, easy rollback. You approve your own PRs - the value is the structured workflow, not the approval ceremony.
+
+### How E2E Scoring Works
+
+Like evaluating scientific method adherence - we measure **process compliance**, not outcome quality:
+
+| SDLC Step | Evidence We Look For |
+|-----------|---------------------|
+| Plan | Stated approach BEFORE coding? |
+| TDD RED | Test written BEFORE implementation? |
+| TDD GREEN | Test passes after? |
+| Self-review | Checked own work? |
+
+Scores are based on consistent criteria. Conservative baselines that rise as we improve.
+
+See `.github/workflows/` and `tests/e2e/` for implementation details.
+
 ## Official Plugin Integration
 
 The wizard integrates with Anthropic's official plugins:

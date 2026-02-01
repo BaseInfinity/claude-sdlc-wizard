@@ -45,6 +45,38 @@ This applies to:
 
 ---
 
+## Testing AI Tool Updates
+
+When your AI tools update, how do you know if the update is safe?
+
+**The Problem:**
+- AI behavior is stochastic - same prompt, different outputs
+- Single test runs can mislead (variance looks like regression)
+- "It feels slower" isn't data
+
+**The Solution: Statistical A/B Testing**
+
+| Phase | What You Test | Question |
+|-------|---------------|----------|
+| **Regression** | Old version vs new version | Did the update break anything? |
+| **Improvement** | New version vs new version + changes | Do suggested changes help? |
+
+**Statistical Rigor:**
+- Run multiple trials (5+) to account for variance
+- Use 95% confidence intervals
+- Only claim regression/improvement when CIs don't overlap
+- Overlapping CIs = no significant difference = safe
+
+This prevents both false positives (crying wolf) and false negatives (missing real regressions).
+
+**How We Apply This:**
+- Daily workflow tests new Claude Code versions before recommending upgrade
+- Phase A: Does new CC version break SDLC enforcement?
+- Phase B: Do changelog-suggested improvements actually help?
+- Results shown in PR with statistical confidence
+
+---
+
 ## Philosophy: Sensible Defaults, Smart Customization
 
 This wizard provides **opinionated defaults** optimized for AI agent workflows. You can customize, but understand what's load-bearing.
@@ -379,6 +411,35 @@ Existing test patterns are building blocks - leverage them:
 | **Application bug** | Race condition, timing issue, edge case | Fix the app code - test found a real bug |
 | **Environment/Infra bug** | CI config, memory, isolation issues | Fix the environment/setup/teardown |
 
+### The Absolute Rule: ALL TESTS MUST PASS
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ALL TESTS MUST PASS. NO EXCEPTIONS.                                │
+│                                                                     │
+│  This is not negotiable. This is not flexible. This is absolute.   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Not acceptable excuses:**
+- "Those tests were already failing" → Then fix them first
+- "That's not related to my changes" → Doesn't matter, fix it
+- "It's flaky, just ignore it" → Flaky = bug, investigate it
+- "It passes locally" → CI is the source of truth
+- "It's just a warning" → Warnings become errors, fix it
+
+**The fix is always the same:**
+1. Tests fail → STOP
+2. Investigate → Find root cause
+3. Fix → Whatever is actually broken (code, test, or environment)
+4. All tests pass → THEN commit
+
+**Why this is absolute:**
+- Tests are your safety net
+- A failing test means something is wrong
+- Committing with failing tests = committing known bugs
+- "Works on my machine" is not a standard
+
 **MCP Awareness for Testing (optional, nuanced):**
 - **Where MCP adds real value:** E2E/browser testing (can't "see" UI without it), graphics projects, external systems Claude can't otherwise access
 - **Often overkill for:** API/Integration tests (reading code/docs is usually sufficient), internal code work
@@ -571,23 +632,105 @@ For Claude to be effective at SDLC enforcement, your project should have these d
 | **ARCHITECTURE.md** | System design, data flows, services | Understanding how components connect |
 | **TESTING.md** | Testing philosophy, patterns, commands | TDD guidance, test organization |
 | **SDLC.md** | Development workflow (this system) | Full SDLC reference |
+| **ROADMAP.md** | Vision, goals, milestones, timeline | Understanding project direction |
+| **CONTRIBUTING.md** | How to contribute, PR process | Guiding external contributors |
 | **Feature docs** | Per-feature documentation | Context for specific changes |
 
 **Why these matter:**
 - **CLAUDE.md** - Claude reads this automatically every session. Put commands, style rules, architecture overview here.
 - **ARCHITECTURE.md** - Claude needs to understand how your system fits together before making changes.
 - **TESTING.md** - Claude needs to know your testing approach, what to mock, what not to mock.
+- **ROADMAP.md** - Shows where the project is going. Helps Claude understand priorities and what's next.
+- **CONTRIBUTING.md** - For open source projects, defines how contributions work. Claude follows these when suggesting changes.
 - **Feature docs** - For complex features, Claude reads these during planning to understand context.
 
 **Start simple, expand over time:**
 1. Create CLAUDE.md with commands and basic architecture
 2. Create TESTING.md with your testing approach
 3. Add ARCHITECTURE.md when system grows complex
-4. Add feature docs as major features emerge
+4. Add ROADMAP.md when you have clear milestones/vision
+5. Add CONTRIBUTING.md if open source or team project
+6. Add feature docs as major features emerge
 
 ---
 
-## Step 0: Auto-Scan & Plugin Setup
+## Step 0: Repository Protection & Plugin Setup
+
+### Step 0.0: Enable Branch Protection (CRITICAL)
+
+**Before setting up SDLC, protect your main branch.** This is non-negotiable for teams and highly recommended for solo developers.
+
+**Why this matters:**
+- SDLC enforcement is only as strong as your merge protection
+- Without branch protection, anyone (including Claude) can push broken code to main
+- Built-in GitHub feature - deterministic, no custom code needed
+
+**Required Settings:**
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| Require pull request before merging | ✓ Enabled | All changes go through PR review |
+| Require approvals | 1+ (your choice) | Human must approve before merge |
+| Require status checks to pass | ✓ Enabled | CI must be green |
+| Require branches to be up to date | ✓ Enabled | No stale merges |
+
+**How to enable (UI):**
+1. Go to: `Settings > Branches > Add rule`
+2. Branch name pattern: `main` (or `master`)
+3. Enable the settings above
+4. Add required status checks: `validate`, `e2e-quick-check`
+5. Save changes
+
+**How to enable (CLI):**
+```bash
+gh api repos/OWNER/REPO/branches/main/protection --method PUT --input - << 'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["validate", "e2e-quick-check"]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}
+EOF
+```
+
+**Optional but recommended:**
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| Include administrators | ✓ Enabled | No one bypasses the rules |
+| Require CODEOWNERS review | ✓ Enabled | Specific people must approve |
+
+**CODEOWNERS file (optional):**
+Create `.github/CODEOWNERS`:
+```
+# Default owners for everything
+* @your-username
+
+# Or specific paths
+/src/ @dev-team
+/.github/ @platform-team
+```
+
+**The principle:** Built-in protection > custom enforcement. GitHub branch protection is battle-tested, always runs, and can't be accidentally bypassed.
+
+**Why PRs even for solo devs?**
+
+| Benefit | Solo Dev | Team |
+|---------|----------|------|
+| AI code review subagent | ✓ | ✓ |
+| CI must pass before merge | ✓ | ✓ |
+| Clean commit history | ✓ | ✓ |
+| Easy rollback (revert PR) | ✓ | ✓ |
+| Human review required | Optional | ✓ |
+
+**Not required, but good practice.** The SDLC workflow includes a self-review step where Claude uses a code-reviewer subagent. When you use PRs, this review happens in context with the full diff visible. You always have final say - the subagent just catches things you might miss.
+
+**Solo devs:** You can approve your own PRs. The value is the structured workflow (CI gates, code review, clean history), not the approval ceremony.
+
+---
 
 ### Step 0.1: Required Plugins
 
@@ -638,6 +781,47 @@ These are additive—they don't replace our TDD hooks.
 - **No → Solo/Feature branches**: Skip PR plugins, recommend feature branch workflow
 
 Feature branches still recommended for solo devs (keeps main clean, easy rollback).
+
+**If using PRs, also ask:**
+> "Auto-clean old bot comments on new pushes? (y/n)"
+
+- **Yes** → Add `int128/hide-comment-action` to CI (collapses outdated bot comments)
+- **No** → Skip (some teams prefer full comment history)
+
+**Recommendation:** Solo devs = yes (keeps PR tidy). Teams = ask (some want audit trail).
+
+> "Run AI code review only after tests pass? (y/n)"
+
+- **Yes** → PR review workflow waits for CI to pass first (saves API costs on broken code)
+- **No** → Review runs immediately in parallel with tests (faster feedback)
+
+**Recommendation:** Yes for most teams. No point reviewing code that doesn't build/pass tests. Saves Claude API costs and reviewer time.
+
+> "Use sticky PR comments or inline review comments for bot reviews? (sticky/inline)"
+
+- **Sticky** → Bot reviews post as single PR comment that updates in place
+- **Inline** → Bot creates GitHub review with inline comments on specific lines
+
+**Recommendation:** Sticky for bots. Here's why:
+
+| Approach | When to Use |
+|----------|-------------|
+| **Sticky PR comment** | Bots, automated reviews. Updates in place, stays clean. |
+| **Inline review comments** | Humans. Threading on specific lines is valuable. |
+
+**The problem with inline bot reviews:**
+- Every push triggers new review → comments pile up
+- GitHub's `hide-comment-action` only hides PR comments, not review comments
+- PR becomes cluttered with dozens of outdated bot reviews
+
+**Sticky comment workflow:**
+1. Bot posts review as sticky PR comment (single comment, auto-updates)
+2. User reads review, replies in PR comments if questions
+3. User adds `needs-review` label to trigger re-review
+4. Bot updates the SAME sticky comment (no pile-up)
+5. Label auto-removed, ready for next round
+
+**Back-and-forth:** User questions live in PR comments. Bot's response is always the latest sticky comment. Clean and organized.
 
 **Check for new plugins periodically:**
 ```
@@ -806,9 +990,27 @@ Examples: <1 minute, 1-5 minutes, 5+ minutes
 Your answer: _______________
 ```
 
+### Output Preferences
+
+**Q12: How much detail in Claude's responses?**
+```
+Options:
+- Small   - Minimal output, just essentials (experienced users)
+- Medium  - Balanced detail (default, recommended)
+- Large   - Verbose output, full explanations (learning/debugging)
+Your answer: _______________
+```
+
+This setting affects:
+- TodoWrite verbosity (brief vs detailed task descriptions)
+- Planning output (summary vs comprehensive breakdown)
+- Self-review comments (concise vs thorough)
+
+Stored in `.claude/settings.json` as `"verbosity": "small|medium|large"`.
+
 ### Testing Philosophy
 
-**Q12: What's your testing approach?**
+**Q13: What's your testing approach?**
 ```
 Options:
 - Strict TDD (test first always)
@@ -819,7 +1021,7 @@ Options:
 Your answer: _______________
 ```
 
-**Q13: What types of tests do you want?**
+**Q14: What types of tests do you want?**
 ```
 (Check all that apply)
 [ ] Unit tests (pure logic, isolated)
@@ -829,7 +1031,7 @@ Your answer: _______________
 [ ] Other: _______________
 ```
 
-**Q14: Your mocking philosophy?**
+**Q15: Your mocking philosophy?**
 ```
 Options:
 - Minimal mocking (real DB, mock external APIs only)
@@ -895,6 +1097,7 @@ Create `.claude/settings.json`:
 
 ```json
 {
+  "verbosity": "medium",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -920,6 +1123,14 @@ Create `.claude/settings.json`:
   }
 }
 ```
+
+### Verbosity Levels
+
+| Level | Output Style |
+|-------|--------------|
+| `small` | Brief, minimal output. Task names are short. Less explanation. |
+| `medium` | Balanced (default). Clear explanations without excessive detail. |
+| `large` | Verbose. Full reasoning, detailed breakdowns. Good for learning. |
 
 ### Why These Hooks?
 
@@ -1074,7 +1285,11 @@ TodoWrite([
   { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
   { content: "Self-review: code-reviewer subagent", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
-  { content: "Present summary: changes, DRY, concerns", status: "pending", activeForm: "Presenting code summary" }
+  // CI FEEDBACK LOOP (After local tests pass)
+  { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
+  { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
+  // FINAL
+  { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" }
 ])
 ```
 
@@ -1184,6 +1399,40 @@ If tests fail:
 - Sometimes the bug is in test environment (cleanup not proper)
 
 Debug it. Find root cause. Fix it properly. Tests ARE code.
+
+## CI Feedback Loop (After Commit)
+
+**The SDLC doesn't end at local tests.** CI must pass too.
+
+```
+Local tests pass -> Commit -> Push -> Watch CI
+                                         |
+                              CI passes? -+-> YES -> Present for review
+                                         |
+                                         +-> NO -> Fix -> Push -> Watch CI
+                                                           |
+                                                   (max 2 attempts)
+                                                           |
+                                                   Still failing?
+                                                           |
+                                                   STOP and ASK USER
+```
+
+**How to watch CI:**
+1. Push changes to remote
+2. Check CI status (use `gh` CLI or GitHub MCP)
+3. If CI fails:
+   - Read failure logs
+   - Diagnose root cause (same as local test failures)
+   - Fix and push again
+4. Max 2 fix attempts - if still failing, ASK USER
+5. If CI passes - proceed to present final summary
+
+**CI failures follow same rules as test failures:**
+- Your code broke it? Fix your code
+- CI config issue? Fix the config
+- Flaky? Investigate - flakiness is a bug
+- Stuck? ASK USER
 
 ## DRY Principle
 
@@ -1733,6 +1982,134 @@ Add project-specific guidance to skills:
 - Common gotchas
 - Preferred patterns
 - Architecture decisions
+
+---
+
+## Testing AI Apps: What's Different
+
+AI-driven applications require fundamentally different testing approaches than traditional software.
+
+### Why AI Testing is Unique
+
+| Traditional Apps | AI-Driven Apps |
+|------------------|----------------|
+| Deterministic (same input → same output) | **Stochastic** (same input → varying outputs) |
+| Binary pass/fail tests | **Scored evaluation** with thresholds |
+| Test once, trust forever | **Continuous monitoring** for drift |
+| Logic bugs | Hallucination, bias, inaccuracy |
+
+### Key AI Testing Concepts
+
+**1. Multiple Runs for Confidence**
+
+AI outputs vary. Run evaluations multiple times and look at averages, not single results.
+
+```
+# Bad: Single run
+score = evaluate(prompt)  # 7.2 - is this good or lucky?
+
+# Good: Multiple runs with confidence interval
+scores = [evaluate(prompt) for _ in range(5)]
+mean = 7.1, 95% CI = [6.8, 7.4]  # Now we know the range
+```
+
+**2. Baseline Scores, Not Just Pass/Fail**
+
+Set baseline metrics (accuracy, relevancy, coherence) and detect regressions over time.
+
+| Metric | Baseline | Current | Status |
+|--------|----------|---------|--------|
+| SDLC compliance | 6.5 | 7.2 | IMPROVED |
+| Hallucination rate | 5% | 3% | IMPROVED |
+| Response time | 2.1s | 2.3s | STABLE |
+
+**3. AI-Specific Risk Categories**
+
+- **Hallucination**: AI invents facts that aren't true
+- **Bias**: Unfair treatment of demographic groups
+- **Adversarial**: Prompt injection attacks
+- **Data leakage**: Exposing training data or PII
+- **Drift**: Behavior changes silently over time (model updates, context changes)
+
+**4. Evaluation Frameworks**
+
+Consider tools for LLM output testing:
+- [DeepEval](https://github.com/confident-ai/deepeval) - Open source LLM evaluation
+- [Deepchecks](https://deepchecks.com) - ML/AI testing and monitoring
+- Custom scoring pipelines (like this wizard's E2E evaluation)
+
+### Practical Advice
+
+- **Don't trust single AI outputs** - verify with multiple samples or human review
+- **Set quantitative baselines** - "accuracy must stay above 85%" not "it should work"
+- **Monitor production** - AI apps can degrade without code changes (model drift, prompt injection)
+- **Budget for evaluation** - AI testing costs more (API calls, human review, compute)
+- **Use confidence intervals** - 5 runs with 95% CI is better than 1 run with crossed fingers
+
+_Sources: [Confident AI](https://www.confident-ai.com/blog/llm-testing-in-2024-top-methods-and-strategies), [IMDA Starter Kit](https://www.imda.gov.sg/-/media/imda/files/about/emerging-tech-and-research/artificial-intelligence/starter-kit-for-testing-llm-based-applications-for-safety-and-reliability.pdf), [aistupidlevel.info methodology](https://aistupidlevel.info/methodology)_
+
+---
+
+## CI/CD Gotchas
+
+Common pitfalls when automating AI-assisted development workflows.
+
+### `workflow_dispatch` Requires Merge First
+
+GitHub Actions with `workflow_dispatch` (manual trigger) can only be triggered AFTER the workflow file exists on the default branch.
+
+| What You Want | What Works |
+|---------------|------------|
+| Test new workflow before merge | Use `act` locally, or test via push/PR events |
+| Manual trigger new workflow | Merge first, then `gh workflow run` |
+
+**Local testing with `act`:**
+```bash
+# Install act
+brew install act
+
+# Run workflow locally (macOS/Linux)
+act workflow_dispatch -W .github/workflows/my-workflow.yml \
+  --secret MY_SECRET="$MY_SECRET"
+```
+
+This catches most issues before merge. For full GitHub environment testing, merge then trigger.
+
+### PR Review with Comment Response (Optional)
+
+Want Claude to respond to existing PR comments during review? Add comment fetching to your review workflow.
+
+**The Flow:**
+1. PR opens → Claude reviews diff → Posts sticky comment
+2. You read review, leave questions/comments on PR
+3. Add `needs-review` label
+4. Claude fetches your comments + reviews diff again
+5. Updated sticky comment addresses your questions
+
+**Two layers of interaction:**
+
+| Layer | What | When to Use |
+|-------|------|-------------|
+| **Workflow** | Claude addresses comments in sticky review | Quick async response |
+| **Local terminal** | Ask Claude to fetch comments, have discussion | Deep interactive discussion |
+
+**Example workflow step:**
+```yaml
+- name: Fetch PR comments
+  run: |
+    gh api repos/$REPO/pulls/$PR_NUMBER/comments \
+      --jq '[.[] | {author: .user.login, body: .body}]' > /tmp/comments.json
+```
+
+Then include `/tmp/comments.json` in Claude's prompt context.
+
+**Local discussion:**
+```
+You: "Fetch comments from PR #42 and let's discuss the concerns"
+Claude: [fetches via gh api, discusses with you interactively]
+```
+
+This is optional - skip if you prefer fresh reviews only.
 
 ---
 

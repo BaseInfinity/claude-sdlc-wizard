@@ -1,0 +1,812 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate YAML workflows
+        run: |
+          echo "Validating workflow YAML files..."
+          for file in .github/workflows/*.yml; do
+            echo "Checking $file"
+            python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
+          done
+          echo "All workflow files are valid YAML"
+
+      - name: Shellcheck scripts in workflows
+        run: |
+          echo "Checking for shell script issues in workflows..."
+          # Extract and check run blocks from workflows
+          # This is a basic check - shellcheck would be better but requires install
+          for file in .github/workflows/*.yml; do
+            echo "Scanning $file for common issues..."
+            # Check for unsafe variable interpolation (the bug we fixed)
+            if grep -E "='\\$\\{\\{.*\\}\\}'" "$file"; then
+              echo "WARNING: Found potentially unsafe variable interpolation in $file"
+              echo "Use env: block + file writes instead"
+              exit 1
+            fi
+          done
+          echo "No obvious shell issues found"
+
+      - name: Validate prompt files exist
+        run: |
+          echo "Checking required prompt files..."
+          test -f .github/prompts/analyze-release.md || (echo "Missing analyze-release.md" && exit 1)
+          test -f .github/prompts/analyze-community.md || (echo "Missing analyze-community.md" && exit 1)
+          echo "All prompt files present"
+
+      - name: Validate state files
+        run: |
+          echo "Checking state files..."
+          test -f .github/last-checked-version.txt || (echo "Missing last-checked-version.txt" && exit 1)
+          test -f .github/last-community-scan.txt || (echo "Missing last-community-scan.txt" && exit 1)
+          echo "All state files present"
+
+      - name: Run version logic tests
+        run: ./tests/test-version-logic.sh
+
+      - name: Run analysis schema tests
+        run: ./tests/test-analysis-schema.sh
+
+      - name: Run workflow trigger tests
+        run: ./tests/test-workflow-triggers.sh
+
+      - name: Validate E2E fixtures and scenarios
+        run: ./tests/e2e/run-simulation.sh
+
+  # Clean up old bot comments on PR push (keeps PRs tidy)
+  cleanup-old-comments:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Resolve outdated bot comments
+        uses: int128/hide-comment-action@v1
+        with:
+          # Hide (collapse) old bot comments when new push arrives
+          # Human comments are preserved
+          authors: 'github-actions[bot]'
+          starts-with: |
+            ## E2E SDLC Evaluation
+            ## E2E Before/After Comparison
+            ## E2E Quick Check
+            ## E2E Full Evaluation
+            ## PR Code Review
+            **Claude finished
+
+  # TIER 1: Quick E2E Check - Runs on every PR commit
+  # Single comparison: baseline vs candidate (1x each)
+  # Purpose: Fast quality gate to catch regressions early
+  e2e-quick-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [validate, cleanup-old-comments]
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          path: pr-branch
+
+      - name: Checkout main branch for baseline
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Check if baseline wizard exists
+        id: check-baseline
+        run: |
+          if [ -d "main-branch/.claude/hooks" ] || [ -d "main-branch/.claude/skills" ]; then
+            echo "has_baseline=true" >> $GITHUB_OUTPUT
+            echo "✓ Baseline wizard found in main branch"
+          else
+            echo "has_baseline=false" >> $GITHUB_OUTPUT
+            echo "⚠️ BOOTSTRAPPING: No wizard in main branch (first installation)"
+          fi
+
+      - name: Install BASELINE wizard (main branch) into test fixture
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        run: |
+          echo "Installing main branch wizard into test fixture..."
+          # Create .claude directory in test fixture
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
+          # Copy main branch wizard files
+          cp -r main-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r main-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp main-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          echo "Baseline wizard installed:"
+          ls -la pr-branch/tests/e2e/fixtures/test-repo/.claude/ || echo "No .claude directory"
+
+      - name: Run BASELINE simulation with Claude
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        id: baseline
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+            --add-dir pr-branch/tests/e2e
+          prompt: |
+            Run an E2E SDLC simulation.
+
+            Working directory: pr-branch/tests/e2e/fixtures/test-repo
+            Scenario file: pr-branch/tests/e2e/scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Evaluate BASELINE
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        id: eval-baseline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        working-directory: pr-branch
+        run: |
+          OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          SCENARIO="tests/e2e/scenarios/medium-add-feature.md"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "baseline_score=0" >> $GITHUB_OUTPUT
+            echo "baseline_status=fail" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run evaluation
+          RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>&1) || true
+
+          if echo "$RESULT" | jq -e '.score' > /dev/null 2>&1; then
+            SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+          else
+            SCORE="0"
+          fi
+
+          echo "Baseline score: $SCORE"
+          echo "baseline_score=$SCORE" >> $GITHUB_OUTPUT
+
+          # Save output for comparison
+          cp "$OUTPUT_FILE" "/tmp/baseline-output.json" 2>/dev/null || true
+
+      - name: Reset test fixture for CANDIDATE
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        run: |
+          echo "Resetting test fixture..."
+          cd pr-branch/tests/e2e/fixtures/test-repo
+          # Remove any changes Claude made
+          git checkout -- . 2>/dev/null || true
+          git clean -fd 2>/dev/null || true
+          # Remove old wizard
+          rm -rf .claude
+
+      - name: Install CANDIDATE wizard (PR branch) into test fixture
+        run: |
+          echo "Installing PR branch wizard into test fixture..."
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
+          # Copy PR branch wizard files
+          cp -r pr-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r pr-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp pr-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          echo "Candidate wizard installed:"
+          ls -la pr-branch/tests/e2e/fixtures/test-repo/.claude/ || echo "No .claude directory"
+
+      - name: Run CANDIDATE simulation with Claude
+        id: candidate
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+            --add-dir pr-branch/tests/e2e
+          prompt: |
+            Run an E2E SDLC simulation.
+
+            Working directory: pr-branch/tests/e2e/fixtures/test-repo
+            Scenario file: pr-branch/tests/e2e/scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Evaluate CANDIDATE
+        id: eval-candidate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        working-directory: pr-branch
+        run: |
+          OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          SCENARIO="tests/e2e/scenarios/medium-add-feature.md"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "candidate_score=0" >> $GITHUB_OUTPUT
+            echo "candidate_status=fail" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run evaluation
+          RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>&1) || true
+
+          if echo "$RESULT" | jq -e '.score' > /dev/null 2>&1; then
+            SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+          else
+            SCORE="0"
+          fi
+
+          echo "Candidate score: $SCORE"
+          echo "candidate_score=$SCORE" >> $GITHUB_OUTPUT
+
+      - name: Compare scores
+        id: compare
+        run: |
+          HAS_BASELINE="${{ steps.check-baseline.outputs.has_baseline }}"
+          CANDIDATE="${{ steps.eval-candidate.outputs.candidate_score }}"
+          CANDIDATE=${CANDIDATE:-0}
+
+          # Handle bootstrapping scenario (no baseline wizard in main)
+          if [ "$HAS_BASELINE" != "true" ]; then
+            echo "BOOTSTRAPPING: No baseline wizard to compare against"
+            echo "is_bootstrapping=true" >> $GITHUB_OUTPUT
+            echo "baseline=N/A" >> $GITHUB_OUTPUT
+            echo "candidate=$CANDIDATE" >> $GITHUB_OUTPUT
+            echo "delta=N/A" >> $GITHUB_OUTPUT
+            echo "status=BOOTSTRAPPING" >> $GITHUB_OUTPUT
+            echo "emoji=:seedling:" >> $GITHUB_OUTPUT
+            echo "pass=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "is_bootstrapping=false" >> $GITHUB_OUTPUT
+          BASELINE="${{ steps.eval-baseline.outputs.baseline_score }}"
+          BASELINE=${BASELINE:-0}
+
+          # Calculate delta using bc for float math
+          DELTA=$(echo "$CANDIDATE - $BASELINE" | bc -l)
+          DELTA_FORMATTED=$(printf "%.1f" "$DELTA")
+
+          echo "Baseline: $BASELINE"
+          echo "Candidate: $CANDIDATE"
+          echo "Delta: $DELTA_FORMATTED"
+
+          # Determine status
+          if [ "$(echo "$DELTA >= 0" | bc -l)" -eq 1 ]; then
+            if [ "$(echo "$DELTA > 0" | bc -l)" -eq 1 ]; then
+              STATUS="IMPROVED"
+              EMOJI=":arrow_up:"
+            else
+              STATUS="UNCHANGED"
+              EMOJI=":white_check_mark:"
+            fi
+            PASS="true"
+          else
+            # Check if regression is significant (> 0.5 points)
+            if [ "$(echo "$DELTA < -0.5" | bc -l)" -eq 1 ]; then
+              STATUS="REGRESSION"
+              EMOJI=":x:"
+              PASS="false"
+            else
+              STATUS="MINOR_DIP"
+              EMOJI=":warning:"
+              PASS="true"  # Minor dips within variance are acceptable
+            fi
+          fi
+
+          echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
+          echo "candidate=$CANDIDATE" >> $GITHUB_OUTPUT
+          echo "delta=$DELTA_FORMATTED" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+
+      - name: Build quick check comment message
+        id: build-quick-message
+        run: |
+          IS_BOOTSTRAPPING="${{ steps.compare.outputs.is_bootstrapping }}"
+          BASELINE="${{ steps.compare.outputs.baseline }}"
+          CANDIDATE="${{ steps.compare.outputs.candidate }}"
+          DELTA="${{ steps.compare.outputs.delta }}"
+          STATUS="${{ steps.compare.outputs.status }}"
+          EMOJI="${{ steps.compare.outputs.emoji }}"
+
+          # Write message to output using echo
+          if [ "$IS_BOOTSTRAPPING" = "true" ]; then
+            {
+              echo "message<<EOF"
+              echo "## E2E Quick Check (Tier 1) :seedling:"
+              echo ""
+              echo "_First wizard installation - no baseline to compare against._"
+              echo ""
+              echo "| Metric | Value |"
+              echo "|--------|-------|"
+              echo "| Baseline (main) | N/A (no wizard yet) |"
+              echo "| Candidate (PR) | $CANDIDATE / 10 |"
+              echo "| Status | **BOOTSTRAPPING** |"
+              echo ""
+              echo "### Result: First wizard installation verified"
+              echo ""
+              echo "This PR introduces the wizard for the first time. After merge, future PRs will have a baseline to compare against."
+              echo ""
+              echo "_Add \`merge-ready\` label for full evaluation before merge._"
+              echo ""
+              echo "---"
+              echo "*Bootstrapping mode: Candidate-only evaluation (no baseline exists).*"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            # Determine status text
+            case "$STATUS" in
+              "IMPROVED") STATUS_TEXT="Wizard changes IMPROVED SDLC compliance!" ;;
+              "UNCHANGED") STATUS_TEXT="No change in SDLC compliance (stable)" ;;
+              "MINOR_DIP") STATUS_TEXT="Minor variance detected (within acceptable range)" ;;
+              "REGRESSION") STATUS_TEXT="REGRESSION: Wizard changes reduced SDLC compliance" ;;
+              *) STATUS_TEXT="$STATUS" ;;
+            esac
+
+            # Format delta with sign
+            if [ "$(echo "$DELTA >= 0" | bc -l)" -eq 1 ]; then
+              DELTA_DISPLAY="+$DELTA"
+            else
+              DELTA_DISPLAY="$DELTA"
+            fi
+
+            {
+              echo "message<<EOF"
+              echo "## E2E Quick Check (Tier 1) $EMOJI"
+              echo ""
+              echo "_Fast quality gate - single comparison per commit._"
+              echo ""
+              echo "| Metric | Value |"
+              echo "|--------|-------|"
+              echo "| Baseline (main) | $BASELINE / 10 |"
+              echo "| Candidate (PR) | $CANDIDATE / 10 |"
+              echo "| Delta | $DELTA_DISPLAY |"
+              echo "| Status | **$STATUS** |"
+              echo ""
+              echo "### Result: $STATUS_TEXT"
+              echo ""
+              echo "_Add \`merge-ready\` label for full 5x evaluation before merge._"
+              echo ""
+              echo "---"
+              echo "*Tier 1: 1x run each. Tier 2: 5x runs with 95% confidence intervals.*"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment quick check results on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: e2e-quick-check
+          message: ${{ steps.build-quick-message.outputs.message }}
+
+      - name: Fail on regression
+        if: steps.compare.outputs.pass != 'true'
+        run: |
+          echo "E2E quick check detected a regression"
+          echo "Baseline: ${{ steps.compare.outputs.baseline }}"
+          echo "Candidate: ${{ steps.compare.outputs.candidate }}"
+          echo "Delta: ${{ steps.compare.outputs.delta }}"
+          exit 1
+
+  # TIER 2: Full E2E Evaluation - Runs before merge
+  # 3x evaluations each, averaged for statistical confidence
+  # Triggered by: merge-ready label
+  e2e-full-evaluation:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'merge-ready')
+    needs: [validate, cleanup-old-comments]
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          path: pr-branch
+
+      - name: Checkout main branch for baseline
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Check if baseline wizard exists
+        id: check-baseline
+        run: |
+          if [ -d "main-branch/.claude/hooks" ] || [ -d "main-branch/.claude/skills" ]; then
+            echo "has_baseline=true" >> $GITHUB_OUTPUT
+            echo "✓ Baseline wizard found in main branch"
+          else
+            echo "has_baseline=false" >> $GITHUB_OUTPUT
+            echo "⚠️ BOOTSTRAPPING: No wizard in main branch (first installation)"
+          fi
+
+      - name: Install BASELINE wizard (main branch) into test fixture
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        run: |
+          echo "Installing main branch wizard into test fixture..."
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
+          cp -r main-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r main-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp main-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+
+      - name: Run BASELINE simulation with Claude
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        id: baseline
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+            --add-dir pr-branch/tests/e2e
+          prompt: |
+            Run an E2E SDLC simulation.
+
+            Working directory: pr-branch/tests/e2e/fixtures/test-repo
+            Scenario file: pr-branch/tests/e2e/scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Evaluate BASELINE (5x for statistical power)
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        id: eval-baseline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        working-directory: pr-branch
+        run: |
+          OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          SCENARIO="tests/e2e/scenarios/medium-add-feature.md"
+
+          # Source stats library for confidence interval calculation
+          source tests/e2e/lib/stats.sh
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "baseline_score=0" >> $GITHUB_OUTPUT
+            echo "baseline_scores=0 0 0 0 0" >> $GITHUB_OUTPUT
+            echo "baseline_ci=0 (no data)" >> $GITHUB_OUTPUT
+            echo "baseline_ci_lower=0" >> $GITHUB_OUTPUT
+            echo "baseline_ci_upper=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run evaluation 5x for statistical power (t-distribution)
+          echo "Running baseline evaluation 5 times..."
+          SCORES=""
+          for i in 1 2 3 4 5; do
+            echo "Baseline evaluation run $i/5..."
+            RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>&1) || true
+            if echo "$RESULT" | jq -e '.score' > /dev/null 2>&1; then
+              SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+            else
+              SCORE="0"
+            fi
+            SCORES="$SCORES $SCORE"
+            echo "  Run $i score: $SCORE"
+            sleep 1
+          done
+
+          SCORES_DISPLAY=$(echo "$SCORES" | sed 's/^ //')
+
+          # Calculate 95% confidence interval
+          CI_RESULT=$(calculate_confidence_interval "$SCORES_DISPLAY")
+          AVG=$(get_mean "$SCORES_DISPLAY")
+          CI_LOWER=$(get_ci_lower "$SCORES_DISPLAY")
+          CI_UPPER=$(get_ci_upper "$SCORES_DISPLAY")
+
+          echo "Baseline: $CI_RESULT from [$SCORES_DISPLAY]"
+          echo "baseline_score=$AVG" >> $GITHUB_OUTPUT
+          echo "baseline_scores=$SCORES_DISPLAY" >> $GITHUB_OUTPUT
+          echo "baseline_ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "baseline_ci_lower=$CI_LOWER" >> $GITHUB_OUTPUT
+          echo "baseline_ci_upper=$CI_UPPER" >> $GITHUB_OUTPUT
+
+          cp "$OUTPUT_FILE" "/tmp/baseline-output.json" 2>/dev/null || true
+
+      - name: Reset test fixture for CANDIDATE
+        if: steps.check-baseline.outputs.has_baseline == 'true'
+        run: |
+          cd pr-branch/tests/e2e/fixtures/test-repo
+          git checkout -- . 2>/dev/null || true
+          git clean -fd 2>/dev/null || true
+          rm -rf .claude
+
+      - name: Install CANDIDATE wizard (PR branch) into test fixture
+        run: |
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
+          cp -r pr-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r pr-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp pr-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+
+      - name: Run CANDIDATE simulation with Claude
+        id: candidate
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+            --add-dir pr-branch/tests/e2e
+          prompt: |
+            Run an E2E SDLC simulation.
+
+            Working directory: pr-branch/tests/e2e/fixtures/test-repo
+            Scenario file: pr-branch/tests/e2e/scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Evaluate CANDIDATE (5x for statistical power)
+        id: eval-candidate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        working-directory: pr-branch
+        run: |
+          OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+          SCENARIO="tests/e2e/scenarios/medium-add-feature.md"
+
+          # Source stats library for confidence interval calculation
+          source tests/e2e/lib/stats.sh
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "candidate_score=0" >> $GITHUB_OUTPUT
+            echo "candidate_scores=0 0 0 0 0" >> $GITHUB_OUTPUT
+            echo "candidate_ci=0 (no data)" >> $GITHUB_OUTPUT
+            echo "candidate_ci_lower=0" >> $GITHUB_OUTPUT
+            echo "candidate_ci_upper=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run evaluation 5x for statistical power (t-distribution)
+          echo "Running candidate evaluation 5 times..."
+          SCORES=""
+          LAST_RESULT=""
+          for i in 1 2 3 4 5; do
+            echo "Candidate evaluation run $i/5..."
+            RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>&1) || true
+            if echo "$RESULT" | jq -e '.score' > /dev/null 2>&1; then
+              SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+            else
+              SCORE="0"
+            fi
+            SCORES="$SCORES $SCORE"
+            LAST_RESULT="$RESULT"
+            echo "  Run $i score: $SCORE"
+            sleep 1
+          done
+
+          SCORES_DISPLAY=$(echo "$SCORES" | sed 's/^ //')
+
+          # Calculate 95% confidence interval
+          CI_RESULT=$(calculate_confidence_interval "$SCORES_DISPLAY")
+          AVG=$(get_mean "$SCORES_DISPLAY")
+          CI_LOWER=$(get_ci_lower "$SCORES_DISPLAY")
+          CI_UPPER=$(get_ci_upper "$SCORES_DISPLAY")
+
+          echo "Candidate: $CI_RESULT from [$SCORES_DISPLAY]"
+          echo "candidate_score=$AVG" >> $GITHUB_OUTPUT
+          echo "candidate_scores=$SCORES_DISPLAY" >> $GITHUB_OUTPUT
+          echo "candidate_ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "candidate_ci_lower=$CI_LOWER" >> $GITHUB_OUTPUT
+          echo "candidate_ci_upper=$CI_UPPER" >> $GITHUB_OUTPUT
+
+          # Extract criteria breakdown from last result
+          CRITERIA=$(echo "$LAST_RESULT" | jq -r '.criteria | to_entries | map("- **\(.key)**: \(.value.points)/\(.value.max)") | join("\n")' 2>/dev/null || echo "Could not parse criteria")
+          {
+            echo "criteria<<EOF"
+            echo "$CRITERIA"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Compare scores (full evaluation with CI)
+        id: compare
+        working-directory: pr-branch
+        run: |
+          # Source stats library for CI comparison
+          source tests/e2e/lib/stats.sh
+
+          HAS_BASELINE="${{ steps.check-baseline.outputs.has_baseline }}"
+          CANDIDATE="${{ steps.eval-candidate.outputs.candidate_score }}"
+          CANDIDATE_CI="${{ steps.eval-candidate.outputs.candidate_ci }}"
+          CANDIDATE_CI_LOWER="${{ steps.eval-candidate.outputs.candidate_ci_lower }}"
+          CANDIDATE_CI_UPPER="${{ steps.eval-candidate.outputs.candidate_ci_upper }}"
+          CANDIDATE_SCORES="${{ steps.eval-candidate.outputs.candidate_scores }}"
+          CANDIDATE=${CANDIDATE:-0}
+
+          # Handle bootstrapping scenario (no baseline wizard in main)
+          if [ "$HAS_BASELINE" != "true" ]; then
+            echo "BOOTSTRAPPING: No baseline wizard to compare against"
+            echo "is_bootstrapping=true" >> $GITHUB_OUTPUT
+            echo "baseline=N/A" >> $GITHUB_OUTPUT
+            echo "baseline_ci=N/A" >> $GITHUB_OUTPUT
+            echo "baseline_ci_lower=N/A" >> $GITHUB_OUTPUT
+            echo "baseline_ci_upper=N/A" >> $GITHUB_OUTPUT
+            echo "candidate=$CANDIDATE" >> $GITHUB_OUTPUT
+            echo "candidate_ci=$CANDIDATE_CI" >> $GITHUB_OUTPUT
+            echo "candidate_ci_lower=$CANDIDATE_CI_LOWER" >> $GITHUB_OUTPUT
+            echo "candidate_ci_upper=$CANDIDATE_CI_UPPER" >> $GITHUB_OUTPUT
+            echo "delta=N/A" >> $GITHUB_OUTPUT
+            echo "status=BOOTSTRAPPING" >> $GITHUB_OUTPUT
+            echo "emoji=:seedling:" >> $GITHUB_OUTPUT
+            echo "pass=true" >> $GITHUB_OUTPUT
+            echo "verdict=First wizard installation - no baseline to compare" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "is_bootstrapping=false" >> $GITHUB_OUTPUT
+          BASELINE="${{ steps.eval-baseline.outputs.baseline_score }}"
+          BASELINE_CI="${{ steps.eval-baseline.outputs.baseline_ci }}"
+          BASELINE_CI_LOWER="${{ steps.eval-baseline.outputs.baseline_ci_lower }}"
+          BASELINE_CI_UPPER="${{ steps.eval-baseline.outputs.baseline_ci_upper }}"
+          BASELINE_SCORES="${{ steps.eval-baseline.outputs.baseline_scores }}"
+          BASELINE=${BASELINE:-0}
+
+          DELTA=$(echo "$CANDIDATE - $BASELINE" | bc -l)
+          DELTA_FORMATTED=$(printf "%.1f" "$DELTA")
+
+          echo "Baseline: $BASELINE_CI"
+          echo "Candidate: $CANDIDATE_CI"
+          echo "Delta: $DELTA_FORMATTED"
+
+          # Use statistical CI comparison for verdict
+          STAT_VERDICT=$(compare_ci "$BASELINE_SCORES" "$CANDIDATE_SCORES")
+
+          case "$STAT_VERDICT" in
+            "IMPROVED")
+              STATUS="IMPROVED"
+              EMOJI=":rocket:"
+              PASS="true"
+              VERDICT="Candidate's lower CI ($CANDIDATE_CI_LOWER) > baseline's upper CI ($BASELINE_CI_UPPER) = statistically significant improvement"
+              ;;
+            "REGRESSION")
+              STATUS="REGRESSION"
+              EMOJI=":x:"
+              PASS="false"
+              VERDICT="Candidate's upper CI ($CANDIDATE_CI_UPPER) < baseline's lower CI ($BASELINE_CI_LOWER) = statistically significant regression"
+              ;;
+            *)
+              STATUS="STABLE"
+              EMOJI=":white_check_mark:"
+              PASS="true"
+              VERDICT="CIs overlap = no statistically significant difference (stable)"
+              ;;
+          esac
+
+          echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
+          echo "candidate=$CANDIDATE" >> $GITHUB_OUTPUT
+          echo "baseline_ci=$BASELINE_CI" >> $GITHUB_OUTPUT
+          echo "candidate_ci=$CANDIDATE_CI" >> $GITHUB_OUTPUT
+          echo "baseline_ci_lower=$BASELINE_CI_LOWER" >> $GITHUB_OUTPUT
+          echo "baseline_ci_upper=$BASELINE_CI_UPPER" >> $GITHUB_OUTPUT
+          echo "candidate_ci_lower=$CANDIDATE_CI_LOWER" >> $GITHUB_OUTPUT
+          echo "candidate_ci_upper=$CANDIDATE_CI_UPPER" >> $GITHUB_OUTPUT
+          echo "delta=$DELTA_FORMATTED" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+
+      - name: Build full evaluation comment message
+        id: build-full-message
+        run: |
+          IS_BOOTSTRAPPING="${{ steps.compare.outputs.is_bootstrapping }}"
+          BASELINE="${{ steps.compare.outputs.baseline }}"
+          CANDIDATE="${{ steps.compare.outputs.candidate }}"
+          BASELINE_CI="${{ steps.compare.outputs.baseline_ci }}"
+          CANDIDATE_CI="${{ steps.compare.outputs.candidate_ci }}"
+          BASELINE_CI_LOWER="${{ steps.compare.outputs.baseline_ci_lower }}"
+          BASELINE_CI_UPPER="${{ steps.compare.outputs.baseline_ci_upper }}"
+          CANDIDATE_CI_LOWER="${{ steps.compare.outputs.candidate_ci_lower }}"
+          CANDIDATE_CI_UPPER="${{ steps.compare.outputs.candidate_ci_upper }}"
+          BASELINE_SCORES="${{ steps.eval-baseline.outputs.baseline_scores }}"
+          CANDIDATE_SCORES="${{ steps.eval-candidate.outputs.candidate_scores }}"
+          DELTA="${{ steps.compare.outputs.delta }}"
+          STATUS="${{ steps.compare.outputs.status }}"
+          EMOJI="${{ steps.compare.outputs.emoji }}"
+          VERDICT="${{ steps.compare.outputs.verdict }}"
+          CRITERIA="${{ steps.eval-candidate.outputs.criteria }}"
+
+          if [ "$IS_BOOTSTRAPPING" = "true" ]; then
+            {
+              echo "message<<EOF"
+              echo "## E2E Full Evaluation (Tier 2) $EMOJI"
+              echo ""
+              echo "_First wizard installation - no baseline to compare against._"
+              echo ""
+              echo "| Metric | Value |"
+              echo "|--------|-------|"
+              echo "| Baseline (main) | N/A (no wizard yet) |"
+              echo "| Candidate (PR) | $CANDIDATE_CI |"
+              echo "| 95% CI | [$CANDIDATE_CI_LOWER, $CANDIDATE_CI_UPPER] |"
+              echo "| Individual Runs | $CANDIDATE_SCORES |"
+              echo "| Status | **BOOTSTRAPPING** |"
+              echo ""
+              echo "### Result: First wizard installation verified (5x evaluation)"
+              echo ""
+              echo "### Criteria Breakdown (Candidate)"
+              echo "$CRITERIA"
+              echo ""
+              echo "This PR introduces the wizard for the first time. After merge, future PRs will have a baseline to compare against."
+              echo ""
+              echo "---"
+              echo "*Bootstrapping mode: Candidate-only evaluation with 5x runs + 95% CI.*"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            # Determine status text
+            case "$STATUS" in
+              "IMPROVED") STATUS_TEXT="Statistically significant IMPROVEMENT - ready to merge!" ;;
+              "STABLE") STATUS_TEXT="No significant difference - safe to merge" ;;
+              "REGRESSION") STATUS_TEXT="Statistically significant REGRESSION - do not merge" ;;
+              *) STATUS_TEXT="$STATUS" ;;
+            esac
+
+            {
+              echo "message<<EOF"
+              echo "## E2E Full Evaluation (Tier 2) $EMOJI"
+              echo ""
+              echo "_Thorough pre-merge check with 5x evaluation runs + 95% confidence intervals._"
+              echo ""
+              echo "| Metric | Baseline (main) | Candidate (PR) |"
+              echo "|--------|-----------------|----------------|"
+              echo "| Score | $BASELINE_CI | $CANDIDATE_CI |"
+              echo "| 95% CI | [$BASELINE_CI_LOWER, $BASELINE_CI_UPPER] | [$CANDIDATE_CI_LOWER, $CANDIDATE_CI_UPPER] |"
+              echo "| Runs | $BASELINE_SCORES | $CANDIDATE_SCORES |"
+              echo ""
+              echo "### Statistical Verdict: **$STATUS** $EMOJI"
+              echo "$VERDICT"
+              echo ""
+              echo "### Status: $STATUS_TEXT"
+              echo ""
+              echo "### Criteria Breakdown (Candidate)"
+              echo "$CRITERIA"
+              echo ""
+              echo "---"
+              echo "*Tier 2: 5x runs with t-distribution 95% CI. Overlapping CI method for regression detection.*"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment full evaluation results on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: e2e-full-eval
+          message: ${{ steps.build-full-message.outputs.message }}
+
+      - name: Fail on regression
+        if: steps.compare.outputs.pass != 'true'
+        run: |
+          echo "Full E2E evaluation detected a regression"
+          echo "Baseline: ${{ steps.compare.outputs.baseline }}"
+          echo "Candidate: ${{ steps.compare.outputs.candidate }}"
+          echo "Delta: ${{ steps.compare.outputs.delta }}"
+          echo "DO NOT MERGE - regression detected"
+          exit 1

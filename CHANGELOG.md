@@ -4,6 +4,29 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.4.0] - 2026-01-26
+
+### Added
+- Auto-update system for staying current with Claude Code releases
+- Daily workflow: monitors official releases, creates PRs for relevant updates
+- Weekly workflow: scans community discussions, creates digest issues
+- Analysis prompts with wizard philosophy baked in
+- Version tracking files for state management
+
+### How It Works
+GitHub Actions check for Claude Code updates daily (official releases) and weekly (community discussions). Claude analyzes relevance to the wizard, and HIGH/MEDIUM confidence updates create PRs for human review. Most community content is filtered as noise - that's expected.
+
+### Files Added
+- `.github/workflows/daily-update.yml`
+- `.github/workflows/weekly-community.yml`
+- `.github/prompts/analyze-release.md`
+- `.github/prompts/analyze-community.md`
+- `.github/last-checked-version.txt`
+- `.github/last-community-scan.txt`
+
+### Required Setup
+Add `ANTHROPIC_API_KEY` to repository secrets for workflows to function.
+
 ## [1.3.0] - 2026-01-24
 
 ### Added

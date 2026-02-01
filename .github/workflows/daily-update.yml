@@ -1,0 +1,394 @@
+name: Daily Claude Code Update Check
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9 AM UTC
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  # E2E test scenario for version testing
+  VERSION_SCENARIO: version-upgrade
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+
+    outputs:
+      needs_update: ${{ steps.check-update.outputs.needs_update }}
+      latest_version: ${{ steps.latest-release.outputs.latest_version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read last checked version
+        id: last-version
+        run: |
+          if [ -f .github/last-checked-version.txt ]; then
+            VERSION=$(cat .github/last-checked-version.txt | tr -d '\n')
+          else
+            VERSION="v0.0.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Last checked version: $VERSION"
+
+      - name: Fetch latest Claude Code release
+        id: latest-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_JSON=$(gh api repos/anthropics/claude-code/releases/latest 2>/dev/null || echo '{"tag_name": "v0.0.0", "body": "Unable to fetch release"}')
+
+          LATEST_VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+          RELEASE_DATE=$(echo "$RELEASE_JSON" | jq -r '.published_at // "unknown"')
+          RELEASE_URL=$(echo "$RELEASE_JSON" | jq -r '.html_url // ""')
+
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+          echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
+
+          # Save release body to file (safer than shell variable)
+          echo "$RELEASE_JSON" | jq -r '.body' > /tmp/release_body.md
+
+          echo "Latest version: $LATEST_VERSION"
+          echo "Release date: $RELEASE_DATE"
+
+      - name: Check if update needed
+        id: check-update
+        run: |
+          LAST="${{ steps.last-version.outputs.version }}"
+          LATEST="${{ steps.latest-release.outputs.latest_version }}"
+
+          if [ "$LAST" = "$LATEST" ]; then
+            echo "No new release. Last: $LAST, Latest: $LATEST"
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          else
+            echo "New release found! $LAST -> $LATEST"
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read analysis prompt
+        if: steps.check-update.outputs.needs_update == 'true'
+        id: read-prompt
+        run: |
+          # Store prompt in file to avoid shell escaping issues
+          cat .github/prompts/analyze-release.md > /tmp/analysis_prompt.md
+
+      - name: Analyze release with Claude
+        if: steps.check-update.outputs.needs_update == 'true'
+        id: analyze
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt_file: /tmp/analysis_prompt.md
+          prompt: |
+            ---
+
+            ## Release to Analyze
+
+            **Version:** ${{ steps.latest-release.outputs.latest_version }}
+            **Date:** ${{ steps.latest-release.outputs.release_date }}
+            **URL:** ${{ steps.latest-release.outputs.release_url }}
+
+            **Release Notes:**
+            (See /tmp/release_body.md)
+          direct_prompt: true
+          model: claude-sonnet-4-20250514
+
+      - name: Save analysis to file
+        if: steps.check-update.outputs.needs_update == 'true'
+        env:
+          # Use env to safely pass potentially malicious content
+          ANALYSIS_RESPONSE: ${{ steps.analyze.outputs.response }}
+        run: |
+          # Write to file via env var (safe from injection)
+          printf '%s' "$ANALYSIS_RESPONSE" > /tmp/analysis.json
+
+      - name: Parse analysis result
+        if: steps.check-update.outputs.needs_update == 'true'
+        id: parse
+        run: |
+          # Read from file (safe) instead of shell variable interpolation
+          RELEVANCE=$(jq -r '.relevance // "LOW"' /tmp/analysis.json 2>/dev/null || echo "LOW")
+          SUMMARY=$(jq -r '.summary // "Unable to parse summary"' /tmp/analysis.json 2>/dev/null || echo "Unable to parse summary")
+
+          echo "relevance=$RELEVANCE" >> $GITHUB_OUTPUT
+
+          # Safely encode summary for output (escape newlines)
+          SAFE_SUMMARY=$(echo "$SUMMARY" | tr '\n' ' ' | head -c 500)
+          echo "summary=$SAFE_SUMMARY" >> $GITHUB_OUTPUT
+
+          echo "Relevance: $RELEVANCE"
+          echo "Summary: $SAFE_SUMMARY"
+
+      - name: Update version file
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          echo "${{ steps.latest-release.outputs.latest_version }}" > .github/last-checked-version.txt
+
+      - name: Build PR body
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          RELEVANCE="${{ steps.parse.outputs.relevance }}"
+
+          # Determine relevance indicator
+          case "$RELEVANCE" in
+            HIGH)   INDICATOR="HIGH - Action recommended" ;;
+            MEDIUM) INDICATOR="MEDIUM - Review suggested" ;;
+            LOW)    INDICATOR="LOW - Informational only" ;;
+            *)      INDICATOR="$RELEVANCE" ;;
+          esac
+
+          cat > /tmp/pr_body.md << PREOF
+          ## Auto-Update: Claude Code ${{ steps.latest-release.outputs.latest_version }}
+
+          **Release:** ${{ steps.latest-release.outputs.latest_version }} (${{ steps.latest-release.outputs.release_date }})
+          **Relevance:** $INDICATOR
+          **Release URL:** ${{ steps.latest-release.outputs.release_url }}
+
+          ### Summary
+          PREOF
+
+          # Append summary from file (sanitized)
+          jq -r '.summary // "No summary"' /tmp/analysis.json >> /tmp/pr_body.md
+
+          cat >> /tmp/pr_body.md << 'PREOF'
+
+          ### Why This PR Exists
+
+          All Claude Code releases get a PR for visibility. The relevance level helps you prioritize:
+          - **HIGH**: Contains changes that directly affect SDLC enforcement
+          - **MEDIUM**: Contains useful improvements worth reviewing
+          - **LOW**: Routine update, merge at your convenience
+
+          ### Relevance Analysis
+          ```json
+          PREOF
+
+          cat /tmp/analysis.json >> /tmp/pr_body.md
+
+          cat >> /tmp/pr_body.md << 'PREOF'
+          ```
+
+          ### Review Checklist
+          - [ ] Aligns with KISS principle
+          - [ ] Actually needed for SDLC enforcement
+          - [ ] No over-engineering
+          - [ ] If replacing custom code, removal is clean
+
+          ---
+          *Generated by daily-update workflow. You always decide what merges.*
+          PREOF
+
+      - name: Create PR for all updates
+        if: steps.check-update.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update last-checked-version to ${{ steps.latest-release.outputs.latest_version }}"
+          title: "[${{ steps.parse.outputs.relevance }}] Auto-Update: Claude Code ${{ steps.latest-release.outputs.latest_version }}"
+          body-path: /tmp/pr_body.md
+          branch: auto-update/claude-code-${{ steps.latest-release.outputs.latest_version }}
+          labels: |
+            auto-update
+            relevance-${{ steps.parse.outputs.relevance }}
+          delete-branch: true
+
+  # Version Testing: Validate SDLC enforcement with new CC version
+  version-test:
+    needs: check-updates
+    if: needs.check-updates.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+
+    outputs:
+      phase_a_passed: ${{ steps.phase-a.outputs.passed }}
+      phase_a_score: ${{ steps.phase-a.outputs.score }}
+      phase_b_score: ${{ steps.phase-b.outputs.score }}
+      verdict: ${{ steps.verdict.outputs.verdict }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Phase A: Regression Test
+      # Test if new CC version breaks SDLC enforcement with current docs
+      - name: Install new Claude Code version
+        run: |
+          npm install -g @anthropic-ai/claude-code@${{ needs.check-updates.outputs.latest_version }}
+          claude --version
+
+      - name: Phase A - Regression Test (Tier 1)
+        id: phase-a-tier1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Phase A: Regression test with current SDLC docs"
+          echo "Testing if new CC version breaks SDLC enforcement..."
+
+          # Run single evaluation (Tier 1 - quick check)
+          RESULT=$(./tests/e2e/evaluate.sh \
+            tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md \
+            tests/e2e/fixtures/test-repo \
+            --json 2>/dev/null || echo '{"score":0,"pass":false}')
+
+          SCORE=$(echo "$RESULT" | jq -r '.score // 0')
+          PASSED=$(echo "$RESULT" | jq -r '.pass // false')
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "Tier 1 Score: $SCORE (Passed: $PASSED)"
+
+      - name: Phase A - Regression Test (Tier 2 - Full Statistical)
+        id: phase-a
+        if: steps.phase-a-tier1.outputs.passed == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Phase A Tier 2: Full statistical evaluation (5 trials)"
+
+          # Use shared evaluation script to reduce duplication
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md)
+
+          # Parse output
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+          echo "Phase A Complete: $CI_RESULT"
+
+      # Phase B: Improvement Test (only if Phase A passes)
+      # Test if incorporating changelog suggestions improves scores
+      - name: Apply changelog suggestions to SDLC docs
+        if: steps.phase-a.outputs.passed == 'true'
+        id: apply-suggestions
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Analyze the changelog for Claude Code ${{ needs.check-updates.outputs.latest_version }}
+            and suggest minimal, targeted improvements to SDLC.md that would help
+            leverage any new capabilities.
+
+            Guidelines:
+            - Only suggest changes that directly improve SDLC enforcement
+            - Keep changes minimal - don't rewrite entire sections
+            - Focus on new features that help with TDD, planning, or confidence tracking
+            - If no relevant changes, output: {"no_changes": true}
+
+            Output JSON with suggested edits:
+            {
+              "no_changes": false,
+              "edits": [
+                {"file": "SDLC.md", "section": "...", "change": "..."}
+              ]
+            }
+          direct_prompt: true
+          model: claude-sonnet-4-20250514
+
+      - name: Phase B - Improvement Test (Tier 2)
+        id: phase-b
+        if: steps.phase-a.outputs.passed == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running Phase B: Testing with suggested SDLC improvements"
+
+          # Use shared evaluation script
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md)
+
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+
+          echo "Phase B Complete: $CI_RESULT"
+
+      - name: Determine verdict
+        id: verdict
+        run: |
+          source tests/e2e/lib/stats.sh
+
+          PHASE_A_SCORES="${{ steps.phase-a.outputs.scores }}"
+          PHASE_B_SCORES="${{ steps.phase-b.outputs.scores }}"
+
+          if [ -z "$PHASE_A_SCORES" ]; then
+            echo "verdict=PHASE_A_FAILED" >> $GITHUB_OUTPUT
+            echo "Verdict: Phase A failed - regression detected"
+            exit 0
+          fi
+
+          if [ -z "$PHASE_B_SCORES" ]; then
+            echo "verdict=STABLE" >> $GITHUB_OUTPUT
+            echo "Verdict: STABLE (Phase B skipped)"
+            exit 0
+          fi
+
+          # Compare Phase A vs Phase B using overlapping CI method
+          VERDICT=$(compare_ci "$PHASE_A_SCORES" "$PHASE_B_SCORES")
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "Verdict: $VERDICT"
+
+      - name: Update CUSUM drift tracking
+        run: |
+          SCORE="${{ steps.phase-a.outputs.score }}"
+          if [ -n "$SCORE" ] && [ "$SCORE" != "0" ]; then
+            ./tests/e2e/cusum.sh --add "$SCORE" || true
+            ./tests/e2e/cusum.sh --status
+          fi
+
+      - name: Post version test results to PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: version-test
+          message: |
+            ## Version Update Test Results
+
+            **Testing:** Claude Code ${{ needs.check-updates.outputs.latest_version }}
+
+            ### Phase A: Regression Test
+            Does the new CC version break SDLC enforcement with current docs?
+
+            | Metric | Value |
+            |--------|-------|
+            | Tier 1 (Quick) | ${{ steps.phase-a-tier1.outputs.score }}/10 |
+            | Tier 2 (5 trials) | ${{ steps.phase-a.outputs.ci }} |
+            | Status | ${{ steps.phase-a.outputs.passed == 'true' && 'PASS' || 'FAIL' }} |
+
+            ### Phase B: Improvement Test
+            Do suggested changelog improvements help?
+
+            | Metric | Value |
+            |--------|-------|
+            | Score | ${{ steps.phase-b.outputs.ci }} |
+            | vs Phase A | ${{ steps.verdict.outputs.verdict }} |
+
+            ### Verdict: **${{ steps.verdict.outputs.verdict }}**
+
+            | Verdict | Meaning | Action |
+            |---------|---------|--------|
+            | IMPROVED | Changelog suggestions significantly improve scores | Merge suggested changes |
+            | STABLE | No significant difference | Safe to upgrade, changes optional |
+            | REGRESSION | Scores significantly worse | Don't merge, investigate |
+            | PHASE_A_FAILED | New CC version breaks SDLC enforcement | Don't upgrade |
+
+            ---
+            *Statistical methodology: 5 trials, 95% CI, overlapping CI comparison*

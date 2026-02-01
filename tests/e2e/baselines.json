@@ -1,0 +1,59 @@
+{
+  "simple-typo-fix": {
+    "baseline": 5.5,
+    "min_acceptable": 4.0,
+    "target": 8.0,
+    "description": "Simple tasks need less process overhead but should still track work"
+  },
+  "medium-add-feature": {
+    "baseline": 5.0,
+    "min_acceptable": 4.0,
+    "target": 7.5,
+    "description": "Medium tasks require TDD and some planning"
+  },
+  "add-feature": {
+    "baseline": 5.0,
+    "min_acceptable": 4.0,
+    "target": 7.5,
+    "description": "Same as medium-add-feature"
+  },
+  "fix-bug": {
+    "baseline": 5.0,
+    "min_acceptable": 4.0,
+    "target": 7.5,
+    "description": "Bug fixes need investigation and testing"
+  },
+  "refactor": {
+    "baseline": 4.5,
+    "min_acceptable": 3.5,
+    "target": 7.0,
+    "description": "Refactoring requires careful planning to avoid regressions"
+  },
+  "hard-refactor": {
+    "baseline": 4.0,
+    "min_acceptable": 3.0,
+    "target": 7.0,
+    "description": "Complex refactoring is hardest to do with full SDLC discipline"
+  },
+  "version-upgrade": {
+    "baseline": 5.0,
+    "min_acceptable": 4.0,
+    "target": 7.5,
+    "description": "SDLC enforcement validation for new Claude Code versions"
+  },
+  "_meta": {
+    "version": "1.0.0",
+    "last_updated": "2026-01-31",
+    "notes": [
+      "Baselines are conservative (D/C level) - honest about current state",
+      "Goal is to track improvement over time, not enforce unrealistic standards",
+      "Raise baselines after 3 consecutive runs above current baseline",
+      "target is aspirational - what we're working toward"
+    ],
+    "regression_logic": {
+      "pass": "score >= baseline",
+      "warn": "score >= min_acceptable AND score < baseline",
+      "fail": "score < min_acceptable"
+    }
+  }
+}

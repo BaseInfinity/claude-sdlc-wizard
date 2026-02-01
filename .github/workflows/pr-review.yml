@@ -1,0 +1,300 @@
+name: PR Code Review
+
+on:
+  # ENHANCEMENT 1: Review once (not every push)
+  # Only review on PR open or ready_for_review, not on every commit
+  pull_request:
+    types: [opened, ready_for_review]
+  # Re-review on label (for when changes are made and review needed)
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Review on open (non-draft) / ready_for_review / needs-review label
+    # Skip draft PRs on open - they'll be reviewed when marked ready
+    if: |
+      ((github.event.action == 'opened' && github.event.pull_request.draft != true) ||
+       github.event.action == 'ready_for_review' ||
+       github.event.label.name == 'needs-review')
+
+    steps:
+      - name: Get PR number
+        id: pr
+        run: |
+          # PR number available from both pull_request and pull_request_target
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Could not find PR number, skipping review"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Found PR #$PR_NUMBER"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.pr.outputs.skip != 'true'
+        with:
+          fetch-depth: 0
+
+      # ENHANCEMENT 2: Fetch existing PR comments for Claude to address
+      - name: Fetch PR comments
+        if: steps.pr.outputs.skip != 'true'
+        id: fetch-comments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ steps.pr.outputs.pr_number }}"
+
+          # Get review comments (on specific lines)
+          REVIEW_COMMENTS=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUM/comments" \
+            --jq '[.[] | {author: .user.login, body: .body, path: .path, line: .line}]' 2>/dev/null || echo "[]")
+
+          # Get issue comments (general PR comments)
+          ISSUE_COMMENTS=$(gh api "repos/${{ github.repository }}/issues/$PR_NUM/comments" \
+            --jq '[.[] | {author: .user.login, body: .body}]' 2>/dev/null || echo "[]")
+
+          # Save to files for Claude to read
+          echo "$REVIEW_COMMENTS" > /tmp/review-comments.json
+          echo "$ISSUE_COMMENTS" > /tmp/issue-comments.json
+
+          # Count for logging (defensive handling for malformed JSON)
+          REVIEW_COUNT=$(echo "$REVIEW_COMMENTS" | jq 'length' 2>/dev/null || echo "0")
+          ISSUE_COUNT=$(echo "$ISSUE_COMMENTS" | jq 'length' 2>/dev/null || echo "0")
+          echo "Found $REVIEW_COUNT review comments, $ISSUE_COUNT issue comments"
+
+          # Output counts for conditional logic
+          echo "review_count=$REVIEW_COUNT" >> $GITHUB_OUTPUT
+          echo "issue_count=$ISSUE_COUNT" >> $GITHUB_OUTPUT
+
+      # ENHANCEMENT 3: Skip trivial changes (docs-only, config-only)
+      - name: Check if trivial PR
+        if: steps.pr.outputs.skip != 'true'
+        id: check-trivial
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get changed files
+          FILES=$(gh pr view ${{ steps.pr.outputs.pr_number }} --json files --jq '.files[].path' 2>/dev/null || echo "")
+
+          # Handle empty or failed file list
+          if [ -z "$FILES" ]; then
+            echo "trivial=false" >> $GITHUB_OUTPUT
+            echo "Could not get files or PR has no files, will review"
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$FILES"
+
+          # Check if ONLY docs/config changed (no code)
+          # If any file is NOT md/txt/json/yml, it's not trivial
+          if echo "$FILES" | grep -qvE '\.(md|txt|json|yml|yaml)$'; then
+            echo "trivial=false" >> $GITHUB_OUTPUT
+            echo "Non-trivial changes detected, will review"
+          else
+            echo "trivial=true" >> $GITHUB_OUTPUT
+            echo "Only docs/config changed, skipping review"
+          fi
+
+      # Wait for CI to pass before reviewing (cost-efficient)
+      - name: Wait for CI to complete
+        if: |
+          steps.pr.outputs.skip != 'true' &&
+          steps.check-trivial.outputs.trivial != 'true'
+        id: wait-ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Waiting for CI workflow to complete..."
+          CI_PASSED="false"
+
+          # Wait up to 10 minutes for CI
+          for i in {1..20}; do
+            # Check all check runs, look for the validate job from CI workflow
+            STATUS=$(gh api \
+              repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs \
+              --jq '.check_runs[] | select(.name == "validate") | .conclusion // "pending"' 2>/dev/null || echo "pending")
+
+            if [ "$STATUS" = "success" ]; then
+              echo "CI passed, proceeding with review"
+              CI_PASSED="true"
+              break
+            elif [ "$STATUS" = "failure" ]; then
+              echo "CI failed, skipping review (no point reviewing failing code)"
+              echo "ci_passed=false" >> $GITHUB_OUTPUT
+              exit 0
+            else
+              echo "CI still running (attempt $i/20), waiting 30s..."
+              sleep 30
+            fi
+          done
+
+          # Handle timeout - CI didn't complete in time
+          if [ "$CI_PASSED" != "true" ]; then
+            echo "CI did not complete within 10 minutes, skipping review"
+            echo "ci_passed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "ci_passed=true" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code Review
+        if: |
+          steps.pr.outputs.skip != 'true' &&
+          steps.check-trivial.outputs.trivial != 'true' &&
+          steps.wait-ci.outputs.ci_passed == 'true'
+        id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ steps.pr.outputs.pr_number }}
+
+            You are reviewing a pull request for the SDLC Wizard repository.
+
+            ## Existing PR Comments to Address
+
+            If there are existing comments, address them in your review:
+
+            Review comments (on specific lines):
+            $(cat /tmp/review-comments.json 2>/dev/null || echo "[]")
+
+            General PR comments:
+            $(cat /tmp/issue-comments.json 2>/dev/null || echo "[]")
+
+            When addressing comments, reference them: "Regarding @user's question about X: ..."
+
+            ## Review Focus Areas
+
+            ### 1. SDLC Compliance
+            - Does the change follow SDLC principles?
+            - Is there evidence of planning (for complex changes)?
+            - Are tests included or updated?
+
+            ### 2. Security
+            - Check for injection vulnerabilities (shell, YAML)
+            - Verify secrets are not exposed
+            - Check for unsafe variable interpolation
+
+            ### 3. Code Quality
+            - Is the code simple and readable?
+            - Is it over-engineered?
+            - Does it follow existing patterns?
+
+            ### 4. Testing
+            - Are new features tested?
+            - Are tests meaningful (not just for coverage)?
+            - Do tests follow the testing diamond (integration > unit with mocks)?
+
+            Use mcp__github__get_pull_request_diff to get the changes, then output your review.
+
+            ## Output Format
+
+            Output your review in this exact format (markdown):
+
+            ```
+            ## PR Code Review
+
+            ### Summary
+            [1-2 sentence summary of what this PR does]
+
+            ### Recommendation: [APPROVE/REQUEST_CHANGES/COMMENT]
+
+            ### Findings
+
+            #### Critical (must fix)
+            - [file:line] Issue description
+
+            #### Suggestions (nice to have)
+            - [file:line] Suggestion description
+
+            #### Strengths
+            - What's done well
+
+            ### Files Reviewed
+            - file1.ext
+            - file2.ext
+            ```
+
+            If there are no critical issues, recommend APPROVE.
+            Reference specific files and lines like `src/foo.ts:42` for easy navigation.
+
+          claude_args: |
+            --allowedTools "mcp__github__get_pull_request_diff,Read,Grep,Glob"
+
+      # Extract review from Claude's output
+      - name: Extract review content
+        if: |
+          steps.pr.outputs.skip != 'true' &&
+          steps.check-trivial.outputs.trivial != 'true' &&
+          steps.wait-ci.outputs.ci_passed == 'true'
+        id: extract-review
+        run: |
+          # Get Claude's output from the action
+          OUTPUT_FILE="/home/runner/work/_temp/claude-execution-output.json"
+
+          if [ -f "$OUTPUT_FILE" ]; then
+            # Extract the review content (Claude's final output)
+            REVIEW=$(jq -r '.result // .output // "Review completed but no content captured."' "$OUTPUT_FILE" 2>/dev/null | head -c 60000)
+          else
+            REVIEW="Review completed but output file not found."
+          fi
+
+          # Write to file to preserve formatting
+          printf '%s' "$REVIEW" > /tmp/review-content.md
+
+          # Also create a fallback if empty
+          if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
+            echo "Review completed. Check the workflow logs for details." > /tmp/review-content.md
+          fi
+
+      # ENHANCEMENT 4: Sticky review comment (replaces inline review comments)
+      - name: Post review as sticky comment
+        if: |
+          steps.pr.outputs.skip != 'true' &&
+          steps.check-trivial.outputs.trivial != 'true' &&
+          steps.wait-ci.outputs.ci_passed == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ steps.pr.outputs.pr_number }}
+          header: claude-review
+          path: /tmp/review-content.md
+
+      # Post skip message for trivial PRs
+      - name: Post trivial PR message
+        if: |
+          steps.pr.outputs.skip != 'true' &&
+          steps.check-trivial.outputs.trivial == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ steps.pr.outputs.pr_number }}
+          header: claude-review
+          message: |
+            ## Claude Code Review Summary
+
+            **Status:** Skipped (trivial changes)
+
+            This PR only contains documentation or configuration changes. Code review skipped to save API costs.
+
+            ---
+            _To force a review, add the `needs-review` label._
+
+      # Remove needs-review label after re-review to allow re-triggering
+      - name: Remove needs-review label
+        if: github.event.label.name == 'needs-review'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit ${{ steps.pr.outputs.pr_number }} --remove-label needs-review || true
