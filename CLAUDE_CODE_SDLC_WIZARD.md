@@ -823,6 +823,27 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 
 **Back-and-forth:** User questions live in PR comments. Bot's response is always the latest sticky comment. Clean and organized.
 
+**CI monitoring question:**
+> "Should Claude monitor CI checks after pushing and auto-diagnose failures? (y/n)"
+
+- **Yes** → Enable CI feedback loop in SDLC skill, add `gh` CLI to allowedTools
+- **No** → Skip CI monitoring steps (Claude still runs local tests, just doesn't watch CI)
+
+**What this does:**
+1. After pushing, Claude runs `gh pr checks` to watch CI status
+2. If checks fail, Claude reads logs via `gh run view --log-failed`
+3. Claude diagnoses the failure and proposes a fix
+4. Max 2 fix attempts, then asks user
+5. Job isn't done until CI is green
+
+**Recommendation:** Yes if you have CI configured. This closes the loop between
+"local tests pass" and "PR is actually ready to merge."
+
+**Requirements:**
+- `gh` CLI installed and authenticated
+- CI/CD configured (GitHub Actions, etc.)
+- If no CI yet: skip, add later when you set up CI
+
 **Check for new plugins periodically:**
 ```
 /plugin > Discover
@@ -851,7 +872,40 @@ Claude scans for:
 ├── Lint/format tools: from config files
 ├── CI/CD: .github/workflows/, .gitlab-ci.yml, etc.
 ├── Feature docs: *_PLAN.md, *_DOCS.md, *_SPEC.md, docs/
-└── README, CLAUDE.md, ARCHITECTURE.md
+├── README, CLAUDE.md, ARCHITECTURE.md
+│
+├── Deployment targets (for ARCHITECTURE.md environments):
+│   ├── Dockerfile, docker-compose.yml    → Container deployment
+│   ├── k8s/, kubernetes/, helm/          → Kubernetes
+│   ├── vercel.json, .vercel/             → Vercel
+│   ├── netlify.toml                      → Netlify
+│   ├── fly.toml                          → Fly.io
+│   ├── railway.json, railway.toml        → Railway
+│   ├── render.yaml                       → Render
+│   ├── Procfile                          → Heroku
+│   ├── app.yaml, appengine/              → Google App Engine
+│   ├── deploy.sh, deploy/                → Custom scripts
+│   ├── .github/workflows/deploy*.yml     → GitHub Actions deploy
+│   └── package.json scripts (deploy:*)   → npm deploy scripts
+│
+├── Tool permissions (for allowedTools):
+│   ├── package.json           → Bash(npm *), Bash(node *), Bash(npx *)
+│   ├── pnpm-lock.yaml         → Bash(pnpm *)
+│   ├── yarn.lock              → Bash(yarn *)
+│   ├── go.mod                 → Bash(go *)
+│   ├── Cargo.toml             → Bash(cargo *)
+│   ├── pyproject.toml         → Bash(python *), Bash(pip *), Bash(pytest *)
+│   ├── Gemfile                → Bash(ruby *), Bash(bundle *)
+│   ├── Makefile               → Bash(make *)
+│   ├── docker-compose.yml     → Bash(docker *)
+│   └── .github/workflows/     → Bash(gh *)
+│
+└── Design system (for UI projects):
+    ├── tailwind.config.*      → Extract colors, fonts, spacing from theme
+    ├── CSS with --var-name    → Extract custom property palette
+    ├── .storybook/            → Reference as design source of truth
+    ├── MUI/Chakra theme files → Reference theming docs + overrides
+    └── /assets/, /images/     → Document asset locations
 ```
 
 **If Claude can't detect something, it asks.** Never assumes.
@@ -882,6 +936,45 @@ Testing Analysis:
 Recommendation: Your current tests rely heavily on mocks.
    For AI agents, Testing Diamond (integration-heavy) works better.
    Mocks can "pass" while production fails.
+
+🔧 Tool Permissions (detected from stack):
+   Based on your stack, these tools would be useful:
+   - Bash(npm *)    ← package.json detected
+   - Bash(node *)   ← Node.js project
+   - Bash(npx *)    ← npm scripts
+   - Bash(gh *)     ← .github/workflows/ detected
+
+   Always included: Read, Edit, Write, Glob, Grep, Task
+
+   Options:
+   [1] Accept suggested permissions (recommended)
+   [2] Customize permissions
+   [3] Skip - I'll manage permissions manually
+
+🎨 Design System (UI detected):
+   Found: tailwind.config.js, components/ui/
+
+   Extracted:
+   - Colors: primary (#3B82F6), secondary (#10B981), ...
+   - Fonts: Inter (body), Fira Code (mono)
+   - Breakpoints: sm (640px), md (768px), lg (1024px)
+
+   Options:
+   [1] Generate DESIGN_SYSTEM.md from detected config
+   [2] Point to external design system (Figma, Storybook URL)
+   [3] Skip - no UI work expected in this project
+
+🚀 Deployment Targets (auto-detected):
+   Found: vercel.json, .github/workflows/deploy.yml
+
+   Detected environments:
+   - Preview: vercel (auto on PR)
+   - Production: vercel --prod (manual trigger)
+
+   Options:
+   [1] Accept detected deployment config (will populate ARCHITECTURE.md)
+   [2] Let me specify deployment targets manually
+   [3] Skip - no deployment from this project
 
 📝 Feature Doc Suffix:
    Current pattern: *_PLAN.md
@@ -970,6 +1063,29 @@ Examples: npm run build, pnpm build, go build, cargo build
 Your answer: _______________
 ```
 
+### Deployment
+
+**Q8.5: How do you deploy? (auto-detected, confirm or override)**
+```
+Detected: [e.g., Vercel, GitHub Actions, Docker, none]
+
+Environments (will populate ARCHITECTURE.md):
+┌─────────────┬──────────────────────┬────────────────────────┐
+│ Environment │ Trigger              │ Deploy Command         │
+├─────────────┼──────────────────────┼────────────────────────┤
+│ Preview     │ Auto on PR           │ vercel                 │
+│ Staging     │ Push to staging      │ [your staging deploy]  │
+│ Production  │ Manual / push main   │ vercel --prod          │
+└─────────────┴──────────────────────┴────────────────────────┘
+
+Options:
+[1] Accept detected config (recommended)
+[2] Customize environments
+[3] No deployment config needed
+
+Your answer: _______________
+```
+
 ### Infrastructure
 
 **Q9: What database(s) do you use?**
@@ -1041,6 +1157,50 @@ Options:
 Your answer: _______________
 ```
 
+### Code Coverage (Optional)
+
+**If test framework detected (Jest, pytest, Go, etc.):**
+
+```
+Q16: Code Coverage (Optional)
+
+Detected: [test framework] with coverage configuration
+
+Traditional Coverage:
+[1] Enforce threshold in CI (e.g., 80%) - Fail build if coverage drops
+[2] Report but don't enforce - Track coverage without blocking
+[3] Skip traditional coverage
+
+AI Coverage Suggestions:
+[4] Enable AI-suggested coverage gaps in PR reviews
+    (Claude notes: "You changed X but didn't add tests for edge case Y")
+[5] Skip AI suggestions
+
+(You can choose one from each group, or skip both)
+Your answer: _______________
+```
+
+**If no test framework detected (docs/AI-heavy project):**
+
+```
+Q16: Code Coverage (Optional)
+
+No test framework detected (documentation/AI-heavy project).
+
+Options:
+[1] AI-suggested coverage gaps in PR reviews (Recommended)
+    (Claude notes when changes affect behavior but lack test scenarios)
+[2] Skip - not needed for this project
+
+Your answer: _______________
+```
+
+**How they work:**
+- **Traditional coverage:** Deterministic line/branch/function percentages via nyc, c8, coverage.py, etc.
+- **AI coverage suggestions:** Claude analyzes changes and suggests missing test cases based on context
+
+**Not mutually exclusive:** Both can be used together for comprehensive coverage awareness.
+
 ---
 
 ### Using Your Answers
@@ -1098,6 +1258,18 @@ Create `.claude/settings.json`:
 ```json
 {
   "verbosity": "medium",
+  "allowedTools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Glob",
+    "Grep",
+    "Task",
+    "Bash(npm *)",
+    "Bash(node *)",
+    "Bash(npx *)",
+    "Bash(gh *)"
+  ],
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -1123,6 +1295,35 @@ Create `.claude/settings.json`:
   }
 }
 ```
+
+### Allowed Tools (Adaptive)
+
+The `allowedTools` array is auto-generated based on your stack detected in Step 0.4.
+
+| If Detected | Tools Added |
+|-------------|-------------|
+| `package.json` | `Bash(npm *)`, `Bash(node *)`, `Bash(npx *)` |
+| `pnpm-lock.yaml` | `Bash(pnpm *)` |
+| `yarn.lock` | `Bash(yarn *)` |
+| `go.mod` | `Bash(go *)` |
+| `Cargo.toml` | `Bash(cargo *)` |
+| `pyproject.toml` | `Bash(python *)`, `Bash(pip *)`, `Bash(pytest *)` |
+| `Gemfile` | `Bash(ruby *)`, `Bash(bundle *)` |
+| `Makefile` | `Bash(make *)` |
+| `docker-compose.yml` | `Bash(docker *)` |
+| `.github/workflows/` | `Bash(gh *)` |
+
+**CI monitoring commands** (covered by `Bash(gh *)` above):
+- `gh pr checks` / `gh pr checks --watch` - watch CI status
+- `gh run view <RUN_ID> --log-failed` - read failure logs
+- `gh run list` - find workflow runs
+
+**Always included:** `Read`, `Edit`, `Write`, `Glob`, `Grep`, `Task`
+
+**Why this matters:** Explicitly listing allowed tools:
+- Prevents unexpected tool usage
+- Makes permissions visible and auditable
+- Reduces prompts for approval during work
 
 ### Verbosity Levels
 
@@ -1420,10 +1621,20 @@ Local tests pass -> Commit -> Push -> Watch CI
 
 **How to watch CI:**
 1. Push changes to remote
-2. Check CI status (use `gh` CLI or GitHub MCP)
+2. Check CI status:
+   ```bash
+   # Watch checks in real-time (blocks until complete)
+   gh pr checks --watch
+
+   # Or check status without blocking
+   gh pr checks
+
+   # View specific failed run logs
+   gh run view <RUN_ID> --log-failed
+   ```
 3. If CI fails:
-   - Read failure logs
-   - Diagnose root cause (same as local test failures)
+   - Read failure logs: `gh run view <RUN_ID> --log-failed`
+   - Diagnose root cause (same philosophy as local test failures)
    - Fix and push again
 4. Max 2 fix attempts - if still failing, ASK USER
 5. If CI passes - proceed to present final summary
@@ -1559,6 +1770,67 @@ If this session revealed testing insights, update the right place:
 
 ---
 
+### Visual Regression Testing (Experimental - Niche Use Cases Only)
+
+**Most apps don't need this.** Standard E2E testing (Playwright, Cypress) covers 99% of UI testing needs.
+
+**What is it?** Pixel-by-pixel or AI-based screenshot comparison:
+```
+Before: Screenshot A (baseline)
+After:  Screenshot B (candidate)
+Result: Visual diff highlights pixel changes
+```
+
+**When you actually need this (rare):**
+
+| Use Case | Example | Why Standard E2E Won't Work |
+|----------|---------|----------------------------|
+| Wiki/Doc renderers | Markdown → HTML rendering | Output IS the visual, not DOM state |
+| Canvas/Graphics apps | Drawing tools, charts | No DOM to assert against |
+| PDF/Image generators | Invoice generators | Binary output, not HTML |
+| Visual editors | WYSIWYG, design tools | Pixel-perfect matters |
+
+**When you don't need this (most apps):**
+Standard E2E testing checks elements exist, text is correct, interactions work. That's enough for:
+- Normal web apps, forms, CRUD
+- Dashboards, e-commerce, SaaS products
+
+**The reality:**
+
+| Approach | Coverage | Maintenance | Cost |
+|----------|----------|-------------|------|
+| Standard E2E | 95%+ of UI bugs | Low | Free |
+| Visual regression | Remaining 5% edge cases | HIGH | Often paid |
+
+**Visual regression downsides:**
+- Baseline images constantly need updating
+- Flaky due to font rendering, anti-aliasing
+- CI/OS differences cause false positives
+- Expensive (Chromatic, Percy charge per snapshot)
+
+**If you actually need it:**
+```javascript
+// Playwright built-in (free)
+await expect(page).toHaveScreenshot('rendered-page.png');
+```
+
+**During wizard setup (Step 0.4):** If canvas-heavy or rendering libraries detected, Claude asks:
+```
+Q?: Visual Output Testing (Experimental)
+
+Your app appears to generate visual output (canvas/rendering detected).
+Standard E2E may not cover visual rendering bugs.
+
+Options:
+[1] I'll handle visual testing myself (most users)
+[2] Tell me about visual regression tools (niche)
+[3] Skip - standard E2E is enough for me
+```
+
+**Default: Skip.** This is not pushed on users.
+
+---
+
 ## Step 8: Create CLAUDE.md
 
 Create `CLAUDE.md` in your project root. This is your project-specific configuration:
@@ -1659,10 +1931,44 @@ These are your full reference docs. Start with stubs and expand over time:
 
 # Database (prod)
 [connection info or how to access]
-
-# Deployment
-[how to deploy: e.g., ./deploy.sh, git push heroku, etc.]
 ```
+
+## Environments
+
+<!-- Claude auto-populates this from Q8.5 deployment detection -->
+
+| Environment | URL | Deploy Command | Trigger |
+|-------------|-----|----------------|---------|
+| Local Dev | http://localhost:3000 | `npm run dev` | Manual |
+| Preview | [auto-generated PR URL] | `vercel` | Auto on PR |
+| Staging | https://staging.example.com | `[your staging deploy]` | Push to staging |
+| Production | https://example.com | `vercel --prod` | Manual / push to main |
+
+## Deployment Checklist
+
+**Before deploying to ANY environment:**
+- [ ] All tests pass locally
+- [ ] Production build succeeds (`npm run build`)
+- [ ] No uncommitted changes
+
+**Before deploying to PRODUCTION:**
+- [ ] Changes tested in staging/preview first
+- [ ] STATE CONFIDENCE: HIGH before proceeding
+- [ ] If LOW confidence → ASK USER before deploying
+
+**Claude follows this automatically.** When task involves "deploy to prod" and confidence is LOW, Claude will ask before proceeding.
+
+## Rollback
+
+If deployment fails or causes issues:
+
+| Environment | Rollback Command | Notes |
+|-------------|------------------|-------|
+| Preview | [auto-expires or redeploy] | Usually self-heals |
+| Staging | `[your rollback command]` | [notes] |
+| Production | `[your rollback command]` | [critical - document clearly] |
+
+<!-- Add specific rollback procedures as you discover them -->
 
 ## System Overview
 
@@ -1735,6 +2041,67 @@ Location: `[Claude will discover or ask - e.g., tests/fixtures/, test-data/]`
 
 <!-- Add testing gotchas as you discover them -->
 ```
+
+---
+
+**DESIGN_SYSTEM.md (if UI detected):**
+
+Only generated if design system elements were detected in Step 0.4. Skip if no UI work expected.
+
+```markdown
+# Design System
+
+## Source of Truth
+
+[Storybook URL or Figma link if external, otherwise this document]
+
+## Colors
+
+| Name | Value | Usage |
+|------|-------|-------|
+| primary | #3B82F6 | Buttons, links, primary actions |
+| secondary | #10B981 | Success states, secondary actions |
+| error | #EF4444 | Error states, destructive actions |
+| warning | #F59E0B | Warning states, caution |
+| background | #FFFFFF | Page background |
+| surface | #F3F4F6 | Cards, elevated surfaces |
+| text-primary | #111827 | Main body text |
+| text-secondary | #6B7280 | Secondary, muted text |
+
+## Typography
+
+| Style | Font | Size | Weight | Line Height |
+|-------|------|------|--------|-------------|
+| h1 | Inter | 2.25rem | 700 | 1.2 |
+| h2 | Inter | 1.875rem | 600 | 1.25 |
+| body | Inter | 1rem | 400 | 1.5 |
+| code | Fira Code | 0.875rem | 400 | 1.6 |
+
+## Spacing
+
+Using 4px base unit: `4, 8, 12, 16, 24, 32, 48, 64, 96`
+
+## Components
+
+Reference: `components/ui/` or Storybook
+
+## Assets
+
+- Icons: `public/icons/` or icon library name
+- Images: `public/images/`
+- Logos: `public/logos/`
+
+## Gotchas
+
+<!-- Add design-specific gotchas as you discover them -->
+```
+
+**Why DESIGN_SYSTEM.md?**
+- Claude needs to know your visual language when making UI changes
+- Prevents style drift and inconsistency
+- Extracted from your actual config (tailwind.config.js, CSS vars) - not guessed
+
+**If you have external design system:** Point to Storybook/Figma URL instead of duplicating.
 
 ---
 

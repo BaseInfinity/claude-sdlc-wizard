@@ -4,6 +4,65 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.6.0] - 2026-02-06
+
+### Added
+- Full test coverage for stats library, hooks, and compliance checker (34 new tests)
+- Extended SDP calculation and external benchmark tests (9 new tests)
+- Future roadmap items 14-19 in AUTO_SELF_UPDATE.md
+
+### Fixed
+- Version format validation before npm install (security: prevents injection)
+- Hardcoded `/home/runner/work/_temp/` paths replaced with `${RUNNER_TEMP:-/tmp}`
+- Silent fallback to v0.0.0 on API failure (now fails loudly)
+- Duplicate prompt sources in daily-update workflow (prompt_file + inline prompt)
+- Hardcoded output path in pr-review workflow
+- Weekly community workflow hardcoded output path
+
+### Changed
+- Documentation overhaul: TESTING.md, CI_CD.md, CONTRIBUTING.md, README.md updated
+- SDLC.md version tracking updated from 1.0.0 to 1.6.0
+
+### Files Added
+- `tests/test-stats.sh` - Statistical functions tests (14 tests)
+- `tests/test-hooks.sh` - Hook script tests (11 tests)
+- `tests/test-compliance.sh` - Compliance checker tests (9 tests)
+
+### Files Modified
+- `.github/workflows/daily-update.yml` - Security + correctness fixes
+- `.github/workflows/pr-review.yml` - Hardcoded path fix
+- `.github/workflows/weekly-community.yml` - Hardcoded path fix
+- `tests/test-sdp-calculation.sh` - Extended (5 new tests)
+- `tests/test-external-benchmark.sh` - Extended (4 new tests)
+
+## [1.5.0] - 2026-02-03
+
+### Added
+- SDP (SDLC Degradation-adjusted Performance) scoring to distinguish "model issues" from "wizard issues"
+- External benchmark tracking (DailyBench, LiveBench) with 24-hour caching
+- Robustness metric showing how well SDLC holds up vs model changes
+- Two-layer scoring: L1 (Model Quality) + L2 (SDLC Compliance)
+
+### How It Works
+PR comments now show three metrics:
+- **Raw Score**: Actual E2E measurement
+- **SDP Score**: Adjusted for external model conditions
+- **Robustness**: < 1.0 = resilient, > 1.0 = sensitive
+
+When model benchmarks drop but your SDLC score holds steady, that's a sign your wizard setup is robust.
+
+### Files Added
+- `tests/e2e/lib/external-benchmark.sh` - Multi-source benchmark fetcher
+- `tests/e2e/lib/sdp-score.sh` - SDP calculation logic
+- `tests/e2e/external-baseline.json` - Baseline external benchmarks
+- `tests/test-external-benchmark.sh` - Benchmark fetcher tests
+- `tests/test-sdp-calculation.sh` - SDP calculation tests
+
+### Files Modified
+- `tests/e2e/evaluate.sh` - Outputs SDP alongside raw scores
+- `.github/workflows/ci.yml` - PR comments include SDP metrics
+- Documentation updated (README, CONTRIBUTING, CI_CD, AUTO_SELF_UPDATE)
+
 ## [1.4.0] - 2026-01-26
 
 ### Added

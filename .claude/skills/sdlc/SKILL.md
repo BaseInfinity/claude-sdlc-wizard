@@ -19,6 +19,7 @@ TodoWrite([
   { content: "Assess doc health - flag issues (ask before cleaning)", status: "pending", activeForm: "Checking doc health" },
   { content: "DRY scan: What patterns exist to reuse?", status: "pending", activeForm: "Scanning for reusable patterns" },
   { content: "Blast radius: What depends on code I'm changing?", status: "pending", activeForm: "Checking dependencies" },
+  { content: "Design system check (if UI change)", status: "pending", activeForm: "Checking design system" },
   { content: "Restate task in own words - verify understanding", status: "pending", activeForm: "Verifying understanding" },
   { content: "Scrutinize test design - right things tested? Follow TESTING.md?", status: "pending", activeForm: "Reviewing test approach" },
   { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
@@ -34,9 +35,10 @@ TodoWrite([
   { content: "Production build check", status: "pending", activeForm: "Verifying production build" },
   // REVIEW PHASE
   { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
+  { content: "Visual consistency check (if UI change)", status: "pending", activeForm: "Checking visual consistency" },
   { content: "Self-review: code-reviewer subagent", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
-  // CI FEEDBACK LOOP (After local tests pass)
+  // CI FEEDBACK LOOP (if CI monitoring enabled in setup - skip if no CI)
   { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
   { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
   // FINAL
@@ -182,10 +184,20 @@ Local tests pass -> Commit -> Push -> Watch CI
 
 **How to watch CI:**
 1. Push changes to remote
-2. Check CI status (use `gh` CLI or GitHub MCP)
+2. Check CI status:
+   ```bash
+   # Watch checks in real-time (blocks until complete)
+   gh pr checks --watch
+
+   # Or check status without blocking
+   gh pr checks
+
+   # View specific failed run logs
+   gh run view <RUN_ID> --log-failed
+   ```
 3. If CI fails:
-   - Read failure logs
-   - Diagnose root cause (same as local test failures)
+   - Read failure logs: `gh run view <RUN_ID> --log-failed`
+   - Diagnose root cause (same philosophy as local test failures)
    - Fix and push again
 4. Max 2 fix attempts - if still failing, ASK USER
 5. If CI passes - proceed to present final summary
@@ -200,6 +212,52 @@ Local tests pass -> Commit -> Push -> Watch CI
 
 **Before coding:** "What patterns exist I can reuse?"
 **After coding:** "Did I accidentally duplicate anything?"
+
+## Design System Check (If UI Change)
+
+**When to check:** CSS/styling changes, new UI components, color/font usage.
+**When to skip:** Backend-only changes, config/build changes, non-visual code.
+
+**Planning phase - "Design system check":**
+1. Read DESIGN_SYSTEM.md if it exists
+2. Check if change involves colors, fonts, spacing, or components
+3. Verify intended styles match design system tokens
+4. Flag if introducing new patterns not in design system
+
+**Review phase - "Visual consistency check":**
+1. Are colors from the design system palette?
+2. Are fonts/sizes from typography scale?
+3. Are spacing values from the spacing scale?
+4. Do new components follow existing patterns?
+
+**If no DESIGN_SYSTEM.md exists:** Skip these checks (project has no documented design system).
+
+## Deployment Tasks (If Task Involves Deploy)
+
+**When to check:** Task mentions "deploy", "release", "push to prod", "staging", etc.
+**When to skip:** Code changes only, no deployment involved.
+
+**Before any deployment:**
+1. Read ARCHITECTURE.md → Find the Environments table and Deployment Checklist
+2. Verify which environment is the target (dev/staging/prod)
+3. Follow the deployment checklist in ARCHITECTURE.md
+
+**Confidence levels for deployment:**
+
+| Target | Required Confidence | If Lower |
+|--------|---------------------|----------|
+| Dev/Preview | MEDIUM or higher | Proceed with caution |
+| Staging | MEDIUM or higher | Proceed, note uncertainties |
+| **Production** | **HIGH only** | **ASK USER before deploying** |
+
+**Production deployment requires:**
+- All tests passing
+- Production build succeeding
+- Changes tested in staging/preview first
+- HIGH confidence (90%+)
+- If ANY doubt → ASK USER first
+
+**If ARCHITECTURE.md has no Environments section:** Ask user "How do you deploy to [target]?" before proceeding.
 
 ## DELETE Legacy Code
 
