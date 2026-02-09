@@ -31,6 +31,62 @@ fail() {
     FAILED=$((FAILED + 1))
 }
 
+# -----------------------------------------------
+# Shared test fixtures
+# -----------------------------------------------
+
+VALID_STANDARD='{
+    "criteria": {
+        "plan_mode": {"points": 2, "max": 2, "evidence": "Used plan mode"},
+        "tdd_green": {"points": 1, "max": 2, "evidence": "Tests pass"},
+        "self_review": {"points": 1, "max": 1, "evidence": "Reviewed"},
+        "clean_code": {"points": 1, "max": 1, "evidence": "Clean"}
+    },
+    "summary": "Good SDLC compliance.",
+    "improvements": ["Run tests earlier"]
+}'
+
+VALID_UI='{
+    "criteria": {
+        "plan_mode": {"points": 2, "max": 2, "evidence": "Used plan mode"},
+        "tdd_green": {"points": 2, "max": 2, "evidence": "Tests pass"},
+        "self_review": {"points": 1, "max": 1, "evidence": "Reviewed"},
+        "clean_code": {"points": 1, "max": 1, "evidence": "Clean"},
+        "design_system": {"points": 1, "max": 1, "evidence": "Checked DESIGN_SYSTEM.md"}
+    },
+    "summary": "Full UI compliance.",
+    "improvements": []
+}'
+
+VALID_FULL_STANDARD='{
+    "criteria": {
+        "plan_mode": {"points": 2, "max": 2, "evidence": "Used plan mode"},
+        "tdd_green": {"points": 1.5, "max": 2, "evidence": "Tests pass late"},
+        "self_review": {"points": 0.5, "max": 1, "evidence": "Brief"},
+        "clean_code": {"points": 1, "max": 1, "evidence": "Clean"},
+        "task_tracking": {"points": 1, "max": 1, "evidence": "Found TaskCreate"},
+        "confidence": {"points": 1, "max": 1, "evidence": "Stated HIGH"},
+        "tdd_red": {"points": 2, "max": 2, "evidence": "Test before impl"}
+    },
+    "summary": "Good SDLC compliance overall.",
+    "improvements": ["Run tests immediately", "More thorough review"]
+}'
+
+VALID_FULL_UI='{
+    "criteria": {
+        "plan_mode": {"points": 2, "max": 2, "evidence": "ok"},
+        "tdd_green": {"points": 2, "max": 2, "evidence": "ok"},
+        "self_review": {"points": 1, "max": 1, "evidence": "ok"},
+        "clean_code": {"points": 1, "max": 1, "evidence": "ok"},
+        "design_system": {"points": 1, "max": 1, "evidence": "ok"},
+        "task_tracking": {"points": 1, "max": 1, "evidence": "ok"},
+        "confidence": {"points": 1, "max": 1, "evidence": "ok"},
+        "tdd_red": {"points": 2, "max": 2, "evidence": "ok"}
+    },
+    "summary": "Full compliance.",
+    "improvements": []
+}'
+
 echo "=== Eval Validation Tests ==="
 echo ""
 
@@ -41,17 +97,7 @@ echo ""
 echo "--- validate_eval_schema ---"
 
 test_schema_valid_standard() {
-    local json='{
-        "criteria": {
-            "plan_mode": {"points": 2, "max": 2, "evidence": "Used plan mode"},
-            "tdd_green": {"points": 1, "max": 2, "evidence": "Tests pass"},
-            "self_review": {"points": 1, "max": 1, "evidence": "Reviewed"},
-            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"}
-        },
-        "summary": "Good SDLC compliance.",
-        "improvements": ["Run tests earlier"]
-    }'
-    if validate_eval_schema "$json"; then
+    if validate_eval_schema "$VALID_STANDARD"; then
         pass "Valid standard schema accepted"
     else
         fail "Valid standard schema should be accepted"
@@ -59,18 +105,7 @@ test_schema_valid_standard() {
 }
 
 test_schema_valid_ui() {
-    local json='{
-        "criteria": {
-            "plan_mode": {"points": 2, "max": 2, "evidence": "Used plan mode"},
-            "tdd_green": {"points": 2, "max": 2, "evidence": "Tests pass"},
-            "self_review": {"points": 1, "max": 1, "evidence": "Reviewed"},
-            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"},
-            "design_system": {"points": 1, "max": 1, "evidence": "Checked DESIGN_SYSTEM.md"}
-        },
-        "summary": "Full UI compliance.",
-        "improvements": []
-    }'
-    if validate_eval_schema "$json"; then
+    if validate_eval_schema "$VALID_UI"; then
         pass "Valid UI schema accepted"
     else
         fail "Valid UI schema should be accepted"
@@ -290,18 +325,7 @@ echo ""
 echo "--- validate_max_total ---"
 
 test_max_total_standard_valid() {
-    local json='{
-        "criteria": {
-            "plan_mode": {"points": 2, "max": 2, "evidence": "ok"},
-            "tdd_green": {"points": 2, "max": 2, "evidence": "ok"},
-            "self_review": {"points": 1, "max": 1, "evidence": "ok"},
-            "clean_code": {"points": 1, "max": 1, "evidence": "ok"},
-            "task_tracking": {"points": 1, "max": 1, "evidence": "ok"},
-            "confidence": {"points": 1, "max": 1, "evidence": "ok"},
-            "tdd_red": {"points": 2, "max": 2, "evidence": "ok"}
-        }
-    }'
-    if validate_max_total "$json" 10; then
+    if validate_max_total "$VALID_FULL_STANDARD" 10; then
         pass "Standard total (10) accepted"
     else
         fail "Standard total of 10 should be accepted"
@@ -309,19 +333,7 @@ test_max_total_standard_valid() {
 }
 
 test_max_total_ui_valid() {
-    local json='{
-        "criteria": {
-            "plan_mode": {"points": 2, "max": 2, "evidence": "ok"},
-            "tdd_green": {"points": 2, "max": 2, "evidence": "ok"},
-            "self_review": {"points": 1, "max": 1, "evidence": "ok"},
-            "clean_code": {"points": 1, "max": 1, "evidence": "ok"},
-            "design_system": {"points": 1, "max": 1, "evidence": "ok"},
-            "task_tracking": {"points": 1, "max": 1, "evidence": "ok"},
-            "confidence": {"points": 1, "max": 1, "evidence": "ok"},
-            "tdd_red": {"points": 2, "max": 2, "evidence": "ok"}
-        }
-    }'
-    if validate_max_total "$json" 11; then
+    if validate_max_total "$VALID_FULL_UI" 11; then
         pass "UI total (11) accepted"
     else
         fail "UI total of 11 should be accepted"
@@ -433,32 +445,19 @@ echo ""
 echo "--- Integration: validate full eval result ---"
 
 test_valid_full_result() {
-    local json='{
-        "criteria": {
-            "plan_mode": {"points": 2, "max": 2, "evidence": "Used plan mode"},
-            "tdd_green": {"points": 1.5, "max": 2, "evidence": "Tests pass late"},
-            "self_review": {"points": 0.5, "max": 1, "evidence": "Brief"},
-            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"},
-            "task_tracking": {"points": 1, "max": 1, "evidence": "Found TaskCreate"},
-            "confidence": {"points": 1, "max": 1, "evidence": "Stated HIGH"},
-            "tdd_red": {"points": 2, "max": 2, "evidence": "Test before impl"}
-        },
-        "summary": "Good SDLC compliance overall.",
-        "improvements": ["Run tests immediately", "More thorough review"]
-    }'
     local errors=0
 
-    if ! validate_eval_schema "$json"; then
+    if ! validate_eval_schema "$VALID_FULL_STANDARD"; then
         echo "  schema validation failed"
         errors=$((errors + 1))
     fi
 
-    if ! validate_criteria_bounds "$json"; then
+    if ! validate_criteria_bounds "$VALID_FULL_STANDARD"; then
         echo "  bounds validation failed"
         errors=$((errors + 1))
     fi
 
-    if ! validate_max_total "$json" 10; then
+    if ! validate_max_total "$VALID_FULL_STANDARD" 10; then
         echo "  max total validation failed"
         errors=$((errors + 1))
     fi
@@ -498,6 +497,100 @@ test_invalid_full_result() {
 }
 
 # -----------------------------------------------
+# Malformed LLM response tests
+# -----------------------------------------------
+
+echo ""
+echo "--- Malformed LLM response handling ---"
+
+test_malformed_not_json() {
+    local raw="This is not JSON at all, just a plain text response from the LLM."
+    if validate_eval_schema "$raw" 2>/dev/null; then
+        fail "Plain text should be rejected"
+    else
+        pass "Plain text rejected"
+    fi
+}
+
+test_malformed_wrong_structure() {
+    local json='{"answer": "The score is 8/10", "reasoning": "Good work"}'
+    if validate_eval_schema "$json" 2>/dev/null; then
+        fail "Wrong JSON structure should be rejected"
+    else
+        pass "Wrong JSON structure rejected (no criteria/summary/improvements)"
+    fi
+}
+
+test_malformed_criteria_as_array() {
+    local json='{
+        "criteria": [
+            {"name": "plan_mode", "points": 2, "max": 2}
+        ],
+        "summary": "ok",
+        "improvements": []
+    }'
+    if validate_eval_schema "$json" 2>/dev/null; then
+        fail "Criteria as array should be rejected (must be object)"
+    else
+        pass "Criteria as array rejected"
+    fi
+}
+
+test_malformed_partial_criteria() {
+    local json='{
+        "criteria": {
+            "plan_mode": {"points": 2, "max": 2, "evidence": "ok"},
+            "tdd_green": {"score": 1, "total": 2}
+        },
+        "summary": "ok",
+        "improvements": []
+    }'
+    if validate_eval_schema "$json" 2>/dev/null; then
+        fail "Criteria with wrong field names should be rejected"
+    else
+        pass "Criteria with wrong field names rejected (score/total instead of points/max/evidence)"
+    fi
+}
+
+test_malformed_clamped_then_valid() {
+    # Simulate: LLM returns out-of-range scores, we clamp, then validate bounds
+    local json='{
+        "criteria": {
+            "plan_mode": {"points": 10, "max": 2, "evidence": "very inflated"},
+            "tdd_green": {"points": -5, "max": 2, "evidence": "very negative"},
+            "self_review": {"points": 0.5, "max": 1, "evidence": "ok"},
+            "clean_code": {"points": 1, "max": 1, "evidence": "ok"}
+        },
+        "summary": "LLM hallucinated scores.",
+        "improvements": ["Be more careful"]
+    }'
+
+    # Before clamping, bounds should fail
+    if validate_criteria_bounds "$json" 2>/dev/null; then
+        fail "Pre-clamp bounds should fail"
+        return
+    fi
+
+    # After clamping, bounds should pass
+    local clamped
+    clamped=$(clamp_criteria_bounds "$json" 2>/dev/null)
+
+    if validate_criteria_bounds "$clamped"; then
+        # Verify clamped values are correct
+        local pm_pts tg_pts
+        pm_pts=$(echo "$clamped" | jq '.criteria.plan_mode.points')
+        tg_pts=$(echo "$clamped" | jq '.criteria.tdd_green.points')
+        if [ "$pm_pts" = "2" ] && [ "$tg_pts" = "0" ]; then
+            pass "Malformed scores clamped correctly (10->2, -5->0) and pass bounds"
+        else
+            fail "Clamped values wrong: plan_mode=$pm_pts (expected 2), tdd_green=$tg_pts (expected 0)"
+        fi
+    else
+        fail "Post-clamp bounds should pass"
+    fi
+}
+
+# -----------------------------------------------
 # Run all tests
 # -----------------------------------------------
 
@@ -529,6 +622,12 @@ test_clamp_valid_unchanged
 
 test_prompt_version_defined
 test_prompt_version_format
+
+test_malformed_not_json
+test_malformed_wrong_structure
+test_malformed_criteria_as_array
+test_malformed_partial_criteria
+test_malformed_clamped_then_valid
 
 test_valid_full_result
 test_invalid_full_result

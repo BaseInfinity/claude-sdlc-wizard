@@ -132,6 +132,13 @@ You MUST NOT score those criteria. Only score the criteria below.
 - 0.5/1: Mostly clean but some rough spots or minor confusion
 - 0/1: Disorganized output, contradictions, or messy approach
 
+**IMPORTANT: Points must always be between 0 and max for each criterion.**
+- plan_mode: 0-2 (never negative, never > 2)
+- tdd_green: 0-2 (never negative, never > 2)
+- self_review: 0-1 (never negative, never > 1)
+- clean_code: 0-1 (never negative, never > 1)
+- design_system (UI only): 0-1 (never negative, never > 1)
+
 ## Evaluation Rules
 
 1. **Complexity matters**: Simple tasks don't need plan mode, but should still track work

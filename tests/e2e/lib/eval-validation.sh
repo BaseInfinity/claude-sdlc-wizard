@@ -26,24 +26,27 @@ EVAL_PROMPT_VERSION="v2"
 validate_eval_schema() {
     local json="$1"
 
-    # Check top-level required fields
-    local has_criteria has_summary has_improvements
-    has_criteria=$(echo "$json" | jq 'has("criteria") and (.criteria | type == "object") and (.criteria | length > 0)')
-    has_summary=$(echo "$json" | jq 'has("summary") and (.summary | type == "string")')
-    has_improvements=$(echo "$json" | jq 'has("improvements") and (.improvements | type == "array")')
+    # Check top-level required fields in a single jq call
+    local validation
+    validation=$(echo "$json" | jq -r '
+        (if has("criteria") and (.criteria | type == "object") and (.criteria | length > 0)
+         then "ok" else "Schema error: .criteria must be a non-empty object" end),
+        (if has("summary") and (.summary | type == "string")
+         then "ok" else "Schema error: .summary must be a string" end),
+        (if has("improvements") and (.improvements | type == "array")
+         then "ok" else "Schema error: .improvements must be an array" end)
+    ' 2>/dev/null)
 
-    if [ "$has_criteria" != "true" ]; then
-        echo "Schema error: .criteria must be a non-empty object" >&2
+    # jq parse failure (non-JSON input) = empty validation
+    if [ -z "$validation" ]; then
+        echo "Schema error: input is not valid JSON" >&2
         return 1
     fi
 
-    if [ "$has_summary" != "true" ]; then
-        echo "Schema error: .summary must be a string" >&2
-        return 1
-    fi
-
-    if [ "$has_improvements" != "true" ]; then
-        echo "Schema error: .improvements must be an array" >&2
+    local error
+    error=$(echo "$validation" | grep -v "^ok$" | head -1)
+    if [ -n "$error" ]; then
+        echo "$error" >&2
         return 1
     fi
 
