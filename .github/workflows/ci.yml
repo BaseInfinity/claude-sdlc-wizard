@@ -166,7 +166,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --max-turns 45
-            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
             You are running an E2E SDLC simulation. Your goal is to complete a coding task
@@ -179,7 +179,7 @@ jobs:
             1. Read the scenario file to understand the task and complexity
             2. Use TodoWrite or TaskCreate to track your work
             3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
-            4. For medium/hard tasks, use EnterPlanMode before coding
+            4. For medium/hard tasks, plan your approach before coding (outline steps in a message)
             5. Follow TDD: write/update tests FIRST, verify they fail, then implement
             6. Run `npm test` to verify all tests pass
             7. Self-review your changes before finishing
@@ -307,7 +307,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --max-turns 45
-            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
             You are running an E2E SDLC simulation. Your goal is to complete a coding task
@@ -320,7 +320,7 @@ jobs:
             1. Read the scenario file to understand the task and complexity
             2. Use TodoWrite or TaskCreate to track your work
             3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
-            4. For medium/hard tasks, use EnterPlanMode before coding
+            4. For medium/hard tasks, plan your approach before coding (outline steps in a message)
             5. Follow TDD: write/update tests FIRST, verify they fail, then implement
             6. Run `npm test` to verify all tests pass
             7. Self-review your changes before finishing
@@ -803,7 +803,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --max-turns 45
-            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
             You are running an E2E SDLC simulation. Your goal is to complete a coding task
@@ -816,7 +816,7 @@ jobs:
             1. Read the scenario file to understand the task and complexity
             2. Use TodoWrite or TaskCreate to track your work
             3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
-            4. For medium/hard tasks, use EnterPlanMode before coding
+            4. For medium/hard tasks, plan your approach before coding (outline steps in a message)
             5. Follow TDD: write/update tests FIRST, verify they fail, then implement
             6. Run `npm test` to verify all tests pass
             7. Self-review your changes before finishing
@@ -958,7 +958,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --max-turns 45
-            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
             You are running an E2E SDLC simulation. Your goal is to complete a coding task
@@ -971,7 +971,7 @@ jobs:
             1. Read the scenario file to understand the task and complexity
             2. Use TodoWrite or TaskCreate to track your work
             3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
-            4. For medium/hard tasks, use EnterPlanMode before coding
+            4. For medium/hard tasks, plan your approach before coding (outline steps in a message)
             5. Follow TDD: write/update tests FIRST, verify they fail, then implement
             6. Run `npm test` to verify all tests pass
             7. Self-review your changes before finishing

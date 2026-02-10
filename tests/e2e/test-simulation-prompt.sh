@@ -65,10 +65,10 @@ test_prompt_mentions_tdd() {
 }
 
 test_prompt_mentions_plan_mode() {
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'plan mode\|EnterPlanMode\|PlanMode'; then
-        pass "Prompt mentions plan mode or EnterPlanMode"
+    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'plan.*before coding\|plan mode\|EnterPlanMode'; then
+        pass "Prompt mentions planning before coding"
     else
-        fail "Prompt should mention plan mode for complex tasks"
+        fail "Prompt should mention planning for complex tasks"
     fi
 }
 

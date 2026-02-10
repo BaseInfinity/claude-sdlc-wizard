@@ -328,8 +328,8 @@ test_pr_review_synchronize_condition() {
 # These tests ensure Claude simulations have access
 # to the tools that scenarios actually need.
 
-# Test 20: CI allowedTools includes EnterPlanMode (needed by complex scenarios)
-test_ci_allowed_tools_plan_mode() {
+# Test 20: CI allowedTools excludes plan mode tools (they loop in headless CI)
+test_ci_allowed_tools_no_plan_mode() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
@@ -337,10 +337,10 @@ test_ci_allowed_tools_plan_mode() {
         return
     fi
 
-    if grep "allowedTools" "$WORKFLOW" | grep -q "EnterPlanMode"; then
-        pass "CI allowedTools includes EnterPlanMode"
+    if grep "allowedTools" "$WORKFLOW" | grep -q "EnterPlanMode\|ExitPlanMode"; then
+        fail "CI allowedTools should NOT include EnterPlanMode/ExitPlanMode (loops in headless CI)"
     else
-        fail "CI allowedTools missing EnterPlanMode (complex scenarios need plan mode)"
+        pass "CI allowedTools excludes plan mode tools (headless-safe)"
     fi
 }
 
@@ -605,7 +605,7 @@ test_cleanup_labeled_guard
 test_daily_existing_pr_check
 test_pr_review_synchronize_trigger
 test_pr_review_synchronize_condition
-test_ci_allowed_tools_plan_mode
+test_ci_allowed_tools_no_plan_mode
 test_ci_allowed_tools_task_tracking
 test_ci_autofix_exists
 test_ci_autofix_workflow_run_trigger
