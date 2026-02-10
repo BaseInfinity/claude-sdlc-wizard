@@ -233,7 +233,10 @@ if ! is_valid_json "$EVAL_RESULT"; then
     fi
 fi
 
-# Merge deterministic + LLM scores into final result
+# Merge deterministic scores (task_tracking, confidence, tdd_red) into LLM-scored
+# criteria, recalculate total score, and determine pass threshold (7/10).
+# Deterministic criteria are grep-based (free, reproducible); LLM scores subjective
+# criteria only (plan_mode, tdd_green, self_review, clean_code, design_system).
 EVAL_RESULT=$(echo "$EVAL_RESULT" | jq \
     --argjson det "$DETERMINISTIC_RESULT" \
     '

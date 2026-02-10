@@ -129,7 +129,7 @@ jobs:
         id: select-scenario
         run: |
           source pr-branch/tests/e2e/lib/scenario-selector.sh
-          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_NUMBER=$(echo "${{ github.event.pull_request.number }}" | grep -E '^[0-9]+$' || echo "0")
           SCENARIO_PATH=$(select_scenario "pr-branch/tests/e2e/scenarios" "${PR_NUMBER:-0}")
           SCENARIO_NAME=$(basename "$SCENARIO_PATH" .md)
           echo "scenario=tests/e2e/scenarios/${SCENARIO_NAME}.md" >> $GITHUB_OUTPUT
@@ -748,7 +748,7 @@ jobs:
         id: select-scenario
         run: |
           source pr-branch/tests/e2e/lib/scenario-selector.sh
-          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_NUMBER=$(echo "${{ github.event.pull_request.number }}" | grep -E '^[0-9]+$' || echo "0")
           SCENARIO_PATH=$(select_scenario "pr-branch/tests/e2e/scenarios" "${PR_NUMBER:-0}")
           SCENARIO_NAME=$(basename "$SCENARIO_PATH" .md)
           echo "scenario=tests/e2e/scenarios/${SCENARIO_NAME}.md" >> $GITHUB_OUTPUT

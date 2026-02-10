@@ -64,6 +64,8 @@ check_tdd_red() {
     while IFS= read -r filepath; do
         line_num=$((line_num + 1))
         # Check if this is a test file
+        # Matches: *.test.ext, *.spec.ext (JS/TS/Python/Ruby/Java/Go/Rust)
+        # Also matches directories: tests/, test/, spec/, __tests__/
         if echo "$filepath" | grep -qE '(test|spec)\.(js|ts|jsx|tsx|py|rb|java|go|rs)$|tests/|test/|spec/|__tests__/'; then
             if [ -z "$first_test_line" ]; then
                 first_test_line="$line_num"

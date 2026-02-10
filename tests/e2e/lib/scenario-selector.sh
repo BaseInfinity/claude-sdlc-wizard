@@ -38,10 +38,9 @@ select_scenario() {
     fi
 
     # For empty PR number (push events), use day-of-year for rotation
-    # Strip leading zeros to avoid octal interpretation
+    # Force base-10 interpretation to avoid octal issues (e.g., day 008/009)
     if [ -z "$pr_number" ]; then
-        pr_number=$(date +%j | sed 's/^0*//' )
-        pr_number=${pr_number:-0}
+        pr_number=$((10#$(date +%j)))
     fi
 
     # Round-robin: PR number mod scenario count
