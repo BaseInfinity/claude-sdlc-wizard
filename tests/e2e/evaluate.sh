@@ -176,20 +176,26 @@ Now evaluate the execution output against the scenario requirements. Return only
 # Escape the prompt for JSON
 ESCAPED_PROMPT=$(echo "$FULL_PROMPT" | jq -Rs .)
 
+# Write request body to temp file to avoid "Argument list too long" with large outputs
+API_REQUEST_FILE=$(mktemp)
+cat > "$API_REQUEST_FILE" <<JSONEOF
+{
+    "model": "claude-opus-4-6",
+    "max_tokens": 2048,
+    "messages": [{
+        "role": "user",
+        "content": $ESCAPED_PROMPT
+    }]
+}
+JSONEOF
+
 # API call with 1 retry on failure
 call_api() {
     curl -s https://api.anthropic.com/v1/messages \
         -H "Content-Type: application/json" \
         -H "x-api-key: $ANTHROPIC_API_KEY" \
         -H "anthropic-version: 2023-06-01" \
-        -d "{
-            \"model\": \"claude-opus-4-6\",
-            \"max_tokens\": 2048,
-            \"messages\": [{
-                \"role\": \"user\",
-                \"content\": $ESCAPED_PROMPT
-            }]
-        }"
+        -d @"$API_REQUEST_FILE"
 }
 
 API_RESPONSE=$(call_api)
@@ -409,6 +415,9 @@ else
     echo "$EVAL_RESULT" | jq -r '.improvements[]? // "None"' 2>/dev/null
     echo ""
 fi
+
+# Cleanup temp files
+rm -f "$API_REQUEST_FILE"
 
 # Exit with appropriate code
 if [ "$PASS" = "true" ]; then

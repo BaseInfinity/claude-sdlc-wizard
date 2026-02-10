@@ -123,6 +123,16 @@ test_fixture_has_multiple_source_files() {
     fi
 }
 
+test_evaluate_uses_file_based_curl() {
+    # evaluate.sh must use curl -d @file (file-based) not inline -d '{...}'
+    # to avoid "Argument list too long" with large outputs (200KB+)
+    if grep -q '\-d @' "$EVALUATE_FILE"; then
+        pass "evaluate.sh uses file-based curl (-d @file)"
+    else
+        fail "evaluate.sh should use file-based curl (-d @file) to avoid argument length limits"
+    fi
+}
+
 # Run all tests
 test_prompt_mentions_task_tracking
 test_prompt_mentions_confidence
@@ -132,6 +142,7 @@ test_prompt_mentions_self_review
 test_output_limit_adequate
 test_fixture_app_size
 test_fixture_has_multiple_source_files
+test_evaluate_uses_file_based_curl
 
 echo ""
 echo "=========================================="
