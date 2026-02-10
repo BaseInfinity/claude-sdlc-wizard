@@ -190,6 +190,7 @@ jobs:
             - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
             - All files you need are in the working directory — do not search elsewhere
             - Be efficient with your turns — execute, don't just plan
+            - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead
 
       - name: Integrity check BASELINE simulation
         if: steps.check-baseline.outputs.has_baseline == 'true'
@@ -331,6 +332,7 @@ jobs:
             - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
             - All files you need are in the working directory — do not search elsewhere
             - Be efficient with your turns — execute, don't just plan
+            - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead
 
       - name: Integrity check CANDIDATE simulation
         run: |
@@ -827,6 +829,7 @@ jobs:
             - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
             - All files you need are in the working directory — do not search elsewhere
             - Be efficient with your turns — execute, don't just plan
+            - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead
 
       - name: Integrity check BASELINE simulation (Tier 2)
         if: steps.check-baseline.outputs.has_baseline == 'true'
@@ -982,6 +985,7 @@ jobs:
             - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
             - All files you need are in the working directory — do not search elsewhere
             - Be efficient with your turns — execute, don't just plan
+            - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead
 
       - name: Integrity check CANDIDATE simulation (Tier 2)
         run: |
