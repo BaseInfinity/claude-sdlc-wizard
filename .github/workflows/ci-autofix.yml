@@ -191,9 +191,9 @@ jobs:
             - Run relevant tests locally before declaring done
             - Keep changes minimal and focused
 
-            ${{ steps.source.outputs.mode == 'ci-failure' && format('## CI Failure Context\n\nThe CI workflow failed. Here are the failure logs:\n\n```\n{0}\n```\n\nRead the logs carefully, identify the root cause, and fix the code.', steps.ci-logs.outputs && '') || '' }}
+            ${{ steps.source.outputs.mode == 'ci-failure' && '## CI Failure Context\n\nThe CI workflow failed. Read the failure logs from /tmp/ci-failure-context.txt to understand what went wrong.\n\nRead the logs carefully, identify the root cause, and fix the code.' || '' }}
 
-            ${{ steps.source.outputs.mode == 'review-findings' && format('## Code Review Findings\n\nThe PR code review found issues that need fixing. Read the review below and address all critical findings:\n\n{0}', steps.review.outputs && '') || '' }}
+            ${{ steps.source.outputs.mode == 'review-findings' && '## Code Review Findings\n\nThe PR code review found issues that need fixing. Read the review findings from /tmp/review-findings.md.\n\nAddress all critical findings.' || '' }}
 
             After fixing:
             1. Run any relevant test scripts to verify your fixes

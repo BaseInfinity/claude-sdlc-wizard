@@ -521,6 +521,70 @@ test_ci_autofix_reads_review() {
     fi
 }
 
+# ============================================
+# CI Autofix Prompt & E2E Turns Tests
+# ============================================
+# These tests ensure the ci-autofix prompt passes
+# context via file paths (not broken step outputs)
+# and that simulations have enough turns.
+
+# Test 32: ci-autofix prompt references /tmp/ci-failure-context.txt
+test_ci_autofix_prompt_failure_file() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for prompt file test)"
+        return
+    fi
+
+    if grep -q "/tmp/ci-failure-context.txt" "$WORKFLOW"; then
+        pass "ci-autofix prompt references /tmp/ci-failure-context.txt"
+    else
+        fail "ci-autofix prompt missing /tmp/ci-failure-context.txt reference (Claude gets empty context)"
+    fi
+}
+
+# Test 33: ci-autofix prompt references /tmp/review-findings.md
+test_ci_autofix_prompt_review_file() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for prompt file test)"
+        return
+    fi
+
+    if grep -q "/tmp/review-findings.md" "$WORKFLOW"; then
+        pass "ci-autofix prompt references /tmp/review-findings.md"
+    else
+        fail "ci-autofix prompt missing /tmp/review-findings.md reference (Claude gets empty context)"
+    fi
+}
+
+# Test 34: ci.yml max-turns is >= 35 for all simulations
+test_ci_max_turns_sufficient() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found (needed for max-turns test)"
+        return
+    fi
+
+    # Extract all --max-turns values and check they're all >= 35
+    ALL_SUFFICIENT=true
+    while IFS= read -r line; do
+        TURNS=$(echo "$line" | grep -oE '[0-9]+')
+        if [ "$TURNS" -lt 35 ]; then
+            fail "ci.yml has --max-turns $TURNS (need >= 35 to avoid error_max_turns flakiness)"
+            ALL_SUFFICIENT=false
+            break
+        fi
+    done < <(grep -- "--max-turns" "$WORKFLOW")
+
+    if [ "$ALL_SUFFICIENT" = true ]; then
+        pass "ci.yml max-turns is >= 35 for all simulations"
+    fi
+}
+
 # Run all tests
 test_daily_dispatch
 test_weekly_dispatch
@@ -553,6 +617,9 @@ test_ci_autofix_commit_tag
 test_ci_autofix_sticky_comment
 test_ci_workflow_dispatch
 test_ci_autofix_reads_review
+test_ci_autofix_prompt_failure_file
+test_ci_autofix_prompt_review_file
+test_ci_max_turns_sufficient
 
 echo ""
 echo "=== Results ==="
