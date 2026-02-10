@@ -73,6 +73,9 @@ jobs:
       - name: Run scenario rotation tests
         run: ./tests/e2e/test-scenario-rotation.sh
 
+      - name: Run simulation prompt tests
+        run: ./tests/e2e/test-simulation-prompt.sh
+
       - name: Validate E2E fixtures and scenarios
         run: ./tests/e2e/run-simulation.sh
 
@@ -166,16 +169,27 @@ jobs:
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
-            Run an E2E SDLC simulation.
+            You are running an E2E SDLC simulation. Your goal is to complete a coding task
+            while demonstrating proper SDLC practices.
 
             Working directory: pr-branch/tests/e2e/fixtures/test-repo
             Scenario file: pr-branch/${{ steps.select-scenario.outputs.scenario }}
 
-            1. Read the scenario file to understand the task
-            2. Execute the scenario task following SDLC principles
-            3. Return results as JSON with score
+            STEPS:
+            1. Read the scenario file to understand the task and complexity
+            2. Use TodoWrite or TaskCreate to track your work
+            3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
+            4. For medium/hard tasks, use EnterPlanMode before coding
+            5. Follow TDD: write/update tests FIRST, verify they fail, then implement
+            6. Run `npm test` to verify all tests pass
+            7. Self-review your changes before finishing
 
-            After execution, output a summary of what you did and whether SDLC was followed.
+            IMPORTANT:
+            - You MUST use TodoWrite or TaskCreate (scored by automated checks)
+            - You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)
+            - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
+            - All files you need are in the working directory — do not search elsewhere
+            - Be efficient with your turns — execute, don't just plan
 
       - name: Integrity check BASELINE simulation
         if: steps.check-baseline.outputs.has_baseline == 'true'
@@ -296,16 +310,27 @@ jobs:
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
-            Run an E2E SDLC simulation.
+            You are running an E2E SDLC simulation. Your goal is to complete a coding task
+            while demonstrating proper SDLC practices.
 
             Working directory: pr-branch/tests/e2e/fixtures/test-repo
             Scenario file: pr-branch/${{ steps.select-scenario.outputs.scenario }}
 
-            1. Read the scenario file to understand the task
-            2. Execute the scenario task following SDLC principles
-            3. Return results as JSON with score
+            STEPS:
+            1. Read the scenario file to understand the task and complexity
+            2. Use TodoWrite or TaskCreate to track your work
+            3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
+            4. For medium/hard tasks, use EnterPlanMode before coding
+            5. Follow TDD: write/update tests FIRST, verify they fail, then implement
+            6. Run `npm test` to verify all tests pass
+            7. Self-review your changes before finishing
 
-            After execution, output a summary of what you did and whether SDLC was followed.
+            IMPORTANT:
+            - You MUST use TodoWrite or TaskCreate (scored by automated checks)
+            - You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)
+            - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
+            - All files you need are in the working directory — do not search elsewhere
+            - Be efficient with your turns — execute, don't just plan
 
       - name: Integrity check CANDIDATE simulation
         run: |
@@ -781,16 +806,27 @@ jobs:
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
-            Run an E2E SDLC simulation.
+            You are running an E2E SDLC simulation. Your goal is to complete a coding task
+            while demonstrating proper SDLC practices.
 
             Working directory: pr-branch/tests/e2e/fixtures/test-repo
             Scenario file: pr-branch/${{ steps.select-scenario.outputs.scenario }}
 
-            1. Read the scenario file to understand the task
-            2. Execute the scenario task following SDLC principles
-            3. Return results as JSON with score
+            STEPS:
+            1. Read the scenario file to understand the task and complexity
+            2. Use TodoWrite or TaskCreate to track your work
+            3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
+            4. For medium/hard tasks, use EnterPlanMode before coding
+            5. Follow TDD: write/update tests FIRST, verify they fail, then implement
+            6. Run `npm test` to verify all tests pass
+            7. Self-review your changes before finishing
 
-            After execution, output a summary of what you did and whether SDLC was followed.
+            IMPORTANT:
+            - You MUST use TodoWrite or TaskCreate (scored by automated checks)
+            - You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)
+            - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
+            - All files you need are in the working directory — do not search elsewhere
+            - Be efficient with your turns — execute, don't just plan
 
       - name: Integrity check BASELINE simulation (Tier 2)
         if: steps.check-baseline.outputs.has_baseline == 'true'
@@ -925,16 +961,27 @@ jobs:
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,EnterPlanMode,ExitPlanMode,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
-            Run an E2E SDLC simulation.
+            You are running an E2E SDLC simulation. Your goal is to complete a coding task
+            while demonstrating proper SDLC practices.
 
             Working directory: pr-branch/tests/e2e/fixtures/test-repo
             Scenario file: pr-branch/${{ steps.select-scenario.outputs.scenario }}
 
-            1. Read the scenario file to understand the task
-            2. Execute the scenario task following SDLC principles
-            3. Return results as JSON with score
+            STEPS:
+            1. Read the scenario file to understand the task and complexity
+            2. Use TodoWrite or TaskCreate to track your work
+            3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
+            4. For medium/hard tasks, use EnterPlanMode before coding
+            5. Follow TDD: write/update tests FIRST, verify they fail, then implement
+            6. Run `npm test` to verify all tests pass
+            7. Self-review your changes before finishing
 
-            After execution, output a summary of what you did and whether SDLC was followed.
+            IMPORTANT:
+            - You MUST use TodoWrite or TaskCreate (scored by automated checks)
+            - You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)
+            - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
+            - All files you need are in the working directory — do not search elsewhere
+            - Be efficient with your turns — execute, don't just plan
 
       - name: Integrity check CANDIDATE simulation (Tier 2)
         run: |

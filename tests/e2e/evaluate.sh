@@ -77,7 +77,7 @@ fi
 
 # Read scenario and output
 SCENARIO_CONTENT=$(cat "$SCENARIO_FILE")
-OUTPUT_CONTENT=$(head -c 50000 "$OUTPUT_FILE" 2>/dev/null)  # Limit to 50KB
+OUTPUT_CONTENT=$(head -c 200000 "$OUTPUT_FILE" 2>/dev/null)  # Limit to 200KB
 
 # Run deterministic pre-checks (free, fast, reproducible)
 echo "Running deterministic pre-checks..." >&2
