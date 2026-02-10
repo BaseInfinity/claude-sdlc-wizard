@@ -282,6 +282,46 @@ test_daily_existing_pr_check() {
     fi
 }
 
+# ============================================
+# PR Review Re-trigger Tests
+# ============================================
+# These tests ensure the PR review workflow re-runs
+# on each push (synchronize event), not just on open.
+
+# Test 18: PR review triggers on synchronize (re-review on push)
+test_pr_review_synchronize_trigger() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "PR review workflow file not found"
+        return
+    fi
+
+    # Check the types: line specifically includes synchronize
+    if grep "types:" "$WORKFLOW" | grep -q "synchronize"; then
+        pass "PR review workflow triggers on synchronize"
+    else
+        fail "PR review workflow missing synchronize trigger (reviews only run once per PR)"
+    fi
+}
+
+# Test 19: PR review if-condition allows synchronize events through
+test_pr_review_synchronize_condition() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "PR review workflow file not found"
+        return
+    fi
+
+    # The job-level if condition must include synchronize
+    if grep -A 5 "if:" "$WORKFLOW" | grep -q "synchronize"; then
+        pass "PR review if-condition handles synchronize events"
+    else
+        fail "PR review if-condition does not handle synchronize events (reviews won't run on push)"
+    fi
+}
+
 # Run all tests
 test_daily_dispatch
 test_weekly_dispatch
@@ -300,6 +340,8 @@ test_ci_labeled_trigger
 test_quick_check_labeled_guard
 test_cleanup_labeled_guard
 test_daily_existing_pr_check
+test_pr_review_synchronize_trigger
+test_pr_review_synchronize_condition
 
 echo ""
 echo "=== Results ==="
