@@ -360,6 +360,167 @@ test_ci_allowed_tools_task_tracking() {
     fi
 }
 
+# ============================================
+# CI Auto-Fix Workflow Tests
+# ============================================
+# These tests ensure the ci-autofix.yml workflow
+# is properly configured for the automated fix loop.
+
+# Test 22: ci-autofix.yml file exists
+test_ci_autofix_exists() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ -f "$WORKFLOW" ]; then
+        pass "ci-autofix.yml file exists"
+    else
+        fail "ci-autofix.yml file not found"
+    fi
+}
+
+# Test 23: ci-autofix triggers on workflow_run
+test_ci_autofix_workflow_run_trigger() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for trigger test)"
+        return
+    fi
+
+    if grep -q "workflow_run:" "$WORKFLOW"; then
+        pass "ci-autofix triggers on workflow_run"
+    else
+        fail "ci-autofix missing workflow_run trigger"
+    fi
+}
+
+# Test 24: ci-autofix watches both CI and PR Code Review workflows
+test_ci_autofix_watches_both_workflows() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for workflows test)"
+        return
+    fi
+
+    if grep -q '"CI"' "$WORKFLOW" && grep -q '"PR Code Review"' "$WORKFLOW"; then
+        pass "ci-autofix watches both CI and PR Code Review workflows"
+    else
+        fail "ci-autofix not watching both CI and PR Code Review workflows"
+    fi
+}
+
+# Test 25: ci-autofix has MAX_AUTOFIX_RETRIES config
+test_ci_autofix_max_retries() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for retries test)"
+        return
+    fi
+
+    if grep -q "MAX_AUTOFIX_RETRIES" "$WORKFLOW"; then
+        pass "ci-autofix has MAX_AUTOFIX_RETRIES config"
+    else
+        fail "ci-autofix missing MAX_AUTOFIX_RETRIES config"
+    fi
+}
+
+# Test 26: ci-autofix excludes main branch
+test_ci_autofix_excludes_main() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for branch exclusion test)"
+        return
+    fi
+
+    if grep -q "main" "$WORKFLOW" && grep -q "head_branch" "$WORKFLOW"; then
+        pass "ci-autofix excludes main branch"
+    else
+        fail "ci-autofix missing main branch exclusion"
+    fi
+}
+
+# Test 27: ci-autofix uses claude-code-action
+test_ci_autofix_uses_claude() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for claude action test)"
+        return
+    fi
+
+    if grep -q "claude-code-action" "$WORKFLOW"; then
+        pass "ci-autofix uses claude-code-action"
+    else
+        fail "ci-autofix missing claude-code-action"
+    fi
+}
+
+# Test 28: ci-autofix uses [autofix] commit tag pattern
+test_ci_autofix_commit_tag() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for commit tag test)"
+        return
+    fi
+
+    if grep -q '\[autofix' "$WORKFLOW"; then
+        pass "ci-autofix uses [autofix] commit tag pattern"
+    else
+        fail "ci-autofix missing [autofix] commit tag pattern"
+    fi
+}
+
+# Test 29: ci-autofix posts sticky PR comment
+test_ci_autofix_sticky_comment() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for sticky comment test)"
+        return
+    fi
+
+    if grep -q "sticky-pull-request-comment" "$WORKFLOW" && grep -q "ci-autofix" "$WORKFLOW"; then
+        pass "ci-autofix posts sticky PR comment"
+    else
+        fail "ci-autofix missing sticky PR comment"
+    fi
+}
+
+# Test 30: ci.yml has workflow_dispatch trigger
+test_ci_workflow_dispatch() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found (needed for dispatch test)"
+        return
+    fi
+
+    if grep -q "workflow_dispatch:" "$WORKFLOW"; then
+        pass "ci.yml has workflow_dispatch trigger"
+    else
+        fail "ci.yml missing workflow_dispatch trigger"
+    fi
+}
+
+# Test 31: ci-autofix reads review comment for findings
+test_ci_autofix_reads_review() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-autofix.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci-autofix.yml file not found (needed for review reading test)"
+        return
+    fi
+
+    if grep -q "claude-review" "$WORKFLOW"; then
+        pass "ci-autofix reads review comment (claude-review header)"
+    else
+        fail "ci-autofix missing review comment reading (claude-review)"
+    fi
+}
+
 # Run all tests
 test_daily_dispatch
 test_weekly_dispatch
@@ -382,6 +543,16 @@ test_pr_review_synchronize_trigger
 test_pr_review_synchronize_condition
 test_ci_allowed_tools_plan_mode
 test_ci_allowed_tools_task_tracking
+test_ci_autofix_exists
+test_ci_autofix_workflow_run_trigger
+test_ci_autofix_watches_both_workflows
+test_ci_autofix_max_retries
+test_ci_autofix_excludes_main
+test_ci_autofix_uses_claude
+test_ci_autofix_commit_tag
+test_ci_autofix_sticky_comment
+test_ci_workflow_dispatch
+test_ci_autofix_reads_review
 
 echo ""
 echo "=== Results ==="
