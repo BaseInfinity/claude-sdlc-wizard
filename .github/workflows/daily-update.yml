@@ -95,16 +95,13 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Read analysis prompt
+      - name: Build analysis prompt
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        id: read-prompt
+        id: build-prompt
         run: |
-          # Store prompt in file to avoid shell escaping issues
-          # W5: Single prompt source (prompt_file only, no duplicate inline prompt)
-          cat .github/prompts/analyze-release.md > /tmp/analysis_prompt.md
-
-          # Append release context to the prompt file
+          # Assemble analysis prompt from template + release context
           {
+            cat .github/prompts/analyze-release.md
             echo ""
             echo "## Release to Analyze"
             echo ""
@@ -114,7 +111,14 @@ jobs:
             echo ""
             echo "**Release Notes:**"
             cat /tmp/release_body.md
-          } >> /tmp/analysis_prompt.md
+          } > /tmp/analysis_prompt.md
+
+          # Pass assembled prompt as multi-line output
+          {
+            echo "prompt<<PROMPT_EOF"
+            cat /tmp/analysis_prompt.md
+            echo "PROMPT_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Analyze release with Claude
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
@@ -123,9 +127,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt_file: /tmp/analysis_prompt.md
-          direct_prompt: true
-          model: claude-sonnet-4-20250514
+          prompt: ${{ steps.build-prompt.outputs.prompt }}
 
       - name: Save analysis to file
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
@@ -303,7 +305,6 @@ jobs:
             3. Return results as JSON with score
 
             After execution, output a summary of what you did and whether SDLC was followed.
-          model: claude-sonnet-4-20250514
 
       - name: Phase A - Regression Test (Tier 1)
         id: phase-a-tier1
@@ -322,11 +323,18 @@ jobs:
             exit 0
           fi
 
-          # Run evaluation with Claude's output
+          # Run evaluation (stderr separated to avoid corrupting JSON output)
+          EVAL_STDERR="/tmp/eval-stderr-tier1.log"
+          EVAL_EXIT=0
           RESULT=$(./tests/e2e/evaluate.sh \
             tests/e2e/scenarios/${{ env.VERSION_SCENARIO }}.md \
             "$OUTPUT_FILE" \
-            --json 2>&1) || true
+            --json 2>"$EVAL_STDERR") || EVAL_EXIT=$?
+
+          if [ "$EVAL_EXIT" -ne 0 ]; then
+            echo "::warning::Tier 1 evaluation exited with code $EVAL_EXIT"
+            echo "::warning::Stderr: $(cat "$EVAL_STDERR")"
+          fi
 
           SCORE=$(echo "$RESULT" | jq -r '.score // 0')
           PASSED=$(echo "$RESULT" | jq -r '.pass // false')
@@ -398,8 +406,6 @@ jobs:
                 {"file": "SDLC.md", "section": "...", "change": "..."}
               ]
             }
-          direct_prompt: true
-          model: claude-sonnet-4-20250514
 
       - name: Run scenario simulation for Phase B
         id: run-scenario-phase-b
@@ -422,7 +428,6 @@ jobs:
             3. Return results as JSON with score
 
             After execution, output a summary of what you did and whether SDLC was followed.
-          model: claude-sonnet-4-20250514
 
       - name: Phase B - Improvement Test (Tier 2)
         id: phase-b

@@ -968,6 +968,133 @@ test_review_prompt_no_shell_subst() {
 
 test_review_prompt_no_shell_subst
 
+# ============================================
+# Daily-Update Workflow Input Validation Tests
+# ============================================
+# Ensure claude-code-action steps use valid inputs only.
+
+# Test 49: daily-update must NOT use 'prompt_file' (not a valid action input)
+test_daily_no_prompt_file_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "daily-update.yml not found"
+        return
+    fi
+
+    # claude-code-action@v1 does not accept 'prompt_file' — use 'prompt' instead
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        with_block = step.get('with', {})
+        if 'prompt_file' in with_block:
+            print('FOUND:' + step.get('name', 'unnamed'))
+" > /tmp/prompt_file_check.txt 2>&1
+
+    if grep -q "FOUND:" /tmp/prompt_file_check.txt; then
+        STEP=$(grep "FOUND:" /tmp/prompt_file_check.txt | head -1 | sed 's/FOUND://')
+        fail "daily-update uses 'prompt_file' input in step '$STEP' — not a valid claude-code-action input"
+    else
+        pass "daily-update does not use invalid 'prompt_file' input"
+    fi
+}
+
+# Test 50: daily-update must NOT use 'direct_prompt' (not a valid action input)
+test_daily_no_direct_prompt_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "daily-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        with_block = step.get('with', {})
+        if 'direct_prompt' in with_block:
+            print('FOUND:' + step.get('name', 'unnamed'))
+" > /tmp/direct_prompt_check.txt 2>&1
+
+    if grep -q "FOUND:" /tmp/direct_prompt_check.txt; then
+        STEP=$(grep "FOUND:" /tmp/direct_prompt_check.txt | head -1 | sed 's/FOUND://')
+        fail "daily-update uses 'direct_prompt' input in step '$STEP' — not a valid claude-code-action input"
+    else
+        pass "daily-update does not use invalid 'direct_prompt' input"
+    fi
+}
+
+# Test 51: daily-update must NOT use 'model' as a top-level action input
+test_daily_no_model_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "daily-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        uses = step.get('uses', '')
+        with_block = step.get('with', {})
+        if 'claude-code-action' in uses and 'model' in with_block:
+            print('FOUND:' + step.get('name', 'unnamed'))
+" > /tmp/model_input_check.txt 2>&1
+
+    if grep -q "FOUND:" /tmp/model_input_check.txt; then
+        STEP=$(grep "FOUND:" /tmp/model_input_check.txt | head -1 | sed 's/FOUND://')
+        fail "daily-update uses 'model' as action input in step '$STEP' — use claude_args --model instead"
+    else
+        pass "daily-update does not use invalid 'model' action input"
+    fi
+}
+
+# Test 52: daily-update evaluate.sh calls must NOT use 2>&1 (stderr corruption)
+test_daily_no_stderr_mixing_in_eval() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "daily-update.yml not found"
+        return
+    fi
+
+    # evaluate.sh calls with 2>&1 corrupt JSON output with stderr messages.
+    # The command may span multiple lines with \ continuations, so we check
+    # all 'run:' blocks in version-test steps that call evaluate.sh
+    python3 -c "
+import yaml, re
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        run = step.get('run', '')
+        if 'evaluate.sh' in run and '2>&1' in run:
+            print('FOUND:' + step.get('name', 'unnamed'))
+" > /tmp/stderr_mix_check.txt 2>&1
+
+    if grep -q "FOUND:" /tmp/stderr_mix_check.txt; then
+        STEP=$(grep "FOUND:" /tmp/stderr_mix_check.txt | head -1 | sed 's/FOUND://')
+        fail "daily-update step '$STEP' pipes evaluate.sh stderr to stdout (2>&1) — causes jq parse failures"
+    else
+        pass "daily-update.yml does not mix stderr into evaluate.sh output"
+    fi
+}
+
+test_daily_no_prompt_file_input
+test_daily_no_direct_prompt_input
+test_daily_no_model_input
+test_daily_no_stderr_mixing_in_eval
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
