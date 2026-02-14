@@ -906,9 +906,53 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 
 ---
 
+## Workflow Input Validation Audit (2026-02-14)
+
+**Purpose:** All three auto-update workflows had invalid `claude-code-action@v1` inputs that were silently ignored, causing empty results.
+
+### Bug Pattern (same across all 3 workflows)
+
+| Invalid Input | Issue | Fix |
+|---------------|-------|-----|
+| `prompt_file` | Not a valid action input | Use `prompt:` instead |
+| `direct_prompt` | Not a valid action input | Remove (not needed) |
+| `model` | Not a valid top-level input | Remove or use `claude_args: --model` |
+| `allowed_tools` | Not a valid action input | Use `claude_args: --allowedTools` |
+| `outputs.response` | Doesn't exist in action outputs | Read from `$RUNNER_TEMP/claude-execution-output.json` |
+
+### Fix Timeline
+
+| Workflow | PR | Status |
+|----------|----|--------|
+| `daily-update.yml` | #26, #28, #30 | DONE |
+| `weekly-community.yml` | #32 | DONE |
+| `monthly-research.yml` | #32 | DONE |
+
+### Regression Tests
+
+| Tests | Workflow | What They Check |
+|-------|----------|----------------|
+| 49-54 | daily-update | No invalid inputs, extracts from output file |
+| 55-60 | weekly-community | No invalid inputs, extracts from output file |
+| 61-66 | monthly-research | No invalid inputs, extracts from output file |
+
+**Total: 18 regression tests** ensuring invalid inputs never reappear across all 3 workflows.
+
+### Extraction Pattern (shared across all 3 workflows)
+
+```bash
+OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+# Detect array vs object format
+IS_ARRAY=$(jq -r 'if type == "array" then "true" else "false" end' "$OUTPUT_FILE")
+# Extract text, find JSON in markdown code blocks or raw
+# Validate JSON, fallback to safe default
+```
+
+---
+
 ## Readiness Assessment for Item 23 (Phased Workflow Re-enablement)
 
-_Updated: 2026-02-11_
+_Updated: 2026-02-14_
 
 | Gate | Item | Status |
 |------|------|--------|
