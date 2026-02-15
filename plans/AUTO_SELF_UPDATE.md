@@ -607,6 +607,8 @@ PR comments now show:
 - Track tokens/point efficiency metric
 - Track but don't score yet (need baseline data first)
 
+**BUG (2026-02-14): All metrics show N/A.** The extraction logic has 3-level fallback chains (`.usage.input_tokens`, `.token_usage.input_tokens`, top-level `.input_tokens`, `.duration`, `.tool_uses`, `.total_tokens`) but `claude-code-action@v1` does NOT include any of these fields in its execution output file (`claude-execution-output.json`). The file only contains conversation messages (array) or result text (object). All fields silently fall through to `N/A`. Fix requires either: (a) finding where claude-code-action actually exposes usage stats, or (b) extracting from GitHub Actions billing API, or (c) parsing from claude-code-action logs. **Status: KNOWN BUG — not blocking but cost visibility is zero.**
+
 **Why Measure But Not Score (Yet):**
 
 | Reason | Explanation |
@@ -906,9 +908,94 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 
 ---
 
+## Workflow Input Validation Audit (2026-02-14)
+
+**Purpose:** All three auto-update workflows had invalid `claude-code-action@v1` inputs that were silently ignored, causing empty results.
+
+### Bug Pattern (same across all 3 workflows)
+
+| Invalid Input | Issue | Fix |
+|---------------|-------|-----|
+| `prompt_file` | Not a valid action input | Use `prompt:` instead |
+| `direct_prompt` | Not a valid action input | Remove (not needed) |
+| `model` | Not a valid top-level input | Remove or use `claude_args: --model` |
+| `allowed_tools` | Not a valid action input | Use `claude_args: --allowedTools` |
+| `outputs.response` | Doesn't exist in action outputs | Read from `$RUNNER_TEMP/claude-execution-output.json` |
+
+### Fix Timeline
+
+| Workflow | PR | Status |
+|----------|----|--------|
+| `daily-update.yml` | #26, #28, #30 | DONE |
+| `weekly-community.yml` | #32 | DONE |
+| `monthly-research.yml` | #32 | DONE |
+
+### Regression Tests
+
+| Tests | Workflow | What They Check |
+|-------|----------|----------------|
+| 49-54 | daily-update | No invalid inputs, extracts from output file |
+| 55-60 | weekly-community | No invalid inputs, extracts from output file |
+| 61-66 | monthly-research | No invalid inputs, extracts from output file |
+
+**Total: 18 regression tests** ensuring invalid inputs never reappear across all 3 workflows.
+
+### Extraction Pattern (shared across all 3 workflows)
+
+```bash
+OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+# Detect array vs object format
+IS_ARRAY=$(jq -r 'if type == "array" then "true" else "false" end' "$OUTPUT_FILE")
+# Extract text, find JSON in markdown code blocks or raw
+# Validate JSON, fallback to safe default
+```
+
+---
+
+## Full Workflow Audit: Silent Failures (2026-02-14)
+
+Comprehensive audit found multiple features that silently produce no data. Tests pass because they validate extraction logic against mocked fixtures — but the mocks don't match what `claude-code-action@v1` actually outputs.
+
+### CRITICAL — Features That Don't Work
+
+| # | Bug | Where | What Happens | Status |
+|---|-----|-------|--------------|--------|
+| 1 | Token/cost metrics always N/A | ci.yml (lines 450-490) | `claude-code-action@v1` doesn't include `.duration`, `.usage.input_tokens`, `.tool_uses`, `.total_tokens` in execution output file. All Resource Usage in PR comments shows N/A | KNOWN BUG |
+| 2 | Score history never persists | ci.yml (lines 492-527) | Appends to `score-history.jsonl` on ephemeral runner, never committed back to repo. File is empty every run | KNOWN BUG |
+| 3 | Historical context never populated | ci.yml (lines 539-571) | Depends on #2. Always shows "First run for this scenario" or omitted | KNOWN BUG |
+| 4 | External benchmark cache useless | external-benchmark.sh | Cache dir is on ephemeral runner — always cache miss, always re-fetches or falls back to 75.0 | KNOWN BUG |
+| 5 | `show_full_output` invalid input | ci-autofix.yml:228 | Not a valid `claude-code-action@v1` input, silently ignored (dead code) | KNOWN BUG |
+
+### HIGH — Features That May Not Work Correctly
+
+| # | Bug | Where | What Happens | Status |
+|---|-----|-------|--------------|--------|
+| 6 | E2E test jobs may never trigger | weekly-community.yml, monthly-research.yml | `has_suggestions`/`has_updates` depends on specific JSON array names (`.recommended_actions`, `.recommended_wizard_updates`) — if Claude doesn't structure output with those exact keys, e2e-test job is skipped even when findings exist | KNOWN BUG |
+| 7 | SDP model mismatch | external-benchmark.sh | Default parameter is `claude-sonnet-4` even when SDP_MODEL is `claude-opus-4-6` — external benchmark fetched for wrong model | KNOWN BUG |
+| 8 | Phase A/B output file reuse | daily-update.yml | Both phases write to same `claude-execution-output.json`. If Phase B simulation skips, Phase B evaluation reads stale Phase A data | KNOWN BUG |
+
+### Root Causes
+
+1. **claude-code-action@v1 output schema undocumented** — extraction logic guesses at field names with long fallback chains
+2. **Ephemeral runner state** — GitHub Actions runners don't persist files between runs; score history, cache, etc. need git commits or external storage
+3. **Tests mock the wrong data** — `test-token-extraction.sh` validates against fixture JSON that doesn't match real execution output
+4. **No production validation** — workflows have never been triggered end-to-end with real data since schedules are paused
+
+### Fix Priority
+
+These bugs block Item 23 (phased workflow re-enablement). Before re-enabling schedules:
+1. Fix #1 (tokens) or remove token tracking entirely
+2. Fix #2-3 (score history) — commit JSONL back to repo via git, or accept no historical tracking
+3. Fix #5 (show_full_output) — trivial delete
+4. Fix #6 (E2E trigger conditions) — adjust conditions to match actual Claude output structure
+5. Fix #7 (SDP model) — pass model parameter through correctly
+6. Decide on #4 (cache) — accept fresh fetch each run or use GitHub Actions cache
+
+---
+
 ## Readiness Assessment for Item 23 (Phased Workflow Re-enablement)
 
-_Updated: 2026-02-11_
+_Updated: 2026-02-14_
 
 | Gate | Item | Status |
 |------|------|--------|
@@ -923,4 +1010,4 @@ _Updated: 2026-02-11_
 
 **Summary:** 6/8 items DONE, 1 SKIPPED (by design), 1 DEFERRED (research needed).
 
-**Item 23 decision:** Re-enablement is blocked until the full E2E pipeline passes end-to-end in CI, confirming that evaluation, scoring, observability, and PR comments all work together in a real GitHub Actions run. Mutation testing (Item 21) remains deferred and does not block re-enablement. All prerequisite items are complete — the gate is now operational verification, not feature work.
+**Item 23 decision:** Re-enablement is blocked. The 2026-02-14 full workflow audit found 8 silent failures (see above) that must be addressed first. Key blockers: token metrics always N/A (#1), score history never persists (#2-3), E2E test jobs may never trigger in weekly/monthly workflows (#6), and SDP model mismatch (#7). Mutation testing (Item 21) remains deferred and does not block re-enablement. The gate is now fixing the silent failures identified in the audit, not feature work.

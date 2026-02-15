@@ -125,15 +125,67 @@ jobs:
             - Align with SDLC Wizard philosophy: KISS, TDD, confidence levels
             - If nothing notable found, set nothing_notable: true
             - Prioritize actionable insights over interesting-but-not-useful
-          direct_prompt: true
-          model: claude-sonnet-4-20250514
-          allowed_tools: "WebSearch,WebFetch"
+          claude_args: |
+            --allowedTools "WebSearch,WebFetch"
 
       - name: Save research result to file
-        env:
-          RESEARCH_RESPONSE: ${{ steps.research.outputs.response }}
         run: |
-          printf '%s' "$RESEARCH_RESPONSE" > /tmp/research_result.json
+          # claude-code-action saves Claude's response to this file
+          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "::warning::No execution output file found"
+            echo '{"nothing_notable":true}' > /tmp/research_result.json
+            exit 0
+          fi
+
+          # Extract response text (format varies: array or object)
+          IS_ARRAY=$(jq -r 'if type == "array" then "true" else "false" end' "$OUTPUT_FILE" 2>/dev/null || echo "false")
+          echo "Output format: is_array=$IS_ARRAY"
+
+          if [ "$IS_ARRAY" = "true" ]; then
+            RESPONSE_TEXT=$(jq -r '
+              [.[] | select(type == "object")] |
+              [.[] | select(.role == "assistant" or .type == "result")] |
+              last |
+              if .content then
+                (if (.content | type) == "array" then
+                  [.content[] | select(.type == "text") | .text] | join("")
+                else
+                  .content
+                end)
+              elif .text then .text
+              elif .result then .result
+              else empty
+              end
+            ' "$OUTPUT_FILE" 2>/dev/null || echo "")
+          else
+            RESPONSE_TEXT=$(jq -r '.result // .output // empty' "$OUTPUT_FILE" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$RESPONSE_TEXT" ]; then
+            echo "::warning::Could not extract text from execution output"
+            echo '{"nothing_notable":true}' > /tmp/research_result.json
+            exit 0
+          fi
+
+          echo "Response text length: ${#RESPONSE_TEXT}"
+
+          # Extract JSON from response (may be wrapped in markdown code blocks)
+          echo "$RESPONSE_TEXT" | sed -n '/^```json/,/^```$/p' | sed '1d;$d' > /tmp/research_result.json 2>/dev/null
+
+          # If no code block, try raw text as JSON
+          if [ ! -s /tmp/research_result.json ]; then
+            echo "$RESPONSE_TEXT" > /tmp/research_result.json
+          fi
+
+          # Validate it's parseable JSON
+          if ! jq empty /tmp/research_result.json 2>/dev/null; then
+            echo "::warning::Not valid JSON, using fallback"
+            echo '{"nothing_notable":true}' > /tmp/research_result.json
+          fi
+
+          echo "Research result extracted successfully"
 
       - name: Parse research result
         id: parse
@@ -270,7 +322,6 @@ jobs:
             3. Return results as JSON with score
 
             After execution, output a summary of what you did and whether SDLC was followed.
-          model: claude-sonnet-4-20250514
 
       - name: Baseline - Current SDLC (Tier 2)
         id: baseline
@@ -321,8 +372,6 @@ jobs:
             - Keep changes minimal and focused
             - Prioritize HIGH priority recommendations
             - Don't rewrite entire sections
-          direct_prompt: true
-          model: claude-sonnet-4-20250514
 
       - name: Reset test fixture for candidate
         run: |
@@ -351,7 +400,6 @@ jobs:
             3. Return results as JSON with score
 
             After execution, output a summary of what you did and whether SDLC was followed.
-          model: claude-sonnet-4-20250514
 
       - name: Candidate - With Improvements (Tier 2)
         id: candidate
