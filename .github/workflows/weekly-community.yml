@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      has_suggestions: ${{ steps.parse.outputs.actions_count != '0' }}
+      has_suggestions: ${{ steps.parse.outputs.findings_count != '0' }}
       findings: ${{ steps.parse.outputs.findings_count }}
       current_date: ${{ steps.current-date.outputs.current_date }}
 

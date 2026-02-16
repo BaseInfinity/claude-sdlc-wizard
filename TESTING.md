@@ -46,7 +46,6 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-stats.sh` | Statistical functions | CI calculation, n=1 handling, compare_ci |
 | `tests/test-hooks.sh` | Hook scripts | Output keywords, JSON format, TDD checks |
 | `tests/test-compliance.sh` | Compliance checker | Complexity extraction, pattern matching |
-| `tests/test-token-extraction.sh` | Token extraction | Native metrics parsing |
 
 **How to run:**
 ```bash
@@ -57,7 +56,6 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 ./tests/test-stats.sh
 ./tests/test-hooks.sh
 ./tests/test-compliance.sh
-./tests/test-token-extraction.sh
 ```
 
 ### Layer 2: Fixture Validation

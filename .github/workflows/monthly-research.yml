@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      has_updates: ${{ steps.parse.outputs.updates_count != '0' }}
+      has_updates: ${{ steps.parse.outputs.nothing_notable != 'true' }}
       updates_count: ${{ steps.parse.outputs.updates_count }}
       current_month: ${{ steps.current-month.outputs.current_month }}
 

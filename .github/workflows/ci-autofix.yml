@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   id-token: write
+  workflows: write
 
 env:
   MAX_AUTOFIX_RETRIES: 3
@@ -225,7 +226,6 @@ jobs:
           claude_args: |
             --max-turns 30
             --allowedTools "Read,Edit,Write,Bash(./tests/*),Bash(python3 *),Glob,Grep"
-          show_full_output: true
           prompt: |
             You are fixing issues found by CI or code review.
             This is autofix attempt ${{ steps.count.outputs.attempt }}/${{ env.MAX_AUTOFIX_RETRIES }}.

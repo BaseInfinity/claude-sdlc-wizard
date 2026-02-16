@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   id-token: write
 
@@ -156,6 +156,12 @@ jobs:
           echo "Baseline wizard installed:"
           ls -la pr-branch/tests/e2e/fixtures/test-repo/.claude/ || echo "No .claude directory"
 
+      - name: Initialize workspace git directory
+        run: |
+          # actions/checkout with path: leaves workspace root as non-git.
+          # claude-code-action@v1 configureGitAuth runs git config here and crashes without this.
+          git init .
+
       - name: Record baseline simulation start time
         if: steps.check-baseline.outputs.has_baseline == 'true'
         run: echo "BASELINE_START=$(date +%s)" >> $GITHUB_ENV
@@ -168,7 +174,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --max-turns 45
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
@@ -310,7 +316,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --max-turns 45
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
@@ -447,47 +453,8 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
-          # Extract native Task metrics (duration, tool_uses) from output
-          DURATION=$(jq -r '.duration // .elapsed_seconds // "N/A"' "$OUTPUT_FILE" 2>/dev/null || echo "N/A")
-          TOOL_USES=$(jq -r '.tool_uses // .num_tool_calls // "N/A"' "$OUTPUT_FILE" 2>/dev/null || echo "N/A")
-
-          # Extract token usage - check native .total_tokens first, then nested paths
-          INPUT_TOKENS=$(jq -r '.usage.input_tokens // .token_usage.input_tokens // .input_tokens // "N/A"' "$OUTPUT_FILE" 2>/dev/null || echo "N/A")
-          OUTPUT_TOKENS=$(jq -r '.usage.output_tokens // .token_usage.output_tokens // .output_tokens // "N/A"' "$OUTPUT_FILE" 2>/dev/null || echo "N/A")
-          NATIVE_TOTAL=$(jq -r '.total_tokens // "N/A"' "$OUTPUT_FILE" 2>/dev/null || echo "N/A")
-
-          # Calculate totals and cost estimate if tokens available
-          if [ "$NATIVE_TOTAL" != "N/A" ] && [ "$NATIVE_TOTAL" != "null" ]; then
-            TOTAL_TOKENS="$NATIVE_TOTAL"
-          elif [ "$INPUT_TOKENS" != "N/A" ] && [ "$OUTPUT_TOKENS" != "N/A" ]; then
-            TOTAL_TOKENS=$(echo "$INPUT_TOKENS + $OUTPUT_TOKENS" | bc -l | cut -d. -f1)
-          else
-            TOTAL_TOKENS="N/A"
-          fi
-
-          if [ "$INPUT_TOKENS" != "N/A" ] && [ "$OUTPUT_TOKENS" != "N/A" ]; then
-            # Estimate cost: ~$15/1M input, ~$75/1M output (Opus 4.6 pricing)
-            COST=$(echo "scale=4; ($INPUT_TOKENS * 0.000015) + ($OUTPUT_TOKENS * 0.000075)" | bc -l)
-            COST_DISPLAY=$(printf "~\$%.2f" "$COST")
-          else
-            COST_DISPLAY="N/A"
-          fi
-
-          # Tokens per point efficiency
-          if [ "$TOTAL_TOKENS" != "N/A" ] && [ "$SCORE" != "0" ] && [ "$SCORE" != "" ]; then
-            TOKENS_PER_POINT=$(echo "scale=0; $TOTAL_TOKENS / $SCORE" | bc -l 2>/dev/null || echo "N/A")
-          else
-            TOKENS_PER_POINT="N/A"
-          fi
-
-          echo "Metrics: duration=$DURATION, tool_uses=$TOOL_USES, tokens=$TOTAL_TOKENS"
-          echo "duration=$DURATION" >> $GITHUB_OUTPUT
-          echo "tool_uses=$TOOL_USES" >> $GITHUB_OUTPUT
-          echo "input_tokens=$INPUT_TOKENS" >> $GITHUB_OUTPUT
-          echo "output_tokens=$OUTPUT_TOKENS" >> $GITHUB_OUTPUT
-          echo "total_tokens=$TOTAL_TOKENS" >> $GITHUB_OUTPUT
-          echo "est_cost=$COST_DISPLAY" >> $GITHUB_OUTPUT
-          echo "tokens_per_point=$TOKENS_PER_POINT" >> $GITHUB_OUTPUT
+          # NOTE: Token/cost metrics removed — execution output does not include
+          # usage stats. All values were always N/A. Re-enable when action exposes data.
 
       - name: Record score to history
         continue-on-error: true
@@ -526,6 +493,17 @@ jobs:
             >> tests/e2e/score-history.jsonl
 
           echo "Score recorded: $SCORE for $SCENARIO"
+
+      - name: Commit score history
+        continue-on-error: true
+        working-directory: pr-branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/score-history.jsonl
+          git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
+          # Push to PR branch explicitly — checkout is detached HEAD (refs/pull/N/merge)
+          git push origin HEAD:refs/heads/${{ github.event.pull_request.head.ref }} || echo "Nothing to push"
 
       - name: Generate score trends report
         continue-on-error: true
@@ -653,32 +631,7 @@ jobs:
           SDP_EXTERNAL_CHANGE="${{ steps.eval-candidate.outputs.sdp_external_change }}"
           SDP_ROBUSTNESS="${{ steps.eval-candidate.outputs.sdp_robustness }}"
           SDP_INTERPRETATION="${{ steps.eval-candidate.outputs.sdp_interpretation }}"
-          DURATION="${{ steps.eval-candidate.outputs.duration }}"
-          TOOL_USES="${{ steps.eval-candidate.outputs.tool_uses }}"
-          INPUT_TOKENS="${{ steps.eval-candidate.outputs.input_tokens }}"
-          OUTPUT_TOKENS="${{ steps.eval-candidate.outputs.output_tokens }}"
-          TOTAL_TOKENS="${{ steps.eval-candidate.outputs.total_tokens }}"
-          EST_COST="${{ steps.eval-candidate.outputs.est_cost }}"
-          TOKENS_PER_POINT="${{ steps.eval-candidate.outputs.tokens_per_point }}"
           SCENARIO_NAME="${{ steps.select-scenario.outputs.scenario_name }}"
-
-          # N/A-aware metric formatting (prevents "N/As" display bug)
-          format_metric() {
-            local val="$1" suffix="$2"
-            if [ "$val" = "N/A" ] || [ "$val" = "null" ] || [ -z "$val" ]; then
-              echo "N/A"
-            else
-              echo "${val}${suffix}"
-            fi
-          }
-
-          DURATION_DISPLAY=$(format_metric "$DURATION" "s")
-          TOOL_USES_DISPLAY=$(format_metric "$TOOL_USES" "")
-          INPUT_TOKENS_DISPLAY=$(format_metric "$INPUT_TOKENS" "")
-          OUTPUT_TOKENS_DISPLAY=$(format_metric "$OUTPUT_TOKENS" "")
-          TOTAL_TOKENS_DISPLAY=$(format_metric "$TOTAL_TOKENS" "")
-          EST_COST_DISPLAY=$(format_metric "$EST_COST" "")
-          TOKENS_PER_POINT_DISPLAY=$(format_metric "$TOKENS_PER_POINT" "")
 
           # Write message to output using echo
           if [ "$IS_BOOTSTRAPPING" = "true" ]; then
@@ -710,22 +663,6 @@ jobs:
               echo "</details>"
               echo ""
               echo "This PR introduces the wizard for the first time. After merge, future PRs will have a baseline to compare against."
-              echo ""
-              echo "<details>"
-              echo "<summary>Resource Usage (informational)</summary>"
-              echo ""
-              echo "| Metric | Value |"
-              echo "|--------|-------|"
-              echo "| Duration | $DURATION_DISPLAY |"
-              echo "| Tool uses | $TOOL_USES_DISPLAY |"
-              echo "| Input tokens | $INPUT_TOKENS_DISPLAY |"
-              echo "| Output tokens | $OUTPUT_TOKENS_DISPLAY |"
-              echo "| Total tokens | $TOTAL_TOKENS_DISPLAY |"
-              echo "| Est. cost | $EST_COST_DISPLAY |"
-              echo "| Tokens/point | $TOKENS_PER_POINT_DISPLAY |"
-              echo ""
-              echo "_Native Task metrics (duration, tool uses) + token tracking. Not scored yet._"
-              echo "</details>"
               echo ""
               if [ -n "$HISTORICAL_CONTEXT" ] && [ "$HISTORICAL_CONTEXT" != "No historical data yet" ]; then
                 echo "<details>"
@@ -800,22 +737,6 @@ jobs:
               echo "|---|-----------|-------|----------|"
               echo "$CRITERIA"
               echo ""
-              echo "</details>"
-              echo ""
-              echo "<details>"
-              echo "<summary>Resource Usage (informational)</summary>"
-              echo ""
-              echo "| Metric | Value |"
-              echo "|--------|-------|"
-              echo "| Duration | $DURATION_DISPLAY |"
-              echo "| Tool uses | $TOOL_USES_DISPLAY |"
-              echo "| Input tokens | $INPUT_TOKENS_DISPLAY |"
-              echo "| Output tokens | $OUTPUT_TOKENS_DISPLAY |"
-              echo "| Total tokens | $TOTAL_TOKENS_DISPLAY |"
-              echo "| Est. cost | $EST_COST_DISPLAY |"
-              echo "| Tokens/point | $TOKENS_PER_POINT_DISPLAY |"
-              echo ""
-              echo "_Native Task metrics (duration, tool uses) + token tracking. Not scored yet._"
               echo "</details>"
               echo ""
               if [ -n "$HISTORICAL_CONTEXT" ] && [ "$HISTORICAL_CONTEXT" != "No historical data yet" ]; then
@@ -904,6 +825,12 @@ jobs:
           cp -r main-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
           cp main-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
 
+      - name: Initialize workspace git directory (Tier 2)
+        run: |
+          # actions/checkout with path: leaves workspace root as non-git.
+          # claude-code-action@v1 configureGitAuth runs git config here and crashes without this.
+          git init .
+
       - name: Record baseline simulation start time (Tier 2)
         if: steps.check-baseline.outputs.has_baseline == 'true'
         run: echo "BASELINE_START_T2=$(date +%s)" >> $GITHUB_ENV
@@ -916,7 +843,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --max-turns 45
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
@@ -1072,7 +999,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --max-turns 45
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir pr-branch/tests/e2e
           prompt: |
@@ -1266,6 +1193,17 @@ jobs:
             >> tests/e2e/score-history.jsonl
 
           echo "Score recorded: $SCORE for $SCENARIO (Tier 2)"
+
+      - name: Commit score history (Tier 2)
+        continue-on-error: true
+        working-directory: pr-branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/score-history.jsonl
+          git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
+          # Push to PR branch explicitly — checkout is detached HEAD (refs/pull/N/merge)
+          git push origin HEAD:refs/heads/${{ github.event.pull_request.head.ref }} || echo "Nothing to push"
 
       - name: Generate score trends report (Tier 2)
         continue-on-error: true
