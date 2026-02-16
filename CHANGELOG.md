@@ -34,6 +34,7 @@ All notable changes to the SDLC Wizard.
 - `outputs.response` doesn't exist — read from execution output file instead
 
 ### Changed
+- `daily-update.yml` schedule re-enabled (9 AM UTC) — Item 23 Phase 1
 - All auto-update workflows create PRs (removed "LOW → direct commit" path)
 - Evaluation uses `claude-opus-4-6` model (was hardcoded to `claude-sonnet-4`)
 - E2E scenarios expanded from 10 to 13
