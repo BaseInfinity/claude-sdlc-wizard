@@ -31,10 +31,12 @@ All notable changes to the SDLC Wizard.
 - `configureGitAuth` crash — added `git init` before simulation
 - `error_max_turns` on hard scenarios — bumped from 45 to 55
 - Autofix can't push workflow files — added `workflows: write` permission
+- `git push` silent error swallowing in `weekly-community.yml` — removed `|| echo` fallback
 - Workflow input validation audit — removed `prompt_file`, `direct_prompt`, `model` invalid inputs across all 3 auto-update workflows
 - `outputs.response` doesn't exist — read from execution output file instead
 
 ### Changed
+- `weekly-community.yml` schedule enabled (Mondays 10 AM UTC) — Item 23 Phase 2
 - `daily-update.yml` schedule re-enabled (9 AM UTC) — Item 23 Phase 1
 - All auto-update workflows create PRs (removed "LOW → direct commit" path)
 - Evaluation uses `claude-opus-4-6` model (was hardcoded to `claude-sonnet-4`)

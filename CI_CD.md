@@ -6,7 +6,7 @@
 |----------|---------|---------|
 | `ci.yml` | PR, push to main | Validation, tests, E2E evaluation |
 | `daily-update.yml` | Daily (9 AM UTC) + manual | Check for Claude Code updates |
-| `weekly-community.yml` | Manual only (schedule paused) | Scan community for patterns |
+| `weekly-community.yml` | Weekly (Mondays 10 AM UTC) + manual | Scan community for patterns |
 | `monthly-research.yml` | Manual only (schedule paused) | Deep research and trends |
 | `ci-autofix.yml` | CI fail / review findings | Auto-fix loop |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
@@ -165,8 +165,8 @@ Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 - E2E tests community-suggested improvements (Tier 2)
 
 ### Runs On
-- Manual trigger only (workflow_dispatch)
-- Schedule paused until roadmap items 15-22 complete
+- Weekly schedule: 10 AM UTC Mondays (`cron: '0 10 * * 1'`)
+- Manual trigger also available (workflow_dispatch)
 
 ## Monthly Research Workflow (`monthly-research.yml`)
 

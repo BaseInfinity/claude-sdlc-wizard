@@ -58,7 +58,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 - **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2
 
 ### Weekly Community Scan (`.github/workflows/weekly-community.yml`)
-- **Trigger:** Manual dispatch only (schedule paused until roadmap items 15-22 complete)
+- **Trigger:** Weekly schedule (Mondays 10 AM UTC) + manual dispatch
 - **Checks:** Reddit, HN, dev blogs, official channels
 - **Action:** Creates digest issue for notable findings
 - **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
@@ -84,7 +84,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 | Trigger | Workflow | What It Does |
 |---------|----------|--------------|
 | Daily (9 AM UTC) | daily-update.yml | Check releases → Always PR |
-| Manual only (schedule paused) | weekly-community.yml | Scan community → Issue |
+| Weekly (Mondays 10 AM UTC) | weekly-community.yml | Scan community → Issue |
 | Manual only (schedule paused) | monthly-research.yml | Deep research → Issue |
 | On PR | ci.yml | Run tests + E2E eval |
 | On PR | pr-review.yml | AI code review |
@@ -783,7 +783,7 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 | 19 | Real-world scenarios | MED | Extract from public repos like SWE-bench for realistic E2E testing | DONE |
 | 20 | Observability/tracing | LOW | Structured logging for debugging score changes across runs | DONE |
 | 22 | Color-coded PR comments | LOW | Add visual indicators to E2E scoring PR comments - green/red/yellow emoji or status badges for PASS/WARN/FAIL per criterion. Makes it easier to scan results at a glance instead of reading raw numbers. | DONE — emoji indicators in ci.yml |
-| 23 | Phased workflow re-enablement | HIGH | Re-enable daily → weekly → monthly schedules after roadmap complete + audit. Phase 1: daily (most critical, tracks CC releases). Phase 2: weekly (after daily stable 1 week). Phase 3: monthly (lowest urgency). Gate: all items 15-22 addressed, Tier 2 E2E passes, workflow audit. | IN PROGRESS — Phase 1 (daily) enabled |
+| 23 | Phased workflow re-enablement | HIGH | Re-enable daily → weekly → monthly schedules. Phase 1: daily (PR #35, merged). Phase 2: weekly. Phase 3: monthly. All schedules enabled before Tier 2 audit so audit covers full system. | IN PROGRESS — Phases 1+2 DONE (daily + weekly), Phase 3 next |
 | 24 | Tier 2 E2E full suite audit | HIGH | Run full Tier 2 evaluation (`merge-ready` label) end-to-end. Verify 5-trial statistical evaluation, 95% CI, pairwise tiebreaker, CUSUM, SDP, score history persistence, and PR comment formatting all work correctly in CI. This is the final validation gate before mutation testing. | PLANNED |
 | 25 | Full system audit | HIGH | Comprehensive audit of all workflows, tests, scripts, and docs after Tier 2 passes. Verify every feature works as documented. Catch any remaining silent failures or stale assumptions. Establish as recurring practice — audit on every PR going forward (lightweight version via PR review workflow, thorough version periodically). | PLANNED |
 | 21 | Mutation testing | MED | Two tracks: (a) Wizard recommendation - detect stack and offer mutation testing setup (Stryker for JS/TS, mutmut for Python, pitest for Java, cargo-mutants for Rust). (b) Our own CI - explore "SDLC document mutation testing": mutate wizard doc sections, run E2E, verify score drops to prove which sections are load-bearing. Gate: Items 24-25 must pass first. | PLANNED — last in execution order, after 24-25 |
@@ -1008,6 +1008,6 @@ _Updated: 2026-02-15_
 
 **Summary:** 6/8 items DONE, 1 SKIPPED (by design), 1 PLANNED (last in order).
 
-**Item 23 decision (updated 2026-02-15):** Silent failure audit resolved. Bugs #1-6 fixed, #7-8 confirmed false alarms, #4 accepted (cache miss is fine). Remaining gate: manual validation of daily → weekly → monthly schedule re-enablement. Mutation testing (Item 21) is planned last, after Items 24-25 pass.
+**Item 23 decision (updated 2026-02-16):** Phase 1 (daily) merged in PR #35. Phase 2 (weekly) in PR. Phase 3 (monthly) next — enable all schedules before auditing so the audit covers the fully-live system.
 
-**Execution order (updated 2026-02-15):** Item 23 (phased schedules) → Item 24 (Tier 2 full suite audit) → Item 25 (full system audit, then recurring per-PR) → Item 21 (mutation testing, last).
+**Execution order (updated 2026-02-16):** Item 23 Phase 2+3 (weekly + monthly schedules) → Item 24 (Tier 2 full suite audit) → Item 25 (full system audit) → Item 21 (mutation testing, last). Rationale: audit after all schedules are live so nothing is missed.

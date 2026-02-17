@@ -85,14 +85,14 @@ test_daily_has_schedule() {
     fi
 }
 
-# Test 35: Weekly workflow does NOT have active schedule trigger
-test_weekly_no_schedule() {
+# Test 35: Weekly workflow has active schedule trigger (Item 23 Phase 2)
+test_weekly_has_schedule() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
 
-    if grep -q "schedule:" "$WORKFLOW"; then
-        fail "Weekly workflow has active schedule trigger (should be paused)"
+    if grep -q "schedule:" "$WORKFLOW" && grep -q "cron:" "$WORKFLOW"; then
+        pass "Weekly workflow has active schedule with cron trigger"
     else
-        pass "Weekly workflow schedule is paused (manual dispatch only)"
+        fail "Weekly workflow missing schedule trigger (should have cron for Item 23)"
     fi
 }
 
@@ -612,7 +612,7 @@ test_daily_dispatch
 test_weekly_dispatch
 test_monthly_dispatch
 test_daily_has_schedule
-test_weekly_no_schedule
+test_weekly_has_schedule
 test_monthly_no_schedule
 test_state_file_path
 test_state_file_roundtrip
