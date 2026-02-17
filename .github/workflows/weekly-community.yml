@@ -1,7 +1,9 @@
 name: Weekly Community Scan
 
 on:
-  workflow_dispatch:  # Auto-schedule disabled until roadmap items 15-22 complete
+  schedule:
+    - cron: '0 10 * * 1'  # 10 AM UTC every Monday
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -217,7 +219,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/last-community-scan.txt
           git diff --staged --quiet || git commit -m "chore: update last-community-scan to ${{ steps.current-date.outputs.current_date }}"
-          git push || echo "Nothing to push"
+          git push
 
       - name: Log if nothing notable
         if: steps.parse.outputs.nothing_notable == 'true' || steps.parse.outputs.findings_count == '0'
