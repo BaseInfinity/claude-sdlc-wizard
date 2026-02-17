@@ -39,18 +39,16 @@ You want Claude Code to follow engineering discipline automatically:
 
 The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs.
 
-## What's Novel
+## What Makes This Different
 
-| Innovation | Status |
+| Capability | What It Does |
 |---|---|
-| E2E scoring of AI agent SDLC behavior in CI | Nobody else does this |
-| Before/after wizard A/B testing in CI | Nobody else does this |
-| SDP: normalizing scores against external benchmarks | Nobody else does this |
-| Robustness ratio (SDLC resilience vs model quality) | Nobody else does this |
-| CUSUM drift detection for AI behavior | Borrowed from manufacturing QC |
-| Pre-tool hooks enforcing TDD on AI agents | Guardrails exist for safety, not discipline |
-
-**What exists elsewhere:** LLM eval frameworks (Promptfoo, DeepEval), code quality (SonarQube), LLM monitoring (Arize, Langfuse), AI benchmarks (SWE-bench). **The unique value = the integration into a self-improving loop.**
+| **E2E scoring in CI** | Every PR gets an automated SDLC compliance score (0-10) — measures whether Claude actually planned, tested, and reviewed |
+| **Before/after A/B testing** | Compares wizard changes against a baseline with 95% confidence intervals to prove improvements aren't noise |
+| **SDP normalization** | Separates "the model had a bad day" from "our SDLC broke" by cross-referencing external benchmarks |
+| **CUSUM drift detection** | Catches gradual quality decay over time — borrowed from manufacturing quality control |
+| **Pre-tool TDD hooks** | Claude can't write code without writing tests first — enforced at the hook level, not just guidance |
+| **Self-evolving loop** | Claude proposes process improvements from friction it encounters — you approve, the system gets better |
 
 ## How It Works
 
