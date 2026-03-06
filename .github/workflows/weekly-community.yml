@@ -1,8 +1,8 @@
 name: Weekly Community Scan
 
 on:
-  schedule:
-    - cron: '0 10 * * 1'  # 10 AM UTC every Monday
+  # schedule:
+  #   - cron: '0 10 * * 1'  # 10 AM UTC every Monday — DISABLED to save API tokens
   workflow_dispatch:
 
 permissions:
