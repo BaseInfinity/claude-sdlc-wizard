@@ -1099,3 +1099,42 @@ When the daily-update workflow detects a new Claude Code feature that overlaps w
 5. One PR per week with everything bundled
 
 **Why:** Saves API costs ($2.50/week vs $2.50/day) while maintaining quality. Weekly batching doesn't miss anything important.
+
+## Future: CI Bug Fixes (found during v1.8.0 catch-up forensic analysis)
+
+### Bug: `tdd_red` deterministic checker false negative
+
+**Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
+
+The grep pattern in `tests/e2e/lib/deterministic-checks.sh:52` is `(Write|Edit) file: [^ ]+` but the actual Claude execution output uses a different format. The LLM judge correctly detects TDD RED happened ("Tests: 1 failed, 24 passed"), but the deterministic pre-check scores 0/2 every time. This is a deterministic false negative, not stochastic flakiness.
+
+**Impact:** `tdd_red` is the weakest criterion historically at 0% — because the checker never matches, not because agents skip TDD.
+
+**Fix options:**
+1. Read actual execution output format, update regex to match
+2. Remove deterministic `tdd_red` check, rely solely on LLM judge (simpler, costs ~$0.02/eval more)
+3. Hybrid: keep deterministic as fast pre-check, let LLM override when deterministic says 0
+
+### Bug: Score history push rejected on PR branches
+
+**Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
+
+In `ci.yml`, the score history commit step does `git push origin HEAD:refs/heads/<branch>` from a detached HEAD (PR merge ref). The remote branch has diverged, so push is rejected. The `|| echo "Nothing to push"` fallback silently masks the failure — score data is lost.
+
+**Impact:** Score history never persists for PR E2E runs. Historical trends only show 1 run because previous pushes all failed silently.
+
+**Fix options:**
+1. Pull-rebase before push: `git pull --rebase origin <branch> && git push`
+2. Push to a dedicated `score-history` branch (never diverges)
+3. Use GitHub API to append data (no git operations needed)
+
+### Maintenance: Node.js 20 deprecation (deadline June 2, 2026)
+
+**Discovered:** 2026-03-21 in CI logs.
+
+Three GitHub Actions still use Node.js 20 runtime:
+- `actions/checkout@v4`
+- `marocchino/sticky-pull-request-comment@v2`
+- `oven-sh/setup-bun@<sha>`
+
+GitHub will force Node.js 24 starting June 2, 2026. Either upgrade to versions supporting Node.js 24 or set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` to verify compatibility early.
