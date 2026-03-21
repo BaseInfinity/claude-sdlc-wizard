@@ -36,6 +36,7 @@ You want Claude Code to follow engineering discipline automatically:
 - **State confidence** (LOW = ask user, don't guess)
 - **Track work visibly** (TaskCreate)
 - **Self-review before presenting**
+- **Prove it's better** (use native features unless you prove custom wins)
 
 The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs.
 
@@ -53,6 +54,8 @@ The wizard auto-detects your stack (package.json, test framework, deployment tar
 ## How It Works
 
 **Think Iron Man:** Jarvis is nothing without Tony Stark. Tony Stark is still Tony Stark. But together? They make Iron Man. This SDLC is your suit - you build it over time, improve it for your needs, and it makes you both better.
+
+**The dream:** Mold an ever-evolving SDLC to your needs. Replace my components with native Claude Code features as they ship — and one day, delete this repo entirely because Claude Code has them all built in. That's the goal.
 
 ```
 WIZARD FILE (CLAUDE_CODE_SDLC_WIZARD.md)
@@ -139,6 +142,29 @@ Tests aren't just validation - they're the foundation everything else builds on.
 | `claude-md-management` | **Required** - CLAUDE.md maintenance | CLAUDE.md only |
 | `claude-code-setup` | Recommends automations | Recommendations |
 | `code-review` | PR review (optional) | PRs only |
+
+## Prove It's Better
+
+Don't reinvent the wheel. Use native/built-in features UNLESS you prove your custom version is better. If you can't prove it, delete yours.
+
+1. Test the native solution — measure quality, speed, reliability
+2. Test your custom solution — same scenario, same metrics
+3. Compare side-by-side
+4. Native >= custom? **Use native. Delete yours.**
+5. Custom > native? **Keep yours. Document WHY.** Re-evaluate when native improves.
+
+This applies to everything: native commands vs custom skills, framework utilities vs hand-rolled code, library functions vs custom implementations.
+
+## Documentation
+
+| Document | What It Covers |
+|----------|---------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, 5-layer diagram, data flows, file structure |
+| [CI_CD.md](CI_CD.md) | All 6 workflows, E2E scoring, tier system, SDP, integrity checks |
+| [SDLC.md](SDLC.md) | Version tracking, enforcement rules, SDLC configuration |
+| [TESTING.md](TESTING.md) | Testing philosophy, test diamond, TDD approach |
+| [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, evaluation methodology |
 
 ## Contributing
 

@@ -163,6 +163,112 @@ test_tdd_hook_missing_path() {
     fi
 }
 
+# ---- instructions-loaded-check.sh tests ----
+
+# Test 12: Script exists and is executable
+test_instructions_hook_exists() {
+    if [ -x "$HOOKS_DIR/instructions-loaded-check.sh" ]; then
+        pass "instructions-loaded-check.sh exists and is executable"
+    else
+        fail "instructions-loaded-check.sh not found or not executable"
+    fi
+}
+
+# Test 13: Warns when SDLC.md is missing
+test_instructions_hook_missing_sdlc() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/TESTING.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "SDLC.md"; then
+        pass "instructions-loaded-check.sh warns when SDLC.md missing"
+    else
+        fail "Should warn about missing SDLC.md, got: $output"
+    fi
+}
+
+# Test 14: Warns when TESTING.md is missing
+test_instructions_hook_missing_testing() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/SDLC.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "TESTING.md"; then
+        pass "instructions-loaded-check.sh warns when TESTING.md missing"
+    else
+        fail "Should warn about missing TESTING.md, got: $output"
+    fi
+}
+
+# Test 15: Warns when both are missing
+test_instructions_hook_missing_both() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "SDLC.md" && echo "$output" | grep -qi "TESTING.md"; then
+        pass "instructions-loaded-check.sh warns when both files missing"
+    else
+        fail "Should warn about both missing files, got: $output"
+    fi
+}
+
+# Test 16: No warning when both files exist
+test_instructions_hook_all_present() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "instructions-loaded-check.sh silent when all files present"
+    else
+        fail "Should produce no output when files exist, got: $output"
+    fi
+}
+
+# Test 17: Exits cleanly (exit 0) regardless of missing files
+test_instructions_hook_exit_code() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" > /dev/null 2>&1
+    local exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ]; then
+        pass "instructions-loaded-check.sh exits cleanly even with missing files"
+    else
+        fail "Should exit 0 even when files missing, got exit code: $exit_code"
+    fi
+}
+
+# Test 18: Hook output has no trailing whitespace
+test_instructions_hook_no_trailing_whitespace() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # Both files missing = worst case for trailing whitespace
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    # Check that no line ends with trailing whitespace (runtime output)
+    if echo "$output" | grep -q '[[:blank:]]$'; then
+        fail "instructions-loaded-check.sh output has trailing whitespace"
+        return
+    fi
+    # Also check the script source itself for baked-in trailing whitespace
+    if grep -q '[[:blank:]]$' "$HOOKS_DIR/instructions-loaded-check.sh"; then
+        fail "instructions-loaded-check.sh source has trailing whitespace"
+    else
+        pass "instructions-loaded-check.sh output has no trailing whitespace"
+    fi
+}
+
 # Run all tests
 test_sdlc_hook_exists
 test_sdlc_hook_keywords
@@ -175,6 +281,13 @@ test_tdd_hook_valid_json
 test_tdd_hook_test_file_ok
 test_tdd_hook_other_file_ok
 test_tdd_hook_missing_path
+test_instructions_hook_exists
+test_instructions_hook_missing_sdlc
+test_instructions_hook_missing_testing
+test_instructions_hook_missing_both
+test_instructions_hook_all_present
+test_instructions_hook_exit_code
+test_instructions_hook_no_trailing_whitespace
 
 echo ""
 echo "=== Results ==="

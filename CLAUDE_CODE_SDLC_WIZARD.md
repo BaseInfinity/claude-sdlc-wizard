@@ -206,7 +206,7 @@ When Anthropic provides official plugins or tools that handle something:
 
 | Requirement | Why |
 |-------------|-----|
-| **Claude Code v2.1.16+** | Required for Tasks system (persistent TodoWrite with dependency tracking) |
+| **Claude Code v2.1.69+** | Required for InstructionsLoaded hook, skill directory variable, and Tasks system |
 | **Git repository** | Files should be committed for team sharing |
 
 ---
@@ -253,6 +253,75 @@ $ARGUMENTS
 - `/testing unit UserService` → `$ARGUMENTS` = "unit UserService"
 
 **Note**: Skills still auto-invoke via hooks. This is optional polish for manual invocation.
+
+### Auto-Memory (v2.1.59+)
+
+Claude Code now has built-in auto-memory that persists context across sessions. Manage with `/memory`.
+
+**No changes needed**: The wizard's hooks and skills work alongside auto-memory. Memory stores preferences and context; the wizard enforces process.
+
+### Built-in Commands (v2.1.59-v2.1.76)
+
+New built-in commands available to use alongside the wizard:
+
+| Command | Version | What It Does |
+|---------|---------|--------------|
+| `/memory` | v2.1.59 | Manage persistent auto-memory |
+| `/simplify` | v2.1.63 | Review changed code for reuse/quality |
+| `/batch` | v2.1.63 | Run prompts in batch |
+| `/loop` | v2.1.71 | Run prompts on recurring intervals |
+| `/effort` | v2.1.76 | Set effort level (low/medium/high) |
+
+**Tip**: `/simplify` pairs well with the self-review phase. Run it after implementation as an additional quality check.
+
+### Skill Effort Frontmatter (v2.1.80+)
+
+Skills can now set an `effort` level in frontmatter. The wizard's `/sdlc` and `/testing` skills use `effort: high` to ensure Claude gives full attention to SDLC tasks.
+
+### InstructionsLoaded Hook (v2.1.69+)
+
+New hook event fires when Claude loads instructions at session start. The wizard uses this to validate that `SDLC.md` and `TESTING.md` exist — catches missing wizard files early.
+
+### Skill Directory Variable (v2.1.69+)
+
+Skills can now reference companion files using `${CLAUDE_SKILL_DIR}`. Useful if you add data files alongside your skill markdown.
+
+### Hook Metadata (v2.1.69+)
+
+Hook events now include `agent_id` and `agent_type` fields. Hooks can behave differently for subagents vs the main agent if needed.
+
+### Security Hardening (v2.1.49-v2.1.78)
+
+Several fixes that strengthen wizard enforcement:
+- **v2.1.49**: Managed hooks can't be bypassed by non-managed settings (tamper-resistant)
+- **v2.1.72**: PreToolUse hooks returning `"allow"` can no longer bypass `deny` permission rules
+- **v2.1.74**: Managed policy `ask` rules can't be bypassed by user `allow` or skill `allowed-tools`
+- **v2.1.77**: Additional PreToolUse deny-bypass hardening
+- **v2.1.78**: Visible startup warning when sandbox dependencies are missing
+
+### Other Notable Changes
+
+- **v2.1.50**: `CLAUDE_CODE_SIMPLE` env var disables hooks/skills/CLAUDE.md — be aware this bypasses wizard enforcement
+- **v2.1.72**: HTML comments (`<!-- -->`) in CLAUDE.md are no longer injected into context — useful for internal notes
+- **v2.1.77**: Output token limits increased from 64k to 128k (Opus 4.6/Sonnet 4.6)
+- **v2.1.81**: `--bare` flag for scripted `-p` calls skips hooks/LSP/plugins/skills in headless mode
+
+---
+
+## Prove It's Better
+
+**Don't reinvent the wheel.** Use native/built-in features UNLESS you prove your custom version is better. If you can't prove it, delete yours.
+
+This applies to everything: native Claude Code commands vs custom skills, framework utilities vs hand-rolled code, library functions vs custom implementations.
+
+**How to prove it:**
+1. Test the native solution — measure quality, speed, reliability
+2. Test your custom solution — same scenario, same metrics
+3. Compare side-by-side
+4. Native >= custom? **Use native. Delete yours.**
+5. Custom > native? **Keep yours. Document WHY.** Re-evaluate when native improves.
+
+**For the wizard's CI/CD:** When the daily-update workflow detects a new Claude Code feature that overlaps with a wizard feature, the CI should automatically run E2E with both versions and recommend KEEP CUSTOM / SWITCH TO NATIVE / TIE.
 
 ---
 
