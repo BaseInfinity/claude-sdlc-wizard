@@ -17,7 +17,7 @@ All notable changes to the SDLC Wizard.
 - Documented security hardening fixes (v2.1.49, v2.1.72, v2.1.74, v2.1.77, v2.1.78)
 - Documented `${CLAUDE_SKILL_DIR}` variable, `agent_id`/`agent_type` hook metadata
 - Documented `CLAUDE_CODE_SIMPLE` bypass risk, HTML comment behavior, 128k output tokens, `--bare` flag
-- 6 new hook tests (17 total) for InstructionsLoaded hook
+- 7 new hook tests (18 total) for InstructionsLoaded hook
 - `plans/CATCHUP.md` — documents the version catch-up process for future reference
 
 ### Changed
