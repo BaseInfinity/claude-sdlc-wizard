@@ -4,7 +4,7 @@
         "deterministic": {
             "task_tracking": 1,
             "confidence": 1,
-            "tdd_red": 2
+            "tdd_red": 0
         },
         "expected_llm": {
             "plan_mode_outline": {"min": 1, "max": 1},

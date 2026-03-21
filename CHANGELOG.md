@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.8.1] - 2026-03-21
+
+### Fixed
+- `tdd_red` deterministic checker: now parses JSON execution output via jq (was always scoring 0/2 due to regex mismatch with claude-code-action JSON format)
+- Score history push: checkout actual PR branch before push (was silently failing from detached HEAD)
+- `instructions-loaded-check.sh`: explicit `exit 0` for defensive safety
+
+### Changed
+- Phase 5: Re-enabled all auto-update workflow schedules
+  - `daily-update.yml`: changed from daily to weekly (Mondays 9 AM UTC) to save API tokens
+  - `weekly-community.yml`: re-enabled (Mondays 10 AM UTC)
+  - `monthly-research.yml`: re-enabled (1st of month 11 AM UTC)
+- Golden scores: `high-compliance.tdd_red` updated to 0 (text golden files lack JSON tool_use blocks; tdd_red correctness verified via dedicated JSON unit tests)
+
+### Added
+- 7 new tests: JSON-based tdd_red checks (5), empty/nonexistent file edge cases (2)
+- 3 new workflow trigger tests: weekly schedule validation, all-schedules-active, score-history-checkout
+
 ## [1.8.0] - 2026-03-20
 
 ### Added

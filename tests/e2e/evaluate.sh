@@ -81,7 +81,7 @@ OUTPUT_CONTENT=$(head -c 200000 "$OUTPUT_FILE" 2>/dev/null)  # Limit to 200KB
 
 # Run deterministic pre-checks (free, fast, reproducible)
 echo "Running deterministic pre-checks..." >&2
-DETERMINISTIC_RESULT=$(run_deterministic_checks "$OUTPUT_CONTENT")
+DETERMINISTIC_RESULT=$(run_deterministic_checks "$OUTPUT_CONTENT" "$OUTPUT_FILE")
 DET_TASK=$(echo "$DETERMINISTIC_RESULT" | jq -r '.task_tracking.points')
 DET_CONFIDENCE=$(echo "$DETERMINISTIC_RESULT" | jq -r '.confidence.points')
 DET_TDD_RED=$(echo "$DETERMINISTIC_RESULT" | jq -r '.tdd_red.points')
