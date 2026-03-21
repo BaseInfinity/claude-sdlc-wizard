@@ -124,9 +124,9 @@ test_deterministic_scores() {
     local output_content
     output_content=$(cat "$golden_file")
 
-    # Run deterministic checks
+    # Run deterministic checks (pass file path for tdd_red JSON parsing)
     local det_result
-    det_result=$(run_deterministic_checks "$output_content")
+    det_result=$(run_deterministic_checks "$output_content" "$golden_file")
 
     # Get expected deterministic scores
     local expected_task expected_confidence expected_tdd

@@ -19,3 +19,5 @@ if [ -n "$MISSING" ]; then
     echo "WARNING: Missing SDLC wizard files: ${MISSING}"
     echo "Run the wizard setup to generate them."
 fi
+
+exit 0

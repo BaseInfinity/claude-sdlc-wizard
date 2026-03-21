@@ -1,8 +1,8 @@
 name: Monthly Research Deep Dive
 
 on:
-  # schedule:
-  #   - cron: '0 11 1 * *'  # 11 AM UTC on 1st of month — DISABLED to save API tokens
+  schedule:
+    - cron: '0 11 1 * *'  # 11 AM UTC on 1st of month
   workflow_dispatch:
 
 permissions:

@@ -11,6 +11,7 @@
 #   - task_tracking: TodoWrite or TaskCreate usage (1 pt)
 #   - confidence: HIGH/MEDIUM/LOW stated (1 pt)
 #   - tdd_red: test file created/edited before implementation (2 pt)
+#     (parses JSON execution output from claude-code-action via jq)
 #
 # Usage: source this file in your script
 #   source "$(dirname "$0")/lib/deterministic-checks.sh"
@@ -41,15 +42,26 @@ check_confidence() {
 }
 
 # Check for TDD RED: test file written/edited BEFORE implementation file
-# Looks at file operation order in the output.
+# Parses JSON execution output from claude-code-action to extract tool_use order.
+# Args: $1 = path to execution output JSON file
 # Returns: "2" if test-first, "0" otherwise
 check_tdd_red() {
-    local output="$1"
+    local output_file="$1"
 
-    # Extract file operations in order: Write/Edit file paths
-    # Patterns: "Write file: path", "Edit file: path", "Write(path)", etc.
+    # Extract Write/Edit file paths from JSON tool_use blocks in order
+    # claude-code-action output: array of {role, content[{type:"tool_use", name, input:{file_path}}]}
     local operations
-    operations=$(grep -oE '(Write|Edit) file: [^ ]+' <<< "$output" | sed 's/.*: //')
+    if [ -z "$output_file" ] || [ ! -f "$output_file" ]; then
+        echo "0"
+        return
+    fi
+    operations=$(jq -r '
+        [.[] | select(type == "object" and .role == "assistant") |
+         (.content // [])[] |
+         select(type == "object" and .type == "tool_use" and (.name == "Write" or .name == "Edit")) |
+         .input.file_path // empty
+        ] | .[]
+    ' "$output_file" 2>/dev/null)
 
     if [ -z "$operations" ]; then
         echo "0"
@@ -90,16 +102,18 @@ check_tdd_red() {
 }
 
 # Run all deterministic checks and return JSON result
-# Args: $1 = execution output text
+# Args: $1 = execution output text (for task_tracking + confidence grep)
+#        $2 = execution output file path (for tdd_red JSON parsing)
 # Returns: JSON with per-criterion scores and total
 run_deterministic_checks() {
     local output="$1"
+    local output_file="${2:-}"
 
     local task_score confidence_score tdd_score
 
     task_score=$(check_task_tracking "$output")
     confidence_score=$(check_confidence "$output")
-    tdd_score=$(check_tdd_red "$output")
+    tdd_score=$(check_tdd_red "$output_file")
 
     local total=$((task_score + confidence_score + tdd_score))
 
