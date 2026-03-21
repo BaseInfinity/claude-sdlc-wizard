@@ -7,11 +7,11 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 MISSING=""
 
 if [ ! -f "$PROJECT_DIR/SDLC.md" ]; then
-    MISSING="${MISSING}SDLC.md "
+    MISSING="${MISSING:+${MISSING}, }SDLC.md"
 fi
 
 if [ ! -f "$PROJECT_DIR/TESTING.md" ]; then
-    MISSING="${MISSING}TESTING.md "
+    MISSING="${MISSING:+${MISSING}, }TESTING.md"
 fi
 
 if [ -n "$MISSING" ]; then

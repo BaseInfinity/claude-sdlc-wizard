@@ -28,7 +28,7 @@ jobs:
           done
           echo "All workflow files are valid YAML"
 
-      - name: Shellcheck scripts in workflows
+      - name: Check for unsafe variable interpolation in workflows
         run: |
           echo "Checking for shell script issues in workflows..."
           # Extract and check run blocks from workflows
@@ -159,8 +159,11 @@ jobs:
       - name: Initialize workspace git directory
         run: |
           # actions/checkout with path: leaves workspace root as non-git.
-          # claude-code-action@v1 configureGitAuth runs git config here and crashes without this.
+          # claude-code-action@v1 needs a git repo with origin remote for:
+          #   1. configureGitAuth: git remote set-url origin <auth-url>
+          #   2. Trusted file restore: git fetch origin main --depth=1
           git init .
+          git remote add origin https://github.com/${{ github.repository }}.git
 
       - name: Record baseline simulation start time
         if: steps.check-baseline.outputs.has_baseline == 'true'
