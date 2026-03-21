@@ -1887,6 +1887,64 @@ test_ci_shellcheck_step_name_accurate() {
 test_ci_workspace_git_init_has_origin
 test_ci_shellcheck_step_name_accurate
 
+# Test 83: daily-update schedule is weekly (Monday only), not daily
+test_daily_update_weekly_schedule() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "daily-update.yml not found"
+        return
+    fi
+    # Cron should end with day-of-week = 1 (Monday), not * (daily)
+    # Format: minute hour day-of-month month day-of-week
+    # Match uncommented cron line: starts with spaces and dash, ends with 1'
+    if grep -E '^\s+- cron:.*\* 1' "$WORKFLOW" > /dev/null; then
+        pass "daily-update runs weekly on Mondays (cost-efficient)"
+    else
+        fail "daily-update should run weekly on Monday (cron day-of-week = 1), not daily"
+    fi
+}
+
+# Test 84: All three auto-update schedules are uncommented (active)
+test_all_schedules_active() {
+    local all_active=true
+    for wf in daily-update.yml weekly-community.yml monthly-research.yml; do
+        WORKFLOW="$REPO_ROOT/.github/workflows/$wf"
+        if [ ! -f "$WORKFLOW" ]; then
+            fail "$wf not found"
+            return
+        fi
+        # Check for uncommented schedule: line (no # before it)
+        if grep -E '^\s+schedule:' "$WORKFLOW" | grep -qv '#'; then
+            : # active
+        else
+            all_active=false
+            fail "$wf schedule is commented out (should be active)"
+        fi
+    done
+    if [ "$all_active" = true ]; then
+        pass "All three auto-update workflow schedules are active"
+    fi
+}
+
+# Test 85: ci.yml score history checkouts PR branch before push
+test_ci_score_history_checkouts_pr_branch() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+    # The score history step must checkout the actual PR branch (not push from detached HEAD)
+    if grep -A 15 'Commit score history' "$WORKFLOW" | grep -q 'git checkout'; then
+        pass "ci.yml score history checks out PR branch before push"
+    else
+        fail "ci.yml score history pushes from detached HEAD (will fail silently)"
+    fi
+}
+
+test_daily_update_weekly_schedule
+test_all_schedules_active
+test_ci_score_history_checkouts_pr_branch
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

@@ -1100,33 +1100,17 @@ When the daily-update workflow detects a new Claude Code feature that overlaps w
 
 **Why:** Saves API costs ($2.50/week vs $2.50/day) while maintaining quality. Weekly batching doesn't miss anything important.
 
-## Future: CI Bug Fixes (found during v1.8.0 catch-up forensic analysis)
+## CI Bug Fixes (found during v1.8.0 catch-up forensic analysis)
 
-### Bug: `tdd_red` deterministic checker false negative
-
-**Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
-
-The grep pattern in `tests/e2e/lib/deterministic-checks.sh:52` is `(Write|Edit) file: [^ ]+` but the actual Claude execution output uses a different format. The LLM judge correctly detects TDD RED happened ("Tests: 1 failed, 24 passed"), but the deterministic pre-check scores 0/2 every time. This is a deterministic false negative, not stochastic flakiness.
-
-**Impact:** `tdd_red` is the weakest criterion historically at 0% — because the checker never matches, not because agents skip TDD.
-
-**Fix options:**
-1. Read actual execution output format, update regex to match
-2. Remove deterministic `tdd_red` check, rely solely on LLM judge (simpler, costs ~$0.02/eval more)
-3. Hybrid: keep deterministic as fast pre-check, let LLM override when deterministic says 0
-
-### Bug: Score history push rejected on PR branches
+### Bug: `tdd_red` deterministic checker false negative — FIXED (v1.8.1)
 
 **Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
+**Fixed:** 2026-03-21 — changed `check_tdd_red()` from text grep to jq-based JSON parsing of `claude-code-action` execution output. Function now accepts a file path and extracts tool_use blocks with Write/Edit operations.
 
-In `ci.yml`, the score history commit step does `git push origin HEAD:refs/heads/<branch>` from a detached HEAD (PR merge ref). The remote branch has diverged, so push is rejected. The `|| echo "Nothing to push"` fallback silently masks the failure — score data is lost.
+### Bug: Score history push rejected on PR branches — FIXED (v1.8.1)
 
-**Impact:** Score history never persists for PR E2E runs. Historical trends only show 1 run because previous pushes all failed silently.
-
-**Fix options:**
-1. Pull-rebase before push: `git pull --rebase origin <branch> && git push`
-2. Push to a dedicated `score-history` branch (never diverges)
-3. Use GitHub API to append data (no git operations needed)
+**Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
+**Fixed:** 2026-03-21 — score history step now saves the updated file, fetches and checks out the actual PR branch, restores the file, then commits and pushes normally.
 
 ### Maintenance: Node.js 20 deprecation (deadline June 2, 2026)
 
@@ -1139,10 +1123,8 @@ Three GitHub Actions still use Node.js 20 runtime:
 
 GitHub will force Node.js 24 starting June 2, 2026. Either upgrade to versions supporting Node.js 24 or set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` to verify compatibility early.
 
-### Polish: Small improvements from PR review feedback
+### Polish: Small improvements from PR review feedback — DONE (v1.8.1)
 
-**Discovered:** 2026-03-21 across 4 review iterations on PR #67.
-
-1. **`instructions-loaded-check.sh`**: Add explicit `exit 0` at end of file — defensive against future `set -e` additions
-2. **`test-hooks.sh` Test 18**: Use `grep -q '[[:blank:]]$'` instead of `' $'` to catch tab-trailing-whitespace too
-3. **Open GitHub issues for roadmap bugs**: The tdd_red, score history, and Node.js 20 items above should be GitHub issues so they show up in project tracking
+1. **`instructions-loaded-check.sh`**: Added explicit `exit 0` — DONE
+2. **`test-hooks.sh` Test 18**: Already uses `[[:blank:]]` (CI autofix applied) — DONE
+3. **GitHub issues**: Node.js 20 deprecation issue created — DONE (tdd_red and score history fixed directly)

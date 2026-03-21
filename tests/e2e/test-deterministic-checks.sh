@@ -160,76 +160,121 @@ test_confidence_lowercase_ignored() {
 # -----------------------------------------------
 
 echo ""
-echo "--- check_tdd_red ---"
+echo "--- check_tdd_red (JSON execution output) ---"
+
+# Helper: create a temp JSON file simulating claude-code-action execution output
+# with Write/Edit tool_use blocks
+make_execution_json() {
+    local tmpfile
+    tmpfile=$(mktemp)
+    # Build JSON array of assistant messages with tool_use blocks
+    # Args: pairs of "Write|Edit filepath"
+    local json_entries=""
+    local first=true
+    while [ $# -gt 0 ]; do
+        local tool_name="$1"
+        local file_path="$2"
+        shift 2
+        if [ "$first" = true ]; then
+            first=false
+        else
+            json_entries="$json_entries,"
+        fi
+        json_entries="$json_entries
+  {\"role\": \"assistant\", \"content\": [{\"type\": \"tool_use\", \"name\": \"$tool_name\", \"input\": {\"file_path\": \"$file_path\", \"content\": \"\"}}]},
+  {\"role\": \"user\", \"content\": [{\"type\": \"tool_result\", \"content\": \"ok\"}]}"
+    done
+    echo "[$json_entries
+]" > "$tmpfile"
+    echo "$tmpfile"
+}
 
 test_tdd_red_test_before_impl() {
-    local output="First I'll write the test.
-Write file: tests/validate.test.js
-Now let me run the test to see it fail.
-FAIL: validateEmail is not defined
-Now I'll implement the function.
-Write file: src/validate.js"
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "tests/validate.test.js" "Write" "src/validate.js")
     local result
-    result=$(check_tdd_red "$output")
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
     if [ "$result" = "2" ]; then
-        pass "TDD RED: test file before implementation file"
+        pass "TDD RED: test file before implementation file (JSON)"
     else
         fail "TDD RED should score 2, got $result"
     fi
 }
 
 test_tdd_red_impl_before_test() {
-    local output="Let me implement the function first.
-Write file: src/validate.js
-Now I'll add a test.
-Write file: tests/validate.test.js"
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/validate.js" "Write" "tests/validate.test.js")
     local result
-    result=$(check_tdd_red "$output")
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
     if [ "$result" = "0" ]; then
-        pass "TDD RED: implementation before test scores 0"
+        pass "TDD RED: implementation before test scores 0 (JSON)"
     else
         fail "Impl before test should score 0, got $result"
     fi
 }
 
 test_tdd_red_no_test_file() {
-    local output="Let me implement the function.
-Write file: src/validate.js
-Done! The function works."
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/validate.js")
     local result
-    result=$(check_tdd_red "$output")
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
     if [ "$result" = "0" ]; then
-        pass "TDD RED: no test file at all scores 0"
+        pass "TDD RED: no test file at all scores 0 (JSON)"
     else
         fail "No test file should score 0, got $result"
     fi
 }
 
 test_tdd_red_edit_test_before_edit_impl() {
-    local output="Let me add a test first.
-Edit file: tests/app.test.js
-Now run the test... it fails.
-Edit file: src/app.js"
+    local tmpfile
+    tmpfile=$(make_execution_json "Edit" "tests/app.test.js" "Edit" "src/app.js")
     local result
-    result=$(check_tdd_red "$output")
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
     if [ "$result" = "2" ]; then
-        pass "TDD RED: Edit test before Edit impl detected"
+        pass "TDD RED: Edit test before Edit impl detected (JSON)"
     else
         fail "Edit test before Edit impl should score 2, got $result"
     fi
 }
 
 test_tdd_red_spec_file() {
-    local output="Writing the spec first.
-Write file: spec/validate.spec.ts
-Now implement.
-Write file: src/validate.ts"
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "spec/validate.spec.ts" "Write" "src/validate.ts")
     local result
-    result=$(check_tdd_red "$output")
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
     if [ "$result" = "2" ]; then
-        pass "TDD RED: .spec file detected as test"
+        pass "TDD RED: .spec file detected as test (JSON)"
     else
         fail ".spec file should be detected as test, got $result"
+    fi
+}
+
+test_tdd_red_empty_json() {
+    local tmpfile
+    tmpfile=$(mktemp)
+    echo '[]' > "$tmpfile"
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: empty JSON array scores 0"
+    else
+        fail "Empty JSON should score 0, got $result"
+    fi
+}
+
+test_tdd_red_nonexistent_file() {
+    local result
+    result=$(check_tdd_red "/nonexistent/file.json")
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: nonexistent file scores 0"
+    else
+        fail "Nonexistent file should score 0, got $result"
     fi
 }
 
@@ -244,14 +289,15 @@ test_full_compliance() {
     local output="TaskCreate: Add email validation
 Confidence: HIGH
 
-First, write the test:
-Write file: tests/validate.test.js
+First, write the test.
 Run tests... FAIL
-Now implement:
-Write file: src/validate.js
+Now implement.
 Run tests... PASS"
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "tests/validate.test.js" "Write" "src/validate.js")
     local result
-    result=$(run_deterministic_checks "$output")
+    result=$(run_deterministic_checks "$output" "$tmpfile")
+    rm -f "$tmpfile"
 
     local task_score confidence_score tdd_score total
     task_score=$(echo "$result" | jq -r '.task_tracking.points')
@@ -268,10 +314,12 @@ Run tests... PASS"
 
 test_zero_compliance() {
     local output="Let me just code this up quickly.
-Write file: src/validate.js
 Done, it works."
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/validate.js")
     local result
-    result=$(run_deterministic_checks "$output")
+    result=$(run_deterministic_checks "$output" "$tmpfile")
+    rm -f "$tmpfile"
 
     local total
     total=$(echo "$result" | jq -r '.total')
@@ -285,11 +333,13 @@ Done, it works."
 
 test_partial_compliance() {
     local output="TodoWrite: Add feature
-Let me start coding.
-Write file: src/validate.js
-Write file: tests/validate.test.js"
+Let me start coding."
+    # impl before test → tdd_red=0
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/validate.js" "Write" "tests/validate.test.js")
     local result
-    result=$(run_deterministic_checks "$output")
+    result=$(run_deterministic_checks "$output" "$tmpfile")
+    rm -f "$tmpfile"
 
     local task_score confidence_score tdd_score total
     task_score=$(echo "$result" | jq -r '.task_tracking.points')
@@ -307,8 +357,11 @@ Write file: tests/validate.test.js"
 test_json_structure() {
     local output="TaskCreate: something
 Confidence: MEDIUM"
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/foo.js")
     local result
-    result=$(run_deterministic_checks "$output")
+    result=$(run_deterministic_checks "$output" "$tmpfile")
+    rm -f "$tmpfile"
 
     # Validate JSON structure has all expected fields
     local has_task has_conf has_tdd has_total has_max
@@ -328,7 +381,7 @@ Confidence: MEDIUM"
 test_max_score() {
     local output="anything"
     local result
-    result=$(run_deterministic_checks "$output")
+    result=$(run_deterministic_checks "$output" "")
 
     local max
     max=$(echo "$result" | jq -r '.max')
@@ -344,7 +397,7 @@ test_evidence_fields() {
     local output="TodoWrite: Track work
 Confidence: HIGH"
     local result
-    result=$(run_deterministic_checks "$output")
+    result=$(run_deterministic_checks "$output" "")
 
     local task_evidence conf_evidence
     task_evidence=$(echo "$result" | jq -r '.task_tracking.evidence')
@@ -375,6 +428,8 @@ test_tdd_red_impl_before_test
 test_tdd_red_no_test_file
 test_tdd_red_edit_test_before_edit_impl
 test_tdd_red_spec_file
+test_tdd_red_empty_json
+test_tdd_red_nonexistent_file
 
 test_full_compliance
 test_zero_compliance

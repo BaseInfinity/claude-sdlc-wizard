@@ -501,12 +501,22 @@ jobs:
         continue-on-error: true
         working-directory: pr-branch
         run: |
+          # Save updated score file (we're on detached HEAD at refs/pull/N/merge)
+          cp tests/e2e/score-history.jsonl /tmp/score-history-updated.jsonl
+
+          # Checkout the actual PR branch (not the merge ref)
+          PR_BRANCH="${{ github.event.pull_request.head.ref }}"
+          git fetch origin "$PR_BRANCH"
+          git checkout "$PR_BRANCH"
+          git pull --rebase origin "$PR_BRANCH"
+
+          # Restore the updated score file and commit
+          cp /tmp/score-history-updated.jsonl tests/e2e/score-history.jsonl
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add tests/e2e/score-history.jsonl
           git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
-          # Push to PR branch explicitly — checkout is detached HEAD (refs/pull/N/merge)
-          git push origin HEAD:refs/heads/${{ github.event.pull_request.head.ref }} || echo "Nothing to push"
+          git push origin "$PR_BRANCH"
 
       - name: Generate score trends report
         continue-on-error: true

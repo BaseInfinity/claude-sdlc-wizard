@@ -1,8 +1,8 @@
 name: Daily Claude Code Update Check
 
 on:
-  # schedule:
-  #   - cron: '0 9 * * *'  # 9 AM UTC daily — DISABLED to save API tokens
+  schedule:
+    - cron: '0 9 * * 1'  # 9 AM UTC every Monday (was daily, reduced to save tokens)
   workflow_dispatch:
 
 permissions:
