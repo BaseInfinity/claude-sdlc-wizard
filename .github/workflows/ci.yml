@@ -508,6 +508,7 @@ jobs:
           PR_BRANCH="${{ github.event.pull_request.head.ref }}"
           git fetch origin "$PR_BRANCH"
           git checkout "$PR_BRANCH"
+          git pull --rebase origin "$PR_BRANCH"
 
           # Restore the updated score file and commit
           cp /tmp/score-history-updated.jsonl tests/e2e/score-history.jsonl
