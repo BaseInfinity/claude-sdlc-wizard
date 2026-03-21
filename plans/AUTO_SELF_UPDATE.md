@@ -1138,3 +1138,11 @@ Three GitHub Actions still use Node.js 20 runtime:
 - `oven-sh/setup-bun@<sha>`
 
 GitHub will force Node.js 24 starting June 2, 2026. Either upgrade to versions supporting Node.js 24 or set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` to verify compatibility early.
+
+### Polish: Small improvements from PR review feedback
+
+**Discovered:** 2026-03-21 across 4 review iterations on PR #67.
+
+1. **`instructions-loaded-check.sh`**: Add explicit `exit 0` at end of file — defensive against future `set -e` additions
+2. **`test-hooks.sh` Test 18**: Use `grep -q '[[:blank:]]$'` instead of `' $'` to catch tab-trailing-whitespace too
+3. **Open GitHub issues for roadmap bugs**: The tdd_red, score history, and Node.js 20 items above should be GitHub issues so they show up in project tracking
