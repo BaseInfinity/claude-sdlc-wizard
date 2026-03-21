@@ -248,6 +248,22 @@ test_instructions_hook_exit_code() {
     fi
 }
 
+# Test 18: Hook output has no trailing whitespace
+test_instructions_hook_no_trailing_whitespace() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # Both files missing = worst case for trailing whitespace
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    # Check that no line ends with trailing whitespace
+    if echo "$output" | grep -q ' $'; then
+        fail "instructions-loaded-check.sh output has trailing whitespace"
+    else
+        pass "instructions-loaded-check.sh output has no trailing whitespace"
+    fi
+}
+
 # Run all tests
 test_sdlc_hook_exists
 test_sdlc_hook_keywords
@@ -266,23 +282,6 @@ test_instructions_hook_missing_testing
 test_instructions_hook_missing_both
 test_instructions_hook_all_present
 test_instructions_hook_exit_code
-
-# Test 18: Hook output has no trailing whitespace
-test_instructions_hook_no_trailing_whitespace() {
-    local tmpdir
-    tmpdir=$(mktemp -d)
-    # Both files missing = worst case for trailing whitespace
-    local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
-    rm -rf "$tmpdir"
-    # Check that no line ends with trailing whitespace
-    if echo "$output" | grep -q ' $'; then
-        fail "instructions-loaded-check.sh output has trailing whitespace"
-    else
-        pass "instructions-loaded-check.sh output has no trailing whitespace"
-    fi
-}
-
 test_instructions_hook_no_trailing_whitespace
 
 echo ""
