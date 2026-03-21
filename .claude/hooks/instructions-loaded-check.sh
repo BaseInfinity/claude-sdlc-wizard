@@ -2,6 +2,7 @@
 # InstructionsLoaded hook - validates SDLC files exist at session start
 # Fires when Claude loads instructions (session start/resume)
 # Available since Claude Code v2.1.69
+# Note: no set -e — this hook must always exit 0 to not block session start
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
 MISSING=""
