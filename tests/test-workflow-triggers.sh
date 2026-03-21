@@ -1847,6 +1847,46 @@ test_ci_autofix_no_workflows_permission
 test_ci_workspace_git_init
 test_ci_max_turns_sufficient
 
+# Test 81: ci.yml workspace git init adds origin remote (trusted file restore needs it)
+test_ci_workspace_git_init_has_origin() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # claude-code-action@v1 configureGitAuth does `git remote set-url origin <url>`
+    # and trusted file restore does `git fetch origin main --depth=1`.
+    # Both require origin to exist. Bare `git init .` is not enough.
+    if grep -q 'git remote add origin' "$WORKFLOW"; then
+        pass "ci.yml workspace init adds origin remote (prevents trusted file restore crash)"
+    else
+        fail "ci.yml workspace init missing 'git remote add origin' (claude-code-action trusted file restore will crash)"
+    fi
+}
+
+# Test 82: ci.yml shellcheck step name accurately describes what it does
+test_ci_shellcheck_step_name_accurate() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # The step previously said "Shellcheck scripts in workflows" but only runs a grep.
+    # Step name must not claim to run shellcheck when it doesn't.
+    if grep -q 'name: Shellcheck' "$WORKFLOW"; then
+        fail "ci.yml has step named 'Shellcheck' but doesn't actually run shellcheck (misleading)"
+    else
+        pass "ci.yml shell validation step name is accurate (no false shellcheck claim)"
+    fi
+}
+
+test_ci_workspace_git_init_has_origin
+test_ci_shellcheck_step_name_accurate
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

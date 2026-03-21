@@ -48,6 +48,7 @@ The main document that users copy to their repos. Contains:
 |------|---------|---------|
 | `sdlc-prompt-check.sh` | UserPromptSubmit | SDLC baseline on every prompt |
 | `tdd-pretool-check.sh` | PreToolUse (Write/Edit) | TDD reminder before code changes |
+| `instructions-loaded-check.sh` | InstructionsLoaded | Validates SDLC.md/TESTING.md exist |
 
 ### 3. Skills System
 
@@ -187,7 +188,8 @@ sdlc-wizard/
 │   ├── settings.local.json        # Local permissions
 │   ├── hooks/
 │   │   ├── sdlc-prompt-check.sh   # SDLC baseline hook
-│   │   └── tdd-pretool-check.sh   # TDD enforcement hook
+│   │   ├── tdd-pretool-check.sh   # TDD enforcement hook
+│   │   └── instructions-loaded-check.sh  # Session start validation
 │   └── skills/
 │       ├── sdlc/SKILL.md          # SDLC workflow skill
 │       └── testing/SKILL.md       # Testing skill

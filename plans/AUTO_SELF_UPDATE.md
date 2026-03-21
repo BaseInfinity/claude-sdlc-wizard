@@ -1041,3 +1041,108 @@ The `workflows: write` permission was added in commit `208ecdb` to allow pushing
 - Test 78: validates correct `name: CI Auto-Fix` field via YAML parsing
 
 **Lesson:** `workflows` is NOT a valid YAML permission scope in GitHub Actions. Including it causes GitHub's parser to silently fail on the entire workflow file, breaking trigger registration. Always validate with `actionlint` before adding permissions. Pushing workflow files requires PAT with `workflow` scope or GitHub App token — not YAML permissions.
+
+---
+
+## Future: "Prove It's Better" CI Automation
+
+> Status: PLANNED — added during v2.1.81 catch-up (2026-03-20)
+
+When the daily-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, the CI should automatically:
+
+1. Run E2E with our custom version (baseline)
+2. Run E2E with the native version (candidate — wizard with custom feature removed)
+3. Compare scores in the PR comment
+4. Recommend: KEEP CUSTOM / SWITCH TO NATIVE / TIE
+
+**Implementation approach:**
+- Add overlap detection to `analyze-release.md` prompt — flag when native feature matches a wizard hook/skill
+- When flagged, CI creates two fixture variants: one with custom, one without
+- Run Tier 2 (5-trial) evaluation on both
+- Include comparison in PR comment alongside regular scores
+
+**Current overlap audit (as of v2.1.81):**
+
+| Native | Custom Equivalent | Status |
+|--------|-------------------|--------|
+| `/simplify` (v2.1.63) | Code review guidance in wizard | No custom skill — DOCUMENT ONLY |
+| `/claude-api` (v2.1.69) | N/A — no custom equivalent | CONFIRMED — nothing to swap |
+| Auto-memory (v2.1.59) | N/A — we use native | CONFIRMED NATIVE |
+| `/batch`, `/loop`, `/effort` | N/A — no custom equivalent | DOCUMENT ONLY |
+
+---
+
+## Future: Weekly Workflow Consolidation
+
+> Status: PLANNED — merge daily-update + weekly-community into one weekly workflow
+
+### Current (3 workflows, disabled schedules)
+
+| Workflow | Schedule | Cost |
+|----------|----------|------|
+| `daily-update.yml` | Daily (disabled) | ~$2.50/day if active |
+| `weekly-community.yml` | Weekly (disabled) | ~$0.50/week |
+| `monthly-research.yml` | Monthly (disabled) | ~$0.50/month |
+
+### Proposed (2 workflows)
+
+| Workflow | Schedule | Cost |
+|----------|----------|------|
+| `weekly-update.yml` (NEW) | Weekly (Mondays) | ~$2.50/week |
+| `monthly-research.yml` | Monthly (re-enable) | ~$0.50/month |
+
+**The merged weekly workflow does:**
+1. Check for new Claude Code releases since last check
+2. If new: analyze changelog, flag wizard impact, create PR with E2E comparison
+3. If overlap with custom features: run "prove it" side-by-side comparison
+4. Scan community patterns (existing weekly-community behavior)
+5. One PR per week with everything bundled
+
+**Why:** Saves API costs ($2.50/week vs $2.50/day) while maintaining quality. Weekly batching doesn't miss anything important.
+
+## Future: CI Bug Fixes (found during v1.8.0 catch-up forensic analysis)
+
+### Bug: `tdd_red` deterministic checker false negative
+
+**Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
+
+The grep pattern in `tests/e2e/lib/deterministic-checks.sh:52` is `(Write|Edit) file: [^ ]+` but the actual Claude execution output uses a different format. The LLM judge correctly detects TDD RED happened ("Tests: 1 failed, 24 passed"), but the deterministic pre-check scores 0/2 every time. This is a deterministic false negative, not stochastic flakiness.
+
+**Impact:** `tdd_red` is the weakest criterion historically at 0% — because the checker never matches, not because agents skip TDD.
+
+**Fix options:**
+1. Read actual execution output format, update regex to match
+2. Remove deterministic `tdd_red` check, rely solely on LLM judge (simpler, costs ~$0.02/eval more)
+3. Hybrid: keep deterministic as fast pre-check, let LLM override when deterministic says 0
+
+### Bug: Score history push rejected on PR branches
+
+**Discovered:** 2026-03-21 during CI forensic analysis of PR #67.
+
+In `ci.yml`, the score history commit step does `git push origin HEAD:refs/heads/<branch>` from a detached HEAD (PR merge ref). The remote branch has diverged, so push is rejected. The `|| echo "Nothing to push"` fallback silently masks the failure — score data is lost.
+
+**Impact:** Score history never persists for PR E2E runs. Historical trends only show 1 run because previous pushes all failed silently.
+
+**Fix options:**
+1. Pull-rebase before push: `git pull --rebase origin <branch> && git push`
+2. Push to a dedicated `score-history` branch (never diverges)
+3. Use GitHub API to append data (no git operations needed)
+
+### Maintenance: Node.js 20 deprecation (deadline June 2, 2026)
+
+**Discovered:** 2026-03-21 in CI logs.
+
+Three GitHub Actions still use Node.js 20 runtime:
+- `actions/checkout@v4`
+- `marocchino/sticky-pull-request-comment@v2`
+- `oven-sh/setup-bun@<sha>`
+
+GitHub will force Node.js 24 starting June 2, 2026. Either upgrade to versions supporting Node.js 24 or set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` to verify compatibility early.
+
+### Polish: Small improvements from PR review feedback
+
+**Discovered:** 2026-03-21 across 4 review iterations on PR #67.
+
+1. **`instructions-loaded-check.sh`**: Add explicit `exit 0` at end of file — defensive against future `set -e` additions
+2. **`test-hooks.sh` Test 18**: Use `grep -q '[[:blank:]]$'` instead of `' $'` to catch tab-trailing-whitespace too
+3. **Open GitHub issues for roadmap bugs**: The tdd_red, score history, and Node.js 20 items above should be GitHub issues so they show up in project tracking

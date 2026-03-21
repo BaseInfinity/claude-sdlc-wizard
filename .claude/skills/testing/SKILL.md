@@ -2,6 +2,7 @@
 name: testing
 description: TDD and testing philosophy for writing tests, test-driven development, integration tests, and unit tests. Use this skill when writing tests, doing TDD, or debugging test issues.
 argument-hint: [test type] [target]
+effort: high
 ---
 # Testing Skill - TDD & Testing Philosophy
 

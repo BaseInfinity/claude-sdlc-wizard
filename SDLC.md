@@ -4,9 +4,9 @@
 
 | Property | Value |
 |----------|-------|
-| Wizard Version | 1.7.0 |
-| Last Updated | 2026-02-15 |
-| Claude Code Baseline | v2.1.15+ |
+| Wizard Version | 1.8.0 |
+| Last Updated | 2026-03-20 |
+| Claude Code Baseline | v2.1.81+ |
 
 ## SDLC Enforcement
 
@@ -33,6 +33,7 @@ This repository uses the SDLC Wizard to enforce:
 |------|---------|---------|
 | `sdlc-prompt-check.sh` | Every prompt | SDLC baseline reminder |
 | `tdd-pretool-check.sh` | Before Write/Edit | TDD reminder for workflows |
+| `instructions-loaded-check.sh` | Session start | Validates SDLC.md/TESTING.md exist |
 
 ## Skills Available
 
@@ -62,11 +63,12 @@ When Claude Code releases new features:
 
 ```
 .claude/
-├── settings.json           # Hook configuration
+├── settings.json                  # Hook configuration
 ├── hooks/
-│   ├── sdlc-prompt-check.sh    # SDLC baseline
-│   └── tdd-pretool-check.sh    # TDD enforcement
+│   ├── sdlc-prompt-check.sh      # SDLC baseline
+│   ├── tdd-pretool-check.sh      # TDD enforcement
+│   └── instructions-loaded-check.sh  # Session start validation
 └── skills/
-    ├── sdlc/SKILL.md           # SDLC workflow
-    └── testing/SKILL.md        # Testing strategy
+    ├── sdlc/SKILL.md             # SDLC workflow
+    └── testing/SKILL.md          # Testing strategy
 ```
