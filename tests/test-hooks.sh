@@ -257,7 +257,7 @@ test_instructions_hook_no_trailing_whitespace() {
     output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     # Check that no line ends with trailing whitespace
-    if echo "$output" | grep -q ' $'; then
+    if echo "$output" | grep -q '[[:blank:]]$'; then
         fail "instructions-loaded-check.sh output has trailing whitespace"
     else
         pass "instructions-loaded-check.sh output has no trailing whitespace"
