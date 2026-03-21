@@ -4,6 +4,32 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.8.0] - 2026-03-20
+
+### Added
+- Version catch-up: consolidated update from Claude Code v2.1.15 to v2.1.81 (66 minor versions)
+- `InstructionsLoaded` hook (`instructions-loaded-check.sh`) — validates SDLC.md and TESTING.md exist at session start (v2.1.69+)
+- `effort: high` frontmatter on `/sdlc` and `/testing` skills (v2.1.80+)
+- "Prove It's Better" core philosophy — use native features unless custom is proven better via E2E comparison
+- Vision statement in README — "Mold an ever-evolving SDLC... replace with native... one day delete this repo"
+- Documentation section in README linking ARCHITECTURE.md, CI_CD.md, SDLC.md, TESTING.md, CHANGELOG.md, CONTRIBUTING.md
+- Documented new built-in commands in wizard: `/memory`, `/simplify`, `/batch`, `/loop`, `/effort`
+- Documented security hardening fixes (v2.1.49, v2.1.72, v2.1.74, v2.1.77, v2.1.78)
+- Documented `${CLAUDE_SKILL_DIR}` variable, `agent_id`/`agent_type` hook metadata
+- Documented `CLAUDE_CODE_SIMPLE` bypass risk, HTML comment behavior, 128k output tokens, `--bare` flag
+- 6 new hook tests (17 total) for InstructionsLoaded hook
+- `plans/CATCHUP.md` — documents the version catch-up process for future reference
+
+### Changed
+- Claude Code baseline bumped from v2.1.15+ to v2.1.81+
+- Wizard version bumped from 1.7.0 to 1.8.0
+- Prerequisites updated: minimum v2.1.69+ (was v2.1.16+)
+- `.github/last-checked-version.txt` updated to v2.1.81
+- Scheduled workflow triggers disabled (PR #66) to save API tokens — re-enable in Phase 5
+
+### Audited (Category C: no swap needed)
+- No custom `/claude-api` skill exists — nothing to swap with native built-in
+
 ## [1.7.0] - 2026-02-15
 
 ### Added

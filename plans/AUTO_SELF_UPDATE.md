@@ -1041,3 +1041,61 @@ The `workflows: write` permission was added in commit `208ecdb` to allow pushing
 - Test 78: validates correct `name: CI Auto-Fix` field via YAML parsing
 
 **Lesson:** `workflows` is NOT a valid YAML permission scope in GitHub Actions. Including it causes GitHub's parser to silently fail on the entire workflow file, breaking trigger registration. Always validate with `actionlint` before adding permissions. Pushing workflow files requires PAT with `workflow` scope or GitHub App token — not YAML permissions.
+
+---
+
+## Future: "Prove It's Better" CI Automation
+
+> Status: PLANNED — added during v2.1.81 catch-up (2026-03-20)
+
+When the daily-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, the CI should automatically:
+
+1. Run E2E with our custom version (baseline)
+2. Run E2E with the native version (candidate — wizard with custom feature removed)
+3. Compare scores in the PR comment
+4. Recommend: KEEP CUSTOM / SWITCH TO NATIVE / TIE
+
+**Implementation approach:**
+- Add overlap detection to `analyze-release.md` prompt — flag when native feature matches a wizard hook/skill
+- When flagged, CI creates two fixture variants: one with custom, one without
+- Run Tier 2 (5-trial) evaluation on both
+- Include comparison in PR comment alongside regular scores
+
+**Current overlap audit (as of v2.1.81):**
+
+| Native | Custom Equivalent | Status |
+|--------|-------------------|--------|
+| `/simplify` (v2.1.63) | Code review guidance in wizard | No custom skill — DOCUMENT ONLY |
+| `/claude-api` (v2.1.69) | N/A — no custom equivalent | CONFIRMED — nothing to swap |
+| Auto-memory (v2.1.59) | N/A — we use native | CONFIRMED NATIVE |
+| `/batch`, `/loop`, `/effort` | N/A — no custom equivalent | DOCUMENT ONLY |
+
+---
+
+## Future: Weekly Workflow Consolidation
+
+> Status: PLANNED — merge daily-update + weekly-community into one weekly workflow
+
+### Current (3 workflows, disabled schedules)
+
+| Workflow | Schedule | Cost |
+|----------|----------|------|
+| `daily-update.yml` | Daily (disabled) | ~$2.50/day if active |
+| `weekly-community.yml` | Weekly (disabled) | ~$0.50/week |
+| `monthly-research.yml` | Monthly (disabled) | ~$0.50/month |
+
+### Proposed (2 workflows)
+
+| Workflow | Schedule | Cost |
+|----------|----------|------|
+| `weekly-update.yml` (NEW) | Weekly (Mondays) | ~$2.50/week |
+| `monthly-research.yml` | Monthly (re-enable) | ~$0.50/month |
+
+**The merged weekly workflow does:**
+1. Check for new Claude Code releases since last check
+2. If new: analyze changelog, flag wizard impact, create PR with E2E comparison
+3. If overlap with custom features: run "prove it" side-by-side comparison
+4. Scan community patterns (existing weekly-community behavior)
+5. One PR per week with everything bundled
+
+**Why:** Saves API costs ($2.50/week vs $2.50/day) while maintaining quality. Weekly batching doesn't miss anything important.
