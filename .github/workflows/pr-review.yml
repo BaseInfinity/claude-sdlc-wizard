@@ -215,6 +215,12 @@ jobs:
             "Warning: This change affects [area] but has no E2E scenario testing it.
             Consider adding a scenario if the behavior change is significant."
 
+            ### 6. Review Exceptions
+
+            Before flagging a suggestion, read `CODE_REVIEW_EXCEPTIONS.md` in the repo root.
+            If your finding matches a documented exception, skip it — it has already been
+            evaluated and explicitly accepted. Do not re-suggest documented exceptions.
+
             Use mcp__github__get_pull_request_diff to get the changes, then output your review.
 
             ## Output Format

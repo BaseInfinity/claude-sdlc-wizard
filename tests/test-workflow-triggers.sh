@@ -988,6 +988,34 @@ test_review_prompt_no_shell_subst() {
 
 test_review_prompt_no_shell_subst
 
+# Test 91: pr-review prompt references CODE_REVIEW_EXCEPTIONS.md
+test_review_prompt_has_exceptions_ref() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml file not found"
+        return
+    fi
+
+    if grep -q "CODE_REVIEW_EXCEPTIONS.md" "$WORKFLOW"; then
+        pass "pr-review.yml prompt references CODE_REVIEW_EXCEPTIONS.md"
+    else
+        fail "pr-review.yml prompt does not reference CODE_REVIEW_EXCEPTIONS.md"
+    fi
+}
+
+# Test 92: CODE_REVIEW_EXCEPTIONS.md exists
+test_review_exceptions_file_exists() {
+    if [ -f "$REPO_ROOT/CODE_REVIEW_EXCEPTIONS.md" ]; then
+        pass "CODE_REVIEW_EXCEPTIONS.md exists"
+    else
+        fail "CODE_REVIEW_EXCEPTIONS.md not found in repo root"
+    fi
+}
+
+test_review_prompt_has_exceptions_ref
+test_review_exceptions_file_exists
+
 # ============================================
 # Weekly-Update Workflow Input Validation Tests
 # ============================================
