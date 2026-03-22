@@ -780,6 +780,7 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 | 21 | Mutation testing | MED | Two tracks: (a) Wizard recommendation - detect stack and offer mutation testing setup (Stryker for JS/TS, mutmut for Python, pitest for Java, cargo-mutants for Rust). (b) Our own CI - explore "SDLC document mutation testing": mutate wizard doc sections, run E2E, verify score drops to prove which sections are load-bearing. Gate: Items 24-25 must pass first. | PLANNED — after 24-25 |
 | 26 | Add auto-self-update to wizard | MED | Package the proven self-healing CI loop into the wizard document so users can install it in their own repos. Gate: Item 25 (full system audit) must pass first — we only recommend what we've proven works. | PLANNED — final item |
 | 27 | Verify `all-findings` self-heal loop | HIGH | After PR #51 merges to main, push a new PR and verify self-heal triggers on review suggestions (not just criticals). `workflow_run` reads from default branch — change is invisible until merged. Verify: self-heal triggers, Claude fixes suggestions, `[autofix 1/3]` commit pushed, CI re-triggered. | VERIFIED — PR #70 evidence (see below) |
+| 29 | CI efficiency audit | LOW | Review the full CI pipeline for cost/time optimization opportunities. Areas to explore: parallel job execution, caching, conditional skips for docs-only PRs, shared extraction logic across workflow jobs, review prompt token usage. Gate: after full system audit (#25). | PLANNED — back burner |
 
 ### Item 27: `all-findings` Self-Heal Verification
 
@@ -810,7 +811,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 4. Tier 2 E2E full suite audit (#24) — 5-trial statistical evaluation
 5. Full system audit (#25) — verify everything works as documented
 
-**Back burner:** Mutation testing (#21), Package self-update (#26), Node.js 20 (#68, June 2026)
+**Back burner:** Mutation testing (#21), Package self-update (#26), Node.js 20 (#68, June 2026), CI efficiency audit (#29)
 
 ### Item 15: Eval Framework Improvements (Targeted, Not Framework Adoption)
 
