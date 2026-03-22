@@ -116,7 +116,7 @@ This methodology is evolving. If you have ideas for improving our evaluation app
 
 ```bash
 # Validate YAML workflows
-python3 -c "import yaml; yaml.safe_load(open('.github/workflows/daily-update.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('.github/workflows/weekly-update.yml'))"
 
 # Run all test suites
 ./tests/test-version-logic.sh

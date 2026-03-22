@@ -4,7 +4,7 @@
 
 | Property | Value |
 |----------|-------|
-| Wizard Version | 1.8.1 |
+| Wizard Version | 1.9.0 |
 | Last Updated | 2026-03-21 |
 | Claude Code Baseline | v2.1.81+ |
 

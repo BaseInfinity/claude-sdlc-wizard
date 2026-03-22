@@ -5,8 +5,7 @@
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | PR, push to main | Validation, tests, E2E evaluation |
-| `daily-update.yml` | Daily (9 AM UTC) + manual | Check for Claude Code updates |
-| `weekly-community.yml` | Weekly (Mondays 10 AM UTC) + manual | Scan community for patterns |
+| `weekly-update.yml` | Weekly (Mondays 9 AM UTC) + manual | Check for Claude Code updates + community scan |
 | `monthly-research.yml` | Monthly (1st, 11 AM UTC) + manual | Deep research and trends |
 | `ci-self-heal.yml` | CI fail / review findings | Auto-fix loop |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
@@ -129,7 +128,7 @@ Token tracking can be re-enabled when the action starts exposing usage fields (`
 - Push to main branch (validation only)
 - `merge-ready` label (Tier 2)
 
-## Daily Update Workflow (`daily-update.yml`)
+## Weekly Update Workflow (`weekly-update.yml`)
 
 ### What It Does
 
@@ -140,6 +139,8 @@ Token tracking can be re-enabled when the action starts exposing usage fields (`
 5. If different: Analyzes release with Claude
 6. Creates PR with analysis and relevance level
 7. Closes stale auto-update PRs
+8. Scans GitHub for Claude Code community patterns
+9. Creates digest issues for notable findings
 
 ### Two-Phase Version Testing
 
@@ -149,24 +150,11 @@ Token tracking can be re-enabled when the action starts exposing usage fields (`
 Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 
 ### Runs On
-- Daily schedule: 9 AM UTC (`cron: '0 9 * * *'`)
+- Weekly schedule: 9 AM UTC Mondays (`cron: '0 9 * * 1'`)
 - Manual trigger also available (workflow_dispatch)
 
 ### Required Secrets
 - `ANTHROPIC_API_KEY`: For Claude analysis
-
-## Weekly Community Workflow (`weekly-community.yml`)
-
-### What It Does
-- Scans GitHub for Claude Code community patterns
-- Identifies useful integrations, plugins, workflows
-- Creates digest issues for notable findings
-- Closes stale digest issues when new ones created
-- E2E tests community-suggested improvements (Tier 2)
-
-### Runs On
-- Weekly schedule: 10 AM UTC Mondays (`cron: '0 10 * * 1'`)
-- Manual trigger also available (workflow_dispatch)
 
 ## Monthly Research Workflow (`monthly-research.yml`)
 
@@ -286,7 +274,7 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 
 | Secret | Used By | Purpose |
 |--------|---------|---------|
-| `ANTHROPIC_API_KEY` | daily-update, weekly-community, monthly-research, ci, pr-review, ci-self-heal | Claude API access |
+| `ANTHROPIC_API_KEY` | weekly-update, monthly-research, ci, pr-review, ci-self-heal | Claude API access |
 | `GITHUB_TOKEN` | All workflows | Auto-provided by GitHub |
 | `CI_AUTOFIX_APP_ID` | ci-self-heal (optional) | GitHub App ID for token generation |
 | `CI_AUTOFIX_PRIVATE_KEY` | ci-self-heal (optional) | GitHub App private key |
@@ -311,7 +299,7 @@ permissions:
 2. Check test scripts locally: `./tests/test-version-logic.sh`
 3. Check fixtures are valid JSON: `jq . tests/fixtures/releases/*.json`
 
-### Daily Update Not Running
+### Weekly Update Not Running
 1. Verify `ANTHROPIC_API_KEY` secret is set
 2. Check workflow is enabled in repo settings
 3. Check schedule syntax (cron format)

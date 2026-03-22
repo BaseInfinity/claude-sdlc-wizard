@@ -9,7 +9,7 @@ A self-evolving system that keeps the wizard in sync with Claude Code updates an
 
 ## Unified Workflow Pattern
 
-All three auto-update workflows now follow the same pattern:
+Both auto-update workflows now follow the same pattern:
 
 ```
 Detect something new → Suggest changes → Test with E2E → Create PR with results
@@ -17,8 +17,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Workflow | Detects | Suggests Changes To | Tests | Output |
 |----------|---------|---------------------|-------|--------|
-| **daily-update** | New CC version | N/A (Phase A) or SDLC docs (Phase B) | Regression/Improvement | PR with scores |
-| **weekly-community** | Community patterns | SDLC docs based on patterns | Do patterns improve us? | PR with scores |
+| **weekly-update** | New CC version + community patterns | N/A (Phase A) or SDLC docs (Phase B) + community patterns | Regression/Improvement + pattern testing | PR with scores |
 | **monthly-research** | Research trends | SDLC docs based on trends | Do trends improve us? | PR with scores |
 
 ### Two-Phase Version Testing
@@ -51,17 +50,11 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 ## What's Implemented
 
-### Daily Update Check (`.github/workflows/daily-update.yml`)
-- **Trigger:** Daily schedule (9 AM UTC) + manual dispatch
-- **Checks:** Claude Code GitHub releases
-- **Action:** Creates PR for ALL updates (relevance shown in title)
-- **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2
-
-### Weekly Community Scan (`.github/workflows/weekly-community.yml`)
-- **Trigger:** Weekly schedule (Mondays 10 AM UTC) + manual dispatch
-- **Checks:** Reddit, HN, dev blogs, official channels
-- **Action:** Creates digest issue for notable findings
-- **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
+### Weekly Update Check + Community Scan (`.github/workflows/weekly-update.yml`)
+- **Trigger:** Weekly schedule (Mondays 9 AM UTC) + manual dispatch
+- **Checks:** Claude Code GitHub releases + Reddit, HN, dev blogs, official channels
+- **Action:** Creates PR for updates (relevance shown in title) + digest issue for notable community findings
+- **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2, community pattern testing (Tier 2)
 
 ### Monthly Research Deep Dive (`.github/workflows/monthly-research.yml`)
 - **Trigger:** Monthly schedule (1st, 11 AM UTC) + manual dispatch
@@ -83,8 +76,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Trigger | Workflow | What It Does |
 |---------|----------|--------------|
-| Daily (9 AM UTC) | daily-update.yml | Check releases → Always PR |
-| Weekly (Mondays 10 AM UTC) | weekly-community.yml | Scan community → Issue |
+| Weekly (Mondays 9 AM UTC) | weekly-update.yml | Check releases + scan community → PR/Issue |
 | Monthly (1st, 11 AM UTC) | monthly-research.yml | Deep research → Issue |
 | On PR | ci.yml | Run tests + E2E eval |
 | On PR | pr-review.yml | AI code review |
@@ -102,7 +94,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| Official sources | Daily | Releases every 1-2 days, need timely updates |
+| Official sources | Weekly | Batched with community scan, saves API costs |
 | Community sources | Weekly | Less urgent, more noise, digest format |
 | Deep research | Monthly | Papers/trends don't change daily |
 | State storage | Files in repo | Simple, transparent, version-controlled |
@@ -116,11 +108,10 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 ```
 .github/
 ├── workflows/
-│   ├── daily-update.yml      # Official release monitoring
-│   ├── weekly-community.yml  # Community discussion scanning
+│   ├── weekly-update.yml     # Version check + community scan
 │   ├── monthly-research.yml  # Deep research and trends
 │   ├── ci.yml                # Tests + E2E evaluation
-│   ├── ci-self-heal.yml         # Auto-fix loop (CI + review)
+│   ├── ci-self-heal.yml      # Auto-fix loop (CI + review)
 │   └── pr-review.yml         # AI code review
 ├── prompts/
 │   ├── analyze-release.md    # Claude prompt for release analysis
@@ -306,7 +297,7 @@ CUSUM (Cumulative Sum) tracks deviation from target over time.
 New scenario for testing SDLC enforcement with new CC versions:
 `tests/e2e/scenarios/version-upgrade.md`
 
-Used in daily-update workflow to validate that:
+Used in weekly-update workflow to validate that:
 1. New CC version doesn't break SDLC enforcement (Phase A)
 2. Changelog-suggested improvements help (Phase B)
 
@@ -930,16 +921,16 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 
 | Workflow | PR | Status |
 |----------|----|--------|
-| `daily-update.yml` | #26, #28, #30 | DONE |
-| `weekly-community.yml` | #32 | DONE |
+| `daily-update.yml` (now `weekly-update.yml`) | #26, #28, #30 | DONE |
+| `weekly-community.yml` (now `weekly-update.yml`) | #32 | DONE |
 | `monthly-research.yml` | #32 | DONE |
 
 ### Regression Tests
 
 | Tests | Workflow | What They Check |
 |-------|----------|----------------|
-| 49-54 | daily-update | No invalid inputs, extracts from output file |
-| 55-60 | weekly-community | No invalid inputs, extracts from output file |
+| 49-54 | daily-update (now weekly-update) | No invalid inputs, extracts from output file |
+| 55-60 | weekly-community (now weekly-update) | No invalid inputs, extracts from output file |
 | 61-66 | monthly-research | No invalid inputs, extracts from output file |
 
 **Total: 18 regression tests** ensuring invalid inputs never reappear across all 3 workflows.
@@ -977,9 +968,9 @@ Comprehensive audit found multiple features that silently produce no data. Tests
 
 | # | Bug | Where | What Happens | Status |
 |---|-----|-------|--------------|--------|
-| 6 | E2E test jobs may never trigger | weekly-community.yml, monthly-research.yml | `has_suggestions`/`has_updates` depends on specific JSON array key names Claude may not produce | **FIXED** — Changed to `findings_count` (weekly) and `nothing_notable` (monthly) for broader triggering |
+| 6 | E2E test jobs may never trigger | weekly-update.yml, monthly-research.yml | `has_suggestions`/`has_updates` depends on specific JSON array key names Claude may not produce | **FIXED** — Changed to `findings_count` (weekly) and `nothing_notable` (monthly) for broader triggering |
 | 7 | SDP model mismatch | external-benchmark.sh | Default parameter is `claude-sonnet-4` even when SDP_MODEL is `claude-opus-4-6` | **FALSE ALARM** — Chain passes correctly: evaluate.sh → sdp-score.sh → external-benchmark.sh all propagate SDP_MODEL |
-| 8 | Phase A/B output file reuse | daily-update.yml | Both phases write to same `claude-execution-output.json` | **FALSE ALARM** — Sequential execution: Phase A reads before Phase B writes. No stale data possible |
+| 8 | Phase A/B output file reuse | weekly-update.yml | Both phases write to same `claude-execution-output.json` | **FALSE ALARM** — Sequential execution: Phase A reads before Phase B writes. No stale data possible |
 
 ### Root Causes (addressed 2026-02-15)
 
@@ -1048,7 +1039,7 @@ The `workflows: write` permission was added in commit `208ecdb` to allow pushing
 
 > Status: PLANNED — added during v2.1.81 catch-up (2026-03-20)
 
-When the daily-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, the CI should automatically:
+When the weekly-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, the CI should automatically:
 
 1. Run E2E with our custom version (baseline)
 2. Run E2E with the native version (candidate — wizard with custom feature removed)
@@ -1072,30 +1063,22 @@ When the daily-update workflow detects a new Claude Code feature that overlaps w
 
 ---
 
-## Future: Weekly Workflow Consolidation
+## Weekly Workflow Consolidation
 
-> Status: PLANNED — merge daily-update + weekly-community into one weekly workflow
+> Status: DONE — merged daily-update + weekly-community into weekly-update.yml
 
-### Current (3 workflows, disabled schedules)
-
-| Workflow | Schedule | Cost |
-|----------|----------|------|
-| `daily-update.yml` | Daily (disabled) | ~$2.50/day if active |
-| `weekly-community.yml` | Weekly (disabled) | ~$0.50/week |
-| `monthly-research.yml` | Monthly (disabled) | ~$0.50/month |
-
-### Proposed (2 workflows)
+### Result (2 auto-update workflows)
 
 | Workflow | Schedule | Cost |
 |----------|----------|------|
-| `weekly-update.yml` (NEW) | Weekly (Mondays) | ~$2.50/week |
-| `monthly-research.yml` | Monthly (re-enable) | ~$0.50/month |
+| `weekly-update.yml` | Weekly (Mondays 9 AM UTC) | ~$2.50/week |
+| `monthly-research.yml` | Monthly (1st, 11 AM UTC) | ~$0.50/month |
 
 **The merged weekly workflow does:**
 1. Check for new Claude Code releases since last check
 2. If new: analyze changelog, flag wizard impact, create PR with E2E comparison
 3. If overlap with custom features: run "prove it" side-by-side comparison
-4. Scan community patterns (existing weekly-community behavior)
+4. Scan community patterns (previously weekly-community behavior)
 5. One PR per week with everything bundled
 
 **Why:** Saves API costs ($2.50/week vs $2.50/day) while maintaining quality. Weekly batching doesn't miss anything important.

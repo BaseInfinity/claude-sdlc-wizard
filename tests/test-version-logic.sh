@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test version comparison logic from daily-update workflow
+# Test version comparison logic from weekly-update workflow
 
 set -e
 

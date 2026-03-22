@@ -64,7 +64,7 @@ The main document that users copy to their repos. Contains:
 **Location**: `.github/workflows/`
 
 ```
-daily-update.yml
+weekly-update.yml
        │
        ├─→ Fetch latest Claude Code release
        │
@@ -74,7 +74,9 @@ daily-update.yml
        │         │
        │         └─→ Output: { relevance, summary, impact }
        │
-       └─→ Create PR (all updates, relevance shown in title)
+       ├─→ Create PR (all updates, relevance shown in title)
+       │
+       └─→ Scan community for patterns
 ```
 
 ## Data Flow
@@ -82,7 +84,7 @@ daily-update.yml
 ### Update Check Flow
 
 ```
-GitHub Scheduled Trigger (9 AM UTC)
+GitHub Scheduled Trigger (Weekly, Mondays 9 AM UTC)
          │
          ▼
 ┌─────────────────────┐
@@ -198,8 +200,7 @@ sdlc-wizard/
 │   ├── workflows/
 │   │   ├── ci.yml                 # Validation & tests
 │   │   ├── ci-self-heal.yml        # Auto-fix loop (CI + review)
-│   │   ├── daily-update.yml       # Auto-update check
-│   │   ├── weekly-community.yml   # Community scan
+│   │   ├── weekly-update.yml      # Version check + community scan
 │   │   ├── monthly-research.yml   # Deep research & trends
 │   │   └── pr-review.yml          # AI code review
 │   ├── prompts/
