@@ -2039,7 +2039,7 @@ test_weekly_update_single_cron() {
         return
     fi
 
-    CRON_COUNT=$(grep -c '^\s\+- cron:' "$WORKFLOW" 2>/dev/null || echo "0")
+    CRON_COUNT=$(grep -cE '^\s+- cron:' "$WORKFLOW" 2>/dev/null || echo "0")
     if [ "$CRON_COUNT" = "1" ]; then
         pass "weekly-update.yml has exactly 1 cron schedule (single Monday run)"
     else
