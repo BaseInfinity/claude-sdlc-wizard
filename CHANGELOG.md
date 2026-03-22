@@ -4,6 +4,19 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.9.0] - 2026-03-21
+
+### Changed
+- Consolidated `daily-update.yml` + `weekly-community.yml` into single `weekly-update.yml`
+  - 4 jobs: check-updates, version-test, scan-community, community-e2e-test
+  - Single Monday 9 AM UTC schedule (was two separate cron entries)
+  - Reduces workflow count from 6 to 5, auto-update workflows from 3 to 2
+  - Cost: ~$2.50/week combined (unchanged)
+- Updated all docs and 25+ tests to reference `weekly-update.yml`
+
+### Added
+- 5 new workflow consolidation tests: 4-job structure, dependency chains, permissions, single cron
+
 ## [1.8.1] - 2026-03-21
 
 ### Fixed
@@ -13,8 +26,7 @@ All notable changes to the SDLC Wizard.
 
 ### Changed
 - Phase 5: Re-enabled all auto-update workflow schedules
-  - `daily-update.yml`: changed from daily to weekly (Mondays 9 AM UTC) to save API tokens
-  - `weekly-community.yml`: re-enabled (Mondays 10 AM UTC)
+  - `weekly-update.yml` (formerly `daily-update.yml` + `weekly-community.yml`): Mondays 9 AM UTC
   - `monthly-research.yml`: re-enabled (1st of month 11 AM UTC)
 - Golden scores: `high-compliance.tdd_red` updated to 0 (text golden files lack JSON tool_use blocks; tdd_red correctness verified via dedicated JSON unit tests)
 

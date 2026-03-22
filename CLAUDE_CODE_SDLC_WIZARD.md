@@ -321,7 +321,7 @@ This applies to everything: native Claude Code commands vs custom skills, framew
 4. Native >= custom? **Use native. Delete yours.**
 5. Custom > native? **Keep yours. Document WHY.** Re-evaluate when native improves.
 
-**For the wizard's CI/CD:** When the daily-update workflow detects a new Claude Code feature that overlaps with a wizard feature, the CI should automatically run E2E with both versions and recommend KEEP CUSTOM / SWITCH TO NATIVE / TIE.
+**For the wizard's CI/CD:** When the weekly-update workflow detects a new Claude Code feature that overlaps with a wizard feature, the CI should automatically run E2E with both versions and recommend KEEP CUSTOM / SWITCH TO NATIVE / TIE.
 
 ---
 

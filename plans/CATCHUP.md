@@ -6,7 +6,7 @@
 
 ## Why This Happened
 
-The daily-update workflow created PRs #57-#65 with analyses but was disabled (PR #66) to save API tokens. This left 66 versions of drift. We consolidated all changes into one update.
+The daily-update workflow (now consolidated into weekly-update.yml) created PRs #57-#65 with analyses but was disabled (PR #66) to save API tokens. This left 66 versions of drift. We consolidated all changes into one update.
 
 ## Process Used
 
