@@ -4,6 +4,15 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.9.1] - 2026-03-22
+
+### Verified
+- `all-findings` self-heal (#27): PR #70 confirmed `workflow_run` triggers on review suggestions, `AUTOFIX_LEVEL=all-findings` passes filtering, Claude invoked in `review-findings` mode
+
+### Added
+- Real CI review format parsing test (h4 headers, `_None._` italic, line references)
+- Roadmap ordering in AUTO_SELF_UPDATE.md
+
 ## [1.9.0] - 2026-03-21
 
 ### Changed
