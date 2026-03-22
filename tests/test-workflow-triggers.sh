@@ -26,35 +26,30 @@ fail() {
 echo "=== Workflow Trigger Tests ==="
 echo ""
 
-# Test 1: Daily workflow has workflow_dispatch trigger
-test_daily_dispatch() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 1: Weekly-update workflow has workflow_dispatch trigger
+test_weekly_update_dispatch() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "Daily workflow file not found"
+        fail "weekly-update.yml file not found"
         return
     fi
 
     if grep -q "workflow_dispatch:" "$WORKFLOW"; then
-        pass "Daily workflow has workflow_dispatch trigger"
+        pass "weekly-update.yml has workflow_dispatch trigger"
     else
-        fail "Daily workflow missing workflow_dispatch trigger"
+        fail "weekly-update.yml missing workflow_dispatch trigger"
     fi
 }
 
-# Test 2: Weekly workflow has workflow_dispatch trigger
-test_weekly_dispatch() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
+# Test 2: daily-update.yml must NOT exist (consolidated into weekly-update.yml)
+test_daily_update_deleted() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
 
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "Weekly workflow file not found"
-        return
-    fi
-
-    if grep -q "workflow_dispatch:" "$WORKFLOW"; then
-        pass "Weekly workflow has workflow_dispatch trigger"
+    if [ -f "$WORKFLOW" ]; then
+        fail "daily-update.yml still exists (should be deleted — consolidated into weekly-update.yml)"
     else
-        fail "Weekly workflow missing workflow_dispatch trigger"
+        pass "daily-update.yml does not exist (consolidated into weekly-update.yml)"
     fi
 }
 
@@ -74,25 +69,30 @@ test_monthly_dispatch() {
     fi
 }
 
-# Test 4: Daily workflow has active schedule trigger (Item 23 Phase 1)
-test_daily_has_schedule() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 4: Weekly-update workflow has active schedule trigger
+test_weekly_update_has_schedule() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
 
     if grep -q "schedule:" "$WORKFLOW" && grep -q "cron:" "$WORKFLOW"; then
-        pass "Daily workflow has active schedule with cron trigger"
+        pass "weekly-update.yml has active schedule with cron trigger"
     else
-        fail "Daily workflow missing schedule trigger (should have cron for Item 23)"
+        fail "weekly-update.yml missing schedule trigger"
     fi
 }
 
-# Test 35: Weekly workflow has active schedule trigger (Item 23 Phase 2)
-test_weekly_has_schedule() {
+# Test 35: weekly-community.yml must NOT exist (consolidated into weekly-update.yml)
+test_weekly_community_deleted() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
 
-    if grep -q "schedule:" "$WORKFLOW" && grep -q "cron:" "$WORKFLOW"; then
-        pass "Weekly workflow has active schedule with cron trigger"
+    if [ -f "$WORKFLOW" ]; then
+        fail "weekly-community.yml still exists (should be deleted — consolidated into weekly-update.yml)"
     else
-        fail "Weekly workflow missing schedule trigger (should have cron for Item 23)"
+        pass "weekly-community.yml does not exist (consolidated into weekly-update.yml)"
     fi
 }
 
@@ -107,14 +107,19 @@ test_monthly_has_schedule() {
     fi
 }
 
-# Test 5: State file path is valid in daily workflow
+# Test 5: State file path is valid in weekly-update workflow
 test_state_file_path() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
 
     if grep -q "last-checked-version.txt" "$WORKFLOW"; then
-        pass "Daily workflow references state file correctly"
+        pass "weekly-update.yml references state file correctly"
     else
-        fail "Daily workflow missing state file reference"
+        fail "weekly-update.yml missing state file reference"
     fi
 }
 
@@ -145,35 +150,50 @@ test_state_file_roundtrip() {
 
 # Test 7: Workflow has proper permissions
 test_workflow_permissions() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
 
     if grep -q "permissions:" "$WORKFLOW"; then
-        pass "Daily workflow declares permissions"
+        pass "weekly-update.yml declares permissions"
     else
-        fail "Daily workflow missing permissions declaration"
+        fail "weekly-update.yml missing permissions declaration"
     fi
 }
 
 # Test 8: Workflow uses checkout action
 test_workflow_checkout() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
 
     if grep -q "actions/checkout" "$WORKFLOW"; then
-        pass "Daily workflow uses checkout action"
+        pass "weekly-update.yml uses checkout action"
     else
-        fail "Daily workflow missing checkout action"
+        fail "weekly-update.yml missing checkout action"
     fi
 }
 
 # Test 9: Error handling - jq fallback for missing release
 test_error_handling_pattern() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
 
     # Check for error handling pattern (|| echo for fallback)
     if grep -q '|| echo' "$WORKFLOW" || grep -q '2>/dev/null' "$WORKFLOW"; then
-        pass "Daily workflow has error handling patterns"
+        pass "weekly-update.yml has error handling patterns"
     else
-        fail "Daily workflow missing error handling"
+        fail "weekly-update.yml missing error handling"
     fi
 }
 
@@ -288,19 +308,19 @@ test_cleanup_labeled_guard() {
     fi
 }
 
-# Test 17: Daily workflow checks for existing PR before creating
-test_daily_existing_pr_check() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 17: Weekly-update workflow checks for existing PR before creating
+test_weekly_existing_pr_check() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "Daily workflow file not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
     if grep -q "existing-pr" "$WORKFLOW" && grep -q "skip" "$WORKFLOW"; then
-        pass "Daily workflow checks for existing PR before creating"
+        pass "weekly-update.yml checks for existing PR before creating"
     else
-        fail "Daily workflow missing existing PR check"
+        fail "weekly-update.yml missing existing PR check"
     fi
 }
 
@@ -608,11 +628,11 @@ test_ci_max_turns_sufficient() {
 }
 
 # Run all tests
-test_daily_dispatch
-test_weekly_dispatch
+test_weekly_update_dispatch
+test_daily_update_deleted
 test_monthly_dispatch
-test_daily_has_schedule
-test_weekly_has_schedule
+test_weekly_update_has_schedule
+test_weekly_community_deleted
 test_monthly_has_schedule
 test_state_file_path
 test_state_file_roundtrip
@@ -626,7 +646,7 @@ test_e2e_bootstrapping_handling
 test_ci_labeled_trigger
 test_quick_check_labeled_guard
 test_cleanup_labeled_guard
-test_daily_existing_pr_check
+test_weekly_existing_pr_check
 test_pr_review_synchronize_trigger
 test_pr_review_synchronize_condition
 test_ci_allowed_tools_no_plan_mode
@@ -969,16 +989,17 @@ test_review_prompt_no_shell_subst() {
 test_review_prompt_no_shell_subst
 
 # ============================================
-# Daily-Update Workflow Input Validation Tests
+# Weekly-Update Workflow Input Validation Tests
 # ============================================
 # Ensure claude-code-action steps use valid inputs only.
+# (Consolidates former daily-update + weekly-community tests)
 
-# Test 49: daily-update must NOT use 'prompt_file' (not a valid action input)
-test_daily_no_prompt_file_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 49: weekly-update must NOT use 'prompt_file' (not a valid action input)
+test_weekly_update_no_prompt_file_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
@@ -996,18 +1017,18 @@ for job_name, job in wf.get('jobs', {}).items():
 
     if grep -q "FOUND:" /tmp/prompt_file_check.txt; then
         STEP=$(grep "FOUND:" /tmp/prompt_file_check.txt | head -1 | sed 's/FOUND://')
-        fail "daily-update uses 'prompt_file' input in step '$STEP' — not a valid claude-code-action input"
+        fail "weekly-update uses 'prompt_file' input in step '$STEP' — not a valid claude-code-action input"
     else
-        pass "daily-update does not use invalid 'prompt_file' input"
+        pass "weekly-update does not use invalid 'prompt_file' input"
     fi
 }
 
-# Test 50: daily-update must NOT use 'direct_prompt' (not a valid action input)
-test_daily_no_direct_prompt_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 50: weekly-update must NOT use 'direct_prompt' (not a valid action input)
+test_weekly_update_no_direct_prompt_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
@@ -1024,18 +1045,18 @@ for job_name, job in wf.get('jobs', {}).items():
 
     if grep -q "FOUND:" /tmp/direct_prompt_check.txt; then
         STEP=$(grep "FOUND:" /tmp/direct_prompt_check.txt | head -1 | sed 's/FOUND://')
-        fail "daily-update uses 'direct_prompt' input in step '$STEP' — not a valid claude-code-action input"
+        fail "weekly-update uses 'direct_prompt' input in step '$STEP' — not a valid claude-code-action input"
     else
-        pass "daily-update does not use invalid 'direct_prompt' input"
+        pass "weekly-update does not use invalid 'direct_prompt' input"
     fi
 }
 
-# Test 51: daily-update must NOT use 'model' as a top-level action input
-test_daily_no_model_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 51: weekly-update must NOT use 'model' as a top-level action input
+test_weekly_update_no_model_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
@@ -1053,24 +1074,22 @@ for job_name, job in wf.get('jobs', {}).items():
 
     if grep -q "FOUND:" /tmp/model_input_check.txt; then
         STEP=$(grep "FOUND:" /tmp/model_input_check.txt | head -1 | sed 's/FOUND://')
-        fail "daily-update uses 'model' as action input in step '$STEP' — use claude_args --model instead"
+        fail "weekly-update uses 'model' as action input in step '$STEP' — use claude_args --model instead"
     else
-        pass "daily-update does not use invalid 'model' action input"
+        pass "weekly-update does not use invalid 'model' action input"
     fi
 }
 
-# Test 52: daily-update evaluate.sh calls must NOT use 2>&1 (stderr corruption)
-test_daily_no_stderr_mixing_in_eval() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 52: weekly-update evaluate.sh calls must NOT use 2>&1 (stderr corruption)
+test_weekly_update_no_stderr_mixing_in_eval() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
     # evaluate.sh calls with 2>&1 corrupt JSON output with stderr messages.
-    # The command may span multiple lines with \ continuations, so we check
-    # all 'run:' blocks in version-test steps that call evaluate.sh
     python3 -c "
 import yaml, re
 with open('$WORKFLOW') as f:
@@ -1084,28 +1103,26 @@ for job_name, job in wf.get('jobs', {}).items():
 
     if grep -q "FOUND:" /tmp/stderr_mix_check.txt; then
         STEP=$(grep "FOUND:" /tmp/stderr_mix_check.txt | head -1 | sed 's/FOUND://')
-        fail "daily-update step '$STEP' pipes evaluate.sh stderr to stdout (2>&1) — causes jq parse failures"
+        fail "weekly-update step '$STEP' pipes evaluate.sh stderr to stdout (2>&1) — causes jq parse failures"
     else
-        pass "daily-update.yml does not mix stderr into evaluate.sh output"
+        pass "weekly-update.yml does not mix stderr into evaluate.sh output"
     fi
 }
 
-test_daily_no_prompt_file_input
-test_daily_no_direct_prompt_input
-test_daily_no_model_input
-test_daily_no_stderr_mixing_in_eval
+test_weekly_update_no_prompt_file_input
+test_weekly_update_no_direct_prompt_input
+test_weekly_update_no_model_input
+test_weekly_update_no_stderr_mixing_in_eval
 
-# Test 53: daily-update must NOT reference outputs.response (doesn't exist in claude-code-action@v1)
-test_daily_no_outputs_response() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 53: weekly-update must NOT reference outputs.response (doesn't exist in claude-code-action@v1)
+test_weekly_update_no_outputs_response() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
-    # claude-code-action@v1 exposes 'structured_output', not 'response'
-    # Any reference to outputs.response will always be empty
     python3 -c "
 import yaml
 with open('$WORKFLOW') as f:
@@ -1115,23 +1132,21 @@ if 'outputs.response' in content:
 " > /tmp/outputs_response_check.txt 2>&1
 
     if grep -q "FOUND" /tmp/outputs_response_check.txt; then
-        fail "daily-update references 'outputs.response' — claude-code-action@v1 uses 'outputs.structured_output' instead"
+        fail "weekly-update references 'outputs.response' — claude-code-action@v1 has no response output"
     else
-        pass "daily-update does not reference non-existent 'outputs.response'"
+        pass "weekly-update does not reference non-existent 'outputs.response'"
     fi
 }
 
-# Test 54: daily-update must extract analysis from execution output file
-test_daily_extracts_from_output_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 54: weekly-update must extract analysis from execution output file
+test_weekly_update_extracts_from_output_file() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
-    # The analysis result must be extracted from claude-execution-output.json
-    # (not from outputs.response or outputs.structured_output which don't exist)
     python3 -c "
 import yaml
 with open('$WORKFLOW') as f:
@@ -1144,111 +1159,27 @@ for job_name, job in wf.get('jobs', {}).items():
 " > /tmp/output_file_check.txt 2>&1
 
     if grep -q "READS_OUTPUT_FILE" /tmp/output_file_check.txt; then
-        pass "daily-update extracts analysis from execution output file"
+        pass "weekly-update extracts analysis from execution output file"
     else
-        fail "daily-update does not read claude-execution-output.json for analysis (result will be empty)"
+        fail "weekly-update does not read claude-execution-output.json for analysis (result will be empty)"
     fi
 }
 
-test_daily_no_outputs_response
-test_daily_extracts_from_output_file
+test_weekly_update_no_outputs_response
+test_weekly_update_extracts_from_output_file
 
 # ============================================
-# Weekly-Community Workflow Input Validation Tests
+# Weekly-Update Workflow Input Validation Tests (continued)
 # ============================================
-# Same class of bugs as daily-update: invalid claude-code-action inputs.
+# Tests 55-60: These previously tested weekly-community.yml separately.
+# Now consolidated — they also check weekly-update.yml (same file as 49-54).
 
-# Test 55: weekly-community must NOT use 'prompt_file' (not a valid action input)
-test_weekly_no_prompt_file_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        with_block = step.get('with', {})
-        if 'prompt_file' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/weekly_prompt_file_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/weekly_prompt_file_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/weekly_prompt_file_check.txt | head -1 | sed 's/FOUND://')
-        fail "weekly-community uses 'prompt_file' input in step '$STEP' — not a valid claude-code-action input"
-    else
-        pass "weekly-community does not use invalid 'prompt_file' input"
-    fi
-}
-
-# Test 56: weekly-community must NOT use 'direct_prompt' (not a valid action input)
-test_weekly_no_direct_prompt_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
+# Test 55: weekly-update must NOT use 'allowed_tools' as action input (use claude_args)
+test_weekly_update_no_allowed_tools_input() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        with_block = step.get('with', {})
-        if 'direct_prompt' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/weekly_direct_prompt_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/weekly_direct_prompt_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/weekly_direct_prompt_check.txt | head -1 | sed 's/FOUND://')
-        fail "weekly-community uses 'direct_prompt' input in step '$STEP' — not a valid claude-code-action input"
-    else
-        pass "weekly-community does not use invalid 'direct_prompt' input"
-    fi
-}
-
-# Test 57: weekly-community must NOT use 'model' as a top-level action input
-test_weekly_no_model_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        uses = step.get('uses', '')
-        with_block = step.get('with', {})
-        if 'claude-code-action' in uses and 'model' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/weekly_model_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/weekly_model_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/weekly_model_check.txt | head -1 | sed 's/FOUND://')
-        fail "weekly-community uses 'model' as action input in step '$STEP' — not a valid claude-code-action input"
-    else
-        pass "weekly-community does not use invalid 'model' action input"
-    fi
-}
-
-# Test 58: weekly-community must NOT use 'allowed_tools' as action input (use claude_args)
-test_weekly_no_allowed_tools_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
@@ -1265,42 +1196,18 @@ for job_name, job in wf.get('jobs', {}).items():
 
     if grep -q "FOUND:" /tmp/weekly_allowed_tools_check.txt; then
         STEP=$(grep "FOUND:" /tmp/weekly_allowed_tools_check.txt | head -1 | sed 's/FOUND://')
-        fail "weekly-community uses 'allowed_tools' input in step '$STEP' — use claude_args --allowedTools instead"
+        fail "weekly-update uses 'allowed_tools' input in step '$STEP' — use claude_args --allowedTools instead"
     else
-        pass "weekly-community does not use invalid 'allowed_tools' input"
+        pass "weekly-update does not use invalid 'allowed_tools' input"
     fi
 }
 
-# Test 59: weekly-community must NOT reference outputs.response
-test_weekly_no_outputs_response() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
+# Test 56: weekly-update must extract community scan result from execution output file
+test_weekly_update_extracts_scan_from_output_file() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    content = f.read()
-if 'outputs.response' in content:
-    print('FOUND')
-" > /tmp/weekly_outputs_response_check.txt 2>&1
-
-    if grep -q "FOUND" /tmp/weekly_outputs_response_check.txt; then
-        fail "weekly-community references 'outputs.response' — claude-code-action@v1 has no response output"
-    else
-        pass "weekly-community does not reference non-existent 'outputs.response'"
-    fi
-}
-
-# Test 60: weekly-community must extract scan result from execution output file
-test_weekly_extracts_from_output_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
@@ -1317,18 +1224,82 @@ for job_name, job in wf.get('jobs', {}).items():
 " > /tmp/weekly_output_file_check.txt 2>&1
 
     if grep -q "READS_OUTPUT_FILE" /tmp/weekly_output_file_check.txt; then
-        pass "weekly-community extracts scan result from execution output file"
+        pass "weekly-update extracts community scan result from execution output file"
     else
-        fail "weekly-community does not read claude-execution-output.json for scan result"
+        fail "weekly-update does not read claude-execution-output.json for community scan result"
     fi
 }
 
-test_weekly_no_prompt_file_input
-test_weekly_no_direct_prompt_input
-test_weekly_no_model_input
-test_weekly_no_allowed_tools_input
-test_weekly_no_outputs_response
-test_weekly_extracts_from_output_file
+# Test 57: weekly-update community scan references last-community-scan.txt state file
+test_weekly_update_community_state_file() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    if grep -q "last-community-scan.txt" "$WORKFLOW"; then
+        pass "weekly-update references community scan state file"
+    else
+        fail "weekly-update missing last-community-scan.txt reference"
+    fi
+}
+
+# Test 58: weekly-update creates GitHub issues for community digest
+test_weekly_update_creates_issues() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    if grep -q "gh issue create\|issues:" "$WORKFLOW"; then
+        pass "weekly-update has issue creation capability"
+    else
+        fail "weekly-update missing issue creation for community digest"
+    fi
+}
+
+# Test 59: weekly-update uses peter-evans/create-pull-request for version update PRs
+test_weekly_update_uses_create_pr() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    if grep -q "peter-evans/create-pull-request" "$WORKFLOW"; then
+        pass "weekly-update uses peter-evans/create-pull-request"
+    else
+        fail "weekly-update missing peter-evans/create-pull-request"
+    fi
+}
+
+# Test 60: weekly-update has id-token: write permission (needed for OIDC auth)
+test_weekly_update_has_id_token_permission() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    if grep -q "id-token: write" "$WORKFLOW"; then
+        pass "weekly-update has id-token: write permission"
+    else
+        fail "weekly-update missing id-token: write permission"
+    fi
+}
+
+test_weekly_update_no_allowed_tools_input
+test_weekly_update_extracts_scan_from_output_file
+test_weekly_update_community_state_file
+test_weekly_update_creates_issues
+test_weekly_update_uses_create_pr
+test_weekly_update_has_id_token_permission
 
 # ============================================
 # Monthly-Research Workflow Input Validation Tests
@@ -1566,12 +1537,12 @@ test_ci_autofix_no_show_full_output() {
     fi
 }
 
-# Test 70: weekly-community e2e-test triggers on findings (not just actions)
+# Test 70: weekly-update community-e2e-test triggers on findings (not just actions)
 test_weekly_e2e_triggers_on_findings() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-community.yml"
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-community.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
 
@@ -1595,9 +1566,9 @@ else:
 " > /tmp/weekly_trigger_check.txt 2>&1
 
     if grep -q "USES_FINDINGS" /tmp/weekly_trigger_check.txt; then
-        pass "weekly-community e2e-test triggers on findings_count (robust)"
+        pass "weekly-update community-e2e-test triggers on findings_count (robust)"
     else
-        fail "weekly-community e2e-test triggers on actions_count (fragile — depends on exact JSON key name)"
+        fail "weekly-update community-e2e-test triggers on actions_count (fragile — depends on exact JSON key name)"
     fi
 }
 
@@ -1887,31 +1858,31 @@ test_ci_shellcheck_step_name_accurate() {
 test_ci_workspace_git_init_has_origin
 test_ci_shellcheck_step_name_accurate
 
-# Test 83: daily-update schedule is weekly (Monday only), not daily
-test_daily_update_weekly_schedule() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/daily-update.yml"
+# Test 83: weekly-update schedule is weekly (Monday only)
+test_weekly_update_monday_schedule() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
     if [ ! -f "$WORKFLOW" ]; then
-        fail "daily-update.yml not found"
+        fail "weekly-update.yml not found"
         return
     fi
     # Cron should end with day-of-week = 1 (Monday), not * (daily)
     # Format: minute hour day-of-month month day-of-week
-    # Match uncommented cron line: starts with spaces and dash, ends with 1'
     if grep -E '^\s+- cron:.*\* 1' "$WORKFLOW" > /dev/null; then
-        pass "daily-update runs weekly on Mondays (cost-efficient)"
+        pass "weekly-update runs weekly on Mondays (cost-efficient)"
     else
-        fail "daily-update should run weekly on Monday (cron day-of-week = 1), not daily"
+        fail "weekly-update should run weekly on Monday (cron day-of-week = 1)"
     fi
 }
 
-# Test 84: All three auto-update schedules are uncommented (active)
+# Test 84: All auto-update schedules are uncommented (active)
 test_all_schedules_active() {
     local all_active=true
-    for wf in daily-update.yml weekly-community.yml monthly-research.yml; do
+    for wf in weekly-update.yml monthly-research.yml; do
         WORKFLOW="$REPO_ROOT/.github/workflows/$wf"
         if [ ! -f "$WORKFLOW" ]; then
             fail "$wf not found"
-            return
+            all_active=false
+            continue
         fi
         # Check for uncommented schedule: line (no # before it)
         if grep -E '^\s+schedule:' "$WORKFLOW" | grep -qv '#'; then
@@ -1922,7 +1893,7 @@ test_all_schedules_active() {
         fi
     done
     if [ "$all_active" = true ]; then
-        pass "All three auto-update workflow schedules are active"
+        pass "All auto-update workflow schedules are active (weekly-update + monthly-research)"
     fi
 }
 
@@ -1941,9 +1912,146 @@ test_ci_score_history_checkouts_pr_branch() {
     fi
 }
 
-test_daily_update_weekly_schedule
+test_weekly_update_monday_schedule
 test_all_schedules_active
 test_ci_score_history_checkouts_pr_branch
+
+# ============================================
+# Weekly-Update Consolidation Structure Tests
+# ============================================
+# These tests verify the consolidated weekly-update.yml
+# has all 4 jobs with correct dependency chains.
+
+# Test 86: weekly-update.yml has all 4 jobs (check-updates, version-test, scan-community, community-e2e-test)
+test_weekly_update_has_four_jobs() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = list(wf.get('jobs', {}).keys())
+expected = ['check-updates', 'version-test', 'scan-community', 'community-e2e-test']
+missing = [j for j in expected if j not in jobs]
+if not missing:
+    print('ALL_PRESENT')
+else:
+    print('MISSING:' + ','.join(missing))
+" > /tmp/weekly_jobs_check.txt 2>&1
+
+    if grep -q "ALL_PRESENT" /tmp/weekly_jobs_check.txt; then
+        pass "weekly-update.yml has all 4 required jobs"
+    else
+        MISSING=$(grep "MISSING:" /tmp/weekly_jobs_check.txt | sed 's/MISSING://')
+        fail "weekly-update.yml missing jobs: $MISSING"
+    fi
+}
+
+# Test 87: weekly-update.yml version-test depends on check-updates
+test_weekly_update_version_test_needs_check_updates() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+version_test = jobs.get('version-test', {})
+needs = version_test.get('needs', [])
+if isinstance(needs, str):
+    needs = [needs]
+if 'check-updates' in needs:
+    print('DEP_OK')
+else:
+    print('DEP_MISSING')
+" > /tmp/weekly_dep_check1.txt 2>&1
+
+    if grep -q "DEP_OK" /tmp/weekly_dep_check1.txt; then
+        pass "weekly-update.yml version-test depends on check-updates"
+    else
+        fail "weekly-update.yml version-test missing 'needs: check-updates' dependency"
+    fi
+}
+
+# Test 88: weekly-update.yml community-e2e-test depends on scan-community
+test_weekly_update_community_e2e_needs_scan() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+community_e2e = jobs.get('community-e2e-test', {})
+needs = community_e2e.get('needs', [])
+if isinstance(needs, str):
+    needs = [needs]
+if 'scan-community' in needs:
+    print('DEP_OK')
+else:
+    print('DEP_MISSING')
+" > /tmp/weekly_dep_check2.txt 2>&1
+
+    if grep -q "DEP_OK" /tmp/weekly_dep_check2.txt; then
+        pass "weekly-update.yml community-e2e-test depends on scan-community"
+    else
+        fail "weekly-update.yml community-e2e-test missing 'needs: scan-community' dependency"
+    fi
+}
+
+# Test 89: weekly-update.yml has issues: write permission (needed for community digest)
+test_weekly_update_has_issues_permission() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    if grep -q "issues: write" "$WORKFLOW"; then
+        pass "weekly-update.yml has issues: write permission"
+    else
+        fail "weekly-update.yml missing issues: write permission (community digest creates issues)"
+    fi
+}
+
+# Test 90: weekly-update.yml has exactly one cron schedule entry
+test_weekly_update_single_cron() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    CRON_COUNT=$(grep -c '^\s\+- cron:' "$WORKFLOW" 2>/dev/null || echo "0")
+    if [ "$CRON_COUNT" = "1" ]; then
+        pass "weekly-update.yml has exactly 1 cron schedule (single Monday run)"
+    else
+        fail "weekly-update.yml has $CRON_COUNT cron entries (expected exactly 1)"
+    fi
+}
+
+test_weekly_update_has_four_jobs
+test_weekly_update_version_test_needs_check_updates
+test_weekly_update_community_e2e_needs_scan
+test_weekly_update_has_issues_permission
+test_weekly_update_single_cron
 
 echo ""
 echo "=== Results ==="

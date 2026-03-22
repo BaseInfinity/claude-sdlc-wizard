@@ -116,7 +116,7 @@ test_tdd_hook_workflow_warning() {
 
 # Test 8: Workflow file edit produces valid JSON output
 test_tdd_hook_valid_json() {
-    local input='{"tool_input": {"file_path": ".github/workflows/daily-update.yml"}}'
+    local input='{"tool_input": {"file_path": ".github/workflows/weekly-update.yml"}}'
     local output
     output=$(echo "$input" | "$HOOKS_DIR/tdd-pretool-check.sh" 2>/dev/null)
     if echo "$output" | jq -e '.hookSpecificOutput' > /dev/null 2>&1; then

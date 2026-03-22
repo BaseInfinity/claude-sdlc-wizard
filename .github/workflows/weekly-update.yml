@@ -1,13 +1,14 @@
-name: Daily Claude Code Update Check
+name: Weekly Update
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # 9 AM UTC every Monday (was daily, reduced to save tokens)
+    - cron: '0 9 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   id-token: write
 
 env:
@@ -608,3 +609,436 @@ jobs:
 
             ---
             *Statistical methodology: 5 trials, 95% CI, overlapping CI comparison*
+
+  scan-community:
+    runs-on: ubuntu-latest
+
+    outputs:
+      has_suggestions: ${{ steps.parse.outputs.findings_count != '0' }}
+      findings: ${{ steps.parse.outputs.findings_count }}
+      current_date: ${{ steps.current-date.outputs.current_date }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read last scan date
+        id: last-scan
+        run: |
+          if [ -f .github/last-community-scan.txt ]; then
+            LAST_SCAN=$(cat .github/last-community-scan.txt | tr -d '\n')
+          else
+            LAST_SCAN="2026-01-01"
+          fi
+          echo "last_scan=$LAST_SCAN" >> $GITHUB_OUTPUT
+          echo "Last scan date: $LAST_SCAN"
+
+      - name: Get current date
+        id: current-date
+        run: |
+          CURRENT_DATE=$(date +%Y-%m-%d)
+          echo "current_date=$CURRENT_DATE" >> $GITHUB_OUTPUT
+          echo "Current date: $CURRENT_DATE"
+
+      - name: Build scan prompt
+        id: build-prompt
+        run: |
+          # Assemble prompt from template + scan parameters
+          {
+            cat .github/prompts/analyze-community.md
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Scan Parameters"
+            echo ""
+            echo "**Scan Period:** ${{ steps.last-scan.outputs.last_scan }} to ${{ steps.current-date.outputs.current_date }}"
+            echo ""
+            echo "Please search for and analyze Claude Code discussions from this time period across:"
+            echo "- Reddit (r/ClaudeAI, r/programming)"
+            echo "- Hacker News"
+            echo "- Popular dev blogs"
+            echo "- Official Anthropic community channels"
+            echo ""
+            echo "Focus on finding actionable insights that could improve the SDLC Wizard."
+            echo "Most content will be noise - that's expected. Only report genuinely useful findings."
+          } > /tmp/community_prompt.md
+
+          # Pass assembled prompt as multi-line output
+          {
+            echo "prompt<<PROMPT_EOF"
+            cat /tmp/community_prompt.md
+            echo "PROMPT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Scan community with Claude
+        id: scan
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ steps.build-prompt.outputs.prompt }}
+          claude_args: |
+            --allowedTools "WebSearch,WebFetch"
+
+      - name: Save scan result to file
+        run: |
+          # claude-code-action saves Claude's response to this file
+          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "::warning::No execution output file found"
+            echo '{"nothing_notable":true}' > /tmp/scan_result.json
+            exit 0
+          fi
+
+          # Extract response text (format varies: array or object)
+          IS_ARRAY=$(jq -r 'if type == "array" then "true" else "false" end' "$OUTPUT_FILE" 2>/dev/null || echo "false")
+          echo "Output format: is_array=$IS_ARRAY"
+
+          if [ "$IS_ARRAY" = "true" ]; then
+            RESPONSE_TEXT=$(jq -r '
+              [.[] | select(type == "object")] |
+              [.[] | select(.role == "assistant" or .type == "result")] |
+              last |
+              if .content then
+                (if (.content | type) == "array" then
+                  [.content[] | select(.type == "text") | .text] | join("")
+                else
+                  .content
+                end)
+              elif .text then .text
+              elif .result then .result
+              else empty
+              end
+            ' "$OUTPUT_FILE" 2>/dev/null || echo "")
+          else
+            RESPONSE_TEXT=$(jq -r '.result // .output // empty' "$OUTPUT_FILE" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$RESPONSE_TEXT" ]; then
+            echo "::warning::Could not extract text from execution output"
+            echo '{"nothing_notable":true}' > /tmp/scan_result.json
+            exit 0
+          fi
+
+          echo "Response text length: ${#RESPONSE_TEXT}"
+
+          # Extract JSON from response (may be wrapped in markdown code blocks)
+          echo "$RESPONSE_TEXT" | sed -n '/^```json/,/^```$/p' | sed '1d;$d' > /tmp/scan_result.json 2>/dev/null
+
+          # If no code block, try raw text as JSON
+          if [ ! -s /tmp/scan_result.json ]; then
+            echo "$RESPONSE_TEXT" > /tmp/scan_result.json
+          fi
+
+          # Validate it's parseable JSON
+          if ! jq empty /tmp/scan_result.json 2>/dev/null; then
+            echo "::warning::Not valid JSON, using fallback"
+            echo '{"nothing_notable":true}' > /tmp/scan_result.json
+          fi
+
+          echo "Scan result extracted successfully"
+
+      - name: Parse scan result
+        id: parse
+        run: |
+          # Read from file (safe) instead of shell variable interpolation
+          NOTHING_NOTABLE=$(jq -r '.nothing_notable // false' /tmp/scan_result.json 2>/dev/null || echo "false")
+          FINDINGS_COUNT=$(jq -r '.findings | length // 0' /tmp/scan_result.json 2>/dev/null || echo "0")
+          ACTIONS_COUNT=$(jq -r '.recommended_actions | length // 0' /tmp/scan_result.json 2>/dev/null || echo "0")
+
+          echo "nothing_notable=$NOTHING_NOTABLE" >> $GITHUB_OUTPUT
+          echo "findings_count=$FINDINGS_COUNT" >> $GITHUB_OUTPUT
+          echo "actions_count=$ACTIONS_COUNT" >> $GITHUB_OUTPUT
+
+          echo "Nothing notable: $NOTHING_NOTABLE"
+          echo "Findings count: $FINDINGS_COUNT"
+          echo "Recommended actions: $ACTIONS_COUNT"
+
+      - name: Update scan date
+        run: |
+          echo "${{ steps.current-date.outputs.current_date }}" > .github/last-community-scan.txt
+
+      - name: Build issue body
+        if: steps.parse.outputs.nothing_notable != 'true' && steps.parse.outputs.findings_count != '0'
+        run: |
+          cat > /tmp/issue_body.md << 'ISSUEEOF'
+          ## Community Digest
+
+          **Scan Period:** ${{ steps.last-scan.outputs.last_scan }} to ${{ steps.current-date.outputs.current_date }}
+          **Findings:** ${{ steps.parse.outputs.findings_count }}
+          **Recommended Actions:** ${{ steps.parse.outputs.actions_count }}
+
+          ### Full Scan Result
+          ```json
+          ISSUEEOF
+
+          cat /tmp/scan_result.json >> /tmp/issue_body.md
+
+          cat >> /tmp/issue_body.md << 'ISSUEEOF'
+          ```
+
+          ### Review Notes
+          - Most community content is noise - that's expected
+          - Only act on findings that genuinely align with wizard philosophy
+          - When in doubt, don't add it
+
+          ---
+          *Generated by weekly-community workflow*
+          ISSUEEOF
+
+      - name: Close stale community digest issues
+        if: steps.parse.outputs.nothing_notable != 'true' && steps.parse.outputs.findings_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find open issues with community-digest label (will be superseded by new one)
+          STALE_ISSUES=$(gh issue list --label "community-digest" --state open --json number --jq '.[].number' 2>/dev/null || echo "")
+
+          for issue in $STALE_ISSUES; do
+            echo "Closing stale issue #$issue (superseded by new digest)"
+            gh issue close "$issue" --comment "Superseded by newer community digest: ${{ steps.current-date.outputs.current_date }}" || true
+          done
+
+      - name: Create digest issue
+        if: steps.parse.outputs.nothing_notable != 'true' && steps.parse.outputs.findings_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Community Digest: Week of ${{ steps.current-date.outputs.current_date }}" \
+            --label "community-digest" \
+            --label "auto-generated" \
+            --body-file /tmp/issue_body.md
+
+      - name: Commit scan date update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last-community-scan.txt
+          git diff --staged --quiet || git commit -m "chore: update last-community-scan to ${{ steps.current-date.outputs.current_date }}"
+          git push
+
+      - name: Log if nothing notable
+        if: steps.parse.outputs.nothing_notable == 'true' || steps.parse.outputs.findings_count == '0'
+        run: |
+          echo "No notable community findings this week. This is expected - most weeks are quiet."
+          echo "Scan date updated to ${{ steps.current-date.outputs.current_date }}"
+
+  # E2E Testing: Validate community-suggested improvements
+  community-e2e-test:
+    needs: scan-community
+    if: needs.scan-community.outputs.has_suggestions == 'true'
+    runs-on: ubuntu-latest
+
+    outputs:
+      verdict: ${{ steps.verdict.outputs.verdict }}
+      baseline_score: ${{ steps.baseline.outputs.score }}
+      candidate_score: ${{ steps.candidate.outputs.score }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Setup test fixture with wizard
+        run: |
+          echo "Installing wizard into test fixture..."
+          mkdir -p tests/e2e/fixtures/test-repo/.claude
+          cp -r .claude/hooks tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r .claude/skills tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp .claude/settings.json tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+
+      # Baseline: Current SDLC docs
+      - name: Run baseline simulation with Claude
+        id: baseline-sim
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          working_directory: tests/e2e/fixtures/test-repo
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+          prompt: |
+            Run an E2E SDLC simulation.
+
+            Scenario file: ../scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Baseline - Current SDLC (Tier 2)
+        id: baseline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running baseline evaluation with current SDLC docs"
+
+          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "No output file from baseline simulation"
+            echo "scores=0" >> $GITHUB_OUTPUT
+            echo "score=0" >> $GITHUB_OUTPUT
+            echo "ci=0 (no data)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Use shared evaluation script with output file
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/medium-add-feature.md \
+            "$OUTPUT_FILE")
+
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "Baseline: $CI_RESULT"
+
+      # Apply community suggestions
+      - name: Apply community suggestions
+        id: apply
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Based on the community findings from this week's scan, apply minimal
+            targeted improvements to SDLC.md.
+
+            Community findings: ${{ needs.scan-community.outputs.findings }}
+
+            Guidelines:
+            - Only apply changes that directly improve SDLC enforcement
+            - Keep changes minimal and focused
+            - Don't rewrite entire sections
+
+      - name: Reset test fixture for candidate
+        run: |
+          cd tests/e2e/fixtures/test-repo
+          git checkout -- . 2>/dev/null || true
+          git clean -fd 2>/dev/null || true
+
+      # Candidate: SDLC with community improvements
+      - name: Run candidate simulation with Claude
+        id: candidate-sim
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          working_directory: tests/e2e/fixtures/test-repo
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+          prompt: |
+            Run an E2E SDLC simulation with community improvements applied.
+
+            Scenario file: ../scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Candidate - With Improvements (Tier 2)
+        id: candidate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "Running candidate evaluation with community improvements"
+
+          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "No output file from candidate simulation"
+            echo "scores=0" >> $GITHUB_OUTPUT
+            echo "score=0" >> $GITHUB_OUTPUT
+            echo "ci=0 (no data)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Use shared evaluation script with output file
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/medium-add-feature.md \
+            "$OUTPUT_FILE")
+
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "Candidate: $CI_RESULT"
+
+      - name: Determine verdict
+        id: verdict
+        run: |
+          source tests/e2e/lib/stats.sh
+
+          BASELINE_SCORES="${{ steps.baseline.outputs.scores }}"
+          CANDIDATE_SCORES="${{ steps.candidate.outputs.scores }}"
+
+          VERDICT=$(compare_ci "$BASELINE_SCORES" "$CANDIDATE_SCORES")
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          echo "Verdict: $VERDICT"
+
+      - name: Update CUSUM
+        run: |
+          SCORE="${{ steps.baseline.outputs.score }}"
+          if [ -n "$SCORE" ] && [ "$SCORE" != "0" ]; then
+            ./tests/e2e/cusum.sh --add "$SCORE" || true
+          fi
+
+      - name: Create PR with results
+        if: steps.verdict.outputs.verdict == 'IMPROVED' || steps.verdict.outputs.verdict == 'STABLE'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "feat(sdlc): incorporate community patterns"
+          title: "[${{ steps.verdict.outputs.verdict }}] Community Patterns: Week of ${{ needs.scan-community.outputs.current_date }}"
+          body: |
+            ## Community Pattern Integration
+
+            **Week:** ${{ needs.scan-community.outputs.current_date }}
+
+            ### E2E Test Results
+
+            | Phase | Score (95% CI) |
+            |-------|----------------|
+            | Baseline | ${{ steps.baseline.outputs.ci }} |
+            | With Changes | ${{ steps.candidate.outputs.ci }} |
+
+            ### Verdict: **${{ steps.verdict.outputs.verdict }}**
+
+            - **IMPROVED**: Community patterns significantly improve SDLC scores
+            - **STABLE**: No significant difference (safe to merge if patterns are useful)
+            - **REGRESSION**: Patterns hurt scores (don't merge)
+
+            ### Changes Applied
+            Based on community findings from this week's scan.
+
+            ---
+            *Generated by weekly-community workflow with E2E validation*
+          branch: community-patterns/${{ needs.scan-community.outputs.current_date }}
+          labels: |
+            community-patterns
+            e2e-tested
+            ${{ steps.verdict.outputs.verdict }}
