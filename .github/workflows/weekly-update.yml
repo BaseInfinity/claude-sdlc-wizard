@@ -1120,11 +1120,12 @@ jobs:
 
           if [ ! -f "$OUTPUT_FILE" ]; then
             echo "No output file from baseline simulation"
-            echo "scores=0" >> $GITHUB_OUTPUT
-            echo "score=0" >> $GITHUB_OUTPUT
-            echo "ci=0 (no data)" >> $GITHUB_OUTPUT
+            echo "has_data=false" >> $GITHUB_OUTPUT
+            echo "ci=no data" >> $GITHUB_OUTPUT
             exit 0
           fi
+
+          echo "has_data=true" >> $GITHUB_OUTPUT
 
           RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
             tests/e2e/scenarios/medium-add-feature.md \
@@ -1164,8 +1165,9 @@ jobs:
 
       - name: Reset test fixture for candidate
         if: steps.strip.outputs.skip != 'true'
+        env:
+          CANDIDATE_DIR: ${{ steps.strip.outputs.candidate_dir }}
         run: |
-          CANDIDATE_DIR="${{ steps.strip.outputs.candidate_dir }}"
           # Replace test-repo with stripped version
           rm -rf tests/e2e/fixtures/test-repo
           mv "$CANDIDATE_DIR" tests/e2e/fixtures/test-repo
@@ -1203,11 +1205,12 @@ jobs:
 
           if [ ! -f "$OUTPUT_FILE" ]; then
             echo "No output file from candidate simulation"
-            echo "scores=0" >> $GITHUB_OUTPUT
-            echo "score=0" >> $GITHUB_OUTPUT
-            echo "ci=0 (no data)" >> $GITHUB_OUTPUT
+            echo "has_data=false" >> $GITHUB_OUTPUT
+            echo "ci=no data" >> $GITHUB_OUTPUT
             exit 0
           fi
+
+          echo "has_data=true" >> $GITHUB_OUTPUT
 
           RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
             tests/e2e/scenarios/medium-add-feature.md \
@@ -1223,7 +1226,10 @@ jobs:
           echo "Candidate: $CI_RESULT"
 
       - name: Determine verdict
-        if: steps.strip.outputs.skip != 'true'
+        if: |
+          steps.strip.outputs.skip != 'true' &&
+          steps.baseline.outputs.has_data == 'true' &&
+          steps.candidate.outputs.has_data == 'true'
         id: verdict
         env:
           BASELINE_SCORES: ${{ steps.baseline.outputs.scores }}
