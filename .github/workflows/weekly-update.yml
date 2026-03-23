@@ -497,6 +497,26 @@ jobs:
               ]
             }
 
+      - name: Reset test fixture and install modified wizard for Phase B
+        if: steps.phase-a.outputs.passed == 'true'
+        run: |
+          # Remove stale Phase A output so Phase B eval can't read it
+          rm -f "${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          # Reset test fixture state
+          cd tests/e2e/fixtures/test-repo
+          git checkout -- . 2>/dev/null || true
+          git clean -fd 2>/dev/null || true
+          rm -rf .claude
+
+          # Install MODIFIED wizard (with applied changelog changes) into fixture
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p tests/e2e/fixtures/test-repo/.claude
+          cp -r .claude/hooks tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r .claude/skills tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp .claude/settings.json tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          echo "Modified wizard installed into test fixture for Phase B evaluation"
+
       - name: Run scenario simulation for Phase B
         id: run-scenario-phase-b
         if: steps.phase-a.outputs.passed == 'true'

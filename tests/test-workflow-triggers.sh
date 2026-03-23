@@ -2152,6 +2152,109 @@ test_weekly_update_single_cron
 test_tier2_comment_matches_trial_count
 test_tier2_cleans_stale_output
 
+# ============================================
+# Full System Audit (#25) — Apply Step Bug Tests
+# ============================================
+# The "apply" step in auto-update workflows modifies repo root files,
+# but candidate simulations run in the test fixture. Without copying
+# applied changes into the fixture, baseline == candidate (useless).
+
+# Test 93: weekly-update.yml copies modified wizard into fixture after Phase B apply step
+test_weekly_update_copies_wizard_after_apply() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    # After "Apply changelog suggestions" step, there must be a step that
+    # copies .claude/ files into the test fixture before candidate simulation
+    if grep -A 50 "Apply changelog suggestions" "$WORKFLOW" | grep -q "cp.*\.claude.*fixtures/test-repo"; then
+        pass "weekly-update.yml copies wizard into fixture after apply step"
+    else
+        fail "weekly-update.yml does NOT copy applied changes into test fixture (baseline == candidate, comparison useless)"
+    fi
+}
+
+# Test 94: monthly-research.yml copies modified wizard into fixture after apply step
+test_monthly_copies_wizard_after_apply() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "monthly-research.yml not found"
+        return
+    fi
+
+    # After "Apply research recommendations" step, there must be a step that
+    # copies .claude/ files into the test fixture before candidate simulation
+    if grep -A 40 "Apply research recommendations" "$WORKFLOW" | grep -q "cp.*\.claude.*fixtures/test-repo"; then
+        pass "monthly-research.yml copies wizard into fixture after apply step"
+    else
+        fail "monthly-research.yml does NOT copy applied changes into test fixture (baseline == candidate, comparison useless)"
+    fi
+}
+
+# Test 95: weekly-update.yml cleans stale output before Phase B simulation
+test_weekly_update_cleans_output_before_phase_b() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    # Between Phase A eval and Phase B sim, stale output file must be removed
+    # Otherwise candidate eval reads baseline data on silent sim failure
+    if grep -B 20 "Run scenario simulation for Phase B" "$WORKFLOW" | grep -q "rm.*claude-execution-output"; then
+        pass "weekly-update.yml cleans stale output before Phase B sim"
+    else
+        fail "weekly-update.yml does NOT clean stale output before Phase B sim (candidate eval reads baseline data on failure)"
+    fi
+}
+
+# Test 96: monthly-research.yml cleans stale output before candidate simulation
+test_monthly_cleans_output_before_candidate() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "monthly-research.yml not found"
+        return
+    fi
+
+    # Between baseline eval and candidate sim, stale output file must be removed
+    if grep -B 20 "Run candidate simulation" "$WORKFLOW" | grep -q "rm.*claude-execution-output"; then
+        pass "monthly-research.yml cleans stale output before candidate sim"
+    else
+        fail "monthly-research.yml does NOT clean stale output before candidate sim (candidate eval reads baseline data on failure)"
+    fi
+}
+
+# Test 97: README workflow count matches actual count (5 workflows)
+test_readme_workflow_count_accurate() {
+    README="$REPO_ROOT/README.md"
+
+    if [ ! -f "$README" ]; then
+        fail "README.md not found"
+        return
+    fi
+
+    # Count actual workflow files
+    ACTUAL_COUNT=$(ls "$REPO_ROOT"/.github/workflows/*.yml 2>/dev/null | wc -l | tr -d ' ')
+
+    if grep -q "All $ACTUAL_COUNT workflows" "$README"; then
+        pass "README workflow count ($ACTUAL_COUNT) matches actual workflow files"
+    else
+        fail "README workflow count does not match actual count ($ACTUAL_COUNT workflows)"
+    fi
+}
+
+test_weekly_update_copies_wizard_after_apply
+test_monthly_copies_wizard_after_apply
+test_weekly_update_cleans_output_before_phase_b
+test_monthly_cleans_output_before_candidate
+test_readme_workflow_count_accurate
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
