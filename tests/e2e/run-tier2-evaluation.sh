@@ -45,7 +45,7 @@ fi
 SCORES=""
 for i in $(seq 1 "$TRIALS"); do
     echo "Trial $i/$TRIALS..." >&2
-    EVAL_STDERR="$TMPDIR/eval-stderr-t2-$i.log"
+    EVAL_STDERR="${TMPDIR:-/tmp}/eval-stderr-t2-$i.log"
     EVAL_EXIT=0
     RESULT=$("$SCRIPT_DIR/evaluate.sh" "$SCENARIO" "$OUTPUT_FILE" --json 2>"$EVAL_STDERR") || EVAL_EXIT=$?
 
