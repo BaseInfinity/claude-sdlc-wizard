@@ -1126,9 +1126,6 @@ jobs:
             exit 0
           fi
 
-          # Save baseline output before candidate overwrites it
-          cp "$OUTPUT_FILE" /tmp/baseline-output.json
-
           RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
             tests/e2e/scenarios/medium-add-feature.md \
             "$OUTPUT_FILE")
@@ -1280,7 +1277,8 @@ jobs:
           COMMENTEOF
 
           # Append dynamic values safely via printf (no shell expansion)
-          printf '\n**Overlapping features:** `%s`\n' "$OVERLAP_PATHS" >> /tmp/prove-it-comment.md
+          PRETTY_PATHS=$(echo "$OVERLAP_PATHS" | jq -r '.[]' 2>/dev/null | paste -sd ', ' - || echo "$OVERLAP_PATHS")
+          printf '\n**Overlapping features:** %s\n' "$PRETTY_PATHS" >> /tmp/prove-it-comment.md
           printf '\n| Variant | Score (95%% CI) |\n' >> /tmp/prove-it-comment.md
           printf '|---------|----------------|\n' >> /tmp/prove-it-comment.md
           printf '| With Custom Features (baseline) | %s |\n' "$BASELINE_CI" >> /tmp/prove-it-comment.md
