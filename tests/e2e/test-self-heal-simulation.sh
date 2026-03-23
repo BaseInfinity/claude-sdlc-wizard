@@ -36,6 +36,8 @@ test_retry_count_zero() {
     TEMP_DIR=$(mktemp -d)
     cd "$TEMP_DIR"
     git init -q
+    git config user.email "test@example.com"
+    git config user.name "Test User"
     git commit --allow-empty -m "initial commit" -q
     git commit --allow-empty -m "feat: add feature" -q
 
@@ -56,6 +58,8 @@ test_retry_count_two() {
     TEMP_DIR=$(mktemp -d)
     cd "$TEMP_DIR"
     git init -q
+    git config user.email "test@example.com"
+    git config user.name "Test User"
     git commit --allow-empty -m "initial commit" -q
     git commit --allow-empty -m "[autofix 1/3] fix: auto-fix from ci-failure" -q
     git commit --allow-empty -m "feat: manual fix" -q
@@ -712,6 +716,8 @@ test_autofix_grep_rejects_false_matches() {
     TEMP_DIR=$(mktemp -d)
     cd "$TEMP_DIR"
     git init -q
+    git config user.email "test@example.com"
+    git config user.name "Test User"
     git commit --allow-empty -m "initial commit" -q
     git commit --allow-empty -m "[autofix 1/3] fix: auto-fix from ci-failure" -q
     git commit --allow-empty -m "docs: explain [autofix] behavior" -q
