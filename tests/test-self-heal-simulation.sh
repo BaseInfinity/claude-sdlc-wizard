@@ -392,6 +392,54 @@ test_parse_review_both() {
     fi
 }
 
+# Test 15b: Parse real CI review format (h4 headers, markdown italic _None._)
+test_parse_real_review_format() {
+    REVIEW_BODY="**Claude finished @BaseInfinity's task in 2m 31s**
+
+---
+## PR Code Review
+
+### Summary
+This PR consolidates two workflows into one.
+
+### Recommendation: APPROVE
+
+### Findings
+
+#### Critical (must fix)
+_None._
+
+#### Suggestions (nice to have)
+
+- **\`weekly-update.yml:291\`** — Generated PR body still says daily-update workflow
+- **\`weekly-update.yml:787\`** and **\`:1039\`** — Issue/PR body footers still reference weekly-community
+
+#### Strengths
+
+- Structural simplification is clean"
+
+    HAS_CRITICALS=false
+    HAS_SUGGESTIONS=false
+
+    if echo "$REVIEW_BODY" | grep -q "Critical (must fix)"; then
+        if ! echo "$REVIEW_BODY" | grep -A 1 "Critical (must fix)" | grep -q "None\|No critical\|N/A"; then
+            HAS_CRITICALS=true
+        fi
+    fi
+
+    if echo "$REVIEW_BODY" | grep -q "Suggestions (nice to have)"; then
+        if ! echo "$REVIEW_BODY" | grep -A 1 "Suggestions (nice to have)" | grep -q "None\|No suggestions\|N/A"; then
+            HAS_SUGGESTIONS=true
+        fi
+    fi
+
+    if [ "$HAS_CRITICALS" = false ] && [ "$HAS_SUGGESTIONS" = true ]; then
+        pass "Real CI review format: no criticals (italic _None._), found suggestions (h4 headers)"
+    else
+        fail "Real format parse error: criticals=$HAS_CRITICALS suggestions=$HAS_SUGGESTIONS (expected false/true)"
+    fi
+}
+
 # ============================================
 # Context Truncation Tests
 # ============================================
@@ -602,6 +650,7 @@ test_parse_review_criticals
 test_parse_review_suggestions_only
 test_parse_review_clean
 test_parse_review_both
+test_parse_real_review_format
 
 echo ""
 echo "--- Context Truncation ---"
