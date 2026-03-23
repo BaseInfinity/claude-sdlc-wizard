@@ -23,6 +23,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure git identity for tests
+        run: |
+          git config --global user.email "ci@test.local"
+          git config --global user.name "CI Test"
+
       - name: Validate YAML workflows
         run: |
           echo "Validating workflow YAML files..."
@@ -85,6 +90,45 @@ jobs:
 
       - name: Validate E2E fixtures and scenarios
         run: ./tests/e2e/run-simulation.sh
+
+      - name: Run pairwise comparison tests
+        run: ./tests/e2e/test-pairwise-compare.sh
+
+      - name: Run CUSUM drift detection tests
+        run: ./tests/test-cusum.sh
+
+      - name: Run JSON extraction tests
+        run: ./tests/e2e/test-json-extraction.sh
+
+      - name: Run eval validation tests
+        run: ./tests/e2e/test-eval-validation.sh
+
+      - name: Run prove-it tests
+        run: ./tests/test-prove-it.sh
+
+      - name: Run self-heal simulation tests
+        run: ./tests/e2e/test-self-heal-simulation.sh
+
+      - name: Run hooks tests
+        run: ./tests/test-hooks.sh
+
+      - name: Run compliance tests
+        run: ./tests/test-compliance.sh
+
+      - name: Run evaluate bug fix tests
+        run: ./tests/test-evaluate-bugs.sh
+
+      - name: Run SDP calculation tests
+        run: ./tests/test-sdp-calculation.sh
+
+      - name: Run stats library tests
+        run: ./tests/test-stats.sh
+
+      - name: Run multi-call eval tests
+        run: ./tests/e2e/test-multi-call-eval.sh
+
+      - name: Run eval prompt regression tests
+        run: ./tests/e2e/test-eval-prompt-regression.sh
 
   # Clean up old bot comments on PR push (keeps PRs tidy)
   cleanup-old-comments:
@@ -793,7 +837,7 @@ jobs:
           exit 1
 
   # TIER 2: Full E2E Evaluation - Runs before merge
-  # 3x evaluations each, averaged for statistical confidence
+  # 5x evaluations each, averaged for statistical confidence
   # Triggered by: merge-ready label
   e2e-full-evaluation:
     runs-on: ubuntu-latest
@@ -997,6 +1041,9 @@ jobs:
       - name: Reset test fixture for CANDIDATE
         if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
+          # Remove stale baseline output so candidate eval can't read it
+          rm -f "${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
           cd pr-branch/tests/e2e/fixtures/test-repo
           git checkout -- . 2>/dev/null || true
           git clean -fd 2>/dev/null || true

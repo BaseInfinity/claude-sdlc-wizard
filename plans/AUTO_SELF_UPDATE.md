@@ -775,7 +775,7 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 | 20 | Observability/tracing | LOW | Structured logging for debugging score changes across runs | DONE |
 | 22 | Color-coded PR comments | LOW | Add visual indicators to E2E scoring PR comments - green/red/yellow emoji or status badges for PASS/WARN/FAIL per criterion. Makes it easier to scan results at a glance instead of reading raw numbers. | DONE — emoji indicators in ci.yml |
 | 23 | Phased workflow re-enablement | HIGH | Re-enable daily → weekly → monthly schedules. Phase 1: daily (PR #35). Phase 2: weekly (PR #37). Phase 3: monthly (PR #38). All schedules enabled before Tier 2 audit so audit covers full system. | DONE — all 3 schedules enabled |
-| 24 | Tier 2 E2E full suite audit | HIGH | Run full Tier 2 evaluation (`merge-ready` label) end-to-end. Verify 5-trial statistical evaluation, 95% CI, pairwise tiebreaker, CUSUM, SDP, score history persistence, and PR comment formatting all work correctly in CI. This is the final validation gate before mutation testing. | PLANNED |
+| 24 | Tier 2 E2E full suite audit | HIGH | Run full Tier 2 evaluation (`merge-ready` label) end-to-end. Verify 5-trial statistical evaluation, 95% CI, pairwise tiebreaker, CUSUM, SDP, score history persistence, and PR comment formatting all work correctly in CI. This is the final validation gate before mutation testing. | DONE — 13 test scripts wired into CI (228 new tests), 3 bugs fixed, legacy duplicate deleted |
 | 25 | Full system audit | HIGH | Comprehensive audit of all workflows, tests, scripts, and docs after Tier 2 passes. Verify every feature works as documented. Catch any remaining silent failures or stale assumptions. Known bug: E2E "apply" step in daily/weekly/monthly doesn't propagate changes to test fixture — baseline vs candidate always tests same code, verdict always STABLE (useless comparison). Fix in this audit. | PLANNED |
 | 21 | Mutation testing | MED | Two tracks: (a) Wizard recommendation - detect stack and offer mutation testing setup (Stryker for JS/TS, mutmut for Python, pitest for Java, cargo-mutants for Rust). (b) Our own CI - explore "SDLC document mutation testing": mutate wizard doc sections, run E2E, verify score drops to prove which sections are load-bearing. Gate: Items 24-25 must pass first. | PLANNED — after 24-25 |
 | 26 | Add auto-self-update to wizard | MED | Package the proven self-healing CI loop into the wizard document so users can install it in their own repos. Gate: Item 25 (full system audit) must pass first — we only recommend what we've proven works. | PLANNED — final item |
@@ -808,7 +808,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 1. ~~Weekly workflow consolidation~~ — DONE (PR #70)
 2. ~~Verify all-findings self-heal (#27)~~ — VERIFIED (PR #70)
 3. ~~"Prove It's Better" CI automation~~ — DONE (v1.10.0)
-4. Tier 2 E2E full suite audit (#24) — 5-trial statistical evaluation
+4. ~~Tier 2 E2E full suite audit (#24)~~ — DONE (13 scripts wired, 3 bugs fixed)
 5. Full system audit (#25) — verify everything works as documented
 
 **Back burner:** Mutation testing (#21), Package self-update (#26), Node.js 20 (#68, June 2026), CI efficiency audit (#29)

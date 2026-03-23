@@ -2110,11 +2110,47 @@ test_weekly_update_single_cron() {
     fi
 }
 
+# Test 91: CI Tier 2 comment matches actual trial count (5x, not 3x)
+test_tier2_comment_matches_trial_count() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # The Tier 2 job header comment must say 5x (matching the actual loop count)
+    if grep -q "5x evaluations each" "$WORKFLOW"; then
+        pass "Tier 2 comment correctly says 5x evaluations"
+    else
+        fail "Tier 2 comment does not say '5x evaluations each' (stale comment?)"
+    fi
+}
+
+# Test 92: CI Tier 2 cleans stale output between baseline and candidate sims
+test_tier2_cleans_stale_output() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "CI workflow file not found"
+        return
+    fi
+
+    # The "Reset test fixture for CANDIDATE" step must remove stale output
+    if grep -A 10 "Reset test fixture for CANDIDATE" "$WORKFLOW" | grep -q "rm.*claude-execution-output"; then
+        pass "Tier 2 cleans stale output file between baseline and candidate"
+    else
+        fail "Tier 2 does NOT clean stale output file between baseline and candidate sims"
+    fi
+}
+
 test_weekly_update_has_four_jobs
 test_weekly_update_version_test_needs_check_updates
 test_weekly_update_community_e2e_needs_scan
 test_weekly_update_has_issues_permission
 test_weekly_update_single_cron
+test_tier2_comment_matches_trial_count
+test_tier2_cleans_stale_output
 
 echo ""
 echo "=== Results ==="
