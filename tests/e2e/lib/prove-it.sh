@@ -69,7 +69,7 @@ create_stripped_fixture() {
     [ -z "$VALID_PATHS" ] && return 0
 
     # Remove each file and update settings.json for hooks
-    local HOOKS_TO_REMOVE=""
+    local HOOKS_TO_REMOVE=()
     while IFS= read -r FILEPATH; do
         [ -z "$FILEPATH" ] && continue
 
@@ -80,18 +80,14 @@ create_stripped_fixture() {
         local EVENT
         EVENT=$(hook_event_for_path "$FILEPATH")
         if [ -n "$EVENT" ]; then
-            if [ -n "$HOOKS_TO_REMOVE" ]; then
-                HOOKS_TO_REMOVE="$HOOKS_TO_REMOVE $EVENT"
-            else
-                HOOKS_TO_REMOVE="$EVENT"
-            fi
+            HOOKS_TO_REMOVE+=("$EVENT")
         fi
     done <<< "$VALID_PATHS"
 
     # Update settings.json if hooks were removed
     local SETTINGS="$DST/.claude/settings.json"
-    if [ -n "$HOOKS_TO_REMOVE" ] && [ -f "$SETTINGS" ]; then
-        for EVENT in $HOOKS_TO_REMOVE; do
+    if [ "${#HOOKS_TO_REMOVE[@]}" -gt 0 ] && [ -f "$SETTINGS" ]; then
+        for EVENT in "${HOOKS_TO_REMOVE[@]}"; do
             local TMP
             TMP=$(mktemp)
             jq --arg event "$EVENT" 'del(.hooks[$event])' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"

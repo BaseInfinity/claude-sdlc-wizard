@@ -252,13 +252,17 @@ test_overlap_detected
 test_no_overlap() {
     local FIXTURE="$REPO_ROOT/tests/fixtures/releases/v2.1.16-tasks.json"
 
-    local REPLACES
-    REPLACES=$(jq -r '.plugin_check.replaces_custom | length' "$FIXTURE" 2>/dev/null || echo "0")
-
-    if [ "$REPLACES" -eq 0 ]; then
-        pass "Empty replaces_custom detected as no overlap"
+    if [ ! -f "$FIXTURE" ]; then
+        fail "Fixture v2.1.16-tasks.json not found (create it first)"
     else
-        fail "v2.1.16-tasks.json should have empty replaces_custom, got length $REPLACES"
+        local REPLACES
+        REPLACES=$(jq -r '.plugin_check.replaces_custom | length' "$FIXTURE" 2>/dev/null || echo "0")
+
+        if [ "$REPLACES" -eq 0 ]; then
+            pass "Empty replaces_custom detected as no overlap"
+        else
+            fail "v2.1.16-tasks.json should have empty replaces_custom, got length $REPLACES"
+        fi
     fi
 }
 test_no_overlap
