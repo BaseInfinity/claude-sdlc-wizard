@@ -35,7 +35,7 @@ Calculates SDLC Degradation-adjusted Performance score.
 
 Arguments:
   raw_score       Our E2E evaluation score (0-10)
-  model           Model name (default: claude-sonnet-4)
+  model           Model name (default: claude-opus-4-6)
 
 Options:
   --help, -h      Show this help message
@@ -66,7 +66,7 @@ fi
 
 # Validate input
 RAW_SCORE="$1"
-MODEL="${2:-claude-sonnet-4}"
+MODEL="${2:-claude-opus-4-6}"
 
 if [ -z "$RAW_SCORE" ]; then
     echo "Error: raw_score required" >&2

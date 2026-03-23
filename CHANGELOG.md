@@ -4,6 +4,22 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.12.0] - 2026-03-23
+
+### Fixed
+- Apply step in `weekly-update.yml` and `monthly-research.yml` never propagated changes to test fixture (baseline == candidate, verdict always STABLE, comparison useless)
+- Stale output file between baseline and candidate simulations in both auto-update workflows (same bug as ci.yml, fixed in #24)
+- `sdp-score.sh` default model `claude-sonnet-4` corrected to `claude-opus-4-6` (matches evaluate.sh)
+- README "All 6 workflows" corrected to "All 5 workflows" (stale since v1.9.0 consolidation)
+
+### Added
+- 6 new audit tests: apply step propagation (2), stale output cleanup (2), SDP model consistency (1), README accuracy (1)
+- Native CC feature overlap analysis: all 5 custom features audited — KEEP CUSTOM (no overlap with CC v2.1.81)
+
+### Audited (no changes needed)
+- All 5 custom features (hooks + skills): value is in content (SDLC philosophy, TDD enforcement), not framework
+- Noted for future: `continue-on-error` patterns, `/tmp` hardcodes, permission scoping
+
 ## [1.11.0] - 2026-03-23
 
 ### Fixed
