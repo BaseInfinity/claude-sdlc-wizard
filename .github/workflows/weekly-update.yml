@@ -23,6 +23,8 @@ jobs:
       needs_update: ${{ steps.check-update.outputs.needs_update }}
       latest_version: ${{ steps.latest-release.outputs.latest_version }}
       skip: ${{ steps.existing-pr.outputs.skip }}
+      has_overlap: ${{ steps.parse.outputs.has_overlap }}
+      overlap_paths: ${{ steps.parse.outputs.overlap_paths }}
 
     steps:
       - name: Checkout repository
@@ -229,8 +231,19 @@ jobs:
           SAFE_SUMMARY=$(echo "$SUMMARY" | tr '\n' ' ' | head -c 500)
           echo "summary=$SAFE_SUMMARY" >> $GITHUB_OUTPUT
 
+          # Parse overlap signal from replaces_custom
+          OVERLAP_PATHS=$(jq -c '.plugin_check.replaces_custom // []' /tmp/analysis.json 2>/dev/null || echo "[]")
+          OVERLAP_COUNT=$(echo "$OVERLAP_PATHS" | jq 'length' 2>/dev/null || echo "0")
+          if [ "$OVERLAP_COUNT" -gt 0 ]; then
+            echo "has_overlap=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_overlap=false" >> $GITHUB_OUTPUT
+          fi
+          echo "overlap_paths=$OVERLAP_PATHS" >> $GITHUB_OUTPUT
+
           echo "Relevance: $RELEVANCE"
           echo "Summary: $SAFE_SUMMARY"
+          echo "Overlap: $OVERLAP_COUNT path(s)"
 
       - name: Update version file
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
@@ -1042,3 +1055,248 @@ jobs:
             community-patterns
             e2e-tested
             ${{ steps.verdict.outputs.verdict }}
+
+  # "Prove It's Better": Compare custom vs native when overlap detected
+  prove-it-test:
+    needs: check-updates
+    if: needs.check-updates.outputs.needs_update == 'true' && needs.check-updates.outputs.has_overlap == 'true'
+    runs-on: ubuntu-latest
+
+    outputs:
+      verdict: ${{ steps.verdict.outputs.verdict }}
+      baseline_score: ${{ steps.baseline.outputs.score }}
+      candidate_score: ${{ steps.candidate.outputs.score }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Setup baseline fixture (with custom features)
+        run: |
+          echo "Setting up baseline fixture with all custom features..."
+          mkdir -p tests/e2e/fixtures/test-repo/.claude
+          cp -r .claude/hooks tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r .claude/skills tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp .claude/settings.json tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+
+      # Baseline: Run with all custom features intact
+      - name: Run baseline simulation
+        id: baseline-sim
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          working_directory: tests/e2e/fixtures/test-repo
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+          prompt: |
+            Run an E2E SDLC simulation.
+
+            Scenario file: ../scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Baseline evaluation (Tier 2)
+        id: baseline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "No output file from baseline simulation"
+            echo "scores=0" >> $GITHUB_OUTPUT
+            echo "score=0" >> $GITHUB_OUTPUT
+            echo "ci=0 (no data)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Save baseline output before candidate overwrites it
+          cp "$OUTPUT_FILE" /tmp/baseline-output.json
+
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/medium-add-feature.md \
+            "$OUTPUT_FILE")
+
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "Baseline: $CI_RESULT"
+
+      # Create candidate fixture: custom features stripped
+      - name: Create stripped candidate fixture
+        id: strip
+        env:
+          OVERLAP_PATHS: ${{ needs.check-updates.outputs.overlap_paths }}
+        run: |
+          source tests/e2e/lib/prove-it.sh
+
+          VALID=$(validate_removable_paths "$OVERLAP_PATHS")
+          if [ -z "$VALID" ]; then
+            echo "No valid overlap paths after validation, skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Stripping custom features for candidate:"
+          echo "$VALID"
+
+          CANDIDATE_DIR=$(mktemp -d)
+          create_stripped_fixture tests/e2e/fixtures/test-repo "$CANDIDATE_DIR" "$OVERLAP_PATHS"
+          echo "candidate_dir=$CANDIDATE_DIR" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+      - name: Reset test fixture for candidate
+        if: steps.strip.outputs.skip != 'true'
+        run: |
+          CANDIDATE_DIR="${{ steps.strip.outputs.candidate_dir }}"
+          # Replace test-repo with stripped version
+          rm -rf tests/e2e/fixtures/test-repo
+          mv "$CANDIDATE_DIR" tests/e2e/fixtures/test-repo
+
+      # Candidate: Run WITHOUT the overlapping custom features
+      - name: Run candidate simulation (native only)
+        if: steps.strip.outputs.skip != 'true'
+        id: candidate-sim
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          working_directory: tests/e2e/fixtures/test-repo
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
+          prompt: |
+            Run an E2E SDLC simulation without custom SDLC hooks (testing native behavior).
+
+            Scenario file: ../scenarios/medium-add-feature.md
+
+            1. Read the scenario file to understand the task
+            2. Execute the scenario task following SDLC principles
+            3. Return results as JSON with score
+
+            After execution, output a summary of what you did and whether SDLC was followed.
+
+      - name: Candidate evaluation (Tier 2)
+        if: steps.strip.outputs.skip != 'true'
+        id: candidate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "No output file from candidate simulation"
+            echo "scores=0" >> $GITHUB_OUTPUT
+            echo "score=0" >> $GITHUB_OUTPUT
+            echo "ci=0 (no data)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          RESULT=$(./tests/e2e/run-tier2-evaluation.sh \
+            tests/e2e/scenarios/medium-add-feature.md \
+            "$OUTPUT_FILE")
+
+          SCORES=$(echo "$RESULT" | grep '^scores=' | cut -d= -f2)
+          MEAN=$(echo "$RESULT" | grep '^score=' | cut -d= -f2)
+          CI_RESULT=$(echo "$RESULT" | grep '^ci=' | cut -d= -f2-)
+
+          echo "scores=$SCORES" >> $GITHUB_OUTPUT
+          echo "score=$MEAN" >> $GITHUB_OUTPUT
+          echo "ci=$CI_RESULT" >> $GITHUB_OUTPUT
+          echo "Candidate: $CI_RESULT"
+
+      - name: Determine verdict
+        if: steps.strip.outputs.skip != 'true'
+        id: verdict
+        env:
+          BASELINE_SCORES: ${{ steps.baseline.outputs.scores }}
+          CANDIDATE_SCORES: ${{ steps.candidate.outputs.scores }}
+        run: |
+          source tests/e2e/lib/stats.sh
+
+          VERDICT=$(compare_ci "$BASELINE_SCORES" "$CANDIDATE_SCORES")
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+
+          # Translate verdict to recommendation
+          case "$VERDICT" in
+            REGRESSION)
+              echo "recommendation=KEEP CUSTOM" >> $GITHUB_OUTPUT
+              echo "Recommendation: KEEP CUSTOM (native is worse)"
+              ;;
+            IMPROVED)
+              echo "recommendation=SWITCH TO NATIVE" >> $GITHUB_OUTPUT
+              echo "Recommendation: SWITCH TO NATIVE (native is better)"
+              ;;
+            *)
+              echo "recommendation=TIE" >> $GITHUB_OUTPUT
+              echo "Recommendation: TIE (no significant difference)"
+              ;;
+          esac
+
+      - name: Post results as PR comment
+        if: steps.strip.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OVERLAP_PATHS: ${{ needs.check-updates.outputs.overlap_paths }}
+          BASELINE_CI: ${{ steps.baseline.outputs.ci }}
+          CANDIDATE_CI: ${{ steps.candidate.outputs.ci }}
+          VERDICT: ${{ steps.verdict.outputs.verdict }}
+          RECOMMENDATION: ${{ steps.verdict.outputs.recommendation }}
+        run: |
+          # Find the auto-update PR by branch name pattern
+          VERSION="${{ needs.check-updates.outputs.latest_version }}"
+          PR_NUM=$(gh pr list --json number,headRefName \
+            --jq ".[] | select(.headRefName | test(\"update/claude-code\")) | .number" \
+            2>/dev/null | head -1 || echo "")
+
+          if [ -z "$PR_NUM" ]; then
+            echo "No auto-update PR found, skipping comment"
+            exit 0
+          fi
+
+          # Write comment to file (safe from backtick injection)
+          cat > /tmp/prove-it-comment.md << 'COMMENTEOF'
+          ## Prove It's Better: Side-by-Side Comparison
+          COMMENTEOF
+
+          # Append dynamic values safely via printf (no shell expansion)
+          printf '\n**Overlapping features:** `%s`\n' "$OVERLAP_PATHS" >> /tmp/prove-it-comment.md
+          printf '\n| Variant | Score (95%% CI) |\n' >> /tmp/prove-it-comment.md
+          printf '|---------|----------------|\n' >> /tmp/prove-it-comment.md
+          printf '| With Custom Features (baseline) | %s |\n' "$BASELINE_CI" >> /tmp/prove-it-comment.md
+          printf '| Native Only (candidate) | %s |\n' "$CANDIDATE_CI" >> /tmp/prove-it-comment.md
+          printf '\n### Verdict: **%s**\n' "$VERDICT" >> /tmp/prove-it-comment.md
+          printf '### Recommendation: **%s**\n' "$RECOMMENDATION" >> /tmp/prove-it-comment.md
+          cat >> /tmp/prove-it-comment.md << 'TABLEEOF'
+
+          | Result | Meaning |
+          |--------|---------|
+          | KEEP CUSTOM | Custom version scores significantly higher |
+          | SWITCH TO NATIVE | Native version is equivalent or better — remove custom code |
+          | TIE | No significant difference — prefer native (less maintenance) |
+
+          ---
+          *Generated by prove-it-test in weekly-update workflow*
+          TABLEEOF
+
+          gh pr comment "$PR_NUM" --body-file /tmp/prove-it-comment.md

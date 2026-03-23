@@ -47,6 +47,20 @@ Any new plugins that could REPLACE our custom implementations?
 - IDE-specific features (VS Code, JetBrains)
 - Performance improvements (unless SDLC-related)
 
+## Custom Feature Inventory
+
+These are the wizard's custom features. If a new Claude Code release ships a native equivalent, list the exact file path(s) in `plugin_check.replaces_custom` so CI can run a side-by-side comparison.
+
+| Feature | File Path | Hook Event |
+|---------|-----------|------------|
+| SDLC prompt enforcement | `.claude/hooks/sdlc-prompt-check.sh` | `UserPromptSubmit` |
+| TDD pretool check | `.claude/hooks/tdd-pretool-check.sh` | `PreToolUse` |
+| Instructions loaded check | `.claude/hooks/instructions-loaded-check.sh` | `InstructionsLoaded` |
+| SDLC skill | `.claude/skills/sdlc/SKILL.md` | N/A (skill) |
+| Testing skill | `.claude/skills/testing/SKILL.md` | N/A (skill) |
+
+**Important:** Only use the exact file paths from the table above in `replaces_custom`. Paths not in this table will be rejected by the validation allowlist.
+
 ## Plugin Philosophy
 
 - If an official plugin exists that does what our custom code does → suggest removing our custom version
