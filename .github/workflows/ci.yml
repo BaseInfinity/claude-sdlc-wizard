@@ -23,6 +23,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure git identity for tests
+        run: |
+          git config --global user.email "ci@test.local"
+          git config --global user.name "CI Test"
+
       - name: Validate YAML workflows
         run: |
           echo "Validating workflow YAML files..."
