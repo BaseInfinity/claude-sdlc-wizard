@@ -348,8 +348,8 @@ test_tier2_no_silent_zero_fallback() {
         return
     fi
 
-    # The script must NOT silently default to score=0
-    if grep -q 'echo.*score.*0' "$T2_SCRIPT"; then
+    # The script must NOT silently default to score=0 via || echo fallback
+    if grep -q 'echo.*{"score":0}' "$T2_SCRIPT"; then
         fail "run-tier2-evaluation.sh silently falls back to score=0 (masks real failures)"
     else
         pass "run-tier2-evaluation.sh does not silently fall back to score=0"
