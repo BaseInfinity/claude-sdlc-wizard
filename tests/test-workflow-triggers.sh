@@ -988,6 +988,69 @@ test_review_prompt_no_shell_subst() {
 
 test_review_prompt_no_shell_subst
 
+# Test 91: pr-review prompt references CODE_REVIEW_EXCEPTIONS.md
+test_review_prompt_has_exceptions_ref() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml file not found"
+        return
+    fi
+
+    if grep -q "CODE_REVIEW_EXCEPTIONS.md" "$WORKFLOW"; then
+        pass "pr-review.yml prompt references CODE_REVIEW_EXCEPTIONS.md"
+    else
+        fail "pr-review.yml prompt does not reference CODE_REVIEW_EXCEPTIONS.md"
+    fi
+}
+
+# Test 92: CODE_REVIEW_EXCEPTIONS.md exists
+test_review_exceptions_file_exists() {
+    if [ -f "$REPO_ROOT/CODE_REVIEW_EXCEPTIONS.md" ]; then
+        pass "CODE_REVIEW_EXCEPTIONS.md exists"
+    else
+        fail "CODE_REVIEW_EXCEPTIONS.md not found in repo root"
+    fi
+}
+
+test_review_prompt_has_exceptions_ref
+test_review_exceptions_file_exists
+
+# Test 93: ci.yml has concurrency group (cancel stale runs)
+test_ci_has_concurrency() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci.yml file not found"
+        return
+    fi
+
+    if grep -q "cancel-in-progress: true" "$WORKFLOW"; then
+        pass "ci.yml has concurrency cancel-in-progress"
+    else
+        fail "ci.yml missing concurrency cancel-in-progress"
+    fi
+}
+
+# Test 94: pr-review.yml has concurrency group (cancel stale runs)
+test_pr_review_has_concurrency() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml file not found"
+        return
+    fi
+
+    if grep -q "cancel-in-progress: true" "$WORKFLOW"; then
+        pass "pr-review.yml has concurrency cancel-in-progress"
+    else
+        fail "pr-review.yml missing concurrency cancel-in-progress"
+    fi
+}
+
+test_ci_has_concurrency
+test_pr_review_has_concurrency
+
 # ============================================
 # Weekly-Update Workflow Input Validation Tests
 # ============================================
