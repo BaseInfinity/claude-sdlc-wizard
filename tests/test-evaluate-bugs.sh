@@ -317,6 +317,48 @@ test_value_gets_suffix
 test_null_becomes_na
 test_empty_becomes_na
 
+# --- BUG 7: run-tier2-evaluation.sh silent score=0 fallback ---
+
+echo ""
+echo "--- Tier 2 Silent Fallback Tests ---"
+
+# Test 16: run-tier2-evaluation.sh must NOT suppress stderr with 2>/dev/null
+test_tier2_no_stderr_suppression() {
+    local T2_SCRIPT="$SCRIPT_DIR/e2e/run-tier2-evaluation.sh"
+
+    if [ ! -f "$T2_SCRIPT" ]; then
+        fail "run-tier2-evaluation.sh not found"
+        return
+    fi
+
+    # The script must NOT contain '2>/dev/null' in the evaluate.sh call
+    if grep -q '2>/dev/null' "$T2_SCRIPT"; then
+        fail "run-tier2-evaluation.sh suppresses stderr with 2>/dev/null (masks real failures)"
+    else
+        pass "run-tier2-evaluation.sh does not suppress stderr"
+    fi
+}
+
+# Test 17: run-tier2-evaluation.sh must NOT have echo '{"score":0}' fallback
+test_tier2_no_silent_zero_fallback() {
+    local T2_SCRIPT="$SCRIPT_DIR/e2e/run-tier2-evaluation.sh"
+
+    if [ ! -f "$T2_SCRIPT" ]; then
+        fail "run-tier2-evaluation.sh not found"
+        return
+    fi
+
+    # The script must NOT silently default to score=0
+    if grep -q 'echo.*score.*0' "$T2_SCRIPT"; then
+        fail "run-tier2-evaluation.sh silently falls back to score=0 (masks real failures)"
+    else
+        pass "run-tier2-evaluation.sh does not silently fall back to score=0"
+    fi
+}
+
+test_tier2_no_stderr_suppression
+test_tier2_no_silent_zero_fallback
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
