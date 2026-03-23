@@ -811,9 +811,11 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 3. ~~"Prove It's Better" CI automation~~ — DONE (v1.10.0)
 4. ~~Tier 2 E2E full suite audit (#24)~~ — DONE (13 scripts wired, 3 bugs fixed)
 5. ~~Full system audit (#25)~~ — DONE: 4 bugs fixed, 6 tests added, native CC overlap audited (all KEEP CUSTOM)
-6. MCP plugin feasibility analysis (#30) — next
+6. Package self-update for users (#26) — next (lets users say "check for updates" and get new wizard versions)
+7. Post-update audit — verify self-update mechanism works E2E after #26
+8. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
 
-**Back burner:** Mutation testing (#21), Package self-update (#26), Node.js 20 (#68, June 2026), CI efficiency audit (#29)
+**Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026), CI efficiency audit (#29)
 
 ### Item 15: Eval Framework Improvements (Targeted, Not Framework Adoption)
 
