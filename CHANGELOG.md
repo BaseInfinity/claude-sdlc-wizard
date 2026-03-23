@@ -4,6 +4,17 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.10.0] - 2026-03-22
+
+### Added
+- "Prove It's Better" CI automation — when weekly-update detects a CC release that overlaps a custom wizard feature, CI auto-runs a side-by-side Tier 2 comparison and recommends KEEP CUSTOM / SWITCH TO NATIVE / TIE
+- `tests/e2e/lib/prove-it.sh` — path validation allowlist + fixture stripping library
+- `prove-it-test` job in `weekly-update.yml` — only runs when overlap detected ($0 extra on typical weeks)
+- Custom feature inventory table in `analyze-release.md` — tells Claude what to check for overlap
+- `has_overlap` / `overlap_paths` outputs wired from `check-updates` job
+- 13 new tests in `tests/test-prove-it.sh` (allowlist validation, fixture stripping, settings.json updates, overlap signal parsing, workflow integration)
+- Test fixture `tests/fixtures/releases/v99.0.0-overlap.json`
+
 ## [1.9.1] - 2026-03-22
 
 ### Verified
