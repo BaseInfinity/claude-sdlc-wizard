@@ -1168,6 +1168,9 @@ jobs:
         env:
           CANDIDATE_DIR: ${{ steps.strip.outputs.candidate_dir }}
         run: |
+          # Remove stale baseline output so candidate eval can't read it
+          rm -f "${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
           # Replace test-repo with stripped version
           rm -rf tests/e2e/fixtures/test-repo
           mv "$CANDIDATE_DIR" tests/e2e/fixtures/test-repo
