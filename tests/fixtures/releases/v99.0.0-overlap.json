@@ -1,0 +1,18 @@
+{
+  "version": "v99.0.0",
+  "relevance": "HIGH",
+  "summary": "Added native SDLC prompt enforcement hook that overlaps with wizard custom hook",
+  "wizard_impact": [
+    {
+      "area": "hooks",
+      "description": "Claude Code now ships a built-in SDLC prompt check on UserPromptSubmit",
+      "suggested_action": "Compare native vs custom via E2E and remove custom if native is equivalent or better",
+      "files_affected": [".claude/hooks/sdlc-prompt-check.sh", ".claude/settings.json"]
+    }
+  ],
+  "plugin_check": {
+    "new_official_plugins": ["sdlc-enforcement"],
+    "replaces_custom": [".claude/hooks/sdlc-prompt-check.sh"]
+  },
+  "reasoning": "This release adds a native SDLC enforcement hook identical to the wizard's custom sdlc-prompt-check.sh. HIGH relevance because it directly replaces custom wizard code. A side-by-side comparison should determine whether to keep custom or switch to native."
+}

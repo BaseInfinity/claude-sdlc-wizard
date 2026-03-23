@@ -807,7 +807,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 
 1. ~~Weekly workflow consolidation~~ — DONE (PR #70)
 2. ~~Verify all-findings self-heal (#27)~~ — VERIFIED (PR #70)
-3. "Prove It's Better" CI automation — auto native-vs-custom E2E comparison
+3. ~~"Prove It's Better" CI automation~~ — DONE (v1.10.0)
 4. Tier 2 E2E full suite audit (#24) — 5-trial statistical evaluation
 5. Full system audit (#25) — verify everything works as documented
 
@@ -1067,22 +1067,28 @@ The `workflows: write` permission was added in commit `208ecdb` to allow pushing
 
 ---
 
-## Future: "Prove It's Better" CI Automation
+## "Prove It's Better" CI Automation
 
-> Status: PLANNED — added during v2.1.81 catch-up (2026-03-20)
+> Status: DONE — implemented v1.10.0 (2026-03-22)
 
-When the weekly-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, the CI should automatically:
+When the weekly-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, CI automatically runs a side-by-side Tier 2 comparison.
 
-1. Run E2E with our custom version (baseline)
-2. Run E2E with the native version (candidate — wizard with custom feature removed)
-3. Compare scores in the PR comment
-4. Recommend: KEEP CUSTOM / SWITCH TO NATIVE / TIE
+**How it works:**
+1. `analyze-release.md` has custom feature inventory table — Claude checks for overlap
+2. `check-updates` job parses `replaces_custom` → outputs `has_overlap` + `overlap_paths`
+3. `prove-it-test` job (only runs when `has_overlap=true`):
+   - Baseline: full wizard with custom features → Tier 2 eval
+   - Candidate: wizard with overlapping custom features stripped → Tier 2 eval
+   - `compare_ci` from stats.sh → verdict: IMPROVED/STABLE/REGRESSION
+   - Maps to recommendation: KEEP CUSTOM / SWITCH TO NATIVE / TIE
+4. Posts sticky PR comment with comparison table
 
-**Implementation approach:**
-- Add overlap detection to `analyze-release.md` prompt — flag when native feature matches a wizard hook/skill
-- When flagged, CI creates two fixture variants: one with custom, one without
-- Run Tier 2 (5-trial) evaluation on both
-- Include comparison in PR comment alongside regular scores
+**Cost:** $0 extra on typical weeks (job skipped). ~$2.50 extra when overlap detected (within $5/week ceiling).
+
+**Files:**
+- `tests/e2e/lib/prove-it.sh` — path allowlist validation + fixture stripping
+- `.github/prompts/analyze-release.md` — custom feature inventory table
+- `.github/workflows/weekly-update.yml` — `prove-it-test` job + overlap outputs
 
 **Current overlap audit (as of v2.1.81):**
 
