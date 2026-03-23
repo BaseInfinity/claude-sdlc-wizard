@@ -160,7 +160,7 @@ This applies to everything: native commands vs custom skills, framework utilitie
 | Document | What It Covers |
 |----------|---------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, 5-layer diagram, data flows, file structure |
-| [CI_CD.md](CI_CD.md) | All 6 workflows, E2E scoring, tier system, SDP, integrity checks |
+| [CI_CD.md](CI_CD.md) | All 5 workflows, E2E scoring, tier system, SDP, integrity checks |
 | [SDLC.md](SDLC.md) | Version tracking, enforcement rules, SDLC configuration |
 | [TESTING.md](TESTING.md) | Testing philosophy, test diamond, TDD approach |
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |
