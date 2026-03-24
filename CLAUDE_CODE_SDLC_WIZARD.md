@@ -2818,13 +2818,28 @@ Ask Claude any of these:
 > "What am I missing from the latest wizard?"
 > "Update my SDLC setup"
 
-**All of these do the same thing:** Claude fetches the latest wizard and walks you through only what's missing.
+**All of these do the same thing:** Claude checks what's new, shows you, and walks you through only what's missing.
 
-### What Claude Does
+### Update URLs
 
-1. **Fetches latest wizard** from GitHub
-2. **Scans your setup** for existing components
-3. **For each wizard step**, checks if you already have it:
+Claude fetches from these URLs (via WebFetch):
+
+| Resource | URL |
+|----------|-----|
+| CHANGELOG | `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md` |
+| Wizard | `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` |
+
+### What Claude Does (4 Phases)
+
+**Step 1: Read installed version** from `SDLC.md` metadata:
+```
+<!-- SDLC Wizard Version: X.X.X -->
+```
+If no version comment exists, treat as `0.0.0`.
+
+**Step 2: Fetch CHANGELOG first** from the CHANGELOG URL above. Parse all entries between user's installed version and the latest version. Show the user what changed. If versions match, say "You're up to date!" and stop.
+
+**Step 3: Fetch full wizard and compare.** For each wizard step, check if the user already has it:
 
 | Component | How Claude Checks | If Missing | If Present |
 |-----------|-------------------|------------|------------|
@@ -2834,32 +2849,42 @@ Ask Claude any of these:
 | Docs | Does `SDLC.md`, `TESTING.md` exist? | Create | Compare against latest, offer updates |
 | CLAUDE.md | Does it exist? | Create from template | Never modify (fully custom) |
 | Questions | Were answers recorded in SDLC.md? | Ask them | Skip |
-| Version | Check `<!-- SDLC Wizard Version: X.X.X -->` | Add it | Update it |
 
-4. **Walks you through only missing pieces** (opt-in each)
-5. **Updates version comment** in SDLC.md
+**Step 4: Apply changes and bump version.** Walk through only missing/changed pieces (opt-in each). Update `<!-- SDLC Wizard Version: X.X.X -->` in SDLC.md to the latest version.
+
+### CHANGELOG Drives the Update Flow
+
+Claude reads the CHANGELOG to show you what's new **before** applying anything. The wizard contains file templates and step registry for the actual apply logic.
+
+- **CHANGELOG** = What changed and why (Claude shows you this first)
+- **Wizard** = File templates + step registry (Claude uses this to apply)
 
 ### Example: Old User Checking for Updates
 
 ```
-Claude: "Checking your SDLC setup against latest wizard (v1.3.0)..."
+Claude: "Fetching CHANGELOG to check for updates..."
 
-Your version: 1.0.0
+Your version: 1.8.0
+Latest version: 1.13.0
 
-✓ Step 2: Directory structure - exists
-✓ Step 3: settings.json - exists
-✓ Step 4: Light hook - exists
-✓ Step 5: TDD hook - exists
-✓ Step 6: SDLC skill - exists (content differs - update available)
-✓ Step 7: Testing skill - exists
-✗ Step 0.1: Required plugins - NOT DONE (new in v1.2.0)
-✗ Git workflow preference - NOT RECORDED (new in v1.2.0)
+What's new since 1.8.0:
+- v1.13.0: Self-update improvements, optional CI notification
+- v1.12.0: Full system audit, apply step fixes
+- v1.11.0: Stale output cleanup, error handling
+- v1.10.0: "Prove It's Better" CI automation
+- v1.9.0: Workflow consolidation (6 → 5 workflows)
+
+Now checking your setup against latest wizard...
+
+✓ Hooks - up to date
+✓ Skills - content differs (update available)
+✗ step-update-notify - NOT DONE (new in v1.13.0, optional)
 
 Summary:
 - 1 file update available (SDLC skill)
-- 2 new wizard steps to complete
+- 1 new optional step
 
-Walk through missing steps? (y/n)
+Walk through updates? (y/n)
 ```
 
 **The key:** Every new thing added to the wizard becomes a trackable "step". Old users automatically get prompted for new steps they haven't done.
@@ -2869,7 +2894,7 @@ Walk through missing steps? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.3.0 -->
+<!-- SDLC Wizard Version: 1.13.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
@@ -2881,9 +2906,10 @@ Store wizard state in `SDLC.md` as metadata comments (invisible to readers, pars
 
 When Claude runs the wizard:
 1. Parse the version and completed steps from SDLC.md
-2. Compare against latest wizard step registry
-3. For anything new that isn't marked complete → walk them through it
-4. Update the metadata after each step completes
+2. Fetch CHANGELOG first — show what's new between installed and latest
+3. Fetch full wizard, compare against step registry
+4. For anything new that isn't marked complete → walk them through it
+5. Update the metadata after each step completes
 
 ### Wizard Step Registry
 
@@ -2905,6 +2931,7 @@ Every wizard step has a unique ID for tracking:
 | `step-8` | CLAUDE.md | 1.0.0 |
 | `step-9` | SDLC/TESTING/ARCH docs | 1.0.0 |
 | `question-git-workflow` | Git workflow preference | 1.2.0 |
+| `step-update-notify` | Optional: CI update notification | 1.13.0 |
 
 When checking for updates, Claude compares user's completed steps against this registry.
 
@@ -2946,20 +2973,129 @@ Like `apt-get install`:
 | `SDLC.md`, `TESTING.md` | Wizard doc templates | Offer update if differs |
 | `CLAUDE.md` | NOT compared | Never touch (fully custom) |
 
-### CHANGELOG is for Humans, Not Claude
+### Wizard Update Notification (Optional)
 
-**Always run the wizard for updates.** Don't try to manually apply changes from CHANGELOG.
+Want to be notified when a new wizard version is available? Add this lightweight GitHub Action to your repo. It checks weekly, costs $0 (no API key), and creates a GitHub Issue when updates exist.
 
-- **CHANGELOG** = Human-readable summary of what's new (for you to read)
-- **Wizard** = The actual instructions Claude follows to detect and apply updates
+**Setup:**
+1. Create `.github/workflows/wizard-update-check.yml`:
 
-The wizard contains the step registry, file templates, and idempotent logic. CHANGELOG just helps explain what changed in plain English.
+```yaml
+name: SDLC Wizard Update Check
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays 10 AM UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-wizard-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: SDLC.md
+
+      - name: Check for wizard updates
+        id: check
+        run: |
+          # Read installed version from SDLC.md metadata
+          INSTALLED=$(grep -o 'SDLC Wizard Version: [0-9.]*' SDLC.md | grep -o '[0-9.]*' || echo "0.0.0")
+          echo "Installed wizard version: $INSTALLED"
+
+          # Fetch latest CHANGELOG
+          curl -sL https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md -o /tmp/changelog.md
+
+          # Extract latest version (first ## [X.X.X] line)
+          LATEST=$(grep -m1 -oE '\[[0-9]+\.[0-9]+\.[0-9]+\]' /tmp/changelog.md | tr -d '[]')
+          echo "Latest wizard version: $LATEST"
+
+          if [ "$INSTALLED" = "$LATEST" ]; then
+            echo "Up to date"
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Update available: v$INSTALLED -> v$LATEST"
+          echo "installed=$INSTALLED" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "needs_update=true" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog entries
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          python3 -c "
+          import re
+          text = open('/tmp/changelog.md').read()
+          installed = '${{ steps.check.outputs.installed }}'
+          sections = re.split(r'^## ', text, flags=re.MULTILINE)
+          relevant = []
+          for s in sections:
+              m = re.match(r'\[(\d+\.\d+\.\d+)\]', s)
+              if m:
+                  v = m.group(1)
+                  if v == installed:
+                      break
+                  relevant.append('## ' + s)
+          with open('/tmp/changes.md', 'w') as f:
+              f.write(''.join(relevant))
+          "
+
+      - name: Create notification issue
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INSTALLED: ${{ steps.check.outputs.installed }}
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          # Skip if open wizard-update issue already exists
+          EXISTING=$(gh issue list --label "wizard-update" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "Issue #$EXISTING already open, skipping"
+            exit 0
+          fi
+
+          CHANGES=$(cat /tmp/changes.md 2>/dev/null || echo "See CHANGELOG for details.")
+
+          gh issue create \
+            --title "SDLC Wizard update: v${INSTALLED} -> v${LATEST}" \
+            --label "wizard-update" \
+            --body "$(cat <<ISSUE_EOF
+          ## SDLC Wizard Update Available
+
+          **Installed:** v${INSTALLED}
+          **Latest:** v${LATEST}
+
+          ### What's New
+
+          ${CHANGES}
+
+          ### How to Update
+
+          Ask Claude: **"Check for SDLC wizard updates"**
+
+          Claude will fetch the latest wizard, show what changed, and walk you through updates (opt-in each).
+
+          ---
+          *Auto-generated by wizard update check. Close after updating.*
+          ISSUE_EOF
+          )"
+```
+
+2. Create the `wizard-update` label in your repo (the workflow uses it for deduplication)
+3. That's it — you'll get a GitHub Issue when updates are available
+
+**Cost:** $0. No API key needed. Pure bash/curl/python3. ~10 seconds of GitHub Actions time per week.
 
 ### Why This Approach?
 
-- Uses Claude Code's built-in WebFetch - zero infrastructure
+- **Manual flow (primary):** Uses Claude Code's built-in WebFetch - zero infrastructure
+- **CI notification (optional):** Lightweight issue creation - no API key, $0 cost
 - Opt-in per change - your customizations stay safe
-- KISS: no hooks, no config files, no GitHub Actions
 - **Tracks setup steps, not just files** - old users get new features
 
 ---

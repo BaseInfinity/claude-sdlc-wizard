@@ -130,6 +130,9 @@ jobs:
       - name: Run eval prompt regression tests
         run: ./tests/e2e/test-eval-prompt-regression.sh
 
+      - name: Run self-update mechanism tests
+        run: ./tests/test-self-update.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   cleanup-old-comments:
     runs-on: ubuntu-latest
