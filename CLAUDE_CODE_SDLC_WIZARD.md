@@ -1,6 +1,6 @@
 # Claude Code SDLC Setup Wizard
 
-> **Contribute**: This wizard is community-driven. PRs welcome at [github.com/BaseInfinity/sdlc-wizard](https://github.com/BaseInfinity/sdlc-wizard) - your discoveries help everyone.
+> **Contribute**: This wizard is community-driven. PRs welcome at [github.com/BaseInfinity/agentic-ai-sdlc-wizard](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard) - your discoveries help everyone.
 
 > **For Humans**: This wizard helps you implement a battle-tested SDLC enforcement system for Claude Code. It will scan your project, ask questions, and walk you through setup step-by-step. Works for solo developers, teams, and organizations alike.
 
@@ -2826,8 +2826,8 @@ Claude fetches from these URLs (via WebFetch):
 
 | Resource | URL |
 |----------|-----|
-| CHANGELOG | `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md` |
-| Wizard | `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` |
+| CHANGELOG | `https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md` |
+| Wizard | `https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md` |
 
 ### What Claude Does (4 Phases)
 
@@ -3008,7 +3008,7 @@ jobs:
           echo "Installed wizard version: $INSTALLED"
 
           # Fetch latest CHANGELOG
-          curl -sL https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md -o /tmp/changelog.md
+          curl -sL https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md -o /tmp/changelog.md
 
           # Extract latest version (first ## [X.X.X] line)
           LATEST=$(grep -m1 -oE '\[[0-9]+\.[0-9]+\.[0-9]+\]' /tmp/changelog.md | tr -d '[]')
@@ -3052,6 +3052,9 @@ jobs:
           INSTALLED: ${{ steps.check.outputs.installed }}
           LATEST: ${{ steps.check.outputs.latest }}
         run: |
+          # Ensure wizard-update label exists
+          gh label create "wizard-update" --color "0E8A16" --description "SDLC Wizard update available" 2>/dev/null || true
+
           # Skip if open wizard-update issue already exists
           EXISTING=$(gh issue list --label "wizard-update" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
@@ -3086,8 +3089,7 @@ jobs:
           )"
 ```
 
-2. Create the `wizard-update` label in your repo (the workflow uses it for deduplication)
-3. That's it — you'll get a GitHub Issue when updates are available
+2. That's it — you'll get a GitHub Issue when updates are available (the `wizard-update` label is auto-created on first run)
 
 **Cost:** $0. No API key needed. Pure bash/curl/python3. ~10 seconds of GitHub Actions time per week.
 

@@ -1,6 +1,5 @@
 #!/bin/bash
 # Test self-update mechanism in the wizard document
-# TDD: Tests written first before implementation
 
 set -e
 
@@ -29,7 +28,7 @@ echo ""
 
 # Test 1: Wizard contains raw CHANGELOG URL
 test_changelog_url() {
-    if grep -q "raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CHANGELOG.md" "$WIZARD"; then
+    if grep -q "raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md" "$WIZARD"; then
         pass "Wizard contains raw CHANGELOG URL"
     else
         fail "Wizard should contain raw.githubusercontent.com CHANGELOG URL"
@@ -38,7 +37,7 @@ test_changelog_url() {
 
 # Test 2: Wizard contains raw wizard URL
 test_wizard_url() {
-    if grep -q "raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md" "$WIZARD"; then
+    if grep -q "raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md" "$WIZARD"; then
         pass "Wizard contains raw wizard URL"
     else
         fail "Wizard should contain raw.githubusercontent.com wizard URL"
