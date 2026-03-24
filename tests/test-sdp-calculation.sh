@@ -321,6 +321,28 @@ test_default_model() {
     fi
 }
 
+# Test 17: Default model matches evaluate.sh (should be claude-opus-4-6, not claude-sonnet-4)
+test_default_model_matches_evaluate() {
+    # sdp-score.sh default model must match what evaluate.sh uses
+    local SDP_DEFAULT
+    SDP_DEFAULT=$(grep 'MODEL="\${2:-' "$SDP_SCRIPT" | grep -oE 'claude-[a-z0-9-]+' | head -1)
+
+    local EVAL_SCRIPT="$SCRIPT_DIR/e2e/evaluate.sh"
+    local EVAL_MODEL
+    EVAL_MODEL=$(grep 'SDP_MODEL="\${SDP_MODEL:-' "$EVAL_SCRIPT" | grep -oE 'claude-[a-z0-9-]+' | head -1)
+
+    if [ -z "$SDP_DEFAULT" ] || [ -z "$EVAL_MODEL" ]; then
+        fail "Could not extract model defaults (SDP: '$SDP_DEFAULT', evaluate: '$EVAL_MODEL')"
+        return
+    fi
+
+    if [ "$SDP_DEFAULT" = "$EVAL_MODEL" ]; then
+        pass "sdp-score.sh default model ($SDP_DEFAULT) matches evaluate.sh ($EVAL_MODEL)"
+    else
+        fail "sdp-score.sh default model ($SDP_DEFAULT) does NOT match evaluate.sh ($EVAL_MODEL)"
+    fi
+}
+
 # Run all tests
 test_script_exists
 test_help
@@ -338,6 +360,7 @@ test_raw_zero_all_fields
 test_max_score
 test_all_interpretations_valid
 test_default_model
+test_default_model_matches_evaluate
 
 echo ""
 echo "=== Results ==="

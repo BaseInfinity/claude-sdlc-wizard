@@ -376,11 +376,24 @@ jobs:
             - Prioritize HIGH priority recommendations
             - Don't rewrite entire sections
 
-      - name: Reset test fixture for candidate
+      - name: Reset test fixture and install modified wizard for candidate
         run: |
+          # Remove stale baseline output so candidate eval can't read it
+          rm -f "${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
+
+          # Reset test fixture state
           cd tests/e2e/fixtures/test-repo
           git checkout -- . 2>/dev/null || true
           git clean -fd 2>/dev/null || true
+          rm -rf .claude
+
+          # Install MODIFIED wizard (with applied research changes) into fixture
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p tests/e2e/fixtures/test-repo/.claude
+          cp -r .claude/hooks tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp -r .claude/skills tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          cp .claude/settings.json tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          echo "Modified wizard installed into test fixture for candidate evaluation"
 
       # Candidate: SDLC with research improvements
       - name: Run candidate simulation with Claude
