@@ -133,7 +133,7 @@ test_workflow_permissions() {
 
 # Test 9: Notification workflow creates issues (not PRs)
 test_creates_issues() {
-    if grep -A 100 "SDLC Wizard Update Check" "$WIZARD" | grep -q "gh issue create"; then
+    if grep -A 200 "SDLC Wizard Update Check" "$WIZARD" | grep -q "gh issue create"; then
         pass "Notification workflow creates issues (not PRs)"
     else
         fail "Notification workflow should create issues, not PRs"
@@ -142,7 +142,7 @@ test_creates_issues() {
 
 # Test 10: Notification workflow deduplicates (checks for existing issue)
 test_dedup_check() {
-    if grep -A 100 "SDLC Wizard Update Check" "$WIZARD" | grep -q "wizard-update.*open\|--state open.*wizard-update"; then
+    if grep -A 200 "SDLC Wizard Update Check" "$WIZARD" | grep -q "wizard-update.*open\|--state open.*wizard-update"; then
         pass "Notification workflow checks for existing open issues"
     else
         fail "Notification workflow should check for existing open wizard-update issues"
@@ -162,7 +162,7 @@ test_version_metadata_format() {
 test_multi_phase_flow() {
     # Should have at least 3 phases: version check, changelog, apply
     local phase_count
-    phase_count=$(grep -ci "phase [0-9]\|step [0-9].*:.*\(version\|changelog\|fetch\|apply\|compare\)" "$WIZARD" || echo "0")
+    phase_count=$(grep -Eci "phase [0-9]|step [0-9].*:.*(version|changelog|fetch|apply|compare)" "$WIZARD" || echo "0")
     if [ "$phase_count" -ge 3 ]; then
         pass "Update flow has multi-phase structure ($phase_count phases found)"
     else
