@@ -103,7 +103,7 @@ test_notification_workflow_yaml() {
         return
     fi
 
-    if python3 -c "import yaml; yaml.safe_load(open('$temp_yaml'))" 2>/dev/null; then
+    if WIZARD_YAML_PATH="$temp_yaml" python3 -c "import yaml, os; yaml.safe_load(open(os.environ['WIZARD_YAML_PATH']))" 2>/dev/null; then
         pass "Notification workflow template is valid YAML"
     else
         fail "Notification workflow template is not valid YAML"
