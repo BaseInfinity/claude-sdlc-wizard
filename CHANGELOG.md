@@ -4,6 +4,18 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.13.0] - 2026-03-23
+
+### Changed
+- Rewrote "Staying Updated" section with explicit fetch URLs, CHANGELOG-first update flow, and 4-phase process
+- Claude now shows users what changed (via CHANGELOG) before offering to apply updates
+- Fixed "CHANGELOG is for Humans, Not Claude" — Claude reads CHANGELOG first to drive the update flow
+
+### Added
+- Optional "Wizard Update Notification" GitHub Action template — weekly check, creates issue when newer version exists ($0 cost, no API key)
+- `step-update-notify` in wizard step registry (optional step for CI notification)
+- 12 new tests in `tests/test-self-update.sh` (URL correctness, YAML validation, workflow template, step registry)
+
 ## [1.12.0] - 2026-03-23
 
 ### Fixed
