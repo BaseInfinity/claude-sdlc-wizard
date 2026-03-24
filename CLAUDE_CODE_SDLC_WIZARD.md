@@ -3068,6 +3068,8 @@ jobs:
             --title "SDLC Wizard update: v${INSTALLED} -> v${LATEST}" \
             --label "wizard-update" \
             --body "$(cat <<ISSUE_EOF
+          # Note: ISSUE_EOF terminator indentation is intentional — YAML strips the block's
+          # base indentation, leaving ISSUE_EOF at column 0 in the shell. Do not change it.
           ## SDLC Wizard Update Available
 
           **Installed:** v${INSTALLED}
