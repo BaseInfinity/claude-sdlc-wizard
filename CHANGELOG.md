@@ -4,6 +4,21 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.11.0] - 2026-03-23
+
+### Fixed
+- Stale output file between baseline and candidate simulations in Tier 2 (candidate eval could read baseline data on silent failure)
+- Comment "3x evaluations" corrected to "5x evaluations" in ci.yml Tier 2 header
+- `run-tier2-evaluation.sh` silent `score=0` fallback replaced with proper error handling (stderr separation, exit on failure)
+
+### Added
+- 13 test scripts wired into CI validate job (228 additional tests now run on every PR)
+- Tests for Tier 2 comment accuracy and stale output cleanup
+- Tests for `run-tier2-evaluation.sh` error handling (no stderr suppression, no silent fallback)
+
+### Removed
+- Legacy duplicate `tests/test-self-heal-simulation.sh` (690 lines, subset of e2e version)
+
 ## [1.10.0] - 2026-03-22
 
 ### Added
