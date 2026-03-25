@@ -812,11 +812,10 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 4. ~~Tier 2 E2E full suite audit (#24)~~ — DONE (13 scripts wired, 3 bugs fixed)
 5. ~~Full system audit (#25)~~ — DONE: 4 bugs fixed, 6 tests added, native CC overlap audited (all KEEP CUSTOM)
 6. ~~Package self-update for users (#26)~~ — DONE: rewrote "Staying Updated" with explicit URLs + CHANGELOG-first, optional CI notification workflow, 12 tests
-7. Post-update audit — next: verify self-update mechanism works E2E
-8. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
-
-9. CI efficiency audit (#29) — review CI costs and runtime optimization
-10. Competitive audit — audit aistupidlevel.info, everything-claude-code, and similar SDLC/wizard repos. Glean ideas, compare approaches to ours, test if incorporating their techniques improves our E2E scores via Tier 2 A/B comparison
+7. ~~Post-update audit~~ — DONE: CI dispatch bug fixed (PR #75), Prove-It validated with synthetic scores, self-update URLs verified E2E, docs updated (CONTRIBUTING.md, SDLC.md)
+8. Competitive audit (#10) — audit aistupidlevel.info, [everything-claude-code](https://github.com/affaan-m/everything-claude-code), and similar repos. Glean ideas, compare approaches, test via Tier 2 A/B. Also validate Prove-It pipeline with live data. If inconclusive, add targeted scenarios for more signal. User reviews ambiguous results. Also audit the Prove-It pipeline itself — must prove winners with data and regression tests, not just say "STABLE"
+9. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
+10. CI efficiency audit (#29) — review CI costs and runtime optimization
 
 **Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026)
 
@@ -1105,6 +1104,14 @@ When the weekly-update workflow detects a new Claude Code feature that overlaps 
 | `/claude-api` (v2.1.69) | N/A — no custom equivalent | CONFIRMED — nothing to swap |
 | Auto-memory (v2.1.59) | N/A — we use native | CONFIRMED NATIVE |
 | `/batch`, `/loop`, `/effort` | N/A — no custom equivalent | DOCUMENT ONLY |
+
+### Pipeline Validation (Post-Update Audit, v1.14.0)
+
+- **compare_ci proven correct** for differences >= 2 points (Tests 14-17 in test-prove-it.sh)
+- **Never triggered in production** — no CC release overlapped custom features since v2.1.81
+- **Competitive audit (#10)** will be the first live validation opportunity
+- Sensitivity: 2-point mean shift detected with n=5 trials (IMPROVED, not STABLE)
+- Known limitation: if removing a hook doesn't materially change Claude's behavior on the test scenario, STABLE verdict is correct (not a bug)
 
 ---
 

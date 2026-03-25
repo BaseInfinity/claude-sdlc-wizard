@@ -170,6 +170,65 @@ test_multi_phase_flow() {
     fi
 }
 
+# Test 13: CHANGELOG URL returns valid content from live repo
+test_changelog_url_live() {
+    local url="https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md"
+    local content
+    content=$(curl -sf --max-time 10 "$url" 2>/dev/null) || {
+        pass "SKIPPED (offline): CHANGELOG URL live fetch"
+        return
+    }
+    if echo "$content" | grep -q "# Changelog"; then
+        pass "CHANGELOG URL returns valid content from live repo"
+    else
+        fail "CHANGELOG URL did not return expected content (missing '# Changelog' header)"
+    fi
+}
+
+# Test 14: Wizard URL returns valid content from live repo
+test_wizard_url_live() {
+    local url="https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md"
+    local content
+    content=$(curl -sf --max-time 10 "$url" 2>/dev/null) || {
+        pass "SKIPPED (offline): Wizard URL live fetch"
+        return
+    }
+    if echo "$content" | grep -q "SDLC Wizard"; then
+        pass "Wizard URL returns valid content from live repo"
+    else
+        fail "Wizard URL did not return expected content (missing 'SDLC Wizard')"
+    fi
+}
+
+# Test 15: Local CHANGELOG version matches local wizard version metadata
+test_version_consistency() {
+    local changelog="$SCRIPT_DIR/../CHANGELOG.md"
+
+    if [ ! -f "$changelog" ]; then
+        fail "CHANGELOG.md not found"
+        return
+    fi
+
+    # Extract latest version from CHANGELOG (first ## [x.y.z] line)
+    local changelog_version
+    changelog_version=$(grep -m1 '## \[' "$changelog" | sed 's/.*\[\(.*\)\].*/\1/')
+
+    # Extract version from wizard metadata comment
+    local wizard_version
+    wizard_version=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$WIZARD" | head -1 | sed 's/SDLC Wizard Version: //')
+
+    if [ -z "$changelog_version" ] || [ -z "$wizard_version" ]; then
+        fail "Could not extract versions (CHANGELOG: '$changelog_version', wizard: '$wizard_version')"
+        return
+    fi
+
+    if [ "$changelog_version" = "$wizard_version" ]; then
+        pass "Version consistency: CHANGELOG ($changelog_version) matches wizard metadata ($wizard_version)"
+    else
+        fail "Version mismatch: CHANGELOG says $changelog_version but wizard metadata says $wizard_version"
+    fi
+}
+
 # Run all tests
 test_changelog_url
 test_wizard_url
@@ -183,6 +242,9 @@ test_creates_issues
 test_dedup_check
 test_version_metadata_format
 test_multi_phase_flow
+test_changelog_url_live
+test_wizard_url_live
+test_version_consistency
 
 echo ""
 echo "=== Results ==="
