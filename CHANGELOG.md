@@ -4,6 +4,25 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.14.0] - 2026-03-24
+
+### Fixed
+- CI re-trigger bug: `workflow_dispatch` caused `e2e-quick-check` to skip, blocking auto-merge (PR #75). Jobs now accept dispatch events with simulation steps gated behind PR-only checks
+- SDLC.md version stuck at 1.9.0 (should be 1.14.0)
+- CONTRIBUTING.md missing 11 test scripts, outdated scoring criteria, wrong repo URL in discussions link
+
+### Added
+- 3 tests in `test-workflow-triggers.sh`: verify required CI jobs accept `workflow_dispatch`
+- 4 integration tests in `test-prove-it.sh`: prove `compare_ci` detects REGRESSION/STABLE/IMPROVED with synthetic scores
+- 3 E2E tests in `test-self-update.sh`: verify live CHANGELOG and wizard URLs return valid content
+- `should_simulate` gate in CI: dispatch runs produce green checks without burning API credits
+- Documented `workflow_dispatch` behavior in `ci-self-heal.yml`
+
+### Changed
+- Roadmap reordered: competitive audit (#10) before distribution (#30)
+- CONTRIBUTING.md scoring criteria updated to v3 multi-call judge + v3.1 pairwise tiebreaker
+- CONTRIBUTING.md test list updated to all 21 CI validate scripts
+
 ## [1.13.0] - 2026-03-23
 
 ### Changed

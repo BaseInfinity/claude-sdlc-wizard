@@ -7,14 +7,23 @@ Thank you for your interest in improving the SDLC Wizard!
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
 3. Make your changes
-4. Run tests:
+4. Run tests (all 21 scripts that CI validate runs):
    ```bash
    ./tests/test-version-logic.sh && ./tests/test-analysis-schema.sh && \
    ./tests/test-workflow-triggers.sh && ./tests/test-cusum.sh && \
    ./tests/test-stats.sh && ./tests/test-hooks.sh && \
    ./tests/test-compliance.sh && ./tests/test-sdp-calculation.sh && \
-   ./tests/test-external-benchmark.sh && ./tests/test-evaluate-bugs.sh && \
-   ./tests/test-score-analytics.sh
+   ./tests/test-evaluate-bugs.sh && ./tests/test-score-analytics.sh && \
+   ./tests/test-prove-it.sh && ./tests/test-self-update.sh && \
+   ./tests/e2e/test-deterministic-checks.sh && \
+   ./tests/e2e/test-scenario-rotation.sh && \
+   ./tests/e2e/test-simulation-prompt.sh && \
+   ./tests/e2e/test-pairwise-compare.sh && \
+   ./tests/e2e/test-json-extraction.sh && \
+   ./tests/e2e/test-eval-validation.sh && \
+   ./tests/e2e/test-self-heal-simulation.sh && \
+   ./tests/e2e/test-multi-call-eval.sh && \
+   ./tests/e2e/test-eval-prompt-regression.sh
    ```
 5. Submit a PR
 
@@ -31,15 +40,20 @@ We run 5 trials per evaluation to get statistically meaningful results.
 
 | Criterion | Points | Type | What It Measures |
 |-----------|--------|------|------------------|
-| TodoWrite/TaskCreate | 1 | Deterministic | Task tracking (grep for tool call) |
-| Confidence stated | 1 | Deterministic | Process compliance (grep for level) |
-| Plan mode | 2 | AI-judge | Appropriate for task complexity |
-| TDD RED | 2 | Deterministic | Test file created before impl |
-| TDD GREEN | 2 | Deterministic | Tests pass (exit code) |
-| Self-review | 1 | AI-judge | Meaningful review performed |
-| Clean code | 1 | AI-judge | Quality and coherence |
+| task_tracking | 1 | Deterministic | TaskCreate/TaskUpdate usage (grep) |
+| confidence | 1 | Deterministic | HIGH/MEDIUM/LOW stated (grep) |
+| plan_mode_outline | 1 | AI-judge | Planning steps documented |
+| plan_mode_tool | 1 | AI-judge | EnterPlanMode or plan file used |
+| tdd_red | 1 | Deterministic | Test written before implementation (JSON tool_use) |
+| tdd_green_ran | 1 | AI-judge | Tests executed |
+| tdd_green_pass | 1 | AI-judge | All tests pass in final run |
+| self_review | 1 | AI-judge | Meaningful code review step |
+| clean_code | 1 | AI-judge | No dead code, coherent flow |
+| design_system | 1 | AI-judge | UI scenarios only (+1 bonus point) |
 
-**Hybrid approach:** 60% deterministic (reproducible, can't be gamed) + 40% AI-judged (captures nuance, 5 trials handle variance).
+**Multi-call LLM judge (v3):** Each AI-judged criterion is scored by its own focused API call with dedicated calibration examples. Reduces variance vs monolithic single-call scoring.
+
+**Pairwise tiebreaker (v3.1):** When two scores are within 1.0 point, a holistic pairwise comparison runs on the full outputs to break the tie.
 
 ### SDP Scoring (Model Degradation Tracking)
 
@@ -116,9 +130,9 @@ This methodology is evolving. If you have ideas for improving our evaluation app
 
 ```bash
 # Validate YAML workflows
-python3 -c "import yaml; yaml.safe_load(open('.github/workflows/weekly-update.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 
-# Run all test suites
+# Run all 21 test scripts (same as CI validate job)
 ./tests/test-version-logic.sh
 ./tests/test-analysis-schema.sh
 ./tests/test-workflow-triggers.sh
@@ -127,12 +141,19 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/weekly-update.ym
 ./tests/test-hooks.sh
 ./tests/test-compliance.sh
 ./tests/test-sdp-calculation.sh
-./tests/test-external-benchmark.sh
 ./tests/test-evaluate-bugs.sh
 ./tests/test-score-analytics.sh
-
-# Run E2E validation (no API key needed)
-./tests/e2e/run-simulation.sh --validate
+./tests/test-prove-it.sh
+./tests/test-self-update.sh
+./tests/e2e/test-deterministic-checks.sh
+./tests/e2e/test-scenario-rotation.sh
+./tests/e2e/test-simulation-prompt.sh
+./tests/e2e/test-pairwise-compare.sh
+./tests/e2e/test-json-extraction.sh
+./tests/e2e/test-eval-validation.sh
+./tests/e2e/test-self-heal-simulation.sh
+./tests/e2e/test-multi-call-eval.sh
+./tests/e2e/test-eval-prompt-regression.sh
 
 # Run full E2E (requires ANTHROPIC_API_KEY)
 export ANTHROPIC_API_KEY=your-key
@@ -141,5 +162,5 @@ export ANTHROPIC_API_KEY=your-key
 
 ## Questions?
 
-Open an issue or check the [discussions](https://github.com/BaseInfinity/sdlc-wizard/discussions).
+Open an issue or check the [discussions](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/discussions).
 
