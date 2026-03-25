@@ -75,10 +75,20 @@ test_notification_workflow_exists() {
 # Test 6: Notification workflow template is valid YAML
 test_notification_workflow_yaml() {
     # Extract the workflow YAML block from the wizard and validate it
+    # NOTE (prior bug): An earlier version of the wizard had the "# Note: ISSUE_EOF terminator
+    # indentation is intentional" comment placed *inside* the ISSUE_EOF heredoc in the
+    # gh issue create --body call. This caused the comment to appear verbatim in generated
+    # GitHub Issue bodies. The comment has since been moved to just before the gh issue create
+    # call (outside the heredoc). This test validates the YAML is structurally sound, which
+    # would catch similar issues that break YAML parsing.
     local temp_yaml
     temp_yaml=$(mktemp "${TMPDIR:-/tmp}/wizard-workflow-XXXXXX.yml")
 
-    # Extract YAML between the notification workflow code fence
+    # Extract YAML between the notification workflow code fence.
+    # FRAGILITY NOTE: The closing-fence detection (grep '^\`\`\`$') will misfire if any
+    # nested code fence appears between "name: SDLC Wizard Update Check" and the real
+    # closing fence. This is low-risk given the current wizard structure but is line-count
+    # sensitive — if the workflow section is restructured, re-verify this extraction logic.
     local in_block=false
     local found=false
     while IFS= read -r line; do
