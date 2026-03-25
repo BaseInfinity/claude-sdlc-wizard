@@ -778,7 +778,7 @@ CI runs ──► FAIL ──► ci-autofix ──► Claude fixes ──► com
 | 24 | Tier 2 E2E full suite audit | HIGH | Run full Tier 2 evaluation (`merge-ready` label) end-to-end. Verify 5-trial statistical evaluation, 95% CI, pairwise tiebreaker, CUSUM, SDP, score history persistence, and PR comment formatting all work correctly in CI. This is the final validation gate before mutation testing. | DONE — 13 test scripts wired into CI (228 new tests), 3 bugs fixed, legacy duplicate deleted |
 | 25 | Full system audit | HIGH | Comprehensive audit of all workflows, tests, scripts, and docs after Tier 2 passes. Verify every feature works as documented. Catch any remaining silent failures or stale assumptions. Known bug: E2E "apply" step in daily/weekly/monthly doesn't propagate changes to test fixture — baseline vs candidate always tests same code, verdict always STABLE (useless comparison). Fix in this audit. Also: research current CC native features + official MCP servers for overlap with our 5 custom features (hooks + skills). Feed findings into #30. | DONE — 4 bugs fixed, 6 tests added, overlap analysis complete (all KEEP CUSTOM) |
 | 21 | Mutation testing | MED | Two tracks: (a) Wizard recommendation - detect stack and offer mutation testing setup (Stryker for JS/TS, mutmut for Python, pitest for Java, cargo-mutants for Rust). (b) Our own CI - explore "SDLC document mutation testing": mutate wizard doc sections, run E2E, verify score drops to prove which sections are load-bearing. Gate: Items 24-25 must pass first. | PLANNED — after 24-25 |
-| 26 | Add auto-self-update to wizard | MED | Package the proven self-healing CI loop into the wizard document so users can install it in their own repos. Gate: Item 25 (full system audit) must pass first — we only recommend what we've proven works. | PLANNED — final item |
+| 26 | Add auto-self-update to wizard | MED | Package the proven self-healing CI loop into the wizard document so users can install it in their own repos. Gate: Item 25 (full system audit) must pass first — we only recommend what we've proven works. | DONE — rewrote "Staying Updated" with explicit URLs + CHANGELOG-first flow, added optional CI notification workflow template, 12 new tests |
 | 27 | Verify `all-findings` self-heal loop | HIGH | After PR #51 merges to main, push a new PR and verify self-heal triggers on review suggestions (not just criticals). `workflow_run` reads from default branch — change is invisible until merged. Verify: self-heal triggers, Claude fixes suggestions, `[autofix 1/3]` commit pushed, CI re-triggered. | VERIFIED — PR #70 evidence (see below) |
 | 29 | CI efficiency audit | LOW | Review the full CI pipeline for cost/time optimization opportunities. Areas to explore: parallel job execution, caching, conditional skips for docs-only PRs, shared extraction logic across workflow jobs, review prompt token usage. Gate: after full system audit (#25). | PLANNED — back burner |
 | 30 | MCP plugin feasibility analysis | MED | Analyze whether the SDLC Wizard should become an official MCP server/plugin vs staying as skills+hooks. Research: (a) What would an MCP server add that skills/hooks can't? (b) Check official Anthropic MCP servers and CC native features for overlap with our 5 custom features. (c) Would packaging as MCP make it distributable/installable for other teams? (d) Cost/benefit: MCP server maintenance overhead vs current zero-dependency bash approach. Gate: after full system audit (#25). | PLANNED — after audit |
@@ -811,11 +811,13 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 3. ~~"Prove It's Better" CI automation~~ — DONE (v1.10.0)
 4. ~~Tier 2 E2E full suite audit (#24)~~ — DONE (13 scripts wired, 3 bugs fixed)
 5. ~~Full system audit (#25)~~ — DONE: 4 bugs fixed, 6 tests added, native CC overlap audited (all KEEP CUSTOM)
-6. Package self-update for users (#26) — next (lets users say "check for updates" and get new wizard versions)
-7. Post-update audit — verify self-update mechanism works E2E after #26
-8. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
+6. ~~Package self-update for users (#26)~~ — DONE: rewrote "Staying Updated" with explicit URLs + CHANGELOG-first, optional CI notification workflow, 12 tests
+7. ~~Post-update audit~~ — DONE: CI dispatch bug fixed (PR #75), Prove-It validated with synthetic scores, self-update URLs verified E2E, docs updated (CONTRIBUTING.md, SDLC.md)
+8. Competitive audit (#10) — audit aistupidlevel.info, [everything-claude-code](https://github.com/affaan-m/everything-claude-code), and similar repos. Glean ideas, compare approaches, test via Tier 2 A/B. Also validate Prove-It pipeline with live data. If inconclusive, add targeted scenarios for more signal. User reviews ambiguous results. Also audit the Prove-It pipeline itself — must prove winners with data and regression tests, not just say "STABLE"
+9. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
+10. CI efficiency audit (#29) — review CI costs and runtime optimization
 
-**Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026), CI efficiency audit (#29)
+**Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026)
 
 ### Item 15: Eval Framework Improvements (Targeted, Not Framework Adoption)
 
@@ -1102,6 +1104,14 @@ When the weekly-update workflow detects a new Claude Code feature that overlaps 
 | `/claude-api` (v2.1.69) | N/A — no custom equivalent | CONFIRMED — nothing to swap |
 | Auto-memory (v2.1.59) | N/A — we use native | CONFIRMED NATIVE |
 | `/batch`, `/loop`, `/effort` | N/A — no custom equivalent | DOCUMENT ONLY |
+
+### Pipeline Validation (Post-Update Audit, v1.14.0)
+
+- **compare_ci proven correct** for differences >= 2 points (Tests 14-17 in test-prove-it.sh)
+- **Never triggered in production** — no CC release overlapped custom features since v2.1.81
+- **Competitive audit (#10)** will be the first live validation opportunity
+- Sensitivity: 2-point mean shift detected with n=5 trials (IMPROVED, not STABLE)
+- Known limitation: if removing a hook doesn't materially change Claude's behavior on the test scenario, STABLE verdict is correct (not a bug)
 
 ---
 
