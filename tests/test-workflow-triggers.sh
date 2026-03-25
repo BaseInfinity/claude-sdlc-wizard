@@ -787,7 +787,7 @@ test_quick_check_comment_continue_on_error() {
     fi
 
     # Check that the "Build quick check comment message" step has continue-on-error: true
-    if grep -A 2 "Build quick check comment message" "$WORKFLOW" | grep -q "continue-on-error: true"; then
+    if grep -A 5 "Build quick check comment message" "$WORKFLOW" | grep -q "continue-on-error: true"; then
         pass "Build quick check comment message has continue-on-error: true"
     else
         fail "Build quick check comment message missing continue-on-error: true (cosmetic step can fail the build)"
@@ -2254,6 +2254,96 @@ test_monthly_copies_wizard_after_apply
 test_weekly_update_cleans_output_before_phase_b
 test_monthly_cleans_output_before_candidate
 test_readme_workflow_count_accurate
+
+# Test 98: e2e-quick-check must not skip on workflow_dispatch
+# Bug: PR #75 blocked because gh workflow run (dispatch) caused e2e-quick-check to be skipped.
+# Branch protection requires e2e-quick-check. Skipped result overwrites previous pass → PR blocked.
+test_quick_check_accepts_workflow_dispatch() {
+    CI="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$CI" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    # Extract the e2e-quick-check job's if: condition
+    # It must include workflow_dispatch, not just pull_request
+    local condition
+    condition=$(awk '/^ *e2e-quick-check:/{found=1} found && /^ *if:/{print; exit}' "$CI")
+
+    if echo "$condition" | grep -q "workflow_dispatch"; then
+        pass "e2e-quick-check condition allows workflow_dispatch"
+    else
+        fail "e2e-quick-check condition must allow workflow_dispatch (prevents PR #75 bug where dispatch overwrites check with 'skipped')"
+    fi
+}
+
+# Test 99: cleanup-old-comments must not skip on workflow_dispatch
+# Same bug pattern as e2e-quick-check — both are PR-conditional and required (or in needs chain).
+test_cleanup_accepts_workflow_dispatch() {
+    CI="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$CI" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    local condition
+    condition=$(awk '/^ *cleanup-old-comments:/{found=1} found && /^ *if:/{print; exit}' "$CI")
+
+    if echo "$condition" | grep -q "workflow_dispatch"; then
+        pass "cleanup-old-comments condition allows workflow_dispatch"
+    else
+        fail "cleanup-old-comments condition must allow workflow_dispatch (same bug as e2e-quick-check)"
+    fi
+}
+
+# Test 100: All jobs required by branch protection must run on workflow_dispatch
+# Branch protection requires: validate, e2e-quick-check
+# validate has no condition (always runs). e2e-quick-check needs dispatch support.
+# This test ensures no required job has a pull_request-only condition.
+test_required_checks_run_on_dispatch() {
+    CI="$REPO_ROOT/.github/workflows/ci.yml"
+
+    if [ ! -f "$CI" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    local all_pass=true
+
+    # Required checks: validate and e2e-quick-check
+    for job in validate e2e-quick-check; do
+        # Extract the if: line for this job (between job name and its steps/needs)
+        local condition
+        condition=$(sed -n "/^  ${job}:/,/^  [a-z]/{ /if:/p; }" "$CI" | head -1)
+
+        # No condition means always runs (good)
+        if [ -z "$condition" ]; then
+            continue
+        fi
+
+        # Has a condition — must not be pull_request-only (must include workflow_dispatch)
+        if echo "$condition" | grep -q "workflow_dispatch"; then
+            continue
+        fi
+
+        # If it only checks for pull_request, it will skip on dispatch
+        if echo "$condition" | grep -q "pull_request"; then
+            all_pass=false
+        fi
+    done
+
+    if [ "$all_pass" = true ]; then
+        pass "All branch-protection-required jobs (validate, e2e-quick-check) run on workflow_dispatch"
+    else
+        fail "Some required jobs skip on workflow_dispatch — will block auto-merge after self-heal re-trigger"
+    fi
+}
+
+test_quick_check_accepts_workflow_dispatch
+test_cleanup_accepts_workflow_dispatch
+test_required_checks_run_on_dispatch
 
 echo ""
 echo "=== Results ==="
