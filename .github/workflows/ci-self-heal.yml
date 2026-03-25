@@ -345,6 +345,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Uses workflow_dispatch because GITHUB_TOKEN pushes don't trigger pull_request events
+          # (GitHub anti-loop protection). ci.yml handles dispatch gracefully: e2e-quick-check and
+          # cleanup-old-comments run but skip simulation steps, producing green checks for branch
+          # protection without burning API credits. See PR #75 fix.
           echo "Re-triggering CI via workflow_dispatch..."
           gh workflow run ci.yml --ref ${{ steps.source.outputs.head_branch }} || true
 
