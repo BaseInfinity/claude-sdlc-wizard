@@ -3062,14 +3062,16 @@ jobs:
             exit 0
           fi
 
+          # Fallback: if the extract-changelog step was skipped or failed, $CHANGES will
+          # contain a plain string so the issue body still makes sense without changelog detail.
           CHANGES=$(cat /tmp/changes.md 2>/dev/null || echo "See CHANGELOG for details.")
 
+          # Note: ISSUE_EOF terminator indentation is intentional — YAML strips the block's
+          # base indentation, leaving ISSUE_EOF at column 0 in the shell. Do not change it.
           gh issue create \
             --title "SDLC Wizard update: v${INSTALLED} -> v${LATEST}" \
             --label "wizard-update" \
             --body "$(cat <<ISSUE_EOF
-          # Note: ISSUE_EOF terminator indentation is intentional — YAML strips the block's
-          # base indentation, leaving ISSUE_EOF at column 0 in the shell. Do not change it.
           ## SDLC Wizard Update Available
 
           **Installed:** v${INSTALLED}
