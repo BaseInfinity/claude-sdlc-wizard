@@ -816,8 +816,9 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 6. ~~Package self-update for users (#26)~~ — DONE: rewrote "Staying Updated" with explicit URLs + CHANGELOG-first, optional CI notification workflow, 12 tests
 7. ~~Post-update audit~~ — DONE: CI dispatch bug fixed (PR #75), Prove-It validated with synthetic scores, self-update URLs verified E2E, docs updated (CONTRIBUTING.md, SDLC.md)
 8. ~~Competitive audit (#10)~~ — DONE: Audited aistupidlevel.info (added as Source 3 in benchmark cascade), everything-claude-code, claude-sdlc, and 5 other repos. Added competitive watchlist to weekly community scan. Created COMPETITIVE_AUDIT.md with honest positioning. See PR #77
-9. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
-10. CI efficiency audit (#29) — review CI costs and runtime optimization
+9. Pre-distribution self-audit — Gate before #30: dead code audit (do we claim things we don't deliver?), re-run wizard on ourselves (is our own setup stale?), validate tests are testing the right things (not just passing)
+10. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
+11. CI efficiency audit (#29) — review CI costs and runtime optimization
 
 **Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026)
 
