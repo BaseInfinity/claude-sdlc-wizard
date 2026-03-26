@@ -600,6 +600,8 @@ PR comments now show:
 
 **RESOLVED (2026-02-15):** All metrics showed N/A because `claude-code-action@v1` does NOT include usage fields in its execution output file. Dead extraction code and Resource Usage PR comment sections removed. Token tracking can be re-enabled when/if the action starts exposing usage data. `tests/test-token-extraction.sh` deleted (tested against mocked data that didn't match reality).
 
+**WATCH (2026-03-25, competitive audit #10):** Token usage SHOULD factor into SDP scoring — if an update causes 3x more tokens, that's a real regression even if SDLC score holds. Blocked until `claude-code-action` exposes usage data. Weekly update workflow will catch when this becomes available. When it does: add tokens/run to score-history.jsonl, add token regression detection to compare_ci, display in PR comments.
+
 **Why Measure But Not Score (Yet):**
 
 | Reason | Explanation |
@@ -813,7 +815,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 5. ~~Full system audit (#25)~~ — DONE: 4 bugs fixed, 6 tests added, native CC overlap audited (all KEEP CUSTOM)
 6. ~~Package self-update for users (#26)~~ — DONE: rewrote "Staying Updated" with explicit URLs + CHANGELOG-first, optional CI notification workflow, 12 tests
 7. ~~Post-update audit~~ — DONE: CI dispatch bug fixed (PR #75), Prove-It validated with synthetic scores, self-update URLs verified E2E, docs updated (CONTRIBUTING.md, SDLC.md)
-8. Competitive audit (#10) — audit aistupidlevel.info, [everything-claude-code](https://github.com/affaan-m/everything-claude-code), and similar repos. Glean ideas, compare approaches, test via Tier 2 A/B. Also validate Prove-It pipeline with live data. If inconclusive, add targeted scenarios for more signal. User reviews ambiguous results. Also audit the Prove-It pipeline itself — must prove winners with data and regression tests, not just say "STABLE"
+8. ~~Competitive audit (#10)~~ — DONE: Audited aistupidlevel.info (added as Source 3 in benchmark cascade), everything-claude-code, claude-sdlc, and 5 other repos. Added competitive watchlist to weekly community scan. Created COMPETITIVE_AUDIT.md with honest positioning. See PR #77
 9. Distribution (#30) — make it easy for new users to install (research done: npx CLI or curl one-liner)
 10. CI efficiency audit (#29) — review CI costs and runtime optimization
 

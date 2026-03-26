@@ -18,6 +18,20 @@ The SDLC Wizard enforces:
 - Dev blogs: Popular posts about Claude Code tips/tricks
 - Official community channels (Discord, forums)
 
+### Competitive Watchlist
+
+Check these repos for new features, releases, or approaches we should know about:
+
+| Repo | Focus | Why We Watch |
+|------|-------|-------------|
+| [everything-claude-code](https://github.com/affaan-m/everything-claude-code) | Full agent framework (28 agents, 80+ skills) | Breadth leader — new hooks, skills, or patterns to consider |
+| [claude-sdlc](https://github.com/danielscholl/claude-sdlc) | SDLC plugin marketplace | Closest to our approach — slash commands, webhook automation |
+| [claude-code-sdlc](https://github.com/Koroqe/claude-code-sdlc) | 12-agent documentation-first pipeline | Documentation-first philosophy overlap |
+| [awesome-claude-code](https://github.com/hesreallyhim/awesome-claude-code) | Curated resource directory | Community pulse — what's getting stars/attention |
+| [aistupidlevel.info](https://github.com/StudioPlatforms/aistupidmeter-web) | Model benchmarking (CUSUM, CI) | Methodology ally — our stats.sh is inspired by their approach |
+
+For each: note new releases, significant changes, or ideas worth incorporating. Don't report if nothing changed.
+
 ## What To Look For
 
 ### Actionable Insights
