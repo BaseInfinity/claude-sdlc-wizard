@@ -2370,6 +2370,43 @@ test_analyze_release_handles_multi() {
 test_weekly_update_multi_release_fetch
 test_analyze_release_handles_multi
 
+# Test 103: ci-self-heal adds needs-regression-test label after autofix
+test_ci_autofix_regression_label() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -q 'needs-regression-test' "$WORKFLOW"; then
+        pass "ci-self-heal.yml adds needs-regression-test label after autofix"
+    else
+        fail "ci-self-heal.yml should add needs-regression-test label when autofix commits"
+    fi
+}
+
+# Test 104: ci-self-heal has issues: write permission (needed for label management)
+test_ci_autofix_has_issues_permission() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -q 'issues: write' "$WORKFLOW"; then
+        pass "ci-self-heal.yml has issues: write permission"
+    else
+        fail "ci-self-heal.yml needs issues: write permission for label management"
+    fi
+}
+
+# Test 105: ci-self-heal sticky comment mentions regression test when fix is committed
+test_ci_autofix_comment_regression_note() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -qi 'regression.*test\|regression-test' "$WORKFLOW"; then
+        pass "ci-self-heal.yml mentions regression test in autofix flow"
+    else
+        fail "ci-self-heal.yml should mention regression test needed after autofix"
+    fi
+}
+
+test_ci_autofix_regression_label
+test_ci_autofix_has_issues_permission
+test_ci_autofix_comment_regression_note
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
