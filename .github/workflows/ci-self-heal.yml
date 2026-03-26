@@ -360,6 +360,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
         run: |
+          # Ensure label exists (--force is idempotent — no error if already created)
+          gh label create "needs-regression-test" --color "e11d48" --description "Autofix applied; regression test needed" --force 2>/dev/null || true
           gh pr edit "$PR_NUMBER" --add-label "needs-regression-test" 2>&1 || {
             echo "::warning::Failed to add needs-regression-test label"
           }
