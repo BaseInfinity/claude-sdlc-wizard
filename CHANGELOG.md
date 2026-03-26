@@ -4,6 +4,20 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.15.0] - 2026-03-25
+
+### Added
+- aistupidlevel.info as Source 3 in external benchmark cascade (DailyBench -> LiveBench -> aistupidlevel -> baseline)
+- Competitive watchlist in `analyze-community.md` — weekly scan now checks 5 named repos for new releases/patterns
+- `COMPETITIVE_AUDIT.md` — honest ecosystem comparison, unique strengths, tracked gaps, contribution ideas
+- README "How This Compares" section with honest positioning table
+- Token usage tracking gap documented (blocked until `claude-code-action` exposes usage data)
+- 3 new tests in `test-external-benchmark.sh` for aistupidlevel integration
+- 2 new tests in `test-prove-it.sh` for competitive watchlist and README positioning
+
+### Changed
+- Roadmap reordered: competitive audit (#10) marked DONE
+
 ## [1.14.0] - 2026-03-24
 
 ### Fixed

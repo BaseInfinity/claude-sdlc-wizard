@@ -155,6 +155,27 @@ Don't reinvent the wheel. Use native/built-in features UNLESS you prove your cus
 
 This applies to everything: native commands vs custom skills, framework utilities vs hand-rolled code, library functions vs custom implementations.
 
+## How This Compares
+
+This isn't the only Claude Code SDLC tool. Here's an honest comparison:
+
+| Aspect | SDLC Wizard | everything-claude-code | claude-sdlc |
+|--------|------------|----------------------|-------------|
+| **Focus** | SDLC enforcement + measurement | Agent performance optimization | Plugin marketplace |
+| **Hooks** | 3 (SDLC, TDD, instructions) | 12+ (dev blocker, prettier, etc.) | Webhook watcher |
+| **Skills** | 2 (/sdlc, /testing) | 80+ domain-specific | 13 slash commands |
+| **Evaluation** | 95% CI, CUSUM, SDP, Tier 1/2 | Configuration testing | skilltest framework |
+| **Self-healing** | CI auto-fix + re-trigger | No | No |
+| **Auto-updates** | Weekly CC + community scan | No | No |
+| **Install** | Copy wizard file + run setup | npm install | npm install |
+| **Philosophy** | Lightweight, prove-it-or-delete | Scale and optimization | Documentation-first |
+
+**Our unique strengths:** Statistical rigor (CUSUM + 95% CI), SDP scoring (model quality vs SDLC compliance), self-healing CI, Prove-It A/B pipeline, 354+ automated tests, dogfooding enforcement.
+
+**Where others are stronger:** everything-claude-code has broader language/framework coverage. claude-sdlc has webhook-driven automation. Both have npm distribution.
+
+**The spirit:** Open source — we learn from each other. See [COMPETITIVE_AUDIT.md](COMPETITIVE_AUDIT.md) for details.
+
 ## Documentation
 
 | Document | What It Covers |

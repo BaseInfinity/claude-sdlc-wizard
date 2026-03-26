@@ -204,6 +204,36 @@ test_sonnet_variants() {
     fi
 }
 
+# Test 13: Help text lists aistupidlevel source
+test_help_lists_aistupidlevel() {
+    if "$BENCHMARK_SCRIPT" --help 2>/dev/null | grep -qi "aistupidlevel"; then
+        pass "Help text mentions aistupidlevel source"
+    else
+        fail "Help text should mention aistupidlevel as a benchmark source"
+    fi
+}
+
+# Test 14: Source cascade includes aistupidlevel function
+test_aistupidlevel_source_exists() {
+    if grep -q "aistupidlevel" "$BENCHMARK_SCRIPT"; then
+        pass "external-benchmark.sh includes aistupidlevel source"
+    else
+        fail "external-benchmark.sh should include aistupidlevel as a benchmark source"
+    fi
+}
+
+# Test 15: Source cascade tries aistupidlevel between LiveBench and baseline
+test_aistupidlevel_in_cascade() {
+    # The main() function should try aistupidlevel after livebench but before baseline
+    local main_body
+    main_body=$(sed -n '/^main()/,/^}/p' "$BENCHMARK_SCRIPT")
+    if echo "$main_body" | grep -q "try_aistupidlevel"; then
+        pass "aistupidlevel is in the fetch cascade"
+    else
+        fail "aistupidlevel should be in the main() fetch cascade"
+    fi
+}
+
 # Run all tests
 test_script_exists
 test_help
@@ -217,6 +247,9 @@ test_opus_model
 test_missing_baseline
 test_consistency
 test_sonnet_variants
+test_help_lists_aistupidlevel
+test_aistupidlevel_source_exists
+test_aistupidlevel_in_cascade
 cleanup
 
 echo ""

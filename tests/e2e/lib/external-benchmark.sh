@@ -9,7 +9,8 @@
 # Sources (in priority order):
 #   1. DailyBench (GitHub raw CSV) - Free
 #   2. LiveBench (GitHub data) - Free
-#   3. Cached baseline - Free (fallback)
+#   3. aistupidlevel.info (JSON API) - Free
+#   4. Cached baseline - Free (fallback)
 #
 # Features:
 #   - 24-hour cache to reduce API calls
@@ -40,9 +41,10 @@ Options:
   --help, -h      Show this help message
 
 Sources (tried in order):
-  1. DailyBench   GitHub CSV (free, updated 4x daily)
-  2. LiveBench    GitHub data (free, monthly fresh questions)
-  3. Baseline     Local fallback (always available)
+  1. DailyBench       GitHub CSV (free, updated 4x daily)
+  2. LiveBench        GitHub data (free, monthly fresh questions)
+  3. aistupidlevel    JSON API (free, real-time model scores)
+  4. Baseline         Local fallback (always available)
 
 Output:
   Numeric score (0-100 scale)
@@ -144,7 +146,49 @@ try_livebench() {
     return 1
 }
 
-# Source 3: Cached baseline (always works)
+# Source 3: aistupidlevel.info (JSON API)
+# API returns model scores with confidence intervals and trend data
+try_aistupidlevel() {
+    local URL="https://aistupidlevel.info/api/dashboard/scores"
+
+    # Map model names to aistupidlevel format (provider/model-version)
+    local aim_provider="anthropic"
+    local aim_pattern
+    case "$MODEL" in
+        claude-sonnet-4|claude-4-sonnet)
+            aim_pattern="claude-sonnet-4|claude-4-sonnet"
+            ;;
+        claude-opus-4|claude-4-opus)
+            aim_pattern="claude-opus-4|claude-4-opus"
+            ;;
+        claude-3-5-sonnet)
+            aim_pattern="claude-3-5-sonnet|claude-3.5-sonnet"
+            ;;
+        *)
+            aim_pattern=$(printf '%s' "$MODEL" | sed 's/[.+*?^${}()|[\]\\]/\\&/g')
+            ;;
+    esac
+
+    local json_data
+    json_data=$(curl -sf --connect-timeout 10 --max-time 30 "$URL" 2>/dev/null) || return 1
+
+    # Extract score for matching model from the data array
+    local score
+    score=$(echo "$json_data" | jq -r \
+        --arg provider "$aim_provider" \
+        --arg pattern "$aim_pattern" \
+        '[.data[] | select(.provider == $provider and (.name | test($pattern; "i")))] | sort_by(.lastUpdated) | last | .currentScore // empty' \
+        2>/dev/null)
+
+    if [ -n "$score" ] && echo "$score" | grep -qE '^[0-9]+\.?[0-9]*$'; then
+        echo "$score"
+        return 0
+    fi
+
+    return 1
+}
+
+# Source 4: Cached baseline (always works)
 use_baseline() {
     if [ -f "$BASELINE_FILE" ]; then
         local score
@@ -188,6 +232,8 @@ main() {
     if score=$(try_dailybench 2>/dev/null); then
         reset_failures
     elif score=$(try_livebench 2>/dev/null); then
+        reset_failures
+    elif score=$(try_aistupidlevel 2>/dev/null); then
         reset_failures
     else
         record_failure
