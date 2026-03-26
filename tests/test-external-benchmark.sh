@@ -215,7 +215,7 @@ test_help_lists_aistupidlevel() {
 
 # Test 14: Source cascade includes aistupidlevel function
 test_aistupidlevel_source_exists() {
-    if grep -q "try_aistupidlevel\|aistupidlevel" "$BENCHMARK_SCRIPT"; then
+    if grep -q "aistupidlevel" "$BENCHMARK_SCRIPT"; then
         pass "external-benchmark.sh includes aistupidlevel source"
     else
         fail "external-benchmark.sh should include aistupidlevel as a benchmark source"

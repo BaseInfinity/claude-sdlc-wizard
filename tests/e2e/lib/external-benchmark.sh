@@ -165,7 +165,7 @@ try_aistupidlevel() {
             aim_pattern="claude-3-5-sonnet|claude-3.5-sonnet"
             ;;
         *)
-            aim_pattern="$MODEL"
+            aim_pattern=$(printf '%s' "$MODEL" | sed 's/[.+*?^${}()|[\]\\]/\\&/g')
             ;;
     esac
 
