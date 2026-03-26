@@ -129,6 +129,7 @@ jobs:
             - If nothing notable found, set nothing_notable: true
             - Prioritize actionable insights over interesting-but-not-useful
           claude_args: |
+            --bare
             --allowedTools "WebSearch,WebFetch"
 
       - name: Save research result to file
@@ -364,6 +365,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--bare"
           prompt: |
             Based on this month's research findings, apply minimal targeted
             improvements to SDLC.md.

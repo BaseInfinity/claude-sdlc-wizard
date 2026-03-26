@@ -164,6 +164,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
+          claude_args: "--bare"
 
       - name: Extract analysis from execution output
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
@@ -509,6 +510,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--bare"
           prompt: |
             Analyze the changelog for Claude Code ${{ needs.check-updates.outputs.latest_version }}
             and suggest minimal, targeted improvements to SDLC.md that would help
@@ -742,6 +744,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ steps.build-prompt.outputs.prompt }}
           claude_args: |
+            --bare
             --allowedTools "WebSearch,WebFetch"
 
       - name: Save scan result to file
@@ -982,6 +985,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--bare"
           prompt: |
             Based on the community findings from this week's scan, apply minimal
             targeted improvements to SDLC.md.

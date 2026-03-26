@@ -259,6 +259,7 @@ jobs:
             Reference specific files and lines like `src/foo.ts:42` for easy navigation.
 
           claude_args: |
+            --bare
             --allowedTools "mcp__github__get_pull_request_diff,Read,Grep,Glob"
 
       # Extract review from Claude's output

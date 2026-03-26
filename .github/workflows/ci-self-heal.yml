@@ -237,6 +237,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
+            --bare
             --max-turns 30
             --allowedTools "Read,Edit,Write,Bash(./tests/*),Bash(python3 *),Glob,Grep"
           prompt: |
