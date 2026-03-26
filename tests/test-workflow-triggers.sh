@@ -2419,6 +2419,94 @@ test_ci_autofix_has_issues_permission
 test_ci_autofix_comment_regression_note
 test_ci_autofix_ensures_label_exists
 
+# --- --bare flag tests (non-E2E steps should use --bare, E2E simulations should NOT) ---
+
+# Test 107: pr-review.yml uses --bare in claude_args
+test_bare_pr_review() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if grep -A2 'claude_args:' "$WORKFLOW" | grep -q '\-\-bare'; then
+        pass "pr-review.yml uses --bare in claude_args"
+    else
+        fail "pr-review.yml should use --bare (non-E2E analysis step)"
+    fi
+}
+
+# Test 108: ci-self-heal.yml uses --bare in claude_args
+test_bare_ci_self_heal() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -A3 'claude_args:' "$WORKFLOW" | grep -q '\-\-bare'; then
+        pass "ci-self-heal.yml uses --bare in claude_args"
+    else
+        fail "ci-self-heal.yml should use --bare (non-E2E fix step)"
+    fi
+}
+
+# Test 109: weekly-update.yml analysis step uses --bare
+test_bare_weekly_update_analysis() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    # The "Analyze release with Claude" step should have --bare
+    # Check that the step's claude-code-action invocation includes --bare
+    if sed -n '/name: Analyze release with Claude/,/name:/p' "$WORKFLOW" | grep -q '\-\-bare'; then
+        pass "weekly-update.yml analysis step uses --bare"
+    else
+        fail "weekly-update.yml 'Analyze release with Claude' should use --bare"
+    fi
+}
+
+# Test 110: monthly-research.yml deep research step uses --bare
+test_bare_monthly_research() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+
+    if sed -n '/name: Run deep research with Claude/,/name:/p' "$WORKFLOW" | grep -q '\-\-bare'; then
+        pass "monthly-research.yml deep research step uses --bare"
+    else
+        fail "monthly-research.yml 'Run deep research with Claude' should use --bare"
+    fi
+}
+
+# Test 111: ci.yml E2E simulation steps do NOT use --bare (negative test)
+test_no_bare_ci_simulations() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+    # ci.yml has ONLY E2E simulation steps — none should have --bare
+    if grep -A3 'claude_args:' "$WORKFLOW" | grep -q '\-\-bare'; then
+        fail "ci.yml should NOT use --bare (all steps are E2E simulations)"
+    else
+        pass "ci.yml correctly does NOT use --bare in any step"
+    fi
+}
+
+# Test 112: weekly-update.yml simulation steps do NOT use --bare (negative test)
+test_no_bare_weekly_simulations() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    # Simulation steps have claude_args with --allowedTools but should NOT have --bare
+    # Check that simulation step names don't have --bare in their claude_args blocks
+    local bare_in_sim=false
+    for sim_name in "Run scenario simulation with Claude" "Run baseline simulation with Claude" "Run candidate simulation with Claude"; do
+        if sed -n "/name: ${sim_name}/,/name:/p" "$WORKFLOW" | grep -q '\-\-bare'; then
+            bare_in_sim=true
+            break
+        fi
+    done
+
+    if [ "$bare_in_sim" = "false" ]; then
+        pass "weekly-update.yml simulation steps correctly do NOT use --bare"
+    else
+        fail "weekly-update.yml simulation steps should NOT use --bare"
+    fi
+}
+
+test_bare_pr_review
+test_bare_ci_self_heal
+test_bare_weekly_update_analysis
+test_bare_monthly_research
+test_no_bare_ci_simulations
+test_no_bare_weekly_simulations
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
