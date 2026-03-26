@@ -156,13 +156,13 @@ try_aistupidlevel() {
     local aim_pattern
     case "$MODEL" in
         claude-sonnet-4|claude-4-sonnet)
-            aim_pattern="claude-sonnet-4\|claude-4-sonnet"
+            aim_pattern="claude-sonnet-4|claude-4-sonnet"
             ;;
         claude-opus-4|claude-4-opus)
-            aim_pattern="claude-opus-4\|claude-4-opus"
+            aim_pattern="claude-opus-4|claude-4-opus"
             ;;
         claude-3-5-sonnet)
-            aim_pattern="claude-3-5-sonnet\|claude-3.5-sonnet"
+            aim_pattern="claude-3-5-sonnet|claude-3.5-sonnet"
             ;;
         *)
             aim_pattern="$MODEL"
