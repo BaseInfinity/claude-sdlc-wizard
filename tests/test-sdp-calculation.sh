@@ -136,7 +136,7 @@ test_robustness() {
 
     if [ -n "$robustness" ]; then
         # Robustness should be a non-negative number (uses absolute ratio)
-        if echo "$robustness" | grep -qE '^[0-9]+\.?[0-9]*$'; then
+        if echo "$robustness" | grep -qE '^[0-9]*\.?[0-9]+$'; then
             pass "Robustness is non-negative: $robustness"
         else
             fail "Robustness should be non-negative numeric, got: $robustness"

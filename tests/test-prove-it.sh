@@ -369,6 +369,44 @@ else
 fi
 
 # ============================================
+# Competitive Watchlist Tests
+# ============================================
+
+# Test 18: Monthly research prompt includes competitive watchlist
+test_monthly_has_competitive_watchlist() {
+    local MONTHLY_WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+    local COMMUNITY_PROMPT="$REPO_ROOT/.github/prompts/analyze-community.md"
+
+    # Check either the workflow or the community prompt for competitive repos
+    local found=false
+    for file in "$MONTHLY_WORKFLOW" "$COMMUNITY_PROMPT"; do
+        if [ -f "$file" ] && grep -qi "everything-claude-code\|competitive.*watchlist\|competitor" "$file" 2>/dev/null; then
+            found=true
+            break
+        fi
+    done
+
+    if [ "$found" = "true" ]; then
+        pass "Monthly research includes competitive watchlist"
+    else
+        fail "Monthly research should include a competitive watchlist (everything-claude-code, etc.)"
+    fi
+}
+test_monthly_has_competitive_watchlist
+
+# Test 19: README has positioning/comparison section
+test_readme_has_positioning() {
+    local README="$REPO_ROOT/README.md"
+
+    if grep -qi "how.*compares\|comparison\|positioning\|community.*landscape\|competitive" "$README" 2>/dev/null; then
+        pass "README has positioning/comparison section"
+    else
+        fail "README should have a section comparing SDLC Wizard to community alternatives"
+    fi
+}
+test_readme_has_positioning
+
+# ============================================
 # Results
 # ============================================
 
