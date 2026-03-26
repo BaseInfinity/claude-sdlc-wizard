@@ -11,6 +11,7 @@ permissions:
   pull-requests: write
   actions: write
   id-token: write
+  issues: write
 
 env:
   MAX_AUTOFIX_RETRIES: 3
@@ -352,6 +353,17 @@ jobs:
           echo "Re-triggering CI via workflow_dispatch..."
           gh workflow run ci.yml --ref ${{ steps.source.outputs.head_branch }} || true
 
+      # === REGRESSION TEST SIGNAL ===
+      - name: Add needs-regression-test label
+        if: steps.commit.outputs.committed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          gh pr edit "$PR_NUMBER" --add-label "needs-regression-test" 2>&1 || {
+            echo "::warning::Failed to add needs-regression-test label"
+          }
+
       # === STATUS COMMENT ===
       - name: Build autofix status comment
         if: |
@@ -399,6 +411,10 @@ jobs:
             echo ""
             echo "</details>"
             echo ""
+            if [ "$COMMITTED" = "true" ]; then
+              echo ""
+              echo "> **Regression test needed:** This autofix addresses the symptom. A regression test should be added to prevent recurrence."
+            fi
             echo "---"
             echo "_Auto-fix by Claude Code. Max ${MAX_RETRIES} attempts._"
           } > /tmp/autofix-comment.md
