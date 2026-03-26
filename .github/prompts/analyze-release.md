@@ -1,6 +1,6 @@
 # Claude Code Release Analysis Prompt
 
-You are analyzing a Claude Code release to determine if it's relevant to the SDLC Wizard.
+You are analyzing one or more Claude Code releases to determine if they're relevant to the SDLC Wizard. If multiple releases are provided, produce a single unified analysis covering all of them. The `version` field in your JSON response should be the newest version.
 
 ## Wizard Context
 
