@@ -41,35 +41,61 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Last checked version: $VERSION"
 
-      - name: Fetch latest Claude Code release
+      - name: Fetch Claude Code releases
         id: latest-release
         env:
           GH_TOKEN: ${{ github.token }}
+          LAST_VERSION: ${{ steps.last-version.outputs.version }}
         run: |
-          # W4: Fail loudly on API failure instead of silent fallback to v0.0.0
-          RELEASE_JSON=$(gh api repos/anthropics/claude-code/releases/latest 2>/dev/null) || {
-            echo "::error::Failed to fetch latest Claude Code release from GitHub API"
+          # Fetch recent releases (one API call, covers any realistic weekly gap)
+          RELEASES_JSON=$(gh api "repos/anthropics/claude-code/releases?per_page=100" 2>/dev/null) || {
+            echo "::error::Failed to fetch Claude Code releases from GitHub API"
             exit 1
           }
 
-          LATEST_VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name')
+          # Extract latest version (first entry = most recent)
+          LATEST_VERSION=$(echo "$RELEASES_JSON" | jq -r '.[0].tag_name')
           if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
-            echo "::error::Could not parse tag_name from release JSON"
+            echo "::error::Could not parse tag_name from releases JSON"
             exit 1
           fi
 
-          RELEASE_DATE=$(echo "$RELEASE_JSON" | jq -r '.published_at // "unknown"')
-          RELEASE_URL=$(echo "$RELEASE_JSON" | jq -r '.html_url // ""')
+          RELEASE_DATE=$(echo "$RELEASES_JSON" | jq -r '.[0].published_at // "unknown"')
+          RELEASE_URL=$(echo "$RELEASES_JSON" | jq -r '.[0].html_url // ""')
 
           echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
           echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
           echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
 
-          # Save release body to file (safer than shell variable)
-          echo "$RELEASE_JSON" | jq -r '.body' > /tmp/release_body.md
+          # Filter to releases newer than last-checked-version (jq semver comparison)
+          echo "$RELEASES_JSON" | jq --arg last "$LAST_VERSION" '
+            [.[] | select(.tag_name != $last) | select(
+              (.tag_name | ltrimstr("v") | split(".") | map(tonumber)) as $ver |
+              ($last | ltrimstr("v") | split(".") | map(tonumber)) as $chk |
+              ($ver[0] > $chk[0]) or
+              ($ver[0] == $chk[0] and $ver[1] > $chk[1]) or
+              ($ver[0] == $chk[0] and $ver[1] == $chk[1] and $ver[2] > $chk[2])
+            )] | reverse
+          ' > /tmp/new_releases.json
 
-          echo "Latest version: $LATEST_VERSION"
-          echo "Release date: $RELEASE_DATE"
+          RELEASE_COUNT=$(jq 'length' /tmp/new_releases.json)
+          echo "release_count=$RELEASE_COUNT" >> $GITHUB_OUTPUT
+          echo "Found $RELEASE_COUNT new release(s) since $LAST_VERSION"
+          echo "Latest version: $LATEST_VERSION ($RELEASE_DATE)"
+
+          # Build combined release body for analysis
+          if [ "$RELEASE_COUNT" -eq 0 ]; then
+            echo "" > /tmp/release_body.md
+          elif [ "$RELEASE_COUNT" -eq 1 ]; then
+            # Single release: plain body (backward compatible)
+            jq -r '.[0].body // ""' /tmp/new_releases.json > /tmp/release_body.md
+          else
+            # Multiple releases: numbered sections, oldest-first
+            jq -r '
+              to_entries | .[] |
+              "## Release \(.key + 1): \(.value.tag_name) (\(.value.published_at // "unknown"))\n\(.value.body // "(no release notes)")\n\n---\n"
+            ' /tmp/new_releases.json > /tmp/release_body.md
+          fi
 
       - name: Check if update needed
         id: check-update
@@ -105,13 +131,18 @@ jobs:
         id: build-prompt
         run: |
           # Assemble analysis prompt from template + release context
+          RELEASE_COUNT="${{ steps.latest-release.outputs.release_count }}"
           {
             cat .github/prompts/analyze-release.md
             echo ""
-            echo "## Release to Analyze"
+            echo "## Release(s) to Analyze"
             echo ""
-            echo "**Version:** ${{ steps.latest-release.outputs.latest_version }}"
-            echo "**Date:** ${{ steps.latest-release.outputs.release_date }}"
+            if [ "$RELEASE_COUNT" -gt 1 ]; then
+              echo "**Versions:** $RELEASE_COUNT releases from ${{ steps.last-version.outputs.version }} to ${{ steps.latest-release.outputs.latest_version }}"
+            else
+              echo "**Version:** ${{ steps.latest-release.outputs.latest_version }}"
+            fi
+            echo "**Latest Date:** ${{ steps.latest-release.outputs.release_date }}"
             echo "**URL:** ${{ steps.latest-release.outputs.release_url }}"
             echo ""
             echo "**Release Notes:**"

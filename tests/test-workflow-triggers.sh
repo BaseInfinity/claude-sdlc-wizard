@@ -2345,6 +2345,31 @@ test_quick_check_accepts_workflow_dispatch
 test_cleanup_accepts_workflow_dispatch
 test_required_checks_run_on_dispatch
 
+# Test 101: weekly-update fetches release list (not just /releases/latest)
+test_weekly_update_multi_release_fetch() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if grep -q 'releases?per_page=' "$WORKFLOW"; then
+        pass "weekly-update.yml fetches release list (not just /releases/latest)"
+    else
+        fail "weekly-update.yml should use releases?per_page= instead of releases/latest"
+    fi
+}
+
+# Test 102: analyze-release.md handles multiple releases
+test_analyze_release_handles_multi() {
+    local PROMPT="$REPO_ROOT/.github/prompts/analyze-release.md"
+
+    if grep -qi "one or more.*release\|multiple release\|releases are provided" "$PROMPT"; then
+        pass "analyze-release.md handles multiple releases"
+    else
+        fail "analyze-release.md should mention handling multiple releases"
+    fi
+}
+
+test_weekly_update_multi_release_fetch
+test_analyze_release_handles_multi
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
