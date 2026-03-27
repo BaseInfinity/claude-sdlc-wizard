@@ -3,10 +3,138 @@
 > Audit log for Codex repo reviews.
 >
 > This file now contains:
+> - The PR-local review for `fix/codex-pass2-findings` (no findings; ready to merge)
 > - The current deep `main` audit pass (open findings, if any)
 > - The earlier `main` audit pass (already fixed)
 > - The PR-local review for `fix/codex-main-audit` (already fixed and merged)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
+
+## Current deep main audit (pass 3, 2026-03-27)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Branch state reviewed after `git pull --ff-only origin main` -> already up to date
+- Verification run during this pass:
+  - `./tests/test-self-update.sh` -> passed (`19` passed, `0` failed)
+  - `./tests/test-prove-it.sh` -> passed (`19` passed, `0` failed)
+  - `./tests/test-workflow-triggers.sh` -> passed (`156` passed, `0` failed)
+  - targeted grep across workflows/tests/docs for:
+    - setup-fixture usage vs greenfield fixture usage
+    - Step 0.4 / auto-scan coverage
+    - friction-driven self-evolution evidence
+- Manual review focused on:
+  - whether the wizard's setup/onboarding claims are exercised by the live CI/E2E path
+  - whether the repo's "self-evolving from friction" story is implemented as an audited capability or only described narratively
+  - whether the previously logged observability trust gap is still present on `main`
+
+### Findings
+
+#### P2: the repo's strongest onboarding claim is still only partially proven
+
+- Evidence:
+  - The main landing page claims the wizard "auto-detects your stack ... and generates bespoke hooks + skills + docs": `README.md:41`
+  - The wizard itself documents a large setup-time auto-scan across package managers, test frameworks, deployment targets, tool permissions, and design-system inputs: `CLAUDE_CODE_SDLC_WIZARD.md:1011-1143`
+  - Multiple greenfield/cross-stack fixtures are explicitly described as setup-test assets:
+    - `tests/e2e/fixtures/fresh-nextjs/README.md`
+    - `tests/e2e/fixtures/fresh-python/README.md`
+    - `tests/e2e/fixtures/go-api/README.md`
+    - `tests/e2e/fixtures/python-fastapi/README.md`
+    - `tests/e2e/fixtures/nextjs-typescript/README.md`
+    - `tests/e2e/fixtures/mern-stack/README.md`
+  - But the actual simulation/install path does not run the wizard setup flow. It copies already-generated repo artifacts into the canned `test-repo` fixture:
+    - local harness: `tests/e2e/run-simulation.sh:49-75`
+    - PR CI baseline/candidate install: `.github/workflows/ci.yml:221-229`, `.github/workflows/ci.yml:378-382`, `.github/workflows/ci.yml:931-934`, `.github/workflows/ci.yml:1098-1101`
+    - weekly/monthly automation also target the same generated `tests/e2e/fixtures/test-repo`: `.github/workflows/weekly-update.yml:402-405`, `.github/workflows/weekly-update.yml:546-549`, `.github/workflows/monthly-research.yml:302-305`, `.github/workflows/monthly-research.yml:393-396`
+  - I did not find workflow/test-harness references that actually execute onboarding against `fresh-nextjs`, `fresh-python`, `go-api`, `python-fastapi`, `nextjs-typescript`, or `mern-stack`; the automated paths all converge on `tests/e2e/fixtures/test-repo`.
+- Why this matters:
+  - For a normal repo this would be a nice-to-have. For this repo, "language-agnostic bespoke setup" is one of the headline promises.
+  - The current CI proves the generated SDLC assets in one canned environment much better than it proves the wizard's ability to detect and generate the right setup for fresh projects across stacks.
+- Impact:
+  - The repo is stronger at validating "our generated SDLC assets behave correctly" than "the wizard can reliably onboard varied real projects."
+  - The extra cross-stack fixtures currently look more like dormant intention than live proof.
+- Recommended fix:
+  - Add a true setup-path E2E lane that starts from at least one greenfield fixture and one non-Node fixture, runs the wizard setup flow, and verifies the generated files/permissions/docs.
+  - If that is too expensive today, narrow the README/wizard wording so it does not imply this path is already proven in CI.
+
+#### P3: the "self-evolving from friction" story is still more narrative than audited capability
+
+- Evidence:
+  - The main README presents a core capability as: "Claude proposes process improvements from friction it encounters": `README.md:52`
+  - The wizard repeats the same idea:
+    - `CLAUDE_CODE_SDLC_WIZARD.md:40`
+    - `CLAUDE_CODE_SDLC_WIZARD.md:2528`
+    - `CLAUDE_CODE_SDLC_WIZARD.md:3216`
+  - The repo does have real self-evolution inputs, but they are external-signal driven:
+    - weekly Claude Code release analysis + community scan: `README.md:91-95`, `CI_CD.md:132-158`
+    - monthly deep research: `CI_CD.md:160-168`
+  - I did not find workflow/test/hook code that captures, stores, or audits "friction encountered" as a first-class input. In repo search, `friction` appears in docs and roadmap language, not in the implementation surface that would make it a concrete capability.
+- Why this matters:
+  - "Self-evolving from friction" reads like a live feedback loop, not just a philosophy.
+  - Right now the repo more clearly proves scheduled external research/update loops than it proves an internal friction-capture loop.
+- Impact:
+  - A reader can reasonably infer the system automatically learns from its own pain points, when today that improvement path appears to depend on humans noticing friction and encoding changes manually.
+- Recommended fix:
+  - Either add an explicit friction-capture mechanism (issue template, CI/self-heal summaries, periodic triage prompt, or similar) plus tests/documented outputs, or
+  - narrow the wording so it clearly describes a human-in-the-loop practice rather than an already-audited automated capability.
+
+### Revalidated prior open issue
+
+- The pass-2 observability trust concern is still present on current `main`:
+  - `tests/e2e/score-history.jsonl` still has `0` entries
+  - `SCORE_TRENDS.md` is still a no-data report generated on `2026-02-11`
+- That issue is already documented in the earlier pass-2 section below; this pass simply re-confirmed it on the current branch state.
+
+### Verdict
+
+- The repo continues to get stronger, but the remaining gaps are now concentrated in the exact places where this project is most novel:
+  - bespoke wizard onboarding
+  - self-evolution claims
+  - longitudinal proof/observability
+- These are no longer generic engineering bugs. They are product-truth gaps.
+
+## PR-local review: `fix/codex-pass2-findings` (2026-03-27)
+
+Audit target: `origin/main...fix/codex-pass2-findings` (PR #95)
+
+### Scope and verification
+
+- Branch state reviewed after `git pull origin fix/codex-pass2-findings` -> already up to date
+- Changed surfaces reviewed:
+  - `.github/workflows/ci.yml`
+  - `tests/test-workflow-triggers.sh`
+  - `README.md`
+  - `CI_CD.md`
+  - `CONTRIBUTING.md`
+  - `SCORE_TRENDS.md`
+- Verification run during this pass:
+  - `./tests/test-workflow-triggers.sh` -> passed (`156` passed, `0` failed)
+  - `./tests/test-score-analytics.sh` -> passed (`12` passed, `0` failed)
+  - `actionlint -shellcheck=` -> clean
+  - `git diff --check origin/main...HEAD` -> clean
+  - targeted stale-claim grep across docs/workflow -> clean
+
+### Findings
+
+No findings on this branch.
+
+### What this branch closes
+
+- `ci.yml` now uses read-only workflow-level permissions, with write scope moved to the jobs that actually need it.
+- `SCORE_TRENDS.md` is generated before commit and staged together with `tests/e2e/score-history.jsonl` in both Tier 1 and Tier 2 paths.
+- `README.md`, `CI_CD.md`, and `CONTRIBUTING.md` are aligned with the live evaluator and current workflow behavior.
+- Regression coverage was expanded so the pass-2 fixes are no longer just doc edits; they are guarded by tests.
+
+### Residual rollout note
+
+- `tests/e2e/score-history.jsonl` is still empty on this branch today, so the observability story will only look "lived in" after future PR E2E runs populate history and those updates merge back to `main`.
+- That is a rollout/state note, not a merge-blocking defect in this PR.
+
+### Verdict
+
+- Merge-ready.
+- After merge, the next Codex pass should return to `main` and continue the claim-verification / adversarial E2E audit described in `CODEX_AUDIT_PROGRESS.md`.
 
 ## Current deep main audit (pass 2, 2026-03-27)
 

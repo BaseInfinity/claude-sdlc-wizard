@@ -37,7 +37,7 @@ As Claude Code improves, the wizard absorbs those improvements and removes its o
 **But here's the key:** This isn't a one-size-fits-all answer. It's a starting point that helps you find YOUR answer. Every project is different. The self-evaluating loop (plan → build → test → review → improve) needs to be tuned to your codebase, your team, your standards. The wizard gives you the framework — you shape it into something bespoke.
 
 **The living system:**
-- Claude proposes improvements based on friction encountered
+- CI self-heal captures friction signals as GitHub issues for pattern analysis
 - You approve changes to the process
 - Both sides learn over time
 - The system improves the system (recursive improvement)
@@ -2525,7 +2525,7 @@ Want me to file these? (yes/no/not now)
 
 **When to do mini-retro:** After features, tricky bugs, or discovering gotchas. Skip for one-line fixes or questions.
 
-**The SDLC evolves:** Claude proposes improvements, human approves. The system gets better over time.
+**The SDLC evolves:** Weekly research, monthly deep-dives, and CI friction signals feed improvements. Human approves, the system gets better.
 
 **If docs are causing problems:** Sometimes Claude struggles in an area because the docs are bad, legacy, or confusing - just like a human would. Low confidence in an area can indicate the docs need attention.
 
@@ -3213,7 +3213,7 @@ Like a bespoke suit fitted to your body, this SDLC should grow and adapt to fit 
 **The magic:**
 - **Generic principles** - This wizard focuses on the "why", not tech specifics
 - **Claude figures out the details** - Your stack, your commands, your patterns
-- **Organic growth** - Each friction point is feedback that makes it better
+- **Organic growth** - CI friction signals + scheduled research feed continuous improvement
 - **Recursive improvement** - The more you use it, the more tailored it becomes
 
 ### Failure is Part of the Process
