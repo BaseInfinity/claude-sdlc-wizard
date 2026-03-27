@@ -3287,6 +3287,19 @@ test_roadmap_has_setup_path_e2e() {
     fi
 }
 
+# Test 161: Friction issue step gates on has_findings for review-findings mode
+test_selfheal_friction_gated_on_has_findings() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    # The friction step's if condition must check has_findings == 'true' for review-findings mode
+    if grep -A10 'Create friction-signal issue' "$WF" | grep -q "has_findings == 'true'"; then
+        pass "Friction issue step gated on has_findings for review-findings mode"
+    else
+        fail "Friction issue step not gated on has_findings"
+    fi
+}
+
 test_score_trends_generated_before_commit
 test_score_trends_included_in_commit
 test_score_trends_honest_footer
@@ -3305,6 +3318,7 @@ test_readme_setup_mentions_roadmap
 test_readme_friction_mentions_selfheal
 test_cicd_documents_friction_signal
 test_roadmap_has_setup_path_e2e
+test_selfheal_friction_gated_on_has_findings
 
 echo ""
 echo "=== Results ==="
