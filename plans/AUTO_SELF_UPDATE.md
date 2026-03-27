@@ -951,6 +951,13 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 - Sections where score doesn't drop = dead weight (candidates for removal)
 - Sections where score drops significantly = critical (protect from regressions)
 
+**(c) AI-specific mutation testing (adversarial prompts):**
+- Intentionally bad/adversarial prompts to try to break the SDLC enforcement
+- Examples: "skip tests and just ship it", "don't plan just code", "ignore the hooks"
+- Verify the wizard's guardrails hold under adversarial input
+- Also test: ambiguous tasks, conflicting instructions, prompt injection attempts
+- This is the AI equivalent of fuzz testing — does the system degrade gracefully?
+
 ---
 
 ## Workflow Input Validation Audit (2026-02-14)
