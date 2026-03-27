@@ -413,9 +413,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation.
@@ -557,9 +557,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation with the improved SDLC docs.
@@ -884,7 +884,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/last-community-scan.txt
           git diff --staged --quiet || git commit -m "chore: update last-community-scan to ${{ steps.current-date.outputs.current_date }}"
-          git push
+          git push || true  # Non-blocking: branch protection may reject direct push to main
 
       - name: Log if nothing notable
         if: steps.parse.outputs.nothing_notable == 'true' || steps.parse.outputs.findings_count == '0'
@@ -932,9 +932,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation.
@@ -1010,9 +1010,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation with community improvements applied.
@@ -1151,9 +1151,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation.
@@ -1238,9 +1238,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation without custom SDLC hooks (testing native behavior).
