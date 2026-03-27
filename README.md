@@ -38,7 +38,7 @@ You want Claude Code to follow engineering discipline automatically:
 - **Self-review before presenting**
 - **Prove it's better** (use native features unless you prove custom wins)
 
-The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs.
+The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs. Cross-stack setup-path E2E is on the [roadmap](ROADMAP.md).
 
 ## What Makes This Different
 
@@ -49,7 +49,7 @@ The wizard auto-detects your stack (package.json, test framework, deployment tar
 | **SDP normalization** | Separates "the model had a bad day" from "our SDLC broke" by cross-referencing external benchmarks |
 | **CUSUM drift detection** | Catches gradual quality decay over time — borrowed from manufacturing quality control |
 | **Pre-tool TDD hooks** | Claude can't write code without writing tests first — enforced at the hook level, not just guidance |
-| **Self-evolving loop** | Claude proposes process improvements from friction it encounters — you approve, the system gets better |
+| **Self-evolving loop** | Weekly/monthly external research + CI friction signals from self-heal — you approve, the system gets better |
 
 ## How It Works
 

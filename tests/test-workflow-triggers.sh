@@ -3202,6 +3202,130 @@ test_cicd_permissions_no_id_token() {
     fi
 }
 
+# Test 154: ci-self-heal.yml creates a friction-signal GitHub issue
+test_selfheal_creates_friction_issue() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    if grep -q 'gh issue create' "$WF" && grep -q 'friction-signal' "$WF"; then
+        pass "ci-self-heal.yml creates friction-signal issue"
+    else
+        fail "ci-self-heal.yml missing friction-signal issue creation"
+    fi
+}
+
+# Test 155: Friction issue step uses --body-file (not inline body)
+test_selfheal_friction_uses_bodyfile() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    if grep -q '\-\-body-file' "$WF"; then
+        pass "Friction issue step uses --body-file"
+    else
+        fail "Friction issue step missing --body-file"
+    fi
+}
+
+# Test 156: Friction issue step is gated on skip != true
+test_selfheal_friction_gated_on_skip() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    # The friction step's if condition must check skip
+    if grep -A5 'friction' "$WF" | grep -q "skip != 'true'"; then
+        pass "Friction issue step gated on skip"
+    else
+        fail "Friction issue step not gated on skip"
+    fi
+}
+
+# Test 157: README setup claim references roadmap for cross-stack
+test_readme_setup_mentions_roadmap() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    if grep -i 'auto-detect' "$README" | grep -qi 'roadmap'; then
+        pass "README setup claim references roadmap"
+    else
+        fail "README setup claim does not reference roadmap"
+    fi
+}
+
+# Test 158: README friction row mentions self-heal or CI friction
+test_readme_friction_mentions_selfheal() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    if grep -i 'self-evolving' "$README" | grep -qiE 'self-heal|ci friction|friction signal'; then
+        pass "README friction row mentions self-heal/CI friction"
+    else
+        fail "README friction row does not mention self-heal or CI friction signals"
+    fi
+}
+
+# Test 159: CI_CD.md ci-self-heal section documents friction-signal
+test_cicd_documents_friction_signal() {
+    local CICD="$REPO_ROOT/CI_CD.md"
+    if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
+
+    if grep -qi 'friction.signal' "$CICD"; then
+        pass "CI_CD.md documents friction-signal"
+    else
+        fail "CI_CD.md does not document friction-signal"
+    fi
+}
+
+# Test 160: ROADMAP.md has setup-path E2E item
+test_roadmap_has_setup_path_e2e() {
+    local ROADMAP="$REPO_ROOT/ROADMAP.md"
+    if [ ! -f "$ROADMAP" ]; then fail "ROADMAP.md not found"; return; fi
+
+    if grep -qi 'setup.path.*e2e\|setup.*e2e.*proof' "$ROADMAP"; then
+        pass "ROADMAP.md has setup-path E2E item"
+    else
+        fail "ROADMAP.md missing setup-path E2E item"
+    fi
+}
+
+# Test 161: Friction issue step gates on has_findings for review-findings mode
+test_selfheal_friction_gated_on_has_findings() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    # The friction step's if condition must check has_findings == 'true' for review-findings mode
+    if grep -A10 'Create friction-signal issue' "$WF" | grep -q "has_findings == 'true'"; then
+        pass "Friction issue step gated on has_findings for review-findings mode"
+    else
+        fail "Friction issue step not gated on has_findings"
+    fi
+}
+
+# Test 162: Friction defaults set as bash assignments before template (envsubst can't handle ${VAR:-default})
+test_selfheal_friction_defaults_before_template() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    # envsubst only does $VAR/${VAR} — it does NOT evaluate ${VAR:-default}
+    # Defaults must be bash assignments before the heredoc
+    if grep -q 'ERROR_SUMMARY="${ERROR_SUMMARY:-' "$WF" && grep -q 'DIFF_STAT="${DIFF_STAT:-' "$WF"; then
+        pass "Friction defaults set as bash assignments (envsubst-compatible)"
+    else
+        fail "Friction defaults not set as bash assignments before template"
+    fi
+}
+
+# Test 163: README setup claim does not say "proven" (CI doesn't verify setup flow)
+test_readme_setup_not_proven() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    if grep -i 'auto-detect' "$README" | grep -qi 'proven'; then
+        fail "README setup claim says 'proven' but CI doesn't verify setup flow"
+    else
+        pass "README setup claim does not overstate CI proof"
+    fi
+}
+
 test_score_trends_generated_before_commit
 test_score_trends_included_in_commit
 test_score_trends_honest_footer
@@ -3213,6 +3337,16 @@ test_ci_validate_read_only_permissions
 test_cicd_no_token_metrics_in_tier1
 test_cicd_push_main_validation_only
 test_cicd_permissions_no_id_token
+test_selfheal_creates_friction_issue
+test_selfheal_friction_uses_bodyfile
+test_selfheal_friction_gated_on_skip
+test_readme_setup_mentions_roadmap
+test_readme_friction_mentions_selfheal
+test_cicd_documents_friction_signal
+test_roadmap_has_setup_path_e2e
+test_selfheal_friction_gated_on_has_findings
+test_selfheal_friction_defaults_before_template
+test_readme_setup_not_proven
 
 echo ""
 echo "=== Results ==="

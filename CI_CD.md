@@ -215,6 +215,16 @@ CI runs ──► FAIL ──► ci-self-heal ──► Claude fixes ──► c
 | Sticky PR comments | User always sees status |
 | Self-modification ban | Prompt forbids editing ci-self-heal.yml |
 
+### Friction Signal Capture
+
+Every self-heal event creates a `friction-signal` GitHub issue with structured data:
+- Trigger mode (CI failure vs review findings)
+- PR context and attempt count
+- Whether a fix was applied and what changed
+- Error summary
+
+These issues accumulate over time, enabling pattern analysis for process improvement.
+
 ### Token Approaches
 
 | Approach | When | How |
