@@ -2592,6 +2592,53 @@ test_no_working_directory_monthly
 test_weekly_sim_max_turns
 test_monthly_sim_max_turns
 
+# ============================================
+# .gitignore Tests
+# ============================================
+# Workflows create node_modules and cache artifacts.
+# Without .gitignore, peter-evans/create-pull-request commits them.
+
+# Test 118: .gitignore exists at repo root
+test_gitignore_exists() {
+    if [ -f "$REPO_ROOT/.gitignore" ]; then
+        pass ".gitignore exists at repo root"
+    else
+        fail ".gitignore missing — workflow PRs will commit node_modules and cache artifacts"
+    fi
+}
+
+# Test 119: .gitignore ignores node_modules
+test_gitignore_node_modules() {
+    if [ ! -f "$REPO_ROOT/.gitignore" ]; then
+        fail ".gitignore missing (can't check node_modules pattern)"
+        return
+    fi
+
+    if grep -q 'node_modules' "$REPO_ROOT/.gitignore"; then
+        pass ".gitignore ignores node_modules"
+    else
+        fail ".gitignore missing node_modules pattern"
+    fi
+}
+
+# Test 120: .gitignore ignores e2e cache
+test_gitignore_e2e_cache() {
+    if [ ! -f "$REPO_ROOT/.gitignore" ]; then
+        fail ".gitignore missing (can't check e2e cache pattern)"
+        return
+    fi
+
+    if grep -q '.cache' "$REPO_ROOT/.gitignore"; then
+        pass ".gitignore ignores e2e cache files"
+    else
+        fail ".gitignore missing e2e cache pattern"
+    fi
+}
+
+test_gitignore_exists
+test_gitignore_node_modules
+test_gitignore_e2e_cache
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
