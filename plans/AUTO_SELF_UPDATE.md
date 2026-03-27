@@ -818,7 +818,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 8. ~~Competitive audit (#10)~~ — DONE: Audited aistupidlevel.info (added as Source 3 in benchmark cascade), everything-claude-code, claude-sdlc, and 5 other repos. Added competitive watchlist to weekly community scan. Created COMPETITIVE_AUDIT.md with honest positioning. See PR #77
 9. ~~`--bare` for non-E2E workflows~~ — DONE (PR #81): Added `--bare` to 8 non-E2E `claude-code-action` steps across 4 workflows, skips hooks/LSP/plugins in headless CI. 6 new tests (including negative tests for E2E steps). 12 E2E simulation steps unchanged.
 10. ~~Trigger weekly/monthly workflows + audit~~ — DONE: Triggered both, found 4 bugs (missing .gitignore PR #87, missing auto-generated label, E2E evaluator flakiness PR #88). All fixed. Scores went from 7/5 (broken) to 8/8.
-11. Re-run wizard on ourselves (PR) — One-time dogfood: run wizard setup, create PR, let CI evaluate. Doubles as self-audit (dead code, stale setup, test validity). No recurring schedule needed — weekly-update/monthly-research already cover ongoing changes.
+11. ~~Re-run wizard on ourselves (PR)~~ — DONE (PR #89): Compared installed setup against wizard template. Found 4 gaps: missing SDLC.md metadata comments (breaks update detection), stale self-review reference in hook, "daily" instead of "weekly", CC baseline version stale. 6 new tests added (tests 19-24 in test-hooks.sh). No dead code found.
 12. CI efficiency audit (#29) — Review CI costs and runtime optimization. Includes: orphaned test scripts not in CI, parallel jobs, caching, conditional skips.
 13. Distribution (#30) — Make it easy for new users to install (research done: npx CLI or curl one-liner)
 
@@ -827,6 +827,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 14. Tool/Plugin Discovery Automation — Add to weekly-update: fetch official `marketplace.json` (public at `anthropics/claude-plugins-official`), diff against cached snapshot, detect new CC features from changelog, LLM-recommend which are relevant. ~50-80 lines. Confidence: HIGH (85%).
 15. E2E Scenario Coverage Audit — Review scenarios for gaps: who uses this wizard (senior devs, juniors, non-coders per generalize-beyond-coding vision), what tasks aren't covered (UI changes, API work, multi-file refactors, deployment tasks). Add scenarios for underrepresented use cases. Consider different repo archetypes (monorepo, microservices, data science).
 16. Scoring System Review — One-time deep audit after all pre-distribution work is complete. Then revisit every 2-3 months. Check: are criteria still relevant? Is weighting fair? Are LLM judges drifting? Is the 1.5-point regression threshold right? Are deterministic checks (tdd_red, task_tracking, confidence) catching what they should?
+17. Setup Drift Prevention — Investigate: can CI detect when installed setup drifts from wizard template? Two drift vectors: (a) local edits silently desync hooks/skills/SDLC.md from template, (b) new wizard version releases add features we don't have. Options: CI job that checksums hooks against template, test that compares wizard version comment in SDLC.md vs CLAUDE_CODE_SDLC_WIZARD.md, weekly-update step that flags wizard-vs-installed diff. Tests 19-24 (PR #89) are a partial solution — extend to cover skills and settings.json too.
 
 **Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026), reviewer severity prompt fix (CI reviewer under-categorizes silent no-op bugs as suggestions — 14% misclassification rate found in audit)
 
@@ -949,6 +950,13 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 - Verify score drops - proving which sections are load-bearing
 - Sections where score doesn't drop = dead weight (candidates for removal)
 - Sections where score drops significantly = critical (protect from regressions)
+
+**(c) AI-specific mutation testing (adversarial prompts):**
+- Intentionally bad/adversarial prompts to try to break the SDLC enforcement
+- Examples: "skip tests and just ship it", "don't plan just code", "ignore the hooks"
+- Verify the wizard's guardrails hold under adversarial input
+- Also test: ambiguous tasks, conflicting instructions, prompt injection attempts
+- This is the AI equivalent of fuzz testing — does the system degrade gracefully?
 
 ---
 
