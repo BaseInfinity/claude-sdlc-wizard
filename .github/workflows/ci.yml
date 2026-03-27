@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
   validate:
@@ -141,6 +141,8 @@ jobs:
   # if this job skips, branch protection sees "skipped" and blocks merge (PR #75 bug).
   cleanup-old-comments:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     if: (github.event_name == 'pull_request' && github.event.action != 'labeled') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Resolve outdated bot comments
@@ -163,6 +165,9 @@ jobs:
   # Purpose: Fast quality gate to catch regressions early
   e2e-quick-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     if: (github.event_name == 'pull_request' && github.event.action != 'labeled') || github.event_name == 'workflow_dispatch'
     needs: [validate, cleanup-old-comments]
 
@@ -571,6 +576,16 @@ jobs:
 
           echo "Score recorded: $SCORE for $SCENARIO"
 
+      - name: Generate score trends report
+        if: steps.check-baseline.outputs.should_simulate == 'true'
+        continue-on-error: true
+        working-directory: pr-branch
+        run: |
+          if [ -x "tests/e2e/score-analytics.sh" ]; then
+            ./tests/e2e/score-analytics.sh --report > SCORE_TRENDS.md || true
+            echo "Score trends report generated"
+          fi
+
       - name: Commit score history
         if: steps.check-baseline.outputs.should_simulate == 'true'
         continue-on-error: true
@@ -579,31 +594,23 @@ jobs:
           # Pass head.ref via env block, not inline in shell (injection hardening)
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          # Save updated score file (we're on detached HEAD at refs/pull/N/merge)
+          # Save updated score files (we're on detached HEAD at refs/pull/N/merge)
           cp tests/e2e/score-history.jsonl /tmp/score-history-updated.jsonl
+          cp SCORE_TRENDS.md /tmp/score-trends-updated.md 2>/dev/null || true
 
           # Checkout the actual PR branch (not the merge ref)
           git fetch origin "$PR_BRANCH"
           git checkout "$PR_BRANCH"
           git pull --rebase origin "$PR_BRANCH"
 
-          # Restore the updated score file and commit
+          # Restore the updated files and commit
           cp /tmp/score-history-updated.jsonl tests/e2e/score-history.jsonl
+          cp /tmp/score-trends-updated.md SCORE_TRENDS.md 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/score-history.jsonl
+          git add tests/e2e/score-history.jsonl SCORE_TRENDS.md
           git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
           git push origin "$PR_BRANCH"
-
-      - name: Generate score trends report
-        if: steps.check-baseline.outputs.should_simulate == 'true'
-        continue-on-error: true
-        working-directory: pr-branch
-        run: |
-          if [ -x "tests/e2e/score-analytics.sh" ]; then
-            ./tests/e2e/score-analytics.sh --report > SCORE_TRENDS.md 2>/dev/null || true
-            echo "Score trends report generated"
-          fi
 
       - name: Compute historical context for comment
         if: steps.check-baseline.outputs.should_simulate == 'true'
@@ -875,6 +882,9 @@ jobs:
   # Triggered by: merge-ready label
   e2e-full-evaluation:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     if: |
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'merge-ready')
@@ -1295,6 +1305,15 @@ jobs:
 
           echo "Score recorded: $SCORE for $SCENARIO (Tier 2)"
 
+      - name: Generate score trends report (Tier 2)
+        continue-on-error: true
+        working-directory: pr-branch
+        run: |
+          if [ -x "tests/e2e/score-analytics.sh" ]; then
+            ./tests/e2e/score-analytics.sh --report > SCORE_TRENDS.md || true
+            echo "Score trends report generated"
+          fi
+
       - name: Commit score history (Tier 2)
         continue-on-error: true
         working-directory: pr-branch
@@ -1304,19 +1323,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/score-history.jsonl
+          git add tests/e2e/score-history.jsonl SCORE_TRENDS.md
           git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
           # Push to PR branch explicitly — checkout is detached HEAD (refs/pull/N/merge)
           git push origin "HEAD:refs/heads/$PR_BRANCH" || echo "Nothing to push"
-
-      - name: Generate score trends report (Tier 2)
-        continue-on-error: true
-        working-directory: pr-branch
-        run: |
-          if [ -x "tests/e2e/score-analytics.sh" ]; then
-            ./tests/e2e/score-analytics.sh --report > SCORE_TRENDS.md 2>/dev/null || true
-            echo "Score trends report generated"
-          fi
 
       - name: Compute historical context (Tier 2)
         id: historical

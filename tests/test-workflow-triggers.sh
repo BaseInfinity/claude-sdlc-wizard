@@ -289,7 +289,7 @@ test_quick_check_labeled_guard() {
 
     # The e2e-quick-check job should skip on labeled events
     # Look for the guard condition near the e2e-quick-check job
-    if grep -A 3 "e2e-quick-check:" "$WORKFLOW" | grep -q "labeled"; then
+    if sed -n '/e2e-quick-check:/,/steps:/p' "$WORKFLOW" | grep -q "labeled"; then
         pass "e2e-quick-check is guarded from labeled events"
     else
         fail "e2e-quick-check missing guard for labeled events"
@@ -301,7 +301,7 @@ test_cleanup_labeled_guard() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
 
     # The cleanup-old-comments job should skip on labeled events
-    if grep -A 3 "cleanup-old-comments:" "$WORKFLOW" | grep -q "labeled"; then
+    if sed -n '/cleanup-old-comments:/,/steps:/p' "$WORKFLOW" | grep -q "labeled"; then
         pass "cleanup-old-comments is guarded from labeled events"
     else
         fail "cleanup-old-comments missing guard for labeled events"
@@ -3049,6 +3049,170 @@ test_no_unused_id_token_permission
 test_action_pinning_tradeoff_documented
 test_self_heal_dispatch_gates_on_committed
 test_readme_no_brittle_test_count
+
+# --- Round 4: Codex pass-2 audit findings (2026-03-27) ---
+
+# Test 143: ci.yml generates SCORE_TRENDS.md before committing score history (Tier 1)
+test_score_trends_generated_before_commit() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # Find line numbers of generate and commit steps in Tier 1 (e2e-quick-check job)
+    local gen_line commit_line
+    gen_line=$(grep -n 'Generate score trends report' "$CI_FILE" | head -1 | cut -d: -f1)
+    commit_line=$(grep -n 'Commit score history' "$CI_FILE" | head -1 | cut -d: -f1)
+
+    if [ -z "$gen_line" ] || [ -z "$commit_line" ]; then
+        fail "Could not find score trends generate or commit steps in ci.yml"
+        return
+    fi
+
+    if [ "$gen_line" -lt "$commit_line" ]; then
+        pass "ci.yml generates SCORE_TRENDS.md before committing score history"
+    else
+        fail "ci.yml generates SCORE_TRENDS.md AFTER commit step (line $gen_line > $commit_line)"
+    fi
+}
+
+# Test 144: ci.yml git add includes SCORE_TRENDS.md
+test_score_trends_included_in_commit() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    if grep -q 'git add.*SCORE_TRENDS.md' "$CI_FILE" 2>/dev/null; then
+        pass "ci.yml includes SCORE_TRENDS.md in git add"
+    else
+        fail "ci.yml does not include SCORE_TRENDS.md in git add"
+    fi
+}
+
+# Test 145: SCORE_TRENDS.md does not falsely claim auto-update
+test_score_trends_honest_footer() {
+    local TRENDS="$REPO_ROOT/SCORE_TRENDS.md"
+    if [ ! -f "$TRENDS" ]; then fail "SCORE_TRENDS.md not found"; return; fi
+
+    if grep -q 'Updated after each CI E2E run' "$TRENDS" 2>/dev/null; then
+        fail "SCORE_TRENDS.md still falsely claims 'Updated after each CI E2E run'"
+    else
+        pass "SCORE_TRENDS.md has honest update mechanism description"
+    fi
+}
+
+# Test 146: README scoring table shows TDD GREEN as AI-judge
+test_readme_tdd_green_is_ai_judge() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    if grep -E 'TDD GREEN.*AI-judge' "$README" >/dev/null 2>&1; then
+        pass "README correctly shows TDD GREEN as AI-judge"
+    else
+        fail "README does not show TDD GREEN as AI-judge"
+    fi
+}
+
+# Test 147: README scoring split says 40% deterministic (not 60%)
+test_readme_scoring_split_accurate() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    if grep -q '40% deterministic' "$README" 2>/dev/null; then
+        pass "README correctly says 40% deterministic"
+    else
+        fail "README does not say 40% deterministic (actual: 4/10 criteria are deterministic)"
+    fi
+}
+
+# Test 148: CONTRIBUTING.md shows tdd_red at 2 points
+test_contributing_tdd_red_points() {
+    local CONTRIB="$REPO_ROOT/CONTRIBUTING.md"
+    if [ ! -f "$CONTRIB" ]; then fail "CONTRIBUTING.md not found"; return; fi
+
+    if grep -E 'tdd_red.*\| 2 \|' "$CONTRIB" >/dev/null 2>&1; then
+        pass "CONTRIBUTING.md correctly shows tdd_red at 2 points"
+    else
+        fail "CONTRIBUTING.md does not show tdd_red at 2 points (actual max is 2 per deterministic-checks.sh)"
+    fi
+}
+
+# Test 149: CONTRIBUTING.md task_tracking mentions TodoWrite
+test_contributing_task_tracking_mentions_todowrite() {
+    local CONTRIB="$REPO_ROOT/CONTRIBUTING.md"
+    if [ ! -f "$CONTRIB" ]; then fail "CONTRIBUTING.md not found"; return; fi
+
+    if grep -E 'task_tracking.*TodoWrite' "$CONTRIB" >/dev/null 2>&1; then
+        pass "CONTRIBUTING.md task_tracking mentions TodoWrite"
+    else
+        fail "CONTRIBUTING.md task_tracking does not mention TodoWrite (evaluator checks TodoWrite|TaskCreate)"
+    fi
+}
+
+# Test 150: ci.yml workflow-level permissions are read-only
+test_ci_validate_read_only_permissions() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # Check that workflow-level permissions use 'read' not 'write'
+    # Extract the permissions block (between 'permissions:' and 'jobs:')
+    local perms_section
+    perms_section=$(sed -n '/^permissions:/,/^jobs:/p' "$CI_FILE" | head -10)
+
+    if echo "$perms_section" | grep -q 'write' 2>/dev/null; then
+        fail "ci.yml workflow-level permissions still grant write access"
+    else
+        pass "ci.yml workflow-level permissions are read-only"
+    fi
+}
+
+# Test 151: CI_CD.md Tier 1 description doesn't mention "token metrics"
+test_cicd_no_token_metrics_in_tier1() {
+    local CICD="$REPO_ROOT/CI_CD.md"
+    if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
+
+    # Check first 40 lines (Tier 1 flow summary area) for "token metrics"
+    if head -40 "$CICD" | grep -qi 'token metrics' 2>/dev/null; then
+        fail "CI_CD.md still mentions 'token metrics' in Tier 1 flow description"
+    else
+        pass "CI_CD.md Tier 1 flow does not mention token metrics"
+    fi
+}
+
+# Test 152: CI_CD.md overview table accurately describes push-to-main
+test_cicd_push_main_validation_only() {
+    local CICD="$REPO_ROOT/CI_CD.md"
+    if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
+
+    # The overview table should not lump "PR, push to main" in one row with "E2E evaluation"
+    # Either split into separate rows or not claim push-to-main does E2E
+    if head -15 "$CICD" | grep -i 'ci.yml' | grep -qi 'PR.*push to main.*E2E' 2>/dev/null; then
+        fail "CI_CD.md overview table lumps PR and push-to-main together with E2E"
+    else
+        pass "CI_CD.md overview table accurately distinguishes PR vs push-to-main"
+    fi
+}
+
+# Test 153: CI_CD.md permissions section doesn't mention id-token:write
+test_cicd_permissions_no_id_token() {
+    local CICD="$REPO_ROOT/CI_CD.md"
+    if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
+
+    if grep -q 'id-token.*write' "$CICD" 2>/dev/null; then
+        fail "CI_CD.md permissions section still mentions id-token: write"
+    else
+        pass "CI_CD.md permissions section does not mention id-token: write"
+    fi
+}
+
+test_score_trends_generated_before_commit
+test_score_trends_included_in_commit
+test_score_trends_honest_footer
+test_readme_tdd_green_is_ai_judge
+test_readme_scoring_split_accurate
+test_contributing_tdd_red_points
+test_contributing_task_tracking_mentions_todowrite
+test_ci_validate_read_only_permissions
+test_cicd_no_token_metrics_in_tier1
+test_cicd_push_main_validation_only
+test_cicd_permissions_no_id_token
 
 echo ""
 echo "=== Results ==="
