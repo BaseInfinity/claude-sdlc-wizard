@@ -1633,6 +1633,7 @@ TodoWrite([
   { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
   { content: "Self-review: run /code-review", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
+  // Optional: Cross-model review (if configured — see wizard setup)
   // CI FEEDBACK LOOP (After local tests pass)
   { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
   { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
@@ -1701,6 +1702,8 @@ PLANNING → DOCS → TDD RED → TDD GREEN → Tests Pass → Self-Review
 3. Issues at confidence >= 80 are real findings — go back to PLANNING to fix
 4. Issues below 80 are likely false positives — skip unless obviously valid
 5. Address issues by going back through the proper SDLC loop
+
+**Optional: Cross-model review.** If configured during wizard setup, run an independent review using a competing AI model (e.g., Codex CLI with the latest GPT model at maximum reasoning effort). Different training = different blind spots. See the "Cross-Model Review Loop" section below for setup.
 
 ## Test Review (Harder Than Implementation)
 
@@ -1816,6 +1819,8 @@ Local tests pass -> Commit -> Push -> Watch CI
    - Fix and push again
 4. Max 2 fix attempts - if still failing, ASK USER
 5. If CI passes - proceed to present final summary
+
+**Context GC (compact during idle):** While waiting for CI (typically 3-5 min), suggest `/compact` if the conversation is long. Think of it like a time-based garbage collector — idle time + high memory pressure = good time to collect. Don't suggest on short conversations.
 
 **CI failures follow same rules as test failures:**
 - Your code broke it? Fix your code
@@ -2765,6 +2770,82 @@ jobs:
 
 ---
 
+### Cross-Model Review Loop (Optional)
+
+Use an independent AI model from a different company as a code reviewer. The author can't grade their own homework — a model with different training data and different biases catches blind spots the authoring model misses.
+
+**Why this works:** Two AI systems from different companies (e.g., Claude writes, GPT reviews) provide adversarial diversity. They have fundamentally different training, different failure modes, and different strengths. What one misses, the other catches.
+
+**Use the best model at the deepest reasoning.** This is your quality gate — don't economize on it. Always use the latest, most capable model available (currently GPT-5.4) at maximum reasoning effort (`xhigh`). Cheaper/faster models miss things. The whole point is catching what the authoring model couldn't.
+
+**Prerequisites:**
+- Codex CLI installed: `npm i -g @openai/codex`
+- OpenAI API key configured: `export OPENAI_API_KEY=...`
+- This is a local workflow tool — not required for CI/CD
+
+**The Protocol:**
+
+1. Create a `.reviews/` directory in your project
+2. After Claude completes its SDLC loop (self-review passes), write a handoff file:
+
+```jsonc
+// .reviews/handoff.json
+{
+  "review_id": "feature-xyz-001",
+  "status": "PENDING_REVIEW",
+  "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
+  "review_instructions": "Review for security, edge cases, and correctness",
+  "artifact_path": ".reviews/feature-xyz-001/"
+}
+```
+
+3. Run the independent reviewer:
+
+```bash
+codex exec \
+  -c 'model_reasoning_effort="xhigh"' \
+  -s danger-full-access \
+  -o .reviews/latest-review.md \
+  "You are an independent code reviewer. Read .reviews/handoff.json, \
+   review the listed files, and write your findings to the artifact_path. \
+   End with CERTIFIED or NOT CERTIFIED."
+```
+
+**The Loop:**
+```
+Claude writes code → self-review passes → handoff.json
+    ↑                                          |
+    |                                          v
+    |                              Codex reviews (xhigh reasoning)
+    |                                          |
+    |                              CERTIFIED? -+→ YES → Done
+    |                                          |
+    |                                          +→ NO (findings)
+    |                                          |
+    └────────── Claude fixes findings ←────────┘
+                    (repeat until CERTIFIED, or ask user)
+```
+
+**Key flags:**
+- `-c 'model_reasoning_effort="xhigh"'` — Maximum reasoning depth. This is where you get the most value. Testing showed `xhigh` caught 3 findings that `high` missed on the same content.
+- `-s danger-full-access` — Full filesystem read/write so the reviewer can read your actual code.
+- `-o .reviews/latest-review.md` — Save the review output for Claude to read back.
+
+**Tool-agnostic principle:** The core idea is "use a different model as an independent reviewer." Codex CLI is the concrete example today, but any competing AI tool that can read files and produce structured feedback works. The value comes from the independence and different training, not the specific tool.
+
+**When to use this:**
+- High-stakes changes (auth, payments, data handling)
+- Research-heavy work where accuracy matters more than speed
+- Complex refactors touching many files
+- Any time you want higher confidence before merging
+
+**When to skip:**
+- Trivial changes (typo fixes, config tweaks)
+- Time-sensitive hotfixes
+- Changes where the review cost exceeds the risk
+
+---
+
 ## User Understanding and Periodic Feedback
 
 **During wizard setup and ongoing use:**
@@ -2932,6 +3013,7 @@ Every wizard step has a unique ID for tracking:
 | `step-9` | SDLC/TESTING/ARCH docs | 1.0.0 |
 | `question-git-workflow` | Git workflow preference | 1.2.0 |
 | `step-update-notify` | Optional: CI update notification | 1.13.0 |
+| `step-cross-model-review` | Optional: Cross-model review loop | 1.16.0 |
 
 When checking for updates, Claude compares user's completed steps against this registry.
 

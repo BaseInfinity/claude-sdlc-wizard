@@ -39,6 +39,7 @@ TodoWrite([
   { content: "Visual consistency check (if UI change)", status: "pending", activeForm: "Checking visual consistency" },
   { content: "Self-review: run /code-review", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
+  // Optional: Cross-model review (if configured — see wizard setup)
   // CI FEEDBACK LOOP (if CI monitoring enabled in setup - skip if no CI)
   { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
   { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
@@ -107,6 +108,8 @@ PLANNING -> DOCS -> TDD RED -> TDD GREEN -> Tests Pass -> Self-Review
 3. Issues at confidence >= 80 are real findings — go back to PLANNING to fix
 4. Issues below 80 are likely false positives — skip unless obviously valid
 5. Address issues by going back through the proper SDLC loop
+
+**Optional: Cross-model review.** If configured during wizard setup, run an independent review using a competing AI model (e.g., Codex CLI with the latest GPT model at maximum reasoning effort). Different training = different blind spots. See the wizard's "Cross-Model Review Loop" section for setup.
 
 ## Test Review (Harder Than Implementation)
 
@@ -212,6 +215,8 @@ Local tests pass -> Commit -> Push -> Watch CI
    - Fix and push again
 4. Max 2 fix attempts - if still failing, ASK USER
 5. If CI passes - proceed to present final summary
+
+**Context GC (compact during idle):** While waiting for CI (typically 3-5 min), suggest `/compact` if the conversation is long. Think of it like a time-based garbage collector — idle time + high memory pressure = good time to collect. Don't suggest on short conversations.
 
 **CI failures follow same rules as test failures:**
 - Your code broke it? Fix your code

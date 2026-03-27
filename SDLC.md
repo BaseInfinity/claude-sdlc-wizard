@@ -1,3 +1,6 @@
+<!-- SDLC Wizard Version: 1.15.0 -->
+<!-- Setup Date: 2026-01-24 -->
+<!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 # SDLC Configuration
 
 ## Wizard Version Tracking
@@ -5,8 +8,8 @@
 | Property | Value |
 |----------|-------|
 | Wizard Version | 1.15.0 |
-| Last Updated | 2026-03-25 |
-| Claude Code Baseline | v2.1.81+ |
+| Last Updated | 2026-03-26 |
+| Claude Code Baseline | v2.1.85+ |
 
 ## SDLC Enforcement
 
@@ -54,7 +57,7 @@ To verify SDLC compliance:
 
 When Claude Code releases new features:
 
-1. Daily workflow checks for updates
+1. Weekly workflow checks for updates
 2. HIGH/MEDIUM relevance creates PR
 3. Review and merge if valuable
 4. Update version tracking here

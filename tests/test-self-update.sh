@@ -239,6 +239,45 @@ test_version_consistency() {
     fi
 }
 
+# Test 16: Wizard contains Cross-Model Review section
+test_cross_model_review_section() {
+    if grep -q "### Cross-Model Review Loop (Optional)" "$WIZARD"; then
+        pass "Wizard contains Cross-Model Review section"
+    else
+        fail "Wizard should contain '### Cross-Model Review Loop (Optional)' section"
+    fi
+}
+
+# Test 17: Step registry contains cross-model-review step
+test_cross_model_review_step() {
+    if grep -q "step-cross-model-review" "$WIZARD"; then
+        pass "Step registry contains step-cross-model-review"
+    else
+        fail "Step registry should contain step-cross-model-review entry"
+    fi
+}
+
+# Test 18: SKILL.md references cross-model review
+test_skill_cross_model_review() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    if grep -qi "cross-model review" "$skill_file"; then
+        pass "SKILL.md references cross-model review"
+    else
+        fail "SKILL.md should reference cross-model review"
+    fi
+}
+
+# Test 19: Wizard template SKILL copy references cross-model review
+test_wizard_skill_cross_model_review() {
+    # The wizard template contains a copy of the SKILL content in step 6
+    # Check that the wizard's embedded SKILL also references cross-model review
+    if grep -A 500 "## Full SDLC Checklist" "$WIZARD" | grep -qi "cross-model review"; then
+        pass "Wizard template SKILL copy references cross-model review"
+    else
+        fail "Wizard template SKILL copy should reference cross-model review"
+    fi
+}
+
 # Run all tests
 test_changelog_url
 test_wizard_url
@@ -255,6 +294,10 @@ test_multi_phase_flow
 test_changelog_url_live
 test_wizard_url_live
 test_version_consistency
+test_cross_model_review_section
+test_cross_model_review_step
+test_skill_cross_model_review
+test_wizard_skill_cross_model_review
 
 echo ""
 echo "=== Results ==="
