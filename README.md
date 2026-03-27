@@ -110,11 +110,11 @@ Like evaluating scientific method adherence - we measure **process compliance**:
 | Confidence stated | 1 | Deterministic |
 | Plan mode | 2 | AI-judge |
 | TDD RED | 2 | Deterministic |
-| TDD GREEN | 2 | Deterministic |
+| TDD GREEN | 2 | AI-judge |
 | Self-review | 1 | AI-judge |
 | Clean code | 1 | AI-judge |
 
-60% deterministic + 40% AI-judged. 5 trials handle variance.
+40% deterministic + 60% AI-judged. 5 trials handle variance.
 
 ## Model-Adjusted Scoring (SDP)
 

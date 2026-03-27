@@ -42,11 +42,11 @@ We run 5 trials per evaluation to get statistically meaningful results.
 
 | Criterion | Points | Type | What It Measures |
 |-----------|--------|------|------------------|
-| task_tracking | 1 | Deterministic | TaskCreate/TaskUpdate usage (grep) |
+| task_tracking | 1 | Deterministic | TodoWrite/TaskCreate usage (grep) |
 | confidence | 1 | Deterministic | HIGH/MEDIUM/LOW stated (grep) |
 | plan_mode_outline | 1 | AI-judge | Planning steps documented |
-| plan_mode_tool | 1 | AI-judge | EnterPlanMode or plan file used |
-| tdd_red | 1 | Deterministic | Test written before implementation (JSON tool_use) |
+| plan_mode_tool | 1 | AI-judge | TodoWrite/TaskCreate, EnterPlanMode, or plan file |
+| tdd_red | 2 | Deterministic | Test written before implementation (JSON tool_use) |
 | tdd_green_ran | 1 | AI-judge | Tests executed |
 | tdd_green_pass | 1 | AI-judge | All tests pass in final run |
 | self_review | 1 | AI-judge | Meaningful code review step |
