@@ -2,10 +2,138 @@
 
 > Audit log for Codex repo reviews.
 >
-> This file now contains two sections:
-> - The current PR-local review for `fix/codex-main-audit`
-> - The current deeper `main` audit pass (open findings, if any)
+> This file now contains:
+> - The current deep `main` audit pass (open findings, if any)
+> - The earlier `main` audit pass (already fixed)
+> - The PR-local review for `fix/codex-main-audit` (already fixed and merged)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
+
+## Current deep main audit (pass 2, 2026-03-27)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Branch state reviewed after `git pull --ff-only origin main` -> already up to date
+- Verification run during this pass:
+  - full local shell suite across `tests/test-*.sh` and `tests/e2e/test-*.sh` -> passed
+  - `./tests/test-workflow-triggers.sh` -> passed (`145` passed, `0` failed)
+  - `./tests/test-hooks.sh` -> passed
+  - `actionlint -shellcheck=` -> clean
+  - `shellcheck -x -S warning $(rg --files -g '*.sh')` -> warnings only; manually reviewed for high-signal bugs
+  - repo-authored Markdown local-link/anchor scan (excluding vendored `node_modules`) -> clean
+- Additional manual review focused on:
+  - workflow permissions and trust boundaries
+  - score observability artifacts (`score-history.jsonl`, `SCORE_TRENDS.md`)
+  - repo-authored docs that describe CI/measurement behavior
+- Confidence is high for the workflow/docs findings below.
+- Confidence is lower only for hosted-runner behavior that depends on GitHub settings outside the repo.
+
+### Findings
+
+#### P2: repo-level score observability on `main` is not currently trustworthy
+
+- Evidence:
+  - The repo presents longitudinal self-measurement as a core capability:
+    - `README.md:3` says it "Measures itself getting better over time."
+    - `README.md:14-16` says SDP/CUSUM catch drift.
+    - `README.md:47-50` advertises E2E scoring and CUSUM drift detection.
+    - `CI_CD.md:59` says per-criterion CUSUM tracks drift over time.
+  - The tracked history file on `main` is currently empty: `tests/e2e/score-history.jsonl`
+  - `ci.yml` only commits score history back to the PR branch:
+    - Tier 1: `ci.yml:574-596`
+    - Tier 2: `ci.yml:1298-1310`
+  - `SCORE_TRENDS.md:3-10` is stale and still claims it is "Updated after each CI E2E run."
+  - The workflow generates `SCORE_TRENDS.md` only after the commit/push step and never stages or pushes it:
+    - Tier 1 generation: `ci.yml:598-605`
+    - Tier 2 generation: `ci.yml:1312-1318`
+  - The current workflow regression test only checks that `score-history.jsonl` is committed somewhere, not that the tracked observability artifacts on `main` stay current: `tests/test-workflow-triggers.sh:1561-1566`
+- Why this matters:
+  - The repo's "measure itself over time" story is one of its main differentiators.
+  - Right now, the canonical branch does not provide trustworthy historical score data or a trustworthy trends report.
+  - This is a quality/trust issue, not just a cosmetic doc mismatch.
+- Impact:
+  - CUSUM and trend reporting on `main` are materially weaker than the repo narrative suggests.
+  - Readers can believe the observability layer is live and current when the tracked artifacts are stale or empty.
+- Recommended fix:
+  - Make one canonical persistence path for observability data on `main`:
+    - either commit both `tests/e2e/score-history.jsonl` and `SCORE_TRENDS.md` in the same update path, or
+    - move trends/history to a dedicated artifact/branch/data store and stop implying the tracked files are always current.
+  - Add a regression test for `SCORE_TRENDS.md` freshness/persistence, not just score-history commit presence.
+  - If persistence intentionally depends on merge strategy, document that limitation explicitly.
+
+#### P2: scoring docs are no longer fully synchronized with the actual evaluator
+
+- Evidence:
+  - `README.md:107-117` says:
+    - `TDD GREEN | 2 | Deterministic`
+    - `60% deterministic + 40% AI-judged`
+  - The actual evaluator and supporting docs say otherwise:
+    - deterministic scoring is `task_tracking` (1), `confidence` (1), and `tdd_red` (2): `tests/e2e/lib/deterministic-checks.sh:10-14`
+    - LLM-scored criteria include `plan_mode_outline`, `plan_mode_tool`, `tdd_green_ran`, `tdd_green_pass`, `self_review`, and `clean_code`: `tests/e2e/lib/eval-criteria.sh:39-50`
+    - `CONTRIBUTING.md:41-54` already documents `tdd_green_ran` and `tdd_green_pass` as AI-judged
+  - `CONTRIBUTING.md` also has smaller criterion-definition drift:
+    - `task_tracking` says `TaskCreate/TaskUpdate usage`, but the deterministic check is `TodoWrite|TaskCreate`: `CONTRIBUTING.md:45`, `tests/e2e/lib/deterministic-checks.sh:19-27`
+    - `plan_mode_tool` says `EnterPlanMode or plan file used`, but the live criterion also counts `TodoWrite`/`TaskCreate` as structured planning: `CONTRIBUTING.md:48`, `tests/e2e/lib/eval-criteria.sh:140-147`
+- Why this matters:
+  - The scoring model is one of the repo's main "why this is rigorous" claims.
+  - Stale scoring docs are more damaging here than they would be in an ordinary app README because readers use them to understand what the CI score actually means.
+- Impact:
+  - Readers get the wrong mental model of what is objective vs AI-judged.
+  - The docs currently understate how much of the score depends on the LLM judge and overstate/understate a few specific criteria.
+- Recommended fix:
+  - Align the README and CONTRIBUTING scoring descriptions with the live evaluator.
+  - If grouped summaries are kept, make them mechanically traceable to the underlying criterion definitions or simplify them to a narrative that cannot drift as easily.
+  - Specifically fix the `TDD GREEN` type, the deterministic/AI-judge split, `task_tracking`, and `plan_mode_tool` descriptions.
+
+#### P2: `ci.yml` still grants workflow-level write permissions while `validate` executes PR-controlled scripts
+
+- Evidence:
+  - `ci.yml:14-16` grants `contents: write` and `pull-requests: write` at workflow scope.
+  - The `validate` job immediately checks out the repo and runs shell scripts from the PR branch:
+    - checkout: `ci.yml:19-23`
+    - test execution starts at `ci.yml:69` and continues through `ci.yml:136`
+  - The write-capable behavior is only needed later for comment/push paths, not for the validation job itself.
+- Why this matters:
+  - This repo is unusually careful elsewhere about CI safety and prompt/tool restrictions.
+  - Leaving write permissions available to the earliest PR-controlled execution path is one of the few remaining least-privilege gaps.
+- Impact:
+  - Broader-than-necessary token scope during validation.
+  - Harder security review posture for a repo that is explicitly selling rigor and CI discipline.
+- Recommended fix:
+  - Reduce the workflow default to read-only permissions.
+  - Grant write permissions at job scope only to jobs that actually need them (PR comments, score-history persistence, etc.).
+  - If broad workflow-level permissions are intentionally accepted, document that tradeoff in `CODE_REVIEW_EXCEPTIONS.md`.
+
+#### P3: `CI_CD.md` still has summary-level contradictions about what `ci.yml` does
+
+- Evidence:
+  - `CI_CD.md:32` says Tier 1 evaluates "candidate score + SDP scoring + token metrics"
+  - The same doc later says token tracking was removed because `claude-code-action@v1` does not expose usage fields: `CI_CD.md:120-124`
+  - The workflow overview table says `ci.yml` on "PR, push to main" does "Validation, tests, E2E evaluation": `CI_CD.md:5-11`
+  - The same doc later says push to main is "validation only": `CI_CD.md:126-129`
+- Why this matters:
+  - These are top-of-doc summary statements that shape the reader's first mental model.
+  - The repo already did the harder work to fix the underlying implementation; leaving contradictory summaries behind is a pure trust leak.
+- Impact:
+  - Minor documentation trust leak.
+- Recommended fix:
+  - Remove "token metrics" from the Tier 1 flow summary until the action exposes usage data again.
+  - Make the overview table explicitly match the actual trigger behavior: PRs get E2E, push-to-main is validation-only.
+
+### Positive checks
+
+- Full local shell suite passed on merged `main`.
+- `actionlint -shellcheck=` is clean.
+- Repo-authored Markdown local links and anchors are intact.
+- The earlier workflow correctness fixes (checkout ref, concurrency, stale cadence cleanup, `act` cleanup, permission cleanup for `id-token`) are present on `main`.
+- `shellcheck` warnings were reviewed; they looked like low-value robustness/style issues rather than additional repo-level bugs.
+
+### Verdict
+
+- This repo is in much better shape than the earlier audit rounds.
+- It is not yet at a clean "nothing substantial left to say" state because the observability layer on `main` still does not fully match the repo's own claims, and CI permission scope can still be tightened.
+- After those are fixed, another pass should be much closer to sign-off quality.
 
 ## PR-local review: `fix/codex-main-audit` (2026-03-27)
 
