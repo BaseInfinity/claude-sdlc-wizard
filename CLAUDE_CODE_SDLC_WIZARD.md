@@ -92,7 +92,7 @@ When your AI tools update, how do you know if the update is safe?
 This prevents both false positives (crying wolf) and false negatives (missing real regressions).
 
 **How We Apply This:**
-- Daily workflow tests new Claude Code versions before recommending upgrade
+- Weekly workflow tests new Claude Code versions before recommending upgrade
 - Phase A: Does new CC version break SDLC enforcement?
 - Phase B: Do changelog-suggested improvements actually help?
 - Results shown in PR with statistical confidence
@@ -2654,20 +2654,20 @@ GitHub Actions with `workflow_dispatch` (manual trigger) can only be triggered A
 
 | What You Want | What Works |
 |---------------|------------|
-| Test new workflow before merge | Use `act` locally, or test via push/PR events |
+| Test new workflow before merge | YAML validation + trigger tests, or test via push/PR events |
 | Manual trigger new workflow | Merge first, then `gh workflow run` |
 
-**Local testing with `act`:**
-```bash
-# Install act
-brew install act
+**Why not `act`?** Workflows that use `claude-code-action@v1` require GitHub Actions secrets and runner context that `act` cannot replicate. Use YAML validation and trigger tests instead:
 
-# Run workflow locally (macOS/Linux)
-act workflow_dispatch -W .github/workflows/my-workflow.yml \
-  --secret MY_SECRET="$MY_SECRET"
+```bash
+# Validate YAML syntax
+python3 -c "import yaml; yaml.safe_load(open('.github/workflows/my-workflow.yml'))"
+
+# Run trigger/config tests (if you have them)
+./tests/test-workflow-triggers.sh
 ```
 
-This catches most issues before merge. For full GitHub environment testing, merge then trigger.
+This catches structural issues before merge. For full GitHub environment testing, merge then trigger.
 
 ### PR Review with Comment Response (Optional)
 
@@ -2726,7 +2726,7 @@ CI runs ──► FAIL ──► ci-autofix: Claude reads logs, fixes, commits [
 - Max retries (default 3, configurable via `MAX_AUTOFIX_RETRIES`)
 - `AUTOFIX_LEVEL` controls what findings to act on (`ci-only`, `criticals`, `all-findings`)
 - Restricted Claude tools (no git, no npm)
-- Self-modification ban (can't edit ci-autofix.yml)
+- Self-modification ban (can't edit its own workflow file)
 - `[autofix N/M]` commit tags for audit trail
 - Sticky PR comments show status
 
@@ -2779,6 +2779,8 @@ jobs:
 | GitHub App token | `CI_AUTOFIX_APP_ID` secret exists | Push triggers `synchronize` naturally |
 
 **Note:** `workflow_run` only fires for workflows on the default branch. The ci-autofix workflow is dormant until first merged to main.
+
+> **Template vs. this repo:** The template above uses `ci-autofix.yml` with `criticals` as a safe default for new projects. The wizard's own repo has evolved this into `ci-self-heal.yml` with `all-findings` — a more aggressive configuration we dogfood internally. Both naming conventions work; the behavior is identical.
 
 ---
 

@@ -57,7 +57,7 @@ See `ARCHITECTURE.md` for full details.
 
 Key concepts:
 - **Wizard**: Main document users copy to their repos
-- **Auto-update**: Daily workflow checks Claude Code releases
+- **Auto-update**: Weekly workflow checks Claude Code releases
 - **Hooks**: Enforce SDLC on every interaction
 - **Skills**: Provide detailed guidance when invoked
 

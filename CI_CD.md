@@ -207,7 +207,7 @@ CI runs ──► FAIL ──► ci-self-heal ──► Claude fixes ──► c
 |---------|---------|
 | `head_branch != 'main'` | Never auto-fix production |
 | `MAX_AUTOFIX_RETRIES: 3` | Prevent infinite loops (configurable) |
-| `AUTOFIX_LEVEL` | Controls what findings to act on (`ci-only`, `criticals` (default), `all-findings`) |
+| `AUTOFIX_LEVEL` | Controls what findings to act on (`ci-only`, `criticals`, `all-findings` (current)) |
 | Restricted Claude tools | No git, no npm - only read/edit/write/test |
 | `--max-turns 30` | Limit Claude execution |
 | `[autofix N/M]` commits | Audit trail in git history |

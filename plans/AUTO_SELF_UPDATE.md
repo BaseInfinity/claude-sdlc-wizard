@@ -45,7 +45,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 | **Tier 2 (Full)** | 5x | High (95% CI) | ~$2.50 |
 
 **Who Gets What:**
-- **Our auto-workflows** (daily/weekly/monthly): Tier 1 + Tier 2 always
+- **Our auto-workflows** (weekly/monthly): Tier 1 + Tier 2 always
 - **External PRs**: Tier 1 only (Tier 2 on request via `merge-ready` label)
 
 ## What's Implemented
@@ -65,7 +65,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 ### PR Code Review (`.github/workflows/pr-review.yml`)
 - **Trigger:** All PRs
 - **Action:** AI code review using GitHub MCP tools
-- **Tools:** Proper review workflow (pending review → comments → submit)
+- **Tools:** Sticky-comment AI review using Claude Code
 
 ### CI with E2E Evaluation (`.github/workflows/ci.yml`)
 - **Trigger:** All PRs and pushes to main

@@ -1683,7 +1683,7 @@ test_ci_score_history_push_explicit_ref() {
     # On pull_request events, actions/checkout checks out refs/pull/N/merge (detached HEAD).
     # Bare `git push` on detached HEAD fails silently with continue-on-error.
     # Must use explicit ref: git push origin HEAD:refs/heads/<branch>
-    if grep -A 10 'Commit score history' "$WORKFLOW" | grep -q 'git push origin HEAD:refs/heads/'; then
+    if grep -A 15 'Commit score history' "$WORKFLOW" | grep -q 'git push origin.*refs/heads/\|git push origin.*\$PR_BRANCH'; then
         pass "ci.yml score history push uses explicit branch ref (detached HEAD safe)"
     else
         fail "ci.yml score history push uses bare 'git push' (fails silently on detached HEAD)"
@@ -2703,6 +2703,280 @@ test_no_orphaned_test_scripts() {
 }
 
 test_no_orphaned_test_scripts
+
+# ============================================
+# Codex Cross-Model Review Findings (Tests 124-130)
+# Validates fixes for issues found by independent Codex audit
+# ============================================
+
+# Test 124: pr-review.yml checkout specifies explicit ref for PR head
+# Without explicit ref, pull_request_target checks out main instead of PR code
+test_pr_review_checkout_explicit_ref() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 5 'actions/checkout@v4' "$WORKFLOW" | grep -q 'ref:'; then
+        pass "pr-review.yml checkout specifies explicit ref (pull_request_target safe)"
+    else
+        fail "pr-review.yml checkout missing explicit ref (pull_request_target checks out base branch)"
+    fi
+}
+
+# Test 125: pr-review.yml concurrency group uses PR number, not github.ref
+# github.ref on pull_request_target = refs/heads/main for ALL PRs (collision)
+test_pr_review_concurrency_uses_pr_number() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 4 'concurrency:' "$WORKFLOW" | grep -q 'pull_request.number'; then
+        pass "pr-review.yml concurrency group uses PR number (no cross-PR collision)"
+    else
+        fail "pr-review.yml concurrency group doesn't use PR number (pull_request_target collision risk)"
+    fi
+}
+
+# Test 126: ci.yml does not use head.ref directly in run: blocks (injection risk)
+# head.ref should be passed via env: block, not interpolated inline in shell
+test_ci_head_ref_not_in_run_blocks() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    # Use YAML parser to check run: block content for direct head.ref interpolation
+    local result
+    result=$(python3 -c "
+import yaml, sys
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+found = False
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        run = step.get('run', '')
+        if 'pull_request.head.ref' in run:
+            found = True
+print('CLEAN' if not found else 'FOUND')
+" 2>/dev/null) || true
+    if [ "$result" = "CLEAN" ]; then
+        pass "ci.yml: head.ref passed via env: blocks, not inline in run: blocks"
+    else
+        fail "ci.yml: head.ref used directly in run: blocks (injection risk — use env: block)"
+    fi
+}
+
+# Test 127: pr-review.yml trivial detection excludes execution-critical paths
+# .github/workflows/*.yml and tests/** should never be "trivial" in this meta-repo
+test_trivial_pr_excludes_critical_paths() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 40 'Check if trivial PR' "$WORKFLOW" | grep -q 'github\|\.github'; then
+        pass "pr-review.yml trivial detection excludes .github/ paths"
+    else
+        fail "pr-review.yml trivial detection doesn't exclude .github/ paths (workflow changes skip review)"
+    fi
+}
+
+# Test 128: pr-review.yml CI wait checks e2e-quick-check, not just validate
+test_ci_wait_includes_e2e() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 40 'Wait for CI to complete' "$WORKFLOW" | grep -q 'e2e-quick-check'; then
+        pass "pr-review.yml waits for e2e-quick-check (not just validate)"
+    else
+        fail "pr-review.yml only waits for validate, misses e2e-quick-check signal"
+    fi
+}
+
+# Test 129: CONTRIBUTING.md lists all test scripts that CI validate runs
+test_contributing_matches_ci_scripts() {
+    local CI="$REPO_ROOT/.github/workflows/ci.yml"
+    local CONTRIB="$REPO_ROOT/CONTRIBUTING.md"
+    if [ ! -f "$CI" ] || [ ! -f "$CONTRIB" ]; then
+        fail "ci.yml or CONTRIBUTING.md not found"
+        return
+    fi
+
+    # Extract test runner scripts (test-*.sh and run-simulation.sh) from both files
+    # Exclude helper scripts like evaluate.sh, score-analytics.sh (not test runners)
+    local result
+    result=$(python3 -c "
+import re
+with open('$CONTRIB') as f:
+    contrib_scripts = set(re.findall(r'\./tests/(?:e2e/)?(?:test-[^\s\\\\]+\.sh|run-simulation\.sh)', f.read()))
+with open('$CI') as f:
+    ci_scripts = set(re.findall(r'\./tests/(?:e2e/)?(?:test-[^\s\\\\]+\.sh|run-simulation\.sh)', f.read()))
+missing = ci_scripts - contrib_scripts
+if missing:
+    print('MISSING:' + ','.join(sorted(missing)))
+else:
+    print('OK')
+" 2>/dev/null) || true
+    if [ "$result" = "OK" ]; then
+        pass "CONTRIBUTING.md lists all test scripts from CI"
+    else
+        fail "CONTRIBUTING.md missing test scripts that CI validate runs"
+    fi
+}
+
+# Test 130: testing SKILL.md does not recommend `act` for workflow testing
+# TESTING.md says workflows can't be tested locally with act
+test_skill_no_act_for_workflows() {
+    local SKILL="$REPO_ROOT/.claude/skills/testing/SKILL.md"
+    if [ ! -f "$SKILL" ]; then
+        fail "testing SKILL.md not found"
+        return
+    fi
+
+    # Should NOT recommend using act to test workflows (TESTING.md says it doesn't work)
+    # Match the specific recommendation pattern, not negations like "can't run with act"
+    if grep -qi 'Use.*act.*to test\|Use `act`' "$SKILL"; then
+        fail "testing SKILL.md still recommends 'act' for workflows (contradicts TESTING.md)"
+    else
+        pass "testing SKILL.md does not recommend 'act' for workflow testing"
+    fi
+}
+
+test_pr_review_checkout_explicit_ref
+test_pr_review_concurrency_uses_pr_number
+test_ci_head_ref_not_in_run_blocks
+test_trivial_pr_excludes_critical_paths
+test_ci_wait_includes_e2e
+test_contributing_matches_ci_scripts
+test_skill_no_act_for_workflows
+
+# --- Round 2: Codex cross-model review findings (2026-03-27) ---
+
+# Test 131: README raw install URL matches actual GitHub remote
+test_readme_raw_url_matches_remote() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then
+        fail "README.md not found"
+        return
+    fi
+
+    # The raw URL must use the correct repo name (agentic-ai-sdlc-wizard)
+    if grep -q 'raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/' "$README"; then
+        pass "README raw URL uses correct repo name"
+    else
+        fail "README raw URL does not match remote (expected agentic-ai-sdlc-wizard)"
+    fi
+}
+
+# Test 132: No stale "daily" cadence references in key docs
+# Weekly + monthly exist, daily was removed. Check broadly — not just specific phrases.
+test_no_stale_daily_cadence() {
+    local ERRORS=0
+
+    # README.md should not describe daily cadence anywhere (table, summary, etc.)
+    # Exclude changelog/historical lines by checking current-tense descriptions
+    if grep -qiE 'Daily[/ ].*workflow|Daily.*Claude Code|Daily/weekly/monthly' "$REPO_ROOT/README.md" 2>/dev/null; then
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # CLAUDE.md should not say "Daily workflow"
+    if grep -qi 'Daily workflow checks Claude Code' "$REPO_ROOT/CLAUDE.md" 2>/dev/null; then
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # CLAUDE_CODE_SDLC_WIZARD.md should not say "Daily workflow"
+    if grep -qi 'Daily workflow tests new Claude Code' "$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md" 2>/dev/null; then
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    if [ "$ERRORS" -eq 0 ]; then
+        pass "No stale 'daily' cadence references in key docs"
+    else
+        fail "Found $ERRORS stale 'daily' cadence reference(s) — only weekly/monthly exist"
+    fi
+}
+
+# Test 133: Wizard explicitly distinguishes template defaults vs repo config
+test_wizard_autofix_template_distinction() {
+    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$WIZARD" ]; then
+        fail "CLAUDE_CODE_SDLC_WIZARD.md not found"
+        return
+    fi
+
+    # Must have a callout explaining template vs this repo's config
+    if grep -qi 'template.*vs.*this repo\|template.*repo.*distinction\|template.*safe default' "$WIZARD"; then
+        pass "Wizard distinguishes template defaults vs repo config"
+    else
+        fail "Wizard does not explain template vs repo distinction for autofix"
+    fi
+}
+
+# Test 134: Wizard does not recommend `act` for workflow testing
+# TESTING.md and CI_CD.md say act doesn't work with claude-code-action@v1
+test_wizard_no_act_recommendation() {
+    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$WIZARD" ]; then
+        fail "CLAUDE_CODE_SDLC_WIZARD.md not found"
+        return
+    fi
+
+    # Should NOT have act install instructions or recommend act for testing
+    if grep -qi 'brew install act\|Use `act` locally\|Local testing with `act`' "$WIZARD"; then
+        fail "Wizard still recommends 'act' for workflow testing (contradicts TESTING.md)"
+    else
+        pass "Wizard does not recommend 'act' for workflow testing"
+    fi
+}
+
+# Test 135: COMPETITIVE_AUDIT.md has current test counts (23 scripts)
+test_competitive_audit_current_counts() {
+    local AUDIT="$REPO_ROOT/COMPETITIVE_AUDIT.md"
+    if [ ! -f "$AUDIT" ]; then
+        fail "COMPETITIVE_AUDIT.md not found"
+        return
+    fi
+
+    if grep -q '23 scripts' "$AUDIT"; then
+        pass "COMPETITIVE_AUDIT.md has current test script count (23)"
+    else
+        fail "COMPETITIVE_AUDIT.md has stale test script count (expected 23)"
+    fi
+}
+
+# Test 136: AUTO_SELF_UPDATE.md "Who Gets What" section uses current cadence
+# The roadmap history items mention "daily" in past tense (DONE items) — that's fine.
+# The active "Who Gets What" section should say "weekly/monthly", not "daily/weekly/monthly".
+test_auto_self_update_no_daily() {
+    local PLAN="$REPO_ROOT/plans/AUTO_SELF_UPDATE.md"
+    if [ ! -f "$PLAN" ]; then
+        fail "plans/AUTO_SELF_UPDATE.md not found"
+        return
+    fi
+
+    # Check the "Who Gets What" / "Our auto-workflows" line specifically
+    if grep -q 'auto-workflows.*(weekly/monthly)' "$PLAN"; then
+        pass "AUTO_SELF_UPDATE.md 'Who Gets What' uses current cadence (weekly/monthly)"
+    else
+        fail "AUTO_SELF_UPDATE.md 'Who Gets What' has stale cadence (expected weekly/monthly)"
+    fi
+}
+
+test_readme_raw_url_matches_remote
+test_no_stale_daily_cadence
+test_wizard_autofix_template_distinction
+test_wizard_no_act_recommendation
+test_competitive_audit_current_counts
+test_auto_self_update_no_daily
 
 echo ""
 echo "=== Results ==="
