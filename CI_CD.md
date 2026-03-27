@@ -234,7 +234,7 @@ CI runs ──► FAIL ──► ci-self-heal ──► Claude fixes ──► c
 - Triggers on PR open, ready_for_review, or `needs-review` label
 - Waits for CI to pass before reviewing (saves API costs)
 - Skips trivial PRs (docs-only, config-only)
-- Uses Claude Code action for AI review
+- Uses Claude Code action for AI review, pinned to `claude-opus-4-6`
 - Posts review as **sticky PR comment**
 - Checks E2E coverage for SDLC-affecting changes
 

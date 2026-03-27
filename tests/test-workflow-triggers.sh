@@ -2500,12 +2500,36 @@ test_no_bare_weekly_simulations() {
     fi
 }
 
+# Test 122: pr-review.yml uses --effort high for deep reasoning on reviews
+test_pr_review_effort_high() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if grep -A4 'claude_args:' "$WORKFLOW" | grep -q '\-\-effort high'; then
+        pass "pr-review.yml uses --effort high in claude_args"
+    else
+        fail "pr-review.yml should use --effort high for deeper review reasoning"
+    fi
+}
+
+# Test 123: pr-review.yml uses claude-opus-4-6 model
+test_pr_review_opus_model() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+
+    if grep -A4 'claude_args:' "$WORKFLOW" | grep -q 'claude-opus-4-6'; then
+        pass "pr-review.yml uses claude-opus-4-6 model"
+    else
+        fail "pr-review.yml should use claude-opus-4-6 for maximum review quality"
+    fi
+}
+
 test_bare_pr_review
 test_bare_ci_self_heal
 test_bare_weekly_update_analysis
 test_bare_monthly_research
 test_no_bare_ci_simulations
 test_no_bare_weekly_simulations
+test_pr_review_effort_high
+test_pr_review_opus_model
 
 # --- Bug fix tests (weekly-update/monthly-research workflow issues) ---
 

@@ -924,6 +924,18 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 
 **Recommendation:** Yes for most teams. No point reviewing code that doesn't build/pass tests. Saves Claude API costs and reviewer time.
 
+> "What reasoning effort for the PR reviewer? (medium/high/max)"
+
+| Level | Cost per Review | When to Use |
+|-------|----------------|-------------|
+| `medium` | ~$0.13-0.38 | Default, balanced cost/quality |
+| `high` | ~$0.38-1.00 | Recommended — deeper reasoning catches more |
+| `max` (Opus only) | $1.00+ | Unbounded thinking, highest quality, unpredictable cost |
+
+**Recommendation:** `high` for most teams. The reviewer is your quality gate — deeper reasoning catches issues that `medium` misses. `max` is overkill for routine reviews but useful for security-critical or high-risk PRs.
+
+**How to set it:** Add `--effort high` (or `medium`/`max`) to `claude_args` in your PR review workflow. You can change this anytime.
+
 > "Use sticky PR comments or inline review comments for bot reviews? (sticky/inline)"
 
 - **Sticky** → Bot reviews post as single PR comment that updates in place

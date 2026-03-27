@@ -6,9 +6,8 @@
 
 - Keep local review loop as the default quality bar: Claude self-review first, then local Codex `xhigh` for independent cross-model review on substantial changes.
 - Keep GitHub PR automation on the existing Claude review pipeline so SDLC checks and `ci-self-heal.yml` continue to work.
-- Pin the GitHub PR reviewer to `claude-opus-4-6` with `--effort high` for maximum review quality. Currently using default effort (medium) — upgrading to `high` is a low-risk cost bump (~$0.38-1.00/review vs ~$0.13-0.38).
+- Pin the GitHub PR reviewer to `claude-opus-4-6` for maximum current Claude review quality.
 - Enable Codex GitHub review manually and use it on high-risk PRs first rather than every PR.
-- Wire cross-model review into our own local SDLC workflow (codex exec with GPT-5.4 xhigh) — currently documented in wizard but not running as part of our own pre-PR loop. See task list item 13.5.
 
 ### Next: Codex vs Claude Review Experiment
 
@@ -16,12 +15,12 @@
 - Use the current Claude PR review on all of them.
 - Manually trigger Codex review on epic/high-risk PRs with `@codex review`.
 - Track for each PR:
-  - unique findings from Claude
-  - unique findings from Codex
-  - false positives / low-value noise
-  - merge delay / workflow friction
-  - whether findings were severe enough to change the merge decision
-  - relative cost and review frequency
+- unique findings from Claude
+- unique findings from Codex
+- false positives / low-value noise
+- merge delay / workflow friction
+- whether findings were severe enough to change the merge decision
+- relative cost and review frequency
 
 ### Decision Gate
 
