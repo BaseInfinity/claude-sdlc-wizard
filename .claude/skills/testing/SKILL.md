@@ -91,7 +91,7 @@ Since this is a meta-repo (docs/workflows, not app code):
 - **Unit tests**: Test bash script logic (`test-version-logic.sh`)
 - **Integration tests**: Test schema validation (`test-analysis-schema.sh`)
 - **E2E tests**: Run wizard on test repos, verify compliance (`run-simulation.sh`)
-- **Workflow tests**: Use `act` to test GitHub Actions locally
+- **Workflow tests**: YAML validation + `test-workflow-triggers.sh` (workflows can't run locally with `act`)
 
 ## After Session (Capture Learnings)
 

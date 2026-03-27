@@ -1683,7 +1683,7 @@ test_ci_score_history_push_explicit_ref() {
     # On pull_request events, actions/checkout checks out refs/pull/N/merge (detached HEAD).
     # Bare `git push` on detached HEAD fails silently with continue-on-error.
     # Must use explicit ref: git push origin HEAD:refs/heads/<branch>
-    if grep -A 10 'Commit score history' "$WORKFLOW" | grep -q 'git push origin HEAD:refs/heads/'; then
+    if grep -A 15 'Commit score history' "$WORKFLOW" | grep -q 'git push origin.*refs/heads/\|git push origin.*\$PR_BRANCH'; then
         pass "ci.yml score history push uses explicit branch ref (detached HEAD safe)"
     else
         fail "ci.yml score history push uses bare 'git push' (fails silently on detached HEAD)"
@@ -2703,6 +2703,161 @@ test_no_orphaned_test_scripts() {
 }
 
 test_no_orphaned_test_scripts
+
+# ============================================
+# Codex Cross-Model Review Findings (Tests 124-130)
+# Validates fixes for issues found by independent Codex audit
+# ============================================
+
+# Test 124: pr-review.yml checkout specifies explicit ref for PR head
+# Without explicit ref, pull_request_target checks out main instead of PR code
+test_pr_review_checkout_explicit_ref() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 5 'actions/checkout@v4' "$WORKFLOW" | grep -q 'ref:'; then
+        pass "pr-review.yml checkout specifies explicit ref (pull_request_target safe)"
+    else
+        fail "pr-review.yml checkout missing explicit ref (pull_request_target checks out base branch)"
+    fi
+}
+
+# Test 125: pr-review.yml concurrency group uses PR number, not github.ref
+# github.ref on pull_request_target = refs/heads/main for ALL PRs (collision)
+test_pr_review_concurrency_uses_pr_number() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 4 'concurrency:' "$WORKFLOW" | grep -q 'pull_request.number'; then
+        pass "pr-review.yml concurrency group uses PR number (no cross-PR collision)"
+    else
+        fail "pr-review.yml concurrency group doesn't use PR number (pull_request_target collision risk)"
+    fi
+}
+
+# Test 126: ci.yml does not use head.ref directly in run: blocks (injection risk)
+# head.ref should be passed via env: block, not interpolated inline in shell
+test_ci_head_ref_not_in_run_blocks() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    # Use YAML parser to check run: block content for direct head.ref interpolation
+    local result
+    result=$(python3 -c "
+import yaml, sys
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+found = False
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        run = step.get('run', '')
+        if 'pull_request.head.ref' in run:
+            found = True
+print('CLEAN' if not found else 'FOUND')
+" 2>/dev/null) || true
+    if [ "$result" = "CLEAN" ]; then
+        pass "ci.yml: head.ref passed via env: blocks, not inline in run: blocks"
+    else
+        fail "ci.yml: head.ref used directly in run: blocks (injection risk — use env: block)"
+    fi
+}
+
+# Test 127: pr-review.yml trivial detection excludes execution-critical paths
+# .github/workflows/*.yml and tests/** should never be "trivial" in this meta-repo
+test_trivial_pr_excludes_critical_paths() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 40 'Check if trivial PR' "$WORKFLOW" | grep -q 'github\|\.github'; then
+        pass "pr-review.yml trivial detection excludes .github/ paths"
+    else
+        fail "pr-review.yml trivial detection doesn't exclude .github/ paths (workflow changes skip review)"
+    fi
+}
+
+# Test 128: pr-review.yml CI wait checks e2e-quick-check, not just validate
+test_ci_wait_includes_e2e() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "pr-review.yml not found"
+        return
+    fi
+
+    if grep -A 40 'Wait for CI to complete' "$WORKFLOW" | grep -q 'e2e-quick-check'; then
+        pass "pr-review.yml waits for e2e-quick-check (not just validate)"
+    else
+        fail "pr-review.yml only waits for validate, misses e2e-quick-check signal"
+    fi
+}
+
+# Test 129: CONTRIBUTING.md lists all test scripts that CI validate runs
+test_contributing_matches_ci_scripts() {
+    local CI="$REPO_ROOT/.github/workflows/ci.yml"
+    local CONTRIB="$REPO_ROOT/CONTRIBUTING.md"
+    if [ ! -f "$CI" ] || [ ! -f "$CONTRIB" ]; then
+        fail "ci.yml or CONTRIBUTING.md not found"
+        return
+    fi
+
+    # Extract test runner scripts (test-*.sh and run-simulation.sh) from both files
+    # Exclude helper scripts like evaluate.sh, score-analytics.sh (not test runners)
+    local result
+    result=$(python3 -c "
+import re
+with open('$CONTRIB') as f:
+    contrib_scripts = set(re.findall(r'\./tests/(?:e2e/)?(?:test-[^\s\\\\]+\.sh|run-simulation\.sh)', f.read()))
+with open('$CI') as f:
+    ci_scripts = set(re.findall(r'\./tests/(?:e2e/)?(?:test-[^\s\\\\]+\.sh|run-simulation\.sh)', f.read()))
+missing = ci_scripts - contrib_scripts
+if missing:
+    print('MISSING:' + ','.join(sorted(missing)))
+else:
+    print('OK')
+" 2>/dev/null) || true
+    if [ "$result" = "OK" ]; then
+        pass "CONTRIBUTING.md lists all test scripts from CI"
+    else
+        fail "CONTRIBUTING.md missing test scripts that CI validate runs"
+    fi
+}
+
+# Test 130: testing SKILL.md does not recommend `act` for workflow testing
+# TESTING.md says workflows can't be tested locally with act
+test_skill_no_act_for_workflows() {
+    local SKILL="$REPO_ROOT/.claude/skills/testing/SKILL.md"
+    if [ ! -f "$SKILL" ]; then
+        fail "testing SKILL.md not found"
+        return
+    fi
+
+    # Should NOT recommend using act to test workflows (TESTING.md says it doesn't work)
+    # Match the specific recommendation pattern, not negations like "can't run with act"
+    if grep -qi 'Use.*act.*to test\|Use `act`' "$SKILL"; then
+        fail "testing SKILL.md still recommends 'act' for workflows (contradicts TESTING.md)"
+    else
+        pass "testing SKILL.md does not recommend 'act' for workflow testing"
+    fi
+}
+
+test_pr_review_checkout_explicit_ref
+test_pr_review_concurrency_uses_pr_number
+test_ci_head_ref_not_in_run_blocks
+test_trivial_pr_excludes_critical_paths
+test_ci_wait_includes_e2e
+test_contributing_matches_ci_scripts
+test_skill_no_act_for_workflows
 
 echo ""
 echo "=== Results ==="

@@ -576,12 +576,14 @@ jobs:
         if: steps.check-baseline.outputs.should_simulate == 'true'
         continue-on-error: true
         working-directory: pr-branch
+        env:
+          # Pass head.ref via env block, not inline in shell (injection hardening)
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           # Save updated score file (we're on detached HEAD at refs/pull/N/merge)
           cp tests/e2e/score-history.jsonl /tmp/score-history-updated.jsonl
 
           # Checkout the actual PR branch (not the merge ref)
-          PR_BRANCH="${{ github.event.pull_request.head.ref }}"
           git fetch origin "$PR_BRANCH"
           git checkout "$PR_BRANCH"
           git pull --rebase origin "$PR_BRANCH"
@@ -1297,13 +1299,16 @@ jobs:
       - name: Commit score history (Tier 2)
         continue-on-error: true
         working-directory: pr-branch
+        env:
+          # Pass head.ref via env block, not inline in shell (injection hardening)
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add tests/e2e/score-history.jsonl
           git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
           # Push to PR branch explicitly — checkout is detached HEAD (refs/pull/N/merge)
-          git push origin HEAD:refs/heads/${{ github.event.pull_request.head.ref }} || echo "Nothing to push"
+          git push origin "HEAD:refs/heads/$PR_BRANCH" || echo "Nothing to push"
 
       - name: Generate score trends report (Tier 2)
         continue-on-error: true

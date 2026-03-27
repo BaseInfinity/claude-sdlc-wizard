@@ -65,7 +65,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 ### PR Code Review (`.github/workflows/pr-review.yml`)
 - **Trigger:** All PRs
 - **Action:** AI code review using GitHub MCP tools
-- **Tools:** Proper review workflow (pending review → comments → submit)
+- **Tools:** Sticky-comment AI review using Claude Code
 
 ### CI with E2E Evaluation (`.github/workflows/ci.yml`)
 - **Trigger:** All PRs and pushes to main
