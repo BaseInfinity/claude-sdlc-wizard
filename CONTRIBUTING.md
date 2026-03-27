@@ -7,7 +7,7 @@ Thank you for your interest in improving the SDLC Wizard!
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
 3. Make your changes
-4. Run tests (all 23 scripts that CI validate runs):
+4. Run tests (all 22 scripts that CI validate runs):
    ```bash
    ./tests/test-version-logic.sh && ./tests/test-analysis-schema.sh && \
    ./tests/test-workflow-triggers.sh && ./tests/test-cusum.sh && \
