@@ -3,8 +3,48 @@
 > Audit log for Codex repo reviews.
 >
 > This file now contains two sections:
+> - The current PR-local review for `fix/codex-main-audit`
 > - The current deeper `main` audit pass (open findings, if any)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
+
+## PR-local review: `fix/codex-main-audit` (2026-03-27)
+
+Audit target: `origin/main...fix/codex-main-audit` (PR #94)
+
+### Scope and verification
+
+- Branch state reviewed after `git pull --ff-only origin fix/codex-main-audit`
+- Changed surfaces reviewed: workflow YAML, hook guidance, regression tests, audit log updates, and affected docs
+- Verification run during this pass:
+  - `./tests/test-workflow-triggers.sh` -> failed (`Passed: 144`, `Failed: 1`)
+  - `./tests/test-hooks.sh` -> passed
+  - `actionlint -shellcheck=` -> clean
+  - `git diff --check origin/main...HEAD` -> clean
+
+### Findings
+
+#### P1: FIXED — this branch changes doc counts from 23 to 22, but CI still runs 23 test scripts
+
+- Evidence:
+  - `COMPETITIVE_AUDIT.md:27` now says `Comprehensive automated tests across 22 scripts.`
+  - `CONTRIBUTING.md:10` now says `Run tests (all 22 scripts that CI validate runs):`
+  - The `validate` job in `.github/workflows/ci.yml` still executes 23 `./tests/...` commands.
+  - The repo's own regression suite catches this immediately:
+    - `tests/test-workflow-triggers.sh` fails with `COMPETITIVE_AUDIT.md has stale test script count (expected 23)`
+- Why this matters:
+  - This is not just wording drift; the branch is currently failing a repo validation test.
+  - The exact-number cleanup is directionally reasonable, but changing two docs to the wrong number makes the branch non-green.
+- Impact:
+  - PR #94 is not merge-ready as-is.
+  - The audit log would become misleading again if this lands without correction.
+- Recommended fix:
+  - Either change both docs back to `23`, or make them resilient/non-brittle while keeping `tests/test-workflow-triggers.sh` aligned with the chosen wording.
+  - If the repo wants to stop hard-coding script counts, update the test accordingly rather than only editing the docs.
+
+### Verdict
+
+- Not merge-ready yet.
+- After this count mismatch is fixed and the workflow-trigger suite is green again, this branch looks ready to merge.
 
 ## Current main audit (2026-03-27)
 
