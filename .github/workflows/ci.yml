@@ -130,6 +130,9 @@ jobs:
       - name: Run eval prompt regression tests
         run: ./tests/e2e/test-eval-prompt-regression.sh
 
+      - name: Run external benchmark tests
+        run: ./tests/test-external-benchmark.sh
+
       - name: Run self-update mechanism tests
         run: ./tests/test-self-update.sh
 

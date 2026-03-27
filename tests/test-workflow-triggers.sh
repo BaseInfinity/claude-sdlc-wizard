@@ -2639,6 +2639,47 @@ test_gitignore_exists
 test_gitignore_node_modules
 test_gitignore_e2e_cache
 
+# ============================================
+# CI Coverage Tests
+# ============================================
+# Every test-*.sh script should be wired into ci.yml validate job.
+# Catches orphaned test scripts that run locally but not in CI.
+
+# Test 121: All test-*.sh scripts are referenced in ci.yml validate job
+test_no_orphaned_test_scripts() {
+    local CI="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    local orphans=""
+    # Check tests/ (top-level test scripts)
+    for script in "$REPO_ROOT"/tests/test-*.sh; do
+        local name
+        name=$(basename "$script")
+        if ! grep -q "tests/$name" "$CI"; then
+            orphans="$orphans $name"
+        fi
+    done
+    # Check tests/e2e/ (e2e test scripts)
+    for script in "$REPO_ROOT"/tests/e2e/test-*.sh; do
+        local name
+        name=$(basename "$script")
+        if ! grep -q "tests/e2e/$name" "$CI"; then
+            orphans="$orphans $name"
+        fi
+    done
+
+    if [ -z "$orphans" ]; then
+        pass "All test-*.sh scripts are wired into ci.yml"
+    else
+        fail "Orphaned test scripts not in ci.yml:$orphans"
+    fi
+}
+
+test_no_orphaned_test_scripts
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
