@@ -640,6 +640,111 @@ test_malformed_clamped_then_valid
 test_valid_full_result
 test_invalid_full_result
 
+# -----------------------------------------------
+# UI detection tests (evaluate.sh scenario type)
+# -----------------------------------------------
+echo ""
+echo "--- UI detection tests ---"
+
+source "$SCRIPT_DIR/lib/eval-criteria.sh"
+
+# Test: "technical-debt-cleanup" must NOT be detected as UI
+test_tech_debt_not_ui() {
+    local scenario_content
+    scenario_content=$(cat "$SCRIPT_DIR/scenarios/technical-debt-cleanup.md")
+
+    local detected
+    detected=$(detect_scenario_type "$scenario_content")
+    if [ "$detected" = "standard" ]; then
+        pass "technical-debt-cleanup correctly detected as non-UI (standard)"
+    else
+        fail "technical-debt-cleanup falsely detected as UI scenario (got: $detected)"
+    fi
+}
+
+# Test: Words like "requires" should NOT trigger UI detection
+test_requires_not_ui() {
+    local content="Medium - requires usage analysis, safe deletion"
+    local detected
+    detected=$(detect_scenario_type "$content")
+    if [ "$detected" = "standard" ]; then
+        pass "'requires' does not trigger UI detection"
+    else
+        fail "'requires' falsely triggers UI detection"
+    fi
+}
+
+# Test: Actual UI content SHOULD trigger UI detection
+test_actual_ui_detected() {
+    local content="This task involves changing the UI styling and color scheme"
+    local detected
+    detected=$(detect_scenario_type "$content")
+    if [ "$detected" = "ui" ]; then
+        pass "Actual UI content correctly detected as UI"
+    else
+        fail "Actual UI content not detected (got: $detected)"
+    fi
+}
+
+# Test: standard criteria do NOT include design_system
+test_standard_no_design_system() {
+    local criteria
+    criteria=$(get_llm_criteria "standard")
+    if echo "$criteria" | grep -q "design_system"; then
+        fail "standard criteria includes design_system"
+    else
+        pass "standard criteria correctly excludes design_system"
+    fi
+}
+
+# Test: UI criteria DO include design_system
+test_ui_has_design_system() {
+    local criteria
+    criteria=$(get_llm_criteria "ui")
+    if echo "$criteria" | grep -q "design_system"; then
+        pass "UI criteria correctly includes design_system"
+    else
+        fail "UI criteria missing design_system"
+    fi
+}
+
+# -----------------------------------------------
+# plan_mode_tool criterion prompt tests
+# -----------------------------------------------
+echo ""
+echo "--- plan_mode_tool criterion tests ---"
+
+# Test: plan_mode_tool prompt must mention TodoWrite as qualifying
+test_plan_mode_tool_accepts_todowrite() {
+    local question
+    question=$(_get_binary_question "plan_mode_tool")
+    if echo "$question" | grep -qi "TodoWrite.*count\|TodoWrite.*IS.*planning\|TaskCreate.*count"; then
+        pass "plan_mode_tool criterion explicitly says TodoWrite/TaskCreate counts as planning"
+    else
+        fail "plan_mode_tool criterion does not clearly say TodoWrite counts as planning"
+    fi
+}
+
+# Test: plan_mode_tool prompt must NOT require EnterPlanMode specifically
+test_plan_mode_tool_not_require_enterplanmode() {
+    local question
+    question=$(_get_binary_question "plan_mode_tool")
+    # Check it doesn't say EnterPlanMode is the ONLY way
+    if echo "$question" | grep -qi "must.*EnterPlanMode"; then
+        fail "plan_mode_tool criterion requires EnterPlanMode specifically"
+    else
+        pass "plan_mode_tool criterion does not require EnterPlanMode specifically"
+    fi
+}
+
+test_tech_debt_not_ui
+test_requires_not_ui
+test_actual_ui_detected
+test_standard_no_design_system
+test_ui_has_design_system
+test_plan_mode_tool_accepts_todowrite
+test_plan_mode_tool_not_require_enterplanmode
+
 echo ""
 echo "=========================================="
 echo "Results: $PASSED passed, $FAILED failed"
