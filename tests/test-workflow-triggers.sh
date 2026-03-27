@@ -3300,6 +3300,32 @@ test_selfheal_friction_gated_on_has_findings() {
     fi
 }
 
+# Test 162: Friction defaults set as bash assignments before template (envsubst can't handle ${VAR:-default})
+test_selfheal_friction_defaults_before_template() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    # envsubst only does $VAR/${VAR} — it does NOT evaluate ${VAR:-default}
+    # Defaults must be bash assignments before the heredoc
+    if grep -q 'ERROR_SUMMARY="${ERROR_SUMMARY:-' "$WF" && grep -q 'DIFF_STAT="${DIFF_STAT:-' "$WF"; then
+        pass "Friction defaults set as bash assignments (envsubst-compatible)"
+    else
+        fail "Friction defaults not set as bash assignments before template"
+    fi
+}
+
+# Test 163: README setup claim does not say "proven" (CI doesn't verify setup flow)
+test_readme_setup_not_proven() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    if grep -i 'auto-detect' "$README" | grep -qi 'proven'; then
+        fail "README setup claim says 'proven' but CI doesn't verify setup flow"
+    else
+        pass "README setup claim does not overstate CI proof"
+    fi
+}
+
 test_score_trends_generated_before_commit
 test_score_trends_included_in_commit
 test_score_trends_honest_footer
@@ -3319,6 +3345,8 @@ test_readme_friction_mentions_selfheal
 test_cicd_documents_friction_signal
 test_roadmap_has_setup_path_e2e
 test_selfheal_friction_gated_on_has_findings
+test_selfheal_friction_defaults_before_template
+test_readme_setup_not_proven
 
 echo ""
 echo "=== Results ==="

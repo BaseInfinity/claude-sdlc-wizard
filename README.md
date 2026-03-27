@@ -38,7 +38,7 @@ You want Claude Code to follow engineering discipline automatically:
 - **Self-review before presenting**
 - **Prove it's better** (use native features unless you prove custom wins)
 
-The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs. Setup is proven on Node.js projects today; cross-stack setup-path E2E is on the [roadmap](ROADMAP.md).
+The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs. Cross-stack setup-path E2E is on the [roadmap](ROADMAP.md).
 
 ## What Makes This Different
 

@@ -94,6 +94,108 @@ Audit target: merged `main`
   - longitudinal proof/observability
 - These are no longer generic engineering bugs. They are product-truth gaps.
 
+## PR-local re-review: `fix/codex-pass3-findings` (2026-03-27 follow-up)
+
+Audit target: current working-tree changes on `fix/codex-pass3-findings` after prior review feedback
+
+### Scope and verification
+
+- Branch state:
+  - `git pull --ff-only origin fix/codex-pass3-findings` -> already up to date at `5ae9a34`
+  - follow-up review target was the local edits in:
+    - `.github/workflows/ci-self-heal.yml`
+    - `README.md`
+    - `tests/test-workflow-triggers.sh`
+- Verification run during this follow-up pass:
+  - `./tests/test-workflow-triggers.sh` -> passed (`166` passed, `0` failed)
+  - `actionlint -shellcheck=` -> clean
+  - `git diff --check -- .github/workflows/ci-self-heal.yml README.md tests/test-workflow-triggers.sh` -> clean
+  - direct substitution repro of the fixed templating path:
+    - `printf '%s\n' '| **Error** | ${ERROR_SUMMARY} |' '${DIFF_STAT}' | ERROR_SUMMARY='N/A' DIFF_STAT='No changes — Claude found no fix to apply' envsubst '$ERROR_SUMMARY $DIFF_STAT'`
+    - output correctly rendered `N/A` and `No changes — Claude found no fix to apply`
+
+### Findings
+
+No findings on the current follow-up diff.
+
+### What this follow-up closes
+
+- The friction-signal issue body now sets defaults before templating and uses simple variable references in the template, which matches how `envsubst` actually works.
+- The README no longer claims setup is "proven" on Node.js today.
+- The workflow regression suite now covers both fixes.
+
+### Verdict
+
+- Merge-ready once these local edits are committed and pushed to the branch/PR.
+
+## PR-local review: `fix/codex-pass3-findings` (2026-03-27)
+
+Audit target: `origin/main...fix/codex-pass3-findings` (PR #96)
+
+### Scope and verification
+
+- Branch state reviewed after `git pull --ff-only origin fix/codex-pass3-findings`
+- Changed surfaces reviewed:
+  - `.github/workflows/ci-self-heal.yml`
+  - `README.md`
+  - `CI_CD.md`
+  - `CLAUDE_CODE_SDLC_WIZARD.md`
+  - `ROADMAP.md`
+  - `tests/test-workflow-triggers.sh`
+- Verification run during this pass:
+  - `./tests/test-workflow-triggers.sh` -> passed (`164` passed, `0` failed)
+  - `actionlint -shellcheck=` -> clean
+  - direct shell repro of the new issue-body templating:
+    - `printf '%s\n' '${ERROR_SUMMARY:-N/A}' '${DIFF_STAT:-No changes}' | ERROR_SUMMARY='' DIFF_STAT='' envsubst '$ERROR_SUMMARY $DIFF_STAT'`
+    - output remained literal `${ERROR_SUMMARY:-N/A}` / `${DIFF_STAT:-No changes}`
+
+### Findings
+
+#### P2: friction-signal issue bodies will ship literal placeholder text instead of real fallbacks
+
+- Evidence:
+  - The new friction step writes placeholders with shell parameter-expansion defaults into the template body:
+    - `.github/workflows/ci-self-heal.yml:461-473`
+  - It then runs `envsubst` over that file:
+    - `.github/workflows/ci-self-heal.yml:479-480`
+  - `envsubst` does not evaluate `${VAR:-fallback}` syntax; it only substitutes simple variable references.
+  - Direct repro on this branch leaves the placeholders untouched:
+    - `${ERROR_SUMMARY:-N/A}`
+    - `${DIFF_STAT:-No changes}`
+- Why this matters:
+  - This branch is trying to turn friction into a concrete, auditable signal.
+  - If error summary or diff stat are empty, the created issue body will contain template syntax instead of truthful structured data.
+- Impact:
+  - The new friction-capture loop is weaker than it looks in the docs.
+  - The workflow may still create issues, but the issue content is not reliably usable as a clean signal source.
+- Recommended fix:
+  - Compute shell defaults before templating (for example with separate `ERROR_DISPLAY` / `DIFF_DISPLAY` env vars), or
+  - avoid `envsubst` and write the final body directly in shell with ordinary parameter expansion.
+
+#### P2: the new README wording still overstates what setup-path proof exists today
+
+- Evidence:
+  - The landing page now says: `Setup is proven on Node.js projects today; cross-stack setup-path E2E is on the roadmap.`: `README.md:41`
+  - But the live setup/simulation path still copies already-generated repo assets into `tests/e2e/fixtures/test-repo` instead of exercising the wizard's real setup flow:
+    - local harness: `tests/e2e/run-simulation.sh:52-75`
+    - CI baseline install: `.github/workflows/ci.yml:220-229`
+  - The new regression test only checks that the README sentence mentions the roadmap:
+    - `tests/test-workflow-triggers.sh:3242-3251`
+  - I still did not find a test/workflow on this branch that actually proves wizard setup is executed end to end on a fresh Node project.
+- Why this matters:
+  - This repo's biggest trust surface is its product claims.
+  - Narrowing the claim is good, but "proven on Node.js projects today" still reads as stronger proof than the repo currently shows.
+- Impact:
+  - The PR improves honesty, but the top-line onboarding claim still outruns the live evidence.
+- Recommended fix:
+  - Either narrow the sentence further to something like "generated assets are validated on a Node.js fixture today," or
+  - add a real Node setup-path proof before claiming setup itself is proven.
+
+### Verdict
+
+- Not merge-ready yet.
+- The docs direction is better, and friction capture is the right idea, but this branch still has one real implementation bug and one remaining product-truth overclaim.
+
 ## PR-local review: `fix/codex-pass2-findings` (2026-03-27)
 
 Audit target: `origin/main...fix/codex-pass2-findings` (PR #95)
