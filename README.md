@@ -85,7 +85,7 @@ CI/CD PIPELINE
 
 **Raw URL:** Point Claude to:
 ```
-https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
+https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
 ```
 
 **Check for updates:** Ask Claude "Check if the SDLC wizard has updates" - Claude reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each).
@@ -94,7 +94,7 @@ https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC
 
 | Cadence | Source | Action |
 |---------|--------|--------|
-| Daily | Claude Code releases | PR with analysis + E2E test |
+| Weekly | Claude Code releases | PR with analysis + E2E test |
 | Weekly | Community (Reddit, HN) | Issue digest |
 | Monthly | Deep research, papers | Trend report |
 

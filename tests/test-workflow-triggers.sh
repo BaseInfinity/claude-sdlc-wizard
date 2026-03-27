@@ -2859,6 +2859,124 @@ test_ci_wait_includes_e2e
 test_contributing_matches_ci_scripts
 test_skill_no_act_for_workflows
 
+# --- Round 2: Codex cross-model review findings (2026-03-27) ---
+
+# Test 131: README raw install URL matches actual GitHub remote
+test_readme_raw_url_matches_remote() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then
+        fail "README.md not found"
+        return
+    fi
+
+    # The raw URL must use the correct repo name (agentic-ai-sdlc-wizard)
+    if grep -q 'raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/' "$README"; then
+        pass "README raw URL uses correct repo name"
+    else
+        fail "README raw URL does not match remote (expected agentic-ai-sdlc-wizard)"
+    fi
+}
+
+# Test 132: No stale "daily" cadence references in key docs
+# Weekly + monthly exist, daily was removed
+test_no_stale_daily_cadence() {
+    local ERRORS=0
+
+    # README.md auto-update table should not say "Daily"
+    if grep -qi 'Daily.*Claude Code releases' "$REPO_ROOT/README.md" 2>/dev/null; then
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # CLAUDE.md should not say "Daily workflow"
+    if grep -qi 'Daily workflow checks Claude Code' "$REPO_ROOT/CLAUDE.md" 2>/dev/null; then
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # CLAUDE_CODE_SDLC_WIZARD.md should not say "Daily workflow"
+    if grep -qi 'Daily workflow tests new Claude Code' "$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md" 2>/dev/null; then
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    if [ "$ERRORS" -eq 0 ]; then
+        pass "No stale 'daily' cadence references in key docs"
+    else
+        fail "Found $ERRORS stale 'daily' cadence reference(s) — only weekly/monthly exist"
+    fi
+}
+
+# Test 133: Wizard explicitly distinguishes template defaults vs repo config
+test_wizard_autofix_template_distinction() {
+    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$WIZARD" ]; then
+        fail "CLAUDE_CODE_SDLC_WIZARD.md not found"
+        return
+    fi
+
+    # Must have a callout explaining template vs this repo's config
+    if grep -qi 'template.*vs.*this repo\|template.*repo.*distinction\|template.*safe default' "$WIZARD"; then
+        pass "Wizard distinguishes template defaults vs repo config"
+    else
+        fail "Wizard does not explain template vs repo distinction for autofix"
+    fi
+}
+
+# Test 134: Wizard does not recommend `act` for workflow testing
+# TESTING.md and CI_CD.md say act doesn't work with claude-code-action@v1
+test_wizard_no_act_recommendation() {
+    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$WIZARD" ]; then
+        fail "CLAUDE_CODE_SDLC_WIZARD.md not found"
+        return
+    fi
+
+    # Should NOT have act install instructions or recommend act for testing
+    if grep -qi 'brew install act\|Use `act` locally\|Local testing with `act`' "$WIZARD"; then
+        fail "Wizard still recommends 'act' for workflow testing (contradicts TESTING.md)"
+    else
+        pass "Wizard does not recommend 'act' for workflow testing"
+    fi
+}
+
+# Test 135: COMPETITIVE_AUDIT.md has current test counts (23 scripts)
+test_competitive_audit_current_counts() {
+    local AUDIT="$REPO_ROOT/COMPETITIVE_AUDIT.md"
+    if [ ! -f "$AUDIT" ]; then
+        fail "COMPETITIVE_AUDIT.md not found"
+        return
+    fi
+
+    if grep -q '23 scripts' "$AUDIT"; then
+        pass "COMPETITIVE_AUDIT.md has current test script count (23)"
+    else
+        fail "COMPETITIVE_AUDIT.md has stale test script count (expected 23)"
+    fi
+}
+
+# Test 136: AUTO_SELF_UPDATE.md "Who Gets What" section uses current cadence
+# The roadmap history items mention "daily" in past tense (DONE items) — that's fine.
+# The active "Who Gets What" section should say "weekly/monthly", not "daily/weekly/monthly".
+test_auto_self_update_no_daily() {
+    local PLAN="$REPO_ROOT/plans/AUTO_SELF_UPDATE.md"
+    if [ ! -f "$PLAN" ]; then
+        fail "plans/AUTO_SELF_UPDATE.md not found"
+        return
+    fi
+
+    # Check the "Who Gets What" / "Our auto-workflows" line specifically
+    if grep -q 'auto-workflows.*(weekly/monthly)' "$PLAN"; then
+        pass "AUTO_SELF_UPDATE.md 'Who Gets What' uses current cadence (weekly/monthly)"
+    else
+        fail "AUTO_SELF_UPDATE.md 'Who Gets What' has stale cadence (expected weekly/monthly)"
+    fi
+}
+
+test_readme_raw_url_matches_remote
+test_no_stale_daily_cadence
+test_wizard_autofix_template_distinction
+test_wizard_no_act_recommendation
+test_competitive_audit_current_counts
+test_auto_self_update_no_daily
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

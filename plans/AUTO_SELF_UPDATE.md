@@ -45,7 +45,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 | **Tier 2 (Full)** | 5x | High (95% CI) | ~$2.50 |
 
 **Who Gets What:**
-- **Our auto-workflows** (daily/weekly/monthly): Tier 1 + Tier 2 always
+- **Our auto-workflows** (weekly/monthly): Tier 1 + Tier 2 always
 - **External PRs**: Tier 1 only (Tier 2 on request via `merge-ready` label)
 
 ## What's Implemented
