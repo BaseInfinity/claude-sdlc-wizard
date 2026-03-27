@@ -269,6 +269,80 @@ test_instructions_hook_no_trailing_whitespace() {
     fi
 }
 
+# ---- Setup completeness tests (wizard dogfood) ----
+
+# Test 19: SDLC.md contains wizard version metadata comment
+test_sdlc_version_metadata() {
+    local sdlc_md="$SCRIPT_DIR/../SDLC.md"
+    if grep -q '<!-- SDLC Wizard Version: [0-9]' "$sdlc_md"; then
+        pass "SDLC.md contains wizard version metadata comment"
+    else
+        fail "SDLC.md should contain <!-- SDLC Wizard Version: X.X.X --> metadata comment"
+    fi
+}
+
+# Test 20: SDLC.md wizard version matches wizard document version
+test_sdlc_version_matches_wizard() {
+    local sdlc_md="$SCRIPT_DIR/../SDLC.md"
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+
+    local installed_version
+    installed_version=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$sdlc_md" | head -1 | sed 's/SDLC Wizard Version: //')
+    local wizard_version
+    wizard_version=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$wizard" | head -1 | sed 's/SDLC Wizard Version: //')
+
+    if [ -z "$installed_version" ]; then
+        fail "Could not extract version from SDLC.md"
+        return
+    fi
+    if [ "$installed_version" = "$wizard_version" ]; then
+        pass "SDLC.md version ($installed_version) matches wizard ($wizard_version)"
+    else
+        fail "SDLC.md version ($installed_version) != wizard version ($wizard_version)"
+    fi
+}
+
+# Test 21: SDLC.md contains setup date metadata
+test_sdlc_setup_date() {
+    local sdlc_md="$SCRIPT_DIR/../SDLC.md"
+    if grep -q '<!-- Setup Date: [0-9]' "$sdlc_md"; then
+        pass "SDLC.md contains setup date metadata comment"
+    else
+        fail "SDLC.md should contain <!-- Setup Date: YYYY-MM-DD --> metadata comment"
+    fi
+}
+
+# Test 22: SDLC.md contains completed steps metadata
+test_sdlc_completed_steps() {
+    local sdlc_md="$SCRIPT_DIR/../SDLC.md"
+    if grep -q '<!-- Completed Steps:' "$sdlc_md"; then
+        pass "SDLC.md contains completed steps metadata comment"
+    else
+        fail "SDLC.md should contain <!-- Completed Steps: ... --> metadata comment"
+    fi
+}
+
+# Test 23: Light hook references /code-review (not outdated subagent pattern)
+test_sdlc_hook_self_review_reference() {
+    local output
+    output=$("$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    if echo "$output" | grep -q "/code-review"; then
+        pass "sdlc-prompt-check.sh references /code-review for self-review"
+    else
+        fail "sdlc-prompt-check.sh should reference /code-review, not outdated subagent pattern"
+    fi
+}
+
+# Test 24: SDLC.md update frequency says weekly (not daily)
+test_sdlc_update_frequency() {
+    local sdlc_md="$SCRIPT_DIR/../SDLC.md"
+    if grep -qi "daily.*workflow.*checks\|daily.*checks.*for.*update" "$sdlc_md"; then
+        fail "SDLC.md says 'daily' but update workflow runs weekly"
+    else
+        pass "SDLC.md does not falsely claim daily update checks"
+    fi
+}
+
 # Run all tests
 test_sdlc_hook_exists
 test_sdlc_hook_keywords
@@ -288,6 +362,12 @@ test_instructions_hook_missing_both
 test_instructions_hook_all_present
 test_instructions_hook_exit_code
 test_instructions_hook_no_trailing_whitespace
+test_sdlc_version_metadata
+test_sdlc_version_matches_wizard
+test_sdlc_setup_date
+test_sdlc_completed_steps
+test_sdlc_hook_self_review_reference
+test_sdlc_update_frequency
 
 echo ""
 echo "=== Results ==="
