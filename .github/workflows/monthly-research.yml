@@ -312,9 +312,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation.
@@ -404,9 +404,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          working_directory: tests/e2e/fixtures/test-repo
+
           claude_args: |
-            --max-turns 30
+            --max-turns 55
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *)"
           prompt: |
             Run an E2E SDLC simulation with research improvements applied.

@@ -2507,6 +2507,91 @@ test_bare_monthly_research
 test_no_bare_ci_simulations
 test_no_bare_weekly_simulations
 
+# --- Bug fix tests (weekly-update/monthly-research workflow issues) ---
+
+# Test 113: scan-community push to main is non-blocking (|| true)
+test_scan_community_push_nonblocking() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if grep -q 'git push.*|| true' "$WORKFLOW"; then
+        pass "scan-community git push is non-blocking (|| true)"
+    else
+        fail "scan-community git push should be non-blocking (protected branch blocks direct push)"
+    fi
+}
+
+# Test 114: No working_directory input in weekly-update (not a valid claude-code-action input)
+test_no_working_directory_weekly() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if grep -q 'working_directory:' "$WORKFLOW"; then
+        fail "weekly-update.yml should not use working_directory (invalid claude-code-action input)"
+    else
+        pass "weekly-update.yml has no invalid working_directory input"
+    fi
+}
+
+# Test 115: No working_directory input in monthly-research
+test_no_working_directory_monthly() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+
+    if grep -q 'working_directory:' "$WORKFLOW"; then
+        fail "monthly-research.yml should not use working_directory (invalid claude-code-action input)"
+    else
+        pass "monthly-research.yml has no invalid working_directory input"
+    fi
+}
+
+# Test 116: Simulation max-turns >= 35 in weekly-update (was 30, ci.yml uses 55)
+test_weekly_sim_max_turns() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    local min_turns=35
+    local all_ok=true
+
+    while IFS= read -r line; do
+        local turns
+        turns=$(echo "$line" | grep -oE '[0-9]+')
+        if [ -n "$turns" ] && [ "$turns" -lt "$min_turns" ]; then
+            all_ok=false
+            break
+        fi
+    done < <(grep 'max-turns' "$WORKFLOW")
+
+    if [ "$all_ok" = "true" ]; then
+        pass "weekly-update.yml simulation --max-turns >= $min_turns"
+    else
+        fail "weekly-update.yml has --max-turns < $min_turns (too low, causes error_max_turns)"
+    fi
+}
+
+# Test 117: Simulation max-turns >= 35 in monthly-research
+test_monthly_sim_max_turns() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+    local min_turns=35
+    local all_ok=true
+
+    while IFS= read -r line; do
+        local turns
+        turns=$(echo "$line" | grep -oE '[0-9]+')
+        if [ -n "$turns" ] && [ "$turns" -lt "$min_turns" ]; then
+            all_ok=false
+            break
+        fi
+    done < <(grep 'max-turns' "$WORKFLOW")
+
+    if [ "$all_ok" = "true" ]; then
+        pass "monthly-research.yml simulation --max-turns >= $min_turns"
+    else
+        fail "monthly-research.yml has --max-turns < $min_turns (too low, causes error_max_turns)"
+    fi
+}
+
+test_scan_community_push_nonblocking
+test_no_working_directory_weekly
+test_no_working_directory_monthly
+test_weekly_sim_max_turns
+test_monthly_sim_max_turns
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
