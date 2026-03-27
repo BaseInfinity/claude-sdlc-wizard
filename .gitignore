@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# E2E test artifacts
+tests/e2e/.cache/
+
+# Editor/OS
+.DS_Store
+*.swp
