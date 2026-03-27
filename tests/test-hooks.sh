@@ -295,6 +295,10 @@ test_sdlc_version_matches_wizard() {
         fail "Could not extract version from SDLC.md"
         return
     fi
+    if [ -z "$wizard_version" ]; then
+        fail "Could not extract version from CLAUDE_CODE_SDLC_WIZARD.md"
+        return
+    fi
     if [ "$installed_version" = "$wizard_version" ]; then
         pass "SDLC.md version ($installed_version) matches wizard ($wizard_version)"
     else
