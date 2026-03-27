@@ -817,10 +817,16 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 7. ~~Post-update audit~~ — DONE: CI dispatch bug fixed (PR #75), Prove-It validated with synthetic scores, self-update URLs verified E2E, docs updated (CONTRIBUTING.md, SDLC.md)
 8. ~~Competitive audit (#10)~~ — DONE: Audited aistupidlevel.info (added as Source 3 in benchmark cascade), everything-claude-code, claude-sdlc, and 5 other repos. Added competitive watchlist to weekly community scan. Created COMPETITIVE_AUDIT.md with honest positioning. See PR #77
 9. ~~`--bare` for non-E2E workflows~~ — DONE (PR #81): Added `--bare` to 8 non-E2E `claude-code-action` steps across 4 workflows, skips hooks/LSP/plugins in headless CI. 6 new tests (including negative tests for E2E steps). 12 E2E simulation steps unchanged.
-10. Trigger weekly/monthly workflows — Catch up from v2.1.81 → v2.1.84, verify workflows work with `--bare`, audit the output
+10. ~~Trigger weekly/monthly workflows + audit~~ — DONE: Triggered both, found 4 bugs (missing .gitignore PR #87, missing auto-generated label, E2E evaluator flakiness PR #88). All fixed. Scores went from 7/5 (broken) to 8/8.
 11. Re-run wizard on ourselves (PR) — One-time dogfood: run wizard setup, create PR, let CI evaluate. Doubles as self-audit (dead code, stale setup, test validity). No recurring schedule needed — weekly-update/monthly-research already cover ongoing changes.
 12. CI efficiency audit (#29) — Review CI costs and runtime optimization. Includes: orphaned test scripts not in CI, parallel jobs, caching, conditional skips.
 13. Distribution (#30) — Make it easy for new users to install (research done: npx CLI or curl one-liner)
+
+### Post-Distribution
+
+14. Tool/Plugin Discovery Automation — Add to weekly-update: fetch official `marketplace.json` (public at `anthropics/claude-plugins-official`), diff against cached snapshot, detect new CC features from changelog, LLM-recommend which are relevant. ~50-80 lines. Confidence: HIGH (85%).
+15. E2E Scenario Coverage Audit — Review scenarios for gaps: who uses this wizard (senior devs, juniors, non-coders per generalize-beyond-coding vision), what tasks aren't covered (UI changes, API work, multi-file refactors, deployment tasks). Add scenarios for underrepresented use cases. Consider different repo archetypes (monorepo, microservices, data science).
+16. Scoring System Review — One-time deep audit after all pre-distribution work is complete. Then revisit every 2-3 months. Check: are criteria still relevant? Is weighting fair? Are LLM judges drifting? Is the 1.5-point regression threshold right? Are deterministic checks (tdd_red, task_tracking, confidence) catching what they should?
 
 **Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026), reviewer severity prompt fix (CI reviewer under-categorizes silent no-op bugs as suggestions — 14% misclassification rate found in audit)
 
