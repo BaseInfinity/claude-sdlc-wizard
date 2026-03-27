@@ -213,6 +213,8 @@ Local tests pass -> Commit -> Push -> Watch CI
 4. Max 2 fix attempts - if still failing, ASK USER
 5. If CI passes - proceed to present final summary
 
+**Context GC (compact during idle):** While waiting for CI (typically 3-5 min), suggest `/compact` if the conversation is long. Think of it like a time-based garbage collector — idle time + high memory pressure = good time to collect. Don't suggest on short conversations.
+
 **CI failures follow same rules as test failures:**
 - Your code broke it? Fix your code
 - CI config issue? Fix the config
