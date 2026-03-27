@@ -89,9 +89,8 @@ DET_TOTAL=$(echo "$DETERMINISTIC_RESULT" | jq -r '.total')
 echo "Deterministic scores: task=$DET_TASK confidence=$DET_CONFIDENCE tdd_red=$DET_TDD_RED total=$DET_TOTAL/4" >&2
 
 # Detect scenario type (standard vs UI) for criterion selection
-SCENARIO_TYPE="standard"
-if echo "$SCENARIO_CONTENT" | grep -qiE 'UI|styling|CSS|component|color|font|visual'; then
-    SCENARIO_TYPE="ui"
+SCENARIO_TYPE=$(detect_scenario_type "$SCENARIO_CONTENT")
+if [ "$SCENARIO_TYPE" = "ui" ]; then
     echo "Detected UI scenario — including design_system criterion" >&2
 fi
 
@@ -163,11 +162,17 @@ for criterion in $LLM_CRITERIA; do
     # Extract JSON from response
     CRITERION_JSON=$(extract_json "$RAW_RESULT")
 
-    # Validate and fix if needed
+    # Validate and fix if needed — retry once on invalid JSON
     if ! is_valid_json "$CRITERION_JSON"; then
-        echo "  Warning: Invalid JSON for $criterion, using 0 score" >&2
-        CRITERION_JSON='{"met": false, "evidence": "Invalid JSON response"}'
-        FAILED_CRITERIA="$FAILED_CRITERIA $criterion"
+        echo "  Warning: Invalid JSON for $criterion, retrying..." >&2
+        sleep 2
+        RAW_RESULT=$(call_criterion_api "$CRITERION_PROMPT")
+        CRITERION_JSON=$(extract_json "$RAW_RESULT")
+        if ! is_valid_json "$CRITERION_JSON"; then
+            echo "  Warning: Still invalid JSON for $criterion after retry, using 0 score" >&2
+            CRITERION_JSON='{"met": false, "evidence": "Invalid JSON response after retry"}'
+            FAILED_CRITERIA="$FAILED_CRITERIA $criterion"
+        fi
     fi
 
     # Ensure required fields exist (binary format: met + evidence)

@@ -23,6 +23,19 @@
 # Usage: source this file in evaluate.sh
 #   source "$(dirname "$0")/lib/eval-criteria.sh"
 
+# Detect scenario type based on content keywords
+# Uses word boundaries to avoid false positives (e.g., "requires" matching "UI")
+# Args: $1 = scenario content
+# Returns: "standard" or "ui"
+detect_scenario_type() {
+    local content="$1"
+    if echo "$content" | grep -qiE '\bUI\b|styling|CSS|\bcomponent\b|\bcolor\b|\bfont\b|\bvisual\b'; then
+        echo "ui"
+    else
+        echo "standard"
+    fi
+}
+
 # Get list of LLM-scored criteria for a scenario type
 # Each criterion is a binary (YES/NO) sub-question worth 1 point.
 # Multi-point criteria are split: plan_mode (2pt) → plan_mode_outline + plan_mode_tool
@@ -126,10 +139,11 @@ Q
             ;;
         plan_mode_tool)
             cat << 'Q'
-Did the agent create a plan file or use a planning tool (e.g., EnterPlanMode, plan file, TodoWrite with plan)?
+Did the agent use a structured tool to plan or track work before coding?
 
-Look for: explicit plan mode usage, a plan file being written, or a structured
-planning tool invocation. Simply describing steps verbally does NOT count. YES/NO.
+Look for: TodoWrite or TaskCreate usage (creating a task list IS structured planning),
+EnterPlanMode, or writing a plan file. Any of these count as YES.
+Simply describing steps verbally without using any tool does NOT count. YES/NO.
 Q
             ;;
         tdd_green_ran)
