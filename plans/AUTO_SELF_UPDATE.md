@@ -819,7 +819,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 9. ~~`--bare` for non-E2E workflows~~ — DONE (PR #81): Added `--bare` to 8 non-E2E `claude-code-action` steps across 4 workflows, skips hooks/LSP/plugins in headless CI. 6 new tests (including negative tests for E2E steps). 12 E2E simulation steps unchanged.
 10. ~~Trigger weekly/monthly workflows + audit~~ — DONE: Triggered both, found 4 bugs (missing .gitignore PR #87, missing auto-generated label, E2E evaluator flakiness PR #88). All fixed. Scores went from 7/5 (broken) to 8/8.
 11. ~~Re-run wizard on ourselves (PR)~~ — DONE (PR #89): Compared installed setup against wizard template. Found 4 gaps: missing SDLC.md metadata comments (breaks update detection), stale self-review reference in hook, "daily" instead of "weekly", CC baseline version stale. 6 new tests added (tests 19-24 in test-hooks.sh). No dead code found.
-12. CI efficiency audit (#29) — Review CI costs and runtime optimization. Includes: orphaned test scripts not in CI, parallel jobs, caching, conditional skips.
+12. ~~CI efficiency audit (#29)~~ — DONE (PR #92): 1 orphaned test script found (test-external-benchmark.sh, 15 invisible tests), wired into CI. Added structural guard (test 121) to catch future orphans. CI already lean (22s validate, ~5min E2E API-bound). No parallelization, caching, or skip wins.
 13. Cross-model full repo audit — Run Codex CLI (GPT-5.4, xhigh reasoning) pointed at the entire repo as an independent auditor before distribution. Submit PRs for any findings. Proven effective on other repos (anticheat, tuscon-investigation). Local-only, user runs in separate session.
 14. Distribution (#30) — Make it easy for new users to install (research done: npx CLI or curl one-liner)
 
