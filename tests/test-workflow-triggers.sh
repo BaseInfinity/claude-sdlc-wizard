@@ -2403,9 +2403,21 @@ test_ci_autofix_comment_regression_note() {
     fi
 }
 
+# Test 106: ci-self-heal ensures label exists before adding it (gh label create --force)
+test_ci_autofix_ensures_label_exists() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -q 'gh label create.*needs-regression-test.*--force' "$WORKFLOW"; then
+        pass "ci-self-heal.yml ensures needs-regression-test label exists before adding"
+    else
+        fail "ci-self-heal.yml should use 'gh label create --force' to ensure label exists"
+    fi
+}
+
 test_ci_autofix_regression_label
 test_ci_autofix_has_issues_permission
 test_ci_autofix_comment_regression_note
+test_ci_autofix_ensures_label_exists
 
 echo ""
 echo "=== Results ==="
