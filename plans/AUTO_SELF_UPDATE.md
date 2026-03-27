@@ -821,6 +821,7 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 11. ~~Re-run wizard on ourselves (PR)~~ — DONE (PR #89): Compared installed setup against wizard template. Found 4 gaps: missing SDLC.md metadata comments (breaks update detection), stale self-review reference in hook, "daily" instead of "weekly", CC baseline version stale. 6 new tests added (tests 19-24 in test-hooks.sh). No dead code found.
 12. ~~CI efficiency audit (#29)~~ — DONE (PR #92): 1 orphaned test script found (test-external-benchmark.sh, 15 invisible tests), wired into CI. Added structural guard (test 121) to catch future orphans. CI already lean (22s validate, ~5min E2E API-bound). No parallelization, caching, or skip wins.
 13. Cross-model full repo audit — Run Codex CLI (GPT-5.4, xhigh reasoning) pointed at the entire repo as an independent auditor before distribution. Submit PRs for any findings. Proven effective on other repos (anticheat, tuscon-investigation). Local-only, user runs in separate session.
+13.5. Wire cross-model review into our own local SDLC — We document cross-model review in the wizard but don't actually run it ourselves yet. Add `codex exec` (GPT-5.4, xhigh reasoning) as a step in our own local workflow: after Claude self-review (/code-review) passes, run Codex review before creating the PR. Update SKILL.md to make the optional comment a concrete step. Dogfooding — we recommend it, we should do it.
 14. Distribution (#30) — Make it easy for new users to install (research done: npx CLI or curl one-liner)
 
 ### Post-Distribution
