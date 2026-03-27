@@ -187,7 +187,7 @@ sdlc-wizard/
 │
 ├── .claude/
 │   ├── settings.json              # Hook configuration
-│   ├── settings.local.json        # Local permissions
+│   ├── settings.local.json        # Local permissions (not tracked, .gitignore'd)
 │   ├── hooks/
 │   │   ├── sdlc-prompt-check.sh   # SDLC baseline hook
 │   │   ├── tdd-pretool-check.sh   # TDD enforcement hook
