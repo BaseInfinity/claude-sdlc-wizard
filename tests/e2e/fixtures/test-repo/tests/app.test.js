@@ -1,4 +1,4 @@
-const { greet, add, calulcate, TaskManager } = require('../src/app');
+const { greet, add, calulcate, TaskManager, validateEmail } = require('../src/app');
 
 describe('greet', () => {
     it('should greet by name', () => {
@@ -107,4 +107,34 @@ describe('TaskManager', () => {
 
     // Note: searchTasks and calulcateStats have limited test coverage
     // Scenarios may ask to expand tests here (TDD opportunity)
+});
+
+describe('validateEmail', () => {
+    it('should return true for a valid email', () => {
+        expect(validateEmail('user@example.com')).toBe(true);
+    });
+
+    it('should return false when @ is missing', () => {
+        expect(validateEmail('userexample.com')).toBe(false);
+    });
+
+    it('should return false when nothing before @', () => {
+        expect(validateEmail('@example.com')).toBe(false);
+    });
+
+    it('should return false when nothing after @', () => {
+        expect(validateEmail('user@')).toBe(false);
+    });
+
+    it('should return false for empty string', () => {
+        expect(validateEmail('')).toBe(false);
+    });
+
+    it('should return false for null', () => {
+        expect(validateEmail(null)).toBe(false);
+    });
+
+    it('should return false for undefined', () => {
+        expect(validateEmail(undefined)).toBe(false);
+    });
 });

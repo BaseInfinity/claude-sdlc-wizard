@@ -113,4 +113,12 @@ class TaskManager {
     }
 }
 
-module.exports = { greet, add, calulcate, TaskManager };
+function validateEmail(email) {
+    if (typeof email !== 'string' || !email) return false;
+    const atIndex = email.indexOf('@');
+    if (atIndex <= 0) return false;
+    const afterAt = email.slice(atIndex + 1);
+    return afterAt.length > 0;
+}
+
+module.exports = { greet, add, calulcate, TaskManager, validateEmail };
