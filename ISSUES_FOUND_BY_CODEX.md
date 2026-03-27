@@ -1,6 +1,159 @@
 # Issues Found By Codex
 
-> **Historical audit record.** This file captures what Codex found during its cross-model review on 2026-03-27. All findings listed below have been fixed on the `fix/codex-audit-findings` branch. This file is preserved as an audit trail — not a live issue tracker.
+> Audit log for Codex repo reviews.
+>
+> This file now contains two sections:
+> - The current deeper `main` audit pass (open findings, if any)
+> - The historical `fix/codex-audit-findings` audit record (already fixed)
+
+## Current main audit (2026-03-27)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Repo surfaces manually reviewed: workflows, hooks, skills, prompts, shell tests, E2E scripts/libs, and repo-authored Markdown docs.
+- Verification run during this pass:
+  - `git pull --ff-only origin main` -> up to date on merged `main`
+  - full local shell suite across `tests/test-*.sh` and `tests/e2e/test-*.sh` -> passed
+  - `actionlint -shellcheck=` -> clean
+  - `shellcheck -x -S warning` across repo shell scripts -> only low-signal warnings beyond the findings below
+  - Markdown local-link scan (repo-authored docs only, excluding vendored `node_modules`) -> no broken local links
+  - Markdown anchor scan (repo-authored docs only, excluding vendored `node_modules`) -> no broken internal anchors
+- Confidence is high for source/docs consistency issues and workflow hygiene findings that are visible from the repo.
+- Confidence is lower for behavior that depends on live GitHub hosted-runner semantics or external action implementation details.
+
+### Findings (all fixed)
+
+#### P2: `pr-review.yml` still assumes a single `claude-code-action` output shape — FIXED
+
+- Evidence:
+  - `pr-review.yml:286-308` extracts review text with `jq -r '.result // .output // ...'`
+  - Other workflows already treat `claude-execution-output.json` as shape-variable and include array/object fallback handling:
+    - `weekly-update.yml` extraction steps
+    - `monthly-research.yml` extraction steps
+- Why this matters:
+  - This repo already learned the hard way that `claude-code-action` output is not stable enough to assume one schema.
+  - PR review is still using the fragile path, so a schema variation can silently downgrade review comments to "no content captured" instead of posting the real review.
+- Impact:
+  - Silent loss of the repo's primary PR-review output.
+  - Hard to diagnose because the workflow itself can still appear green.
+- Recommended fix:
+  - Reuse the same array/object extraction pattern already used in `weekly-update.yml` and `monthly-research.yml`.
+  - Add a regression test in `tests/test-workflow-triggers.sh` specifically for PR review extraction logic, not just the update/research workflows.
+
+#### P2: the repo hook still tells users to test workflows with `act`, contradicting current repo policy — FIXED
+
+- Evidence:
+  - `.claude/hooks/tdd-pretool-check.sh:15-17` tells users: `Test with: act workflow_dispatch --secret-file .env.test`
+  - Repo docs and the wizard now say the opposite:
+    - `TESTING.md:192`
+    - `CI_CD.md:266`
+    - `CLAUDE_CODE_SDLC_WIZARD.md:2660-2666`
+- Why this matters:
+  - Hooks are operational guidance, not passive docs.
+  - A contradictory hook message is more likely to be followed in the moment than a doc paragraph, especially during workflow edits.
+- Impact:
+  - Sends contributors toward an unsupported local workflow-testing path.
+  - Reintroduces the same confusion the earlier doc audit already cleaned up elsewhere.
+- Recommended fix:
+  - Replace the `act` message with the supported path: YAML validation + `./tests/test-workflow-triggers.sh`.
+  - Add an explicit test so hook guidance stays aligned with `TESTING.md` and `CI_CD.md`.
+
+#### P2: workflow permissions are still broader than necessary, including unused `id-token: write` on every workflow — FIXED
+
+- Evidence:
+  - `ci.yml:14-17`
+  - `weekly-update.yml:8-12`
+  - `monthly-research.yml:8-12`
+  - `pr-review.yml:16-19`
+  - `ci-self-heal.yml:9-14`
+  - No repo workflow references OIDC consumers or token-request env vars.
+- Why this matters:
+  - This repo is automation-heavy and frequently runs with write-capable tokens.
+  - Unused `id-token: write` and workflow-level broad permissions widen blast radius without providing value.
+- Impact:
+  - Unnecessary privilege exposure across all jobs.
+  - Harder future security review because least-privilege intent is unclear.
+- Recommended fix:
+  - Drop `id-token: write` unless a workflow actually uses OIDC.
+  - Move write permissions down to job scope where possible so validation-only jobs stay read-only.
+
+#### P2: third-party GitHub Actions are pinned only to mutable major tags, not immutable SHAs — DOCUMENTED
+
+- Evidence:
+  - Representative examples:
+    - `ci.yml` uses `int128/hide-comment-action@v1`, `anthropics/claude-code-action@v1`, `marocchino/sticky-pull-request-comment@v2`
+    - `weekly-update.yml` uses `peter-evans/create-pull-request@v7` and `anthropics/claude-code-action@v1`
+    - `ci-self-heal.yml` uses `actions/create-github-app-token@v1` and `anthropics/claude-code-action@v1`
+- Why this matters:
+  - These workflows have write-capable permissions and can push, comment, create PRs, or rerun CI.
+  - Mutable tags are a supply-chain trust tradeoff; for a repo that emphasizes rigor and CI integrity, SHA pinning is the safer default.
+- Impact:
+  - Third-party action updates can change behavior without a repo diff.
+  - Harder provenance/reproducibility for audit and incident response.
+- Recommended fix:
+  - Pin third-party actions to commit SHAs and document update cadence.
+  - If tag pinning is an intentional tradeoff, record it in `CODE_REVIEW_EXCEPTIONS.md`.
+
+#### P3: `ci-self-heal.yml` re-dispatches CI even when no autofix commit was created — FIXED
+
+- Evidence:
+  - `ci-self-heal.yml:315-316` sets `committed=false` when no changes were found
+  - `ci-self-heal.yml:342-355` still dispatches `ci.yml` for the PAT/GITHUB_TOKEN path without checking `steps.commit.outputs.committed == 'true'`
+- Why this matters:
+  - No-change runs do not need a fresh CI dispatch.
+  - This adds workflow noise precisely in cases where the autofix loop already failed to make progress.
+- Impact:
+  - Wasted CI runs.
+  - Extra PR noise and a muddier audit trail on "no fix produced" cases.
+- Recommended fix:
+  - Gate the dispatch step on `steps.commit.outputs.committed == 'true'`.
+
+#### P3: a few docs still have trust-eroding accuracy drift on `main` — FIXED
+
+- Evidence:
+  - `README.md:173` still claims `354+ automated tests`
+  - `COMPETITIVE_AUDIT.md:27` claims `490+ automated tests across 23 scripts`
+  - `CONTRIBUTING.md:10` says CI validate runs `23 scripts`
+  - `ARCHITECTURE.md:188-190` lists `.claude/settings.local.json` in the repo file tree even though it is ignored local state, not a tracked repo file
+- Why this matters:
+  - This repo sells discipline and accuracy.
+  - Small trust leaks in summary docs matter more here than they would in a normal app repo.
+- Impact:
+  - Readers get conflicting signals about current repo state.
+  - Makes it harder to tell which docs are operationally current versus illustrative.
+- Recommended fix:
+  - Replace brittle exact-count marketing text in `README.md` with a resilient claim or compute it from the current suite.
+  - Clarify that `settings.local.json` is local-only/ignored, or remove it from the tracked file-tree diagram.
+
+### Positive checks
+
+- Full local shell suite passed on merged `main`.
+- `actionlint -shellcheck=` is clean.
+- Repo-authored Markdown local links are intact.
+- Repo-authored Markdown anchors are intact.
+- Earlier branch-level workflow correctness fixes are present on `main`.
+
+### Lower-priority observations
+
+- `shellcheck -x -S warning` still reports several low-signal script warnings (unused variables, non-constant `source`, style nits), but they looked lower value than the issues above.
+- The repo has good structural tests around workflow triggers, but deeper regression coverage is still uneven for hook guidance and PR-review output extraction.
+
+### Recommended fix order
+
+1. Harden `pr-review.yml` output extraction and add a regression test.
+2. Fix the `act` contradiction in `.claude/hooks/tdd-pretool-check.sh`.
+3. Reduce workflow permissions, starting with unused `id-token: write`.
+4. Decide whether to pin third-party actions to SHAs or explicitly document the tag-based tradeoff.
+5. Gate CI redispatch on successful autofix commits only.
+6. Clean up the remaining README/ARCHITECTURE drift.
+
+---
+
+## Historical branch audit (already fixed)
+
+> **Historical audit record.** This section captures what Codex found during its cross-model review on 2026-03-27 for `fix/codex-audit-findings`. All findings in this historical section were fixed on that branch and later merged.
 
 Audit date: 2026-03-27
 

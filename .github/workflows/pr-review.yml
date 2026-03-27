@@ -16,7 +16,6 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
 
 jobs:
   review:
@@ -294,19 +293,39 @@ jobs:
           OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
 
           if [ -f "$OUTPUT_FILE" ]; then
-            # Extract the review content (Claude's final output)
-            REVIEW=$(jq -r '.result // .output // "Review completed but no content captured."' "$OUTPUT_FILE" 2>/dev/null | head -c 60000)
+            # Detect output shape — array (conversation messages) vs object (.result/.output)
+            IS_ARRAY=$(jq -r 'if type == "array" then "true" else "false" end' "$OUTPUT_FILE" 2>/dev/null || echo "false")
+
+            if [ "$IS_ARRAY" = "true" ]; then
+              REVIEW=$(jq -r '
+                [.[] | select(type == "object")] |
+                [.[] | select(.role == "assistant" or .type == "result")] |
+                last |
+                if .content then
+                  (if (.content | type) == "array" then
+                    [.content[] | select(.type == "text") | .text] | join("")
+                  else
+                    .content
+                  end)
+                elif .text then .text
+                elif .result then .result
+                else empty
+                end
+              ' "$OUTPUT_FILE" 2>/dev/null || echo "")
+            else
+              REVIEW=$(jq -r '.result // .output // empty' "$OUTPUT_FILE" 2>/dev/null || echo "")
+            fi
+
+            REVIEW=$(echo "$REVIEW" | head -c 60000)
           else
-            REVIEW="Review completed but output file not found."
+            REVIEW=""
           fi
 
-          # Write to file to preserve formatting
-          printf '%s' "$REVIEW" > /tmp/review-content.md
-
-          # Also create a fallback if empty
           if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
-            echo "Review completed. Check the workflow logs for details." > /tmp/review-content.md
+            REVIEW="Review completed but no content captured."
           fi
+
+          printf '%s' "$REVIEW" > /tmp/review-content.md
 
       # ENHANCEMENT 4: Sticky review comment (replaces inline review comments)
       - name: Post review as sticky comment

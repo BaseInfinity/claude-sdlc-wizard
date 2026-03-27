@@ -1341,28 +1341,11 @@ test_weekly_update_uses_create_pr() {
     fi
 }
 
-# Test 60: weekly-update has id-token: write permission (needed for OIDC auth)
-test_weekly_update_has_id_token_permission() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    if grep -q "id-token: write" "$WORKFLOW"; then
-        pass "weekly-update has id-token: write permission"
-    else
-        fail "weekly-update missing id-token: write permission"
-    fi
-}
-
 test_weekly_update_no_allowed_tools_input
 test_weekly_update_extracts_scan_from_output_file
 test_weekly_update_community_state_file
 test_weekly_update_creates_issues
 test_weekly_update_uses_create_pr
-test_weekly_update_has_id_token_permission
 
 # ============================================
 # Monthly-Research Workflow Input Validation Tests
@@ -2977,6 +2960,95 @@ test_wizard_autofix_template_distinction
 test_wizard_no_act_recommendation
 test_competitive_audit_current_counts
 test_auto_self_update_no_daily
+
+# --- Round 3: Codex main-branch audit findings (2026-03-27) ---
+
+# Test 137: PR review extraction uses robust array detection
+test_pr_review_extraction_uses_array_detection() {
+    local WF="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if [ ! -f "$WF" ]; then fail "pr-review.yml not found"; return; fi
+
+    if grep -q 'type == "array"' "$WF"; then
+        pass "pr-review.yml uses robust array/object extraction pattern"
+    else
+        fail "pr-review.yml missing array detection — still using fragile .result // .output only"
+    fi
+}
+
+# Test 138: No hook recommends act for workflow testing
+test_no_hook_recommends_act() {
+    local HOOKS_DIR="$REPO_ROOT/.claude/hooks"
+    if [ ! -d "$HOOKS_DIR" ]; then fail ".claude/hooks/ directory not found"; return; fi
+
+    if grep -rq 'act workflow_dispatch' "$HOOKS_DIR"/ 2>/dev/null; then
+        fail "Hook(s) still recommend 'act' for workflow testing — contradicts repo policy"
+    else
+        pass "No hooks recommend 'act' for workflow testing"
+    fi
+}
+
+# Test 139: No workflow declares unused id-token: write
+test_no_unused_id_token_permission() {
+    local WF_DIR="$REPO_ROOT/.github/workflows"
+    local ERRORS=0
+
+    for wf in "$WF_DIR"/*.yml; do
+        if grep -q 'id-token: write' "$wf" 2>/dev/null; then
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+
+    if [ "$ERRORS" -eq 0 ]; then
+        pass "No workflow declares unused id-token: write permission"
+    else
+        fail "$ERRORS workflow(s) still declare id-token: write (no OIDC consumers exist)"
+    fi
+}
+
+# Test 140: Third-party action tag pinning tradeoff is documented
+test_action_pinning_tradeoff_documented() {
+    local EXCEPTIONS="$REPO_ROOT/CODE_REVIEW_EXCEPTIONS.md"
+    if [ ! -f "$EXCEPTIONS" ]; then fail "CODE_REVIEW_EXCEPTIONS.md not found"; return; fi
+
+    if grep -qi 'pinned to major tags\|tag.pinning' "$EXCEPTIONS" 2>/dev/null; then
+        pass "Third-party action tag-pinning tradeoff documented in CODE_REVIEW_EXCEPTIONS.md"
+    else
+        fail "CODE_REVIEW_EXCEPTIONS.md does not document the action tag-pinning tradeoff"
+    fi
+}
+
+# Test 141: ci-self-heal dispatch gates on committed
+test_self_heal_dispatch_gates_on_committed() {
+    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
+
+    # The "Re-trigger CI" step's if condition must include a committed check
+    if grep -A 5 'Re-trigger CI via workflow dispatch' "$WF" | grep -q 'committed'; then
+        pass "ci-self-heal.yml dispatch gates on committed output"
+    else
+        fail "ci-self-heal.yml dispatch does not check committed — wastes CI runs on no-op"
+    fi
+}
+
+# Test 142: README does not contain brittle exact test counts
+test_readme_no_brittle_test_count() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    # Should not contain "354+" or any specific "NNN+ automated tests" pattern
+    if grep -qE '[0-9]{3}\+\s+automated tests' "$README" 2>/dev/null; then
+        fail "README.md still contains brittle exact test count"
+    else
+        pass "README.md uses resilient test count wording"
+    fi
+}
+
+test_pr_review_extraction_uses_array_detection
+test_no_hook_recommends_act
+test_no_unused_id_token_permission
+test_action_pinning_tradeoff_documented
+test_self_heal_dispatch_gates_on_committed
+test_readme_no_brittle_test_count
 
 echo ""
 echo "=== Results ==="

@@ -10,7 +10,6 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
-  id-token: write
   issues: write
 
 env:
@@ -341,6 +340,7 @@ jobs:
       # Re-trigger CI if using GITHUB_TOKEN (app token push triggers naturally)
       - name: Re-trigger CI via workflow dispatch
         if: |
+          steps.commit.outputs.committed == 'true' &&
           steps.token.outputs.approach == 'pat' &&
           steps.pr.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true'

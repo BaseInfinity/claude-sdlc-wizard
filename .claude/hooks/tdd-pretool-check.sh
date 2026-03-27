@@ -14,7 +14,7 @@ FILE_PATH=$(echo "$TOOL_INPUT" | jq -r '.tool_input.file_path // empty')
 # Check for workflow files (this repo's "source code")
 if [[ "$FILE_PATH" == *".github/workflows/"* ]]; then
   cat << 'EOF'
-{"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "TDD CHECK: Are you editing a workflow without testing it first? Test with: act workflow_dispatch --secret-file .env.test"}}
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "TDD CHECK: Are you editing a workflow without testing it first? Validate with: python3 -c \"import yaml; yaml.safe_load(open('FILE'))\" && ./tests/test-workflow-triggers.sh"}}
 EOF
 fi
 
