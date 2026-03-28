@@ -1008,6 +1008,8 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 /plugin > Discover
 ```
 
+**Re-run `claude-code-setup` periodically** (quarterly, or when your project expands in scope) to catch new automations — MCP servers, hooks, subagents — that weren't relevant at initial setup but are now.
+
 ### Step 0.4: Auto-Scan Your Project
 
 **Before asking questions, Claude will automatically scan your project:**
@@ -3368,6 +3370,8 @@ When Anthropic provides official plugins that overlap with this SDLC:
 ```
 /plugin > Discover
 ```
+
+**Re-run `claude-code-setup` periodically** (quarterly, or when your project expands in scope) to catch new automations — MCP servers, hooks, subagents — that weren't relevant at initial setup but are now.
 
 ### When Claude Code Improves
 
