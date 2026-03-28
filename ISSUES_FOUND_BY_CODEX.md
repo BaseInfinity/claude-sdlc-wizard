@@ -3,11 +3,160 @@
 > Audit log for Codex repo reviews.
 >
 > This file now contains:
+> - The PR-local review for `fix/codex-pass4-findings` (no findings; ready for CI / PR review)
 > - The PR-local review for `fix/codex-pass2-findings` (no findings; ready to merge)
 > - The current deep `main` audit pass (open findings, if any)
 > - The earlier `main` audit pass (already fixed)
 > - The PR-local review for `fix/codex-main-audit` (already fixed and merged)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
+
+## PR-local review: `fix/codex-pass4-findings` (2026-03-27)
+
+Audit target: local branch diff vs `origin/main`
+
+### Scope and verification
+
+- Branch reviewed on local `fix/codex-pass4-findings` at `7ea6d7a`
+- Diff inspected against `origin/main` across:
+  - `.github/workflows/weekly-update.yml`
+  - `README.md`
+  - `CI_CD.md`
+  - `COMPETITIVE_AUDIT.md`
+  - `ROADMAP.md`
+  - `tests/test-prove-it.sh`
+  - `tests/test-workflow-triggers.sh`
+- Verification run during this PR-local review:
+  - `./tests/test-workflow-triggers.sh` -> passed (`170` passed, `0` failed)
+  - `./tests/test-prove-it.sh` -> passed (`19` passed, `0` failed)
+  - `actionlint -shellcheck=` -> clean
+  - `git diff --check origin/main...HEAD` -> clean
+
+### Findings
+
+No findings.
+
+### Review notes
+
+- The friction-loop issue is addressed by wiring open `friction-signal` issues into the weekly community scan prompt in `.github/workflows/weekly-update.yml`.
+- The setup-path claim is now scoped honestly in `README.md`: CI validates generated assets, while cross-stack setup-path E2E remains on the roadmap.
+- The competitor/watchlist cadence is now aligned across docs and tests: weekly scan, not monthly research.
+
+### Verdict
+
+Ready for CI / PR review.
+
+## Current deep main audit (pass 4, 2026-03-27)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Branch state reviewed after `git pull --ff-only origin main` -> already up to date
+- Verification run during this pass:
+  - `./tests/test-workflow-triggers.sh` -> passed (`166` passed, `0` failed)
+  - `./tests/test-prove-it.sh` -> passed (`19` passed, `0` failed)
+  - `actionlint -shellcheck=` -> clean
+  - targeted repo search for:
+    - `friction-signal` production vs consumption
+    - greenfield fixture usage (`fresh-nextjs`, `fresh-python`, etc.)
+    - idempotence/setup-path proof
+    - competitive-watchlist wiring vs test coverage
+- Manual review focused on:
+  - whether newly added `friction-signal` issues actually feed the repo's improvement loops
+  - whether onboarding/idempotence claims are now backed by executable proof
+  - whether competitor-watchlist docs/tests reflect the live workflow wiring
+
+### Findings
+
+#### P2: the repo now captures friction signals, but it still does not prove those signals feed the improvement loop
+
+- Evidence:
+  - The repo now claims the self-evolving loop includes CI friction signals:
+    - `README.md:52`
+    - `CI_CD.md:220-226`
+    - `CLAUDE_CODE_SDLC_WIZARD.md:40`
+    - `CLAUDE_CODE_SDLC_WIZARD.md:2528`
+  - The implementation clearly proves issue creation:
+    - `.github/workflows/ci-self-heal.yml:440-490`
+  - But I did not find a consumer for those issues in the weekly/monthly improvement paths:
+    - weekly community scan builds its prompt from `.github/prompts/analyze-community.md`: `.github/workflows/weekly-update.yml:708-739`
+    - monthly deep research uses an inline prompt focused on papers / announcements / general community trends: `.github/workflows/monthly-research.yml:33-78`
+  - Repo search did not find any `gh issue list` / `gh issue view` / label query against `friction-signal`, nor any prompt that asks the model to review those issues.
+- Why this matters:
+  - "We capture friction" is now true.
+  - "Friction signals feed improvements" is still stronger than the audited implementation.
+- Impact:
+  - The repo has a friction backlog, not yet a closed-loop friction-learning system.
+  - The current wording can still leave a reader believing the signal is already operationalized in research/update decisions.
+- Recommended fix:
+  - Add an explicit consumer path (for example: weekly/monthly prompt preloads open `friction-signal` issues, or a dedicated periodic friction-triage workflow), or
+  - narrow docs to say friction is captured for later human review rather than already feeding an automated improvement loop.
+
+#### P2: setup/onboarding remains the repo's biggest unproven product surface, and the wizard's idempotence claim still lacks live proof
+
+- Evidence:
+  - The landing page still claims the wizard auto-detects stack details and generates bespoke SDLC assets: `README.md:41`
+  - The wizard still claims reruns are safe and additive: `CLAUDE_CODE_SDLC_WIZARD.md:2904-2906`
+  - Greenfield fixtures explicitly say they test onboarding/setup behavior:
+    - `tests/e2e/fixtures/fresh-nextjs/README.md:3-30`
+    - `tests/e2e/fixtures/fresh-python/README.md:3-29`
+  - But the live harness still uses the canned `test-repo` fixture and copies pre-generated repo assets into it:
+    - `tests/e2e/run-simulation.sh:52-79`
+    - `.github/workflows/ci.yml:220-229`
+    - `.github/workflows/ci.yml:375-382`
+    - `.github/workflows/ci.yml:927-934`
+    - `.github/workflows/ci.yml:1096-1101`
+    - `.github/workflows/weekly-update.yml:399-405`
+    - `.github/workflows/weekly-update.yml:919-925`
+    - `.github/workflows/monthly-research.yml:299-305`
+  - Repo search still found no workflow/test that exercises onboarding against `fresh-nextjs`, `fresh-python`, `go-api`, `python-fastapi`, `nextjs-typescript`, or `mern-stack`; the only live paths continue to converge on `tests/e2e/fixtures/test-repo`.
+- Why this matters:
+  - This repo is novel because it claims more than "the generated assets work"; it claims the wizard can intelligently set them up.
+  - The idempotence promise is especially strong because it affects trust during repeated adoption/upgrade.
+- Impact:
+  - The repo still proves the generated SDLC package better than it proves the wizard's setup engine.
+  - Readers can reasonably infer that fresh-project onboarding and rerun safety are already exercised in CI when they are not.
+- Recommended fix:
+  - Add a real setup-path E2E lane for at least one greenfield JS fixture and one non-JS fixture.
+  - Add a rerun/idempotence test that runs setup twice and verifies additive/no-duplicate behavior.
+  - Until then, keep README/wizard wording explicitly scoped to generated-asset validation rather than proven setup execution.
+
+#### P3: the competitor-watchlist loop is partially real, but the docs and tests still misstate where it actually runs
+
+- Evidence:
+  - `COMPETITIVE_AUDIT.md` says the next review is monthly via `analyze-community.md`: `COMPETITIVE_AUDIT.md:3-4`
+  - In reality, the watchlist prompt is wired into the weekly community scan:
+    - `.github/prompts/analyze-community.md:1-71`
+    - `.github/workflows/weekly-update.yml:708-739`
+  - The monthly research workflow does not mention the named repo watchlist; it uses a broader inline prompt: `.github/workflows/monthly-research.yml:39-77`
+  - The regression test name/behavior is misleading:
+    - `tests/test-prove-it.sh:375-390`
+    - it reports "Monthly research includes competitive watchlist" but passes if either the monthly workflow **or the weekly community prompt** contains competitor strings.
+- Why this matters:
+  - This repo positions itself as unusually honest about competitive landscape and native-vs-custom tradeoffs.
+  - A misleading test on that surface creates false confidence in exactly the kind of claim-verification work the repo values.
+- Impact:
+  - The competitive-watchlist loop is real, but not in the cadence/location the docs imply.
+  - The current regression test would stay green even if the monthly path never looked at the watchlist.
+- Recommended fix:
+  - Either update `COMPETITIVE_AUDIT.md` to say the named watchlist is reviewed weekly via `analyze-community.md`, or wire the same watchlist explicitly into monthly research.
+  - Split or rename the regression test so it checks what it claims.
+
+### Revalidated prior open issue
+
+- The observability rollout gap is still present on current `main`:
+  - `tests/e2e/score-history.jsonl` still has `0` entries
+  - `SCORE_TRENDS.md` is still a no-data report generated on `2026-02-11`
+- That remains an open trust/rollout gap from the earlier pass-2 audit; this pass did not uncover a new bug there, but it is still relevant to the repo's "measures itself over time" story.
+
+### Verdict
+
+- The repo keeps improving, and generic workflow hygiene is now strong.
+- The remaining high-value gaps are almost entirely product-truth / proof-surface issues:
+  - loop closure (capture vs actual feedback)
+  - onboarding/setup proof
+  - accuracy of self-audit tests on novel claims
+- This is still above "normal repo" quality, but not yet at the "nothing here is bluffing" bar.
 
 ## Current deep main audit (pass 3, 2026-03-27)
 
