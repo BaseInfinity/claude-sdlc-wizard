@@ -3370,7 +3370,13 @@ test_cicd_weekly_mentions_watchlist() {
     if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
 
     # The weekly workflow section should mention competitive watchlist since that's where it runs
-    if sed -n '/## Weekly Update/,/## Monthly/p' "$CICD" | grep -qi 'competitive\|watchlist'; then
+    local section
+    section=$(sed -n '/## Weekly Update/,/## Monthly/p' "$CICD")
+    if [ -z "$section" ]; then
+        fail "Could not extract Weekly Update section from CI_CD.md (heading may have changed)"
+        return
+    fi
+    if echo "$section" | grep -qi 'competitive\|watchlist'; then
         pass "CI_CD.md weekly section mentions competitive watchlist"
     else
         fail "CI_CD.md weekly section should mention competitive watchlist"
