@@ -4,7 +4,8 @@
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR, push to main | Validation, tests, E2E evaluation |
+| `ci.yml` | PR | Validation, tests, E2E evaluation |
+| `ci.yml` | Push to main | Validation only |
 | `weekly-update.yml` | Weekly (Mondays 9 AM UTC) + manual | Check for Claude Code updates + community scan |
 | `monthly-research.yml` | Monthly (1st, 11 AM UTC) + manual | Deep research and trends |
 | `ci-self-heal.yml` | CI fail / review findings | Auto-fix loop |
@@ -29,7 +30,7 @@
 4. Evaluate baseline score (0-10, bounds check)
 5. Reset fixture, install CANDIDATE wizard (PR)
 6. Run simulation + integrity check
-7. Evaluate candidate score + SDP scoring + token metrics
+7. Evaluate candidate score + SDP scoring
 8. Compare scores, post results as sticky PR comment
 
 **E2E Full Evaluation (Tier 2) - On `merge-ready` label:**
@@ -281,14 +282,31 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 
 ## Workflow Permissions
 
+**ci.yml** uses least-privilege: workflow-level is read-only, write permissions added at job level only where needed.
+
 ```yaml
-# Most workflows
+# ci.yml workflow-level (inherited by validate job)
+permissions:
+  contents: read
+  pull-requests: read
+
+# ci.yml job-level overrides (cleanup-old-comments, e2e-quick-check, e2e-full-evaluation)
+permissions:
+  contents: write      # For score-history commits
+  pull-requests: write # For sticky PR comments
+```
+
+**Other workflows** (pr-review, weekly-update, monthly-research):
+
+```yaml
 permissions:
   contents: write      # For commits
   pull-requests: write # For PR creation/comments
-  id-token: write      # For OIDC authentication
+```
 
-# ci-self-heal.yml additionally needs:
+**ci-self-heal.yml** additionally needs:
+
+```yaml
   actions: write       # For gh workflow run (CI re-trigger)
 ```
 
