@@ -170,10 +170,29 @@ test_score_range() {
 echo ""
 echo "--- Per-criterion CUSUM ---"
 
+# Helper: build CI-schema JSON payload for --add-json
+# Args: score, plan_mode_outline, plan_mode_tool, tdd_green_ran, tdd_green_pass, self_review, clean_code, task_tracking, confidence, tdd_red
+build_ci_json() {
+    local score="$1"
+    local pmo="${2:-0}" pmt="${3:-0}" tgr="${4:-0}" tgp="${5:-0}" sr="${6:-0}" cc="${7:-0}" tt="${8:-0}" conf="${9:-0}" tr="${10:-0}"
+    local met_pmo="false" met_pmt="false" met_tgr="false" met_tgp="false" met_sr="false" met_cc="false" met_tt="false" met_conf="false" met_tr="false"
+    [ "$pmo" -ge 1 ] 2>/dev/null && met_pmo="true"
+    [ "$pmt" -ge 1 ] 2>/dev/null && met_pmt="true"
+    [ "$tgr" -ge 1 ] 2>/dev/null && met_tgr="true"
+    [ "$tgp" -ge 1 ] 2>/dev/null && met_tgp="true"
+    [ "$sr" -ge 1 ] 2>/dev/null && met_sr="true"
+    [ "$cc" -ge 1 ] 2>/dev/null && met_cc="true"
+    [ "$tt" -ge 1 ] 2>/dev/null && met_tt="true"
+    [ "$conf" -ge 1 ] 2>/dev/null && met_conf="true"
+    [ "$tr" -ge 1 ] 2>/dev/null && met_tr="true"
+    printf '{"score":%s,"criteria":{"plan_mode_outline":{"met":%s,"points":%s,"max":1,"evidence":"test"},"plan_mode_tool":{"met":%s,"points":%s,"max":1,"evidence":"test"},"tdd_green_ran":{"met":%s,"points":%s,"max":1,"evidence":"test"},"tdd_green_pass":{"met":%s,"points":%s,"max":1,"evidence":"test"},"self_review":{"met":%s,"points":%s,"max":1,"evidence":"test"},"clean_code":{"met":%s,"points":%s,"max":1,"evidence":"test"},"task_tracking":{"met":%s,"points":%s,"max":1,"evidence":"test"},"confidence":{"met":%s,"points":%s,"max":1,"evidence":"test"},"tdd_red":{"met":%s,"points":%s,"max":2,"evidence":"test"}}}' \
+        "$score" "$met_pmo" "$pmo" "$met_pmt" "$pmt" "$met_tgr" "$tgr" "$met_tgp" "$tgp" "$met_sr" "$sr" "$met_cc" "$cc" "$met_tt" "$tt" "$met_conf" "$conf" "$met_tr" "$tr"
+}
+
 # Test 12: Add JSON score with per-criterion breakdown
 test_add_json_score() {
     "$CUSUM_SCRIPT" --reset >/dev/null 2>&1
-    "$CUSUM_SCRIPT" --add-json '{"total": 7.0, "plan_mode_outline": 1, "plan_mode_tool": 1, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1
+    "$CUSUM_SCRIPT" --add-json "$(build_ci_json 7.0 1 1 1 1 1 1 0 1 0)" >/dev/null 2>&1
 
     local history_file="$SCRIPT_DIR/e2e/score-history.jsonl"
     if [ -f "$history_file" ] && [ -s "$history_file" ]; then
@@ -192,8 +211,8 @@ test_add_json_score() {
 test_per_criterion_check() {
     "$CUSUM_SCRIPT" --reset >/dev/null 2>&1
     # plan_mode_outline target is 1; add scores below target (0)
-    "$CUSUM_SCRIPT" --add-json '{"total": 5.0, "plan_mode_outline": 0, "plan_mode_tool": 1, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1 || true
-    "$CUSUM_SCRIPT" --add-json '{"total": 5.0, "plan_mode_outline": 0, "plan_mode_tool": 1, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1 || true
+    "$CUSUM_SCRIPT" --add-json "$(build_ci_json 5.0 0 1 1 1 1 1 0 1 0)" >/dev/null 2>&1 || true
+    "$CUSUM_SCRIPT" --add-json "$(build_ci_json 5.0 0 1 1 1 1 1 0 1 0)" >/dev/null 2>&1 || true
 
     local output
     output=$("$CUSUM_SCRIPT" --check-criteria 2>/dev/null) || true
@@ -209,7 +228,7 @@ test_per_criterion_drift() {
     "$CUSUM_SCRIPT" --reset >/dev/null 2>&1
     # Add 4 scores where plan_mode_outline is consistently 0 (target 1) — CUSUM should drift to -4
     for i in 1 2 3 4; do
-        "$CUSUM_SCRIPT" --add-json '{"total": 4.0, "plan_mode_outline": 0, "plan_mode_tool": 0, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1 || true
+        "$CUSUM_SCRIPT" --add-json "$(build_ci_json 4.0 0 0 1 1 1 1 0 1 0)" >/dev/null 2>&1 || true
     done
 
     local output
@@ -225,7 +244,7 @@ test_per_criterion_drift() {
 # Test 15: Stable criterion shows NORMAL
 test_per_criterion_stable() {
     "$CUSUM_SCRIPT" --reset >/dev/null 2>&1
-    "$CUSUM_SCRIPT" --add-json '{"total": 7.0, "plan_mode_outline": 1, "plan_mode_tool": 1, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1
+    "$CUSUM_SCRIPT" --add-json "$(build_ci_json 7.0 1 1 1 1 1 1 0 1 0)" >/dev/null 2>&1
 
     local output
     output=$("$CUSUM_SCRIPT" --check-criteria 2>/dev/null) || true
@@ -239,7 +258,7 @@ test_per_criterion_stable() {
 # Test 16: JSON-lines backward compatibility — total CUSUM still works
 test_jsonl_total_cusum() {
     "$CUSUM_SCRIPT" --reset >/dev/null 2>&1
-    "$CUSUM_SCRIPT" --add-json '{"total": 7.0, "plan_mode_outline": 1, "plan_mode_tool": 1, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1
+    "$CUSUM_SCRIPT" --add-json "$(build_ci_json 7.0 1 1 1 1 1 1 0 1 0)" >/dev/null 2>&1
 
     local output
     output=$("$CUSUM_SCRIPT" --check 2>/dev/null)
@@ -256,7 +275,7 @@ test_mixed_format() {
     # Add old-style score
     "$CUSUM_SCRIPT" --add 7.0 >/dev/null 2>&1
     # Add new-style JSON score
-    "$CUSUM_SCRIPT" --add-json '{"total": 7.0, "plan_mode_outline": 1, "plan_mode_tool": 1, "tdd_green_ran": 1, "tdd_green_pass": 1, "self_review": 1, "clean_code": 1, "task_tracking": 0, "confidence": 1, "tdd_red": 0}' >/dev/null 2>&1
+    "$CUSUM_SCRIPT" --add-json "$(build_ci_json 7.0 1 1 1 1 1 1 0 1 0)" >/dev/null 2>&1
 
     # Total CUSUM should still work (reads both files)
     local output

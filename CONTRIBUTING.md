@@ -159,7 +159,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/e2e/test-multi-call-eval.sh
 ./tests/e2e/test-eval-prompt-regression.sh
 
-# Run full E2E (requires ANTHROPIC_API_KEY)
+# Run full E2E (requires Claude Code CLI + ANTHROPIC_API_KEY)
 export ANTHROPIC_API_KEY=your-key
 ./tests/e2e/run-simulation.sh
 ```
