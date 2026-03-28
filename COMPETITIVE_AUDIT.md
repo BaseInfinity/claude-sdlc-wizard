@@ -24,7 +24,7 @@ Honest assessment of where we stand in the Claude Code ecosystem. What we do wel
 3. **Self-healing CI** — `ci-self-heal.yml` detects CI failure, invokes Claude to fix it, commits and re-triggers. Proven on PR #52 (7 turns, 28.5s, exact 6-line fix).
 4. **Prove-It A/B pipeline** — Before keeping any custom feature, we prove it outperforms native alternatives with statistical evidence. If we can't prove it, we delete it.
 5. **CUSUM drift detection** — Per-criterion tracking (not just overall). Catches "plan_mode is degrading while tdd_green is stable" — isolates which SDLC area is slipping.
-6. **Dogfooding enforcement** — The wizard tests itself. Every PR to this repo runs the same SDLC evaluation we recommend for users. 354+ automated tests across 21 scripts.
+6. **Dogfooding enforcement** — The wizard tests itself. Every PR to this repo runs the same SDLC evaluation we recommend for users. 490+ automated tests across 23 scripts.
 7. **Auto-update research** — Weekly Claude Code release checks + community scan, monthly deep research. Automated trend detection.
 
 ## What Others Do Better

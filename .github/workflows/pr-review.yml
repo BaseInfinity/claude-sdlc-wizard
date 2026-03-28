@@ -8,7 +8,9 @@ on:
     types: [labeled]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # PR number, not github.ref: pull_request_target sets ref to base branch (main)
+  # which would collide across different PRs
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -47,6 +49,8 @@ jobs:
         if: steps.pr.outputs.skip != 'true'
         with:
           fetch-depth: 0
+          # Explicit ref: pull_request_target defaults to base branch (main), not PR head
+          ref: ${{ github.event.pull_request.head.sha }}
 
       # ENHANCEMENT 2: Fetch existing PR comments for Claude to address
       - name: Fetch PR comments
@@ -112,6 +116,11 @@ jobs:
           if echo "$FILES" | grep -qvE '\.(md|txt|json|yml|yaml)$'; then
             echo "trivial=false" >> $GITHUB_OUTPUT
             echo "Non-trivial changes detected, will review"
+          # Execution-critical paths are never trivial even with doc/config extensions
+          # In this meta-repo: workflows are code, tests are code, .claude config is code
+          elif echo "$FILES" | grep -qE '^\.(github|claude)/|^tests/|^CLAUDE_CODE_SDLC_WIZARD'; then
+            echo "trivial=false" >> $GITHUB_OUTPUT
+            echo "Execution-critical doc/config changes detected, will review"
           else
             echo "trivial=true" >> $GITHUB_OUTPUT
             echo "Only docs/config changed, skipping review"
@@ -131,23 +140,32 @@ jobs:
 
           # Wait up to 10 minutes for CI
           for i in {1..20}; do
-            # Check all check runs, look for the validate job from CI workflow
-            STATUS=$(gh api \
-              repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs \
-              --jq '.check_runs[] | select(.name == "validate") | .conclusion // "pending"' 2>/dev/null || echo "pending")
+            # Single API call for all check runs, extract both conclusions
+            CHECK_RUNS=$(gh api \
+              repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs 2>/dev/null || echo '{"check_runs":[]}')
 
-            if [ "$STATUS" = "success" ]; then
-              echo "CI passed, proceeding with review"
-              CI_PASSED="true"
-              break
-            elif [ "$STATUS" = "failure" ]; then
-              echo "CI failed, skipping review (no point reviewing failing code)"
+            VALIDATE=$(echo "$CHECK_RUNS" | jq -r '[.check_runs[] | select(.name == "validate") | .conclusion // "pending"] | first // "pending"' 2>/dev/null)
+            [ -z "$VALIDATE" ] && VALIDATE="pending"
+
+            E2E=$(echo "$CHECK_RUNS" | jq -r '[.check_runs[] | select(.name == "e2e-quick-check") | .conclusion // "pending"] | first // empty' 2>/dev/null)
+            # E2E empty = check not triggered (only runs for bot/owner PRs)
+
+            # Either check failed → skip review
+            if [ "$VALIDATE" = "failure" ] || [ "$E2E" = "failure" ]; then
+              echo "CI failed (validate=$VALIDATE, e2e=$E2E), skipping review"
               echo "ci_passed=false" >> $GITHUB_OUTPUT
               exit 0
-            else
-              echo "CI still running (attempt $i/20), waiting 30s..."
-              sleep 30
             fi
+
+            # validate must pass; e2e-quick-check must pass OR not exist (doesn't run for all PRs)
+            if [ "$VALIDATE" = "success" ] && { [ "$E2E" = "success" ] || [ -z "$E2E" ]; }; then
+              echo "CI passed (validate=$VALIDATE, e2e=${E2E:-not-triggered}), proceeding with review"
+              CI_PASSED="true"
+              break
+            fi
+
+            echo "CI still running (attempt $i/20, validate=$VALIDATE, e2e=${E2E:-not-triggered}), waiting 30s..."
+            sleep 30
           done
 
           # Handle timeout - CI didn't complete in time
