@@ -19,7 +19,7 @@
 | 13 | Cross-model full repo audit | DONE — pass 7 closed (PRs #97-100). No substantive open findings |
 | 13.5 | Live-fire CI job audit | DONE — all CI paths verified (PR #102 fixed Tier 2 git init, 5-trial eval passed) |
 | 13.6 | Wire cross-model review into own SDLC | DONE — cross-model review is now a first-class SDLC step |
-| 14 | Distribution | TODO — npx CLI or curl one-liner (research done) |
+| 14 | Distribution | DONE — `npx agentic-sdlc-wizard init` (PR #103). Zero-dep CLI, 16 tests |
 
 ## Post-Distribution
 
