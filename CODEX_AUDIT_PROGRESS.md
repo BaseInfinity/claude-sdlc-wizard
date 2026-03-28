@@ -6,6 +6,7 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 
 - Deep repo audit pass completed on `main` on 2026-03-27.
 - Claim-verification / adversarial trust pass continued on `main` on 2026-03-27.
+- Loop-closure / product-truth pass continued on `main` on 2026-03-27.
 - Current open findings are tracked in `ISSUES_FOUND_BY_CODEX.md`.
 - Repo is currently assessed at `B+`.
 - This is not the final quality bar for the repo.
@@ -27,18 +28,20 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 - Observability trust:
   `score-history.jsonl` / `SCORE_TRENDS.md` do not yet fully support the repo's longitudinal measurement claims on `main`.
 - Wizard onboarding proof:
-  the repo strongly claims stack-aware bespoke setup, but the live CI/E2E path still validates generated assets in `tests/e2e/fixtures/test-repo` much more than it validates the wizard's actual setup flow across fixtures/stacks.
-- Self-evolution proof:
-  the repo clearly proves scheduled external update/research loops, but the "friction encountered" feedback loop is still narrative unless it becomes an explicit captured/tested mechanism.
+  the repo strongly claims stack-aware bespoke setup, but the live CI/E2E path still validates generated assets in `tests/e2e/fixtures/test-repo` much more than it validates the wizard's actual setup flow across fixtures/stacks or rerun/idempotence behavior.
+- Self-evolution loop closure:
+  the repo now captures `friction-signal` issues, but the weekly/monthly improvement loops still do not prove they consume those issues.
+- Competitive-watchlist accuracy:
+  the watchlist is real, but docs/tests still blur weekly-vs-monthly behavior and give more confidence than the live wiring warrants.
 
 ## Next Audit Phase
 
-Name: `Setup-Path / Product-Truth Audit`
+Name: `Living-Proof / Loop-Closure Audit`
 
 Goal:
-- Verify that the wizard's setup/onboarding path is executable, not just described.
-- Verify that the repo's most novel product claims are backed by first-class proof or are narrowed to honest wording.
-- Catch remaining places where repo narrative outruns what the live paths actually prove.
+- Verify that the wizard's setup/onboarding path is executable, rerunnable, and not just described.
+- Verify that captured signals actually feed the loops they claim to improve.
+- Tighten the remaining places where docs/tests overstate what the live paths prove.
 
 ## Required Method For Next Pass
 
@@ -47,6 +50,7 @@ Goal:
    - run the wizard setup flow or a close simulation of it
    - verify generated hooks/skills/docs/settings
    - verify claimed auto-detection outputs map to fixture reality
+   - rerun setup and verify additive / no-duplicate behavior
 
 2. Audit product-truth claims explicitly.
    Focus on:
@@ -59,9 +63,26 @@ Goal:
    Examples:
    - fixture README says it tests onboarding -> a real test/workflow uses it
    - README claim maps to a current proving workflow/test
-   - "friction" wording maps to an actual captured signal, or gets narrowed
+   - `friction-signal` capture maps to an actual consumer path, or gets narrowed
+   - competitive-review docs/tests match the real weekly/monthly wiring
 
 4. Re-score the repo only after the above pass reaches diminishing returns.
+
+## Progress Estimate
+
+- Roughly `75-80%` through the full repo-visible audit.
+- High confidence on:
+  - workflow correctness
+  - PR review / self-heal mechanics
+  - scoring docs vs evaluator
+  - broad docs drift
+  - competitor/comparison surface at a repo-structure level
+- Remaining high-value frontier is narrower but deeper:
+  - true setup-path proof
+  - idempotence / rerun proof
+  - friction-loop consumption
+  - final trust-test cleanup on novel claims
+- That remaining `20-25%` is where most of the A-range / "staff engineer respect" signal now lives.
 
 ## Stop Condition
 

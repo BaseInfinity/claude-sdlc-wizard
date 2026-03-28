@@ -16,7 +16,7 @@
 | 10 | Trigger weekly/monthly + audit | DONE (PRs #87, #88) |
 | 11 | Re-run wizard on ourselves | DONE (PR #89) |
 | 12 | CI efficiency audit | DONE (PR #92) |
-| 13 | Cross-model full repo audit | IN PROGRESS — pass 3 done (2 findings: setup-path proof, friction narrative). Building friction capture, roadmapping setup-path E2E |
+| 13 | Cross-model full repo audit | IN PROGRESS — pass 4 done (3 findings: friction loop closure, setup-path scoping, watchlist cadence). Friction consumer wired, docs narrowed |
 | 13.5 | Live-fire CI job audit | TODO — verify untested CI paths (see details below) |
 | 13.6 | Wire cross-model review into own SDLC | TODO — dogfood codex exec in our local pre-PR loop |
 | 14 | Distribution | TODO — npx CLI or curl one-liner (research done) |
@@ -31,6 +31,7 @@
 | 18 | Tool/Plugin Discovery Automation | Weekly-update fetches marketplace.json, diffs against cache, LLM-recommends relevant new CC features |
 | 19 | Monthly GC Audit (recurring) | "Less is more" — try removing things, check if scores hold. Fix weak tests or delete fluff |
 | 20 | Setup-Path E2E Proof | Run wizard setup against greenfield fixtures (fresh-nextjs, fresh-python) in CI. Proves cross-stack onboarding claim |
+| 21 | Scan Routing Refactor | Replace count-only `findings_count` gating with typed routing (`origin`, `lane`) and full payload handoff between jobs. Enables friction-only weeks to trigger digest without false community E2E |
 
 ## Review Pipeline
 

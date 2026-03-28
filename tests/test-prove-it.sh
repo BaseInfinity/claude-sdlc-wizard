@@ -372,27 +372,30 @@ fi
 # Competitive Watchlist Tests
 # ============================================
 
-# Test 18: Monthly research prompt includes competitive watchlist
-test_monthly_has_competitive_watchlist() {
-    local MONTHLY_WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+# Test 18: Weekly community scan includes competitive watchlist (via analyze-community.md)
+test_weekly_has_competitive_watchlist() {
+    local WEEKLY_WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
     local COMMUNITY_PROMPT="$REPO_ROOT/.github/prompts/analyze-community.md"
 
-    # Check either the workflow or the community prompt for competitive repos
-    local found=false
-    for file in "$MONTHLY_WORKFLOW" "$COMMUNITY_PROMPT"; do
-        if [ -f "$file" ] && grep -qi "everything-claude-code\|competitive.*watchlist\|competitor" "$file" 2>/dev/null; then
-            found=true
-            break
-        fi
-    done
+    # The watchlist lives in analyze-community.md which is consumed by the weekly workflow
+    local prompt_has_watchlist=false
+    local weekly_uses_prompt=false
 
-    if [ "$found" = "true" ]; then
-        pass "Monthly research includes competitive watchlist"
+    if [ -f "$COMMUNITY_PROMPT" ] && grep -qi "everything-claude-code\|competitive.*watchlist\|competitor" "$COMMUNITY_PROMPT" 2>/dev/null; then
+        prompt_has_watchlist=true
+    fi
+
+    if [ -f "$WEEKLY_WORKFLOW" ] && grep -q "analyze-community.md" "$WEEKLY_WORKFLOW" 2>/dev/null; then
+        weekly_uses_prompt=true
+    fi
+
+    if [ "$prompt_has_watchlist" = "true" ] && [ "$weekly_uses_prompt" = "true" ]; then
+        pass "Weekly community scan includes competitive watchlist via analyze-community.md"
     else
-        fail "Monthly research should include a competitive watchlist (everything-claude-code, etc.)"
+        fail "Weekly scan should use analyze-community.md which contains the competitive watchlist"
     fi
 }
-test_monthly_has_competitive_watchlist
+test_weekly_has_competitive_watchlist
 
 # Test 19: README has positioning/comparison section
 test_readme_has_positioning() {

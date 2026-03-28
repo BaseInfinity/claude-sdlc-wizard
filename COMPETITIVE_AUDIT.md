@@ -1,7 +1,7 @@
 # Competitive Audit
 
 > Last updated: 2026-03-25 (Item #10)
-> Next review: Monthly (via `analyze-community.md` competitive watchlist)
+> Next review: Weekly (via `analyze-community.md` competitive watchlist in weekly community scan)
 
 ## Purpose
 
