@@ -10,6 +10,60 @@
 > - The PR-local review for `fix/codex-main-audit` (already fixed and merged)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
 
+## Current deep main audit (pass 7, 2026-03-28)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Branch reviewed on a clean `main` worktree at `5b3118d` (`fix: address Codex pass-6 audit findings (#99)`)
+- Re-checked the merged pass-6 closure diff in:
+  - `tests/e2e/check-compliance.sh`
+  - `tests/test-compliance.sh`
+  - `CLAUDE_CODE_SDLC_WIZARD.md`
+- Verification run during this pass:
+  - `./tests/test-compliance.sh` -> passed (`10` passed, `0` failed)
+  - stubbed `claude` + dummy `ANTHROPIC_API_KEY` against `./tests/e2e/run-simulation.sh add-feature`:
+    - exited `0`
+    - printed a full compliance summary after warnings (`Passed: 2`, `Failed: 0`, `Warnings: 4`)
+    - finished with `All E2E simulations complete!`
+    - stub observed the temp repo root as cwd
+    - root contained `package.json`, `CLAUDE.md`, and `.claude/settings.json`
+    - no nested `test-repo/` directory existed
+- Targeted repo search during this pass:
+  - wizard idempotence wording is now qualified in `CLAUDE_CODE_SDLC_WIZARD.md`
+  - setup-path proof is still explicitly scoped as roadmap work in `README.md:41` and `ROADMAP.md:33`
+
+### Findings
+
+No new substantive findings.
+
+### Closure decisions
+
+- `FIXED`: the pass-6 manual-runner warning-semantics finding.
+  - Evidence:
+    - `tests/e2e/check-compliance.sh:48-53` now returns `0` for warning-only checks and `1` only for required failures
+    - `tests/test-compliance.sh:119-153` now asserts that warning-only and missing-output paths complete with exit `0`
+    - `tests/e2e/run-simulation.sh:52-53` still copies the fixture contents into the temp repo root
+    - verified stubbed `./tests/e2e/run-simulation.sh add-feature` completed with warnings, printed the full summary, and exited `0`
+- `FIXED`: the pass-6 wizard idempotence / safe-rerun wording finding.
+  - Evidence:
+    - `CLAUDE_CODE_SDLC_WIZARD.md:2904-2906` now says the wizard is "designed to be idempotent"
+    - `CLAUDE_CODE_SDLC_WIZARD.md:3049-3063` now frames rerun behavior as intended/design-goal behavior and explicitly notes setup-path E2E is still on the roadmap
+    - `tests/test-compliance.sh:205-219` now asserts qualified idempotence language
+- `ACCEPTED TRADEOFF`: cross-stack setup-path E2E proof remains roadmap work, but the current repo/docs surface scopes that honestly enough for audit closure.
+  - `README.md:41`
+  - `ROADMAP.md:33`
+  - `CLAUDE_CODE_SDLC_WIZARD.md:3063`
+- `LOW-VALUE NIT / NOT ESCALATED`: `CHANGELOG.md:288` still contains stronger historical idempotence wording for the v1.3.0 release notes. That is archival change history rather than current operative guidance, so it is not blocking closure.
+
+### Verdict
+
+- Pass 7 verified the pass-6 fixes landed correctly on `main`.
+- The remaining pass-6 issues are now closed or accepted tradeoffs.
+- Item `13` can be marked `DONE`.
+- Further checking on this lane would mostly duplicate existing proof; future audit work should move to roadmap items `13.5`, `13.6`, and `20`.
+
 ## Current deep main audit (pass 6, 2026-03-28)
 
 Audit target: merged `main`
