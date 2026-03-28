@@ -81,14 +81,21 @@ CI/CD PIPELINE
 
 ## Using It
 
-**Copy-paste:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and follow setup instructions inside.
-
-**Raw URL:** Point Claude to:
-```
-https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
+**One command (recommended):**
+```bash
+npx agentic-sdlc-wizard init
 ```
 
-**Check for updates:** Ask Claude "Check if the SDLC wizard has updates" - Claude reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each).
+Installs hooks, skills, settings, and the wizard doc. Then start Claude Code and tell it "Run the SDLC wizard setup" — it'll scan your project and generate bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md.
+
+**From GitHub (no npm needed):**
+```bash
+npx github:BaseInfinity/agentic-ai-sdlc-wizard init
+```
+
+**Manual:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and follow setup instructions inside.
+
+**Check for updates:** Ask Claude "Check if the SDLC wizard has updates" — it reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each).
 
 ## Self-Evolving System
 
@@ -167,7 +174,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | **Evaluation** | 95% CI, CUSUM, SDP, Tier 1/2 | Configuration testing | skilltest framework |
 | **Self-healing** | CI auto-fix + re-trigger | No | No |
 | **Auto-updates** | Weekly CC + community scan | No | No |
-| **Install** | Copy wizard file + run setup | npm install | npm install |
+| **Install** | `npx agentic-sdlc-wizard init` | npm install | npm install |
 | **Philosophy** | Lightweight, prove-it-or-delete | Scale and optimization | Documentation-first |
 
 **Our unique strengths:** Statistical rigor (CUSUM + 95% CI), SDP scoring (model quality vs SDLC compliance), self-healing CI, Prove-It A/B pipeline, comprehensive automated test suite, dogfooding enforcement.
