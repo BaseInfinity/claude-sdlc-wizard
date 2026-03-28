@@ -16,7 +16,7 @@
 | 10 | Trigger weekly/monthly + audit | DONE (PRs #87, #88) |
 | 11 | Re-run wizard on ourselves | DONE (PR #89) |
 | 12 | CI efficiency audit | DONE (PR #92) |
-| 13 | Cross-model full repo audit | IN PROGRESS — pass 4 done (3 findings: friction loop closure, setup-path scoping, watchlist cadence). Friction consumer wired, docs narrowed |
+| 13 | Cross-model full repo audit | DONE — pass 7 closed (PRs #97-100). No substantive open findings |
 | 13.5 | Live-fire CI job audit | TODO — verify untested CI paths (see details below) |
 | 13.6 | Wire cross-model review into own SDLC | DONE — cross-model review is now a first-class SDLC step |
 | 14 | Distribution | TODO — npx CLI or curl one-liner (research done) |
@@ -74,10 +74,10 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 
 | Job/Trigger | Last Green | Gap | Action |
 |---|---|---|---|
-| `e2e-full-evaluation` (merge-ready label) | Feb 12 | 6+ weeks, massive changes since | Label a test PR with `merge-ready`, verify full Tier 2 pipeline (~$1.50-2.50) |
-| `weekly-update.yml` schedule trigger | Never green on schedule (Mar 23 failed: missing label, now fixed) | Untested since label fix | Wait for next Monday or manual dispatch |
-| `monthly-research.yml` schedule trigger | Never green on schedule (Mar 1 failed) | Mar 27 manual dispatch passed | Wait for Apr 1 or manual dispatch |
-| Stale `ci-autofix.yml` (ID 232420762) | Never (dead workflow) | Orphaned after rename to ci-self-heal.yml | Delete via `gh workflow disable 232420762` or GitHub UI |
+| `e2e-full-evaluation` (merge-ready label) | Feb 12 | 6+ weeks, massive changes since | Label this PR with `merge-ready` to verify Tier 2 pipeline |
+| `weekly-update.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger untested since label fix | Wait for next Monday schedule run |
+| `monthly-research.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger passed Mar 27 | VERIFIED — next scheduled run Apr 1 |
+| Stale `ci-autofix.yml` (ID 232420762) | Never (dead workflow) | Orphaned after rename to ci-self-heal.yml | DONE — disabled via `gh workflow disable` on Mar 28 |
 | Node.js 20 deprecation | N/A | `actions/checkout@v4` + `oven-sh/setup-bun` will be forced to Node 24 on June 2, 2026 | Track in back burner |
 
 ## Back Burner
