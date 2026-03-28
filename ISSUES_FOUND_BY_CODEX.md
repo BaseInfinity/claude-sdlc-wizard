@@ -10,6 +10,124 @@
 > - The PR-local review for `fix/codex-main-audit` (already fixed and merged)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
 
+## Current deep main audit (pass 5, 2026-03-27)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Branch state reviewed on a clean `main` worktree
+- Focused manual review on repo areas that were not yet deeply exercised by passes 1-4:
+  - evaluator failure semantics in `tests/e2e/evaluate.sh`
+  - CUSUM / score-history schema alignment in `tests/e2e/cusum.sh`
+  - the local/manual E2E runner path in `tests/e2e/run-simulation.sh`
+- Verification run during this pass:
+  - `./tests/test-cusum.sh` -> passed (`17` passed, `0` failed)
+  - `./tests/test-evaluate-bugs.sh` -> passed (`17` passed, `0` failed)
+  - `./tests/e2e/run-simulation.sh` -> passed in validation-only mode
+  - temp reproduction with a CI-shaped `score-history.jsonl` record against `cusum.sh`:
+    - `--check` reported `CUSUM=-7.00 STATUS=ALERT`
+    - `--check-criteria` reported negative drift for every criterion despite all scores matching target
+  - temp reproduction with a stubbed `curl` in `evaluate.sh`:
+    - `./tests/e2e/evaluate.sh tests/e2e/scenarios/add-feature.md <stub-output> --json`
+    - returned `score: 4`, `pass: true`, `baseline_status: warn`
+    - all six LLM-scored criteria were marked as API-failure fallbacks
+
+### Findings
+
+#### P1: a total LLM-judge outage can still return a passing evaluation result
+
+- Evidence:
+  - `tests/e2e/evaluate.sh:156-182` converts empty / invalid / malformed criterion responses into `0`-point criteria and only records warnings in `FAILED_CRITERIA`
+  - `tests/e2e/evaluate.sh:217-260` then merges the deterministic subtotal and still marks the run as passing whenever `score >= min_acceptable`
+  - many scenario baselines accept `4.0` as `min_acceptable`, which matches the full deterministic subtotal:
+    - `tests/e2e/baselines.json:16-20`
+    - `tests/e2e/baselines.json:23-27`
+    - `tests/e2e/baselines.json:44-48`
+    - `tests/e2e/baselines.json:74-78`
+    - `tests/e2e/baselines.json:88-92`
+  - the CI workflow only fails evaluation when `.error == true` or `.score` is missing:
+    - Tier 1 baseline: `.github/workflows/ci.yml:336-346`
+    - Tier 1 candidate: `.github/workflows/ci.yml:480-490`
+    - Tier 2 baseline: `.github/workflows/ci.yml:1043-1052`
+    - Tier 2 candidate: `.github/workflows/ci.yml:1201-1210`
+  - verified reproduction:
+    - with a stubbed `curl` that returned nothing for every criterion, `evaluate.sh` still emitted `score: 4`, `pass: true`, and `baseline_status: warn` for `add-feature`
+- Why this matters:
+  - a judge outage is not "low compliance"; it is evaluator failure
+  - the current behavior can silently convert "the scoring layer is down" into "the change barely passed"
+- Impact:
+  - false-green Tier 1 / Tier 2 evaluations
+  - merge decisions can proceed on deterministic-only points without any subjective scoring having actually happened
+- Recommended fix:
+  - make `evaluate.sh` hard-fail with `error: true` when any criterion exhausts retries, or at minimum when successful LLM-judged criteria fall below a threshold
+  - add a regression test that stubs total API failure and expects a failing evaluation result
+
+#### P2: `cusum.sh` and `test-cusum.sh` still use an obsolete JSONL schema, so drift detection is wrong on live score history
+
+- Evidence:
+  - CI records score history as `{timestamp, scenario, score, max_score, criteria: {...}, sdp: {...}}`:
+    - `.github/workflows/ci.yml:545-573`
+    - `.github/workflows/ci.yml:1280-1302`
+  - `tests/e2e/cusum.sh` still extracts `.total` for total history and `.[criterion]` for per-criterion history:
+    - `tests/e2e/cusum.sh:71-80`
+    - `tests/e2e/cusum.sh:106-118`
+  - `tests/test-cusum.sh` seeds only the old flat schema (`{"total": 7.0, "plan_mode_outline": 1, ...}`), so it validates a shape CI no longer writes:
+    - `tests/test-cusum.sh:173-176`
+    - `tests/test-cusum.sh:191-196`
+    - `tests/test-cusum.sh:207-212`
+    - `tests/test-cusum.sh:225-242`
+  - verified reproduction with a CI-shaped record that matched every target:
+    - `cusum.sh --check` returned `CUSUM=-7.00 STATUS=ALERT`, `Mean Score: 0.0`, `Latest Score: null`
+    - `cusum.sh --check-criteria` returned `-1.00` for every 1-point criterion and `-2.00` for `tdd_red`
+  - despite that schema mismatch, `./tests/test-cusum.sh` still passed (`17` passed, `0` failed)
+- Why this matters:
+  - the repo sells CUSUM/drift detection as part of its self-measurement rigor
+  - right now the script and tests are aligned with each other, but both are misaligned with the live history format
+- Impact:
+  - total drift and per-criterion drift are unreliable wherever `score-history.jsonl` contains CI-written entries
+  - the regression suite currently gives false confidence on one of the repo's core observability claims
+- Recommended fix:
+  - align `cusum.sh` with the live schema (`.score` and `.criteria.<name>.points`)
+  - if backward compatibility matters, support both schemas explicitly instead of implicitly assuming one
+  - rewrite `tests/test-cusum.sh` to seed CI-shaped JSONL records
+
+#### P3: `run-simulation.sh`'s full-simulation path operates in the wrong working tree, while docs/tests only prove validation mode
+
+- Evidence:
+  - `tests/e2e/run-simulation.sh:52-59` copies `tests/e2e/fixtures/test-repo` into the temp directory as a nested folder, then initializes git in the temp directory root
+  - `tests/e2e/run-simulation.sh:61-78` installs `.claude/` and `CLAUDE.md` into that temp-directory root, not into the nested fixture directory
+  - verified reproduction of the same copy step showed:
+    - root had no `package.json`
+    - nested `test-repo/package.json` existed
+  - the same script requires both `claude` CLI and `ANTHROPIC_API_KEY` for full simulation:
+    - `tests/e2e/run-simulation.sh:28-40`
+  - but user-facing docs describe the full path as requiring only an API key:
+    - `TESTING.md:84-90`
+    - `TESTING.md:202-203`
+    - `CONTRIBUTING.md:162-164`
+    - `CI_CD.md:280-283`
+  - CI runs `./tests/e2e/run-simulation.sh`, but current coverage only exercises validation mode:
+    - `.github/workflows/ci.yml:90-91`
+    - `./tests/e2e/run-simulation.sh` in this pass reported `Running in validation-only mode`
+  - repo search did not find a dedicated test for the full/live path; only `tests/test-workflow-triggers.sh` references the filename as part of script-count checks
+- Why this matters:
+  - this is the documented local/manual way to validate the repo's E2E path outside GitHub Actions
+  - if the working tree is wrong, the "full simulation" path is not meaningfully exercising the intended fixture repo
+- Impact:
+  - local E2E runs can execute outside the actual app fixture root
+  - docs overstate the readiness of a manual proof path that is both under-tested and currently miswired
+- Recommended fix:
+  - copy the fixture contents into the temp root (`cp -R "$FIXTURES_DIR/test-repo/." "$test_dir/"` or equivalent)
+  - document the Claude CLI prerequisite wherever the manual command is shown
+  - add a test that exercises the full path with a stubbed `claude` binary
+
+### Verdict
+
+- Pass 5 found new substantive issues in evaluator trust, drift-detection correctness, and the local/manual E2E harness.
+- Item 13 should not be marked `DONE`.
+- The next pass should be a post-fix closure pass after these findings and the still-open pass-3/pass-4 product-truth gaps are addressed.
+
 ## PR-local review: `fix/codex-pass4-findings` (2026-03-27)
 
 Audit target: local branch diff vs `origin/main`
