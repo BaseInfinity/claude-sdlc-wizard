@@ -18,7 +18,7 @@
 | 12 | CI efficiency audit | DONE (PR #92) |
 | 13 | Cross-model full repo audit | IN PROGRESS — pass 4 done (3 findings: friction loop closure, setup-path scoping, watchlist cadence). Friction consumer wired, docs narrowed |
 | 13.5 | Live-fire CI job audit | TODO — verify untested CI paths (see details below) |
-| 13.6 | Wire cross-model review into own SDLC | TODO — dogfood codex exec in our local pre-PR loop |
+| 13.6 | Wire cross-model review into own SDLC | DONE — cross-model review is now a first-class SDLC step |
 | 14 | Distribution | TODO — npx CLI or curl one-liner (research done) |
 
 ## Post-Distribution

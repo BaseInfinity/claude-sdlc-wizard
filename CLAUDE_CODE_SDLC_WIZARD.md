@@ -1645,7 +1645,7 @@ TodoWrite([
   { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
   { content: "Self-review: run /code-review", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
-  // Optional: Cross-model review (if configured — see wizard setup)
+  { content: "Cross-model review (if configured — see below)", status: "pending", activeForm: "Running cross-model review" },
   // CI FEEDBACK LOOP (After local tests pass)
   { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
   { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
@@ -1715,7 +1715,50 @@ PLANNING → DOCS → TDD RED → TDD GREEN → Tests Pass → Self-Review
 4. Issues below 80 are likely false positives — skip unless obviously valid
 5. Address issues by going back through the proper SDLC loop
 
-**Optional: Cross-model review.** If configured during wizard setup, run an independent review using a competing AI model (e.g., Codex CLI with the latest GPT model at maximum reasoning effort). Different training = different blind spots. See the "Cross-Model Review Loop" section below for setup.
+## Cross-Model Review (If Configured)
+
+**When to run:** High-stakes changes (auth, payments, data handling), complex refactors, research-heavy work.
+**When to skip:** Trivial changes (typo fixes, config tweaks), time-sensitive hotfixes, risk < review cost.
+
+**Prerequisites:** Codex CLI installed (`npm i -g @openai/codex`), OpenAI API key set.
+
+**Steps:**
+1. After self-review passes, write `.reviews/handoff.json`:
+   ```jsonc
+   {
+     "review_id": "feature-xyz-001",
+     "status": "PENDING_REVIEW",
+     "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
+     "review_instructions": "Review for security, edge cases, and correctness",
+     "artifact_path": ".reviews/feature-xyz-001/"
+   }
+   ```
+2. Tell the user to run the independent reviewer:
+   ```bash
+   codex exec \
+     -c 'model_reasoning_effort="xhigh"' \
+     -s danger-full-access \
+     -o .reviews/latest-review.md \
+     "You are an independent code reviewer. Read .reviews/handoff.json, \
+      review the listed files, and write your findings to the artifact_path. \
+      End with CERTIFIED or NOT CERTIFIED."
+   ```
+3. Read `.reviews/latest-review.md` — if CERTIFIED, proceed to CI. If NOT CERTIFIED, fix findings and repeat from step 1.
+
+```
+Self-review passes → write handoff.json → user runs codex exec
+    ^                                              |
+    |                                    CERTIFIED? → YES → CI feedback loop
+    |                                              |
+    |                                              → NO (findings)
+    |                                              |
+    └──────── Fix findings ←───────────────────────┘
+                  (repeat until CERTIFIED, or ask user)
+```
+
+**Tool-agnostic:** The value is adversarial diversity (different model, different blind spots), not the specific tool. Any competing AI reviewer works.
+
+**Full protocol:** See the "Cross-Model Review Loop (Optional)" section below for key flags and reasoning effort guidance.
 
 ## Test Review (Harder Than Implementation)
 
