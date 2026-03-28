@@ -3036,7 +3036,7 @@ test_readme_no_brittle_test_count() {
     if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
 
     # Should not contain "354+" or any specific "NNN+ automated tests" pattern
-    if grep -qE '[0-9]{3}\+\s+automated tests' "$README" 2>/dev/null; then
+    if grep -qE '[0-9]{3}\+[[:space:]]+automated tests' "$README" 2>/dev/null; then
         fail "README.md still contains brittle exact test count"
     else
         pass "README.md uses resilient test count wording"

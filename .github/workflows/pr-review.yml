@@ -316,7 +316,7 @@ jobs:
               REVIEW=$(jq -r '.result // .output // empty' "$OUTPUT_FILE" 2>/dev/null || echo "")
             fi
 
-            REVIEW=$(echo "$REVIEW" | head -c 60000)
+            REVIEW=$(printf '%s' "$REVIEW" | head -c 60000)
           else
             REVIEW=""
           fi
