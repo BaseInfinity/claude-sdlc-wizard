@@ -1,0 +1,29 @@
+{
+  "name": "agentic-sdlc-wizard",
+  "version": "1.15.0",
+  "description": "SDLC enforcement for Claude Code — hooks, skills, and wizard setup in one command",
+  "bin": {
+    "sdlc-wizard": "./cli/bin/sdlc-wizard.js"
+  },
+  "files": [
+    "cli/",
+    "CLAUDE_CODE_SDLC_WIZARD.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "claude-code",
+    "sdlc",
+    "tdd",
+    "ai-agent",
+    "developer-tools",
+    "code-quality"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BaseInfinity/agentic-ai-sdlc-wizard"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
