@@ -16,19 +16,19 @@
 | 10 | Trigger weekly/monthly + audit | DONE (PRs #87, #88) |
 | 11 | Re-run wizard on ourselves | DONE (PR #89) |
 | 12 | CI efficiency audit | DONE (PR #92) |
-| 13 | Cross-model full repo audit | IN PROGRESS — pass 2 done (4 findings: observability trust, scoring doc drift, CI perms, CI_CD contradictions). Next: fix findings, then claim-verification pass |
-| 13.5 | Wire cross-model review into own SDLC | TODO — dogfood codex exec in our local pre-PR loop |
-| 13.6 | Live-fire CI job audit | TODO — verify untested CI paths before distribution (see below) |
+| 13 | Cross-model full repo audit | IN PROGRESS — pass 2 done (4 findings: observability trust, scoring doc drift, CI perms, CI_CD contradictions). Next: fix findings, then Codex decides next pass |
+| 13.5 | Live-fire CI job audit | TODO — verify untested CI paths (see details below) |
+| 13.6 | Wire cross-model review into own SDLC | TODO — dogfood codex exec in our local pre-PR loop |
 | 14 | Distribution | TODO — npx CLI or curl one-liner (research done) |
 
 ## Post-Distribution
 
 | # | Item | Description |
 |---|------|-------------|
-| 15 | Tool/Plugin Discovery Automation | Weekly-update fetches marketplace.json, diffs against cache, LLM-recommends relevant new CC features |
-| 16 | E2E Scenario Coverage Audit | Review scenario gaps: user archetypes, task types, repo types |
-| 17 | Scoring System Review | One-time deep audit, then every 2-3 months. Criteria relevance, weighting, LLM judge drift |
-| 18 | Setup Drift Prevention | CI detects when installed setup drifts from wizard template |
+| 15 | E2E Scenario Coverage Audit | Review scenario gaps: user archetypes, task types, repo types |
+| 16 | Scoring System Review | One-time deep audit, then every 2-3 months. Criteria relevance, weighting, LLM judge drift |
+| 17 | Setup Drift Prevention | CI detects when installed setup drifts from wizard template |
+| 18 | Tool/Plugin Discovery Automation | Weekly-update fetches marketplace.json, diffs against cache, LLM-recommends relevant new CC features |
 | 19 | Monthly GC Audit (recurring) | "Less is more" — try removing things, check if scores hold. Fix weak tests or delete fluff |
 
 ## Review Pipeline
@@ -66,7 +66,7 @@
 - Move toward a normalized review artifact or check-run parser so Claude and Codex can plug into the same automation.
 - Revisit whether default review should be single-provider, dual-provider for labeled PRs, or manual Codex-only cross-review.
 
-## Item 13.6: Live-Fire CI Job Audit
+## Item 13.5: Live-Fire CI Job Audit
 
 Every CI workflow/job must succeed at least once post-changes before distribution. Current gaps:
 
@@ -81,5 +81,5 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 ## Back Burner
 
 - Mutation testing (#21, experimental)
-- Node.js 20 deprecation (#68, June 2, 2026 deadline — actions/checkout@v4, oven-sh/setup-bun)
-- Reviewer severity prompt fix (14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions)
+- Node.js 20 deprecation (June 2, 2026 deadline — `actions/checkout@v4` + `oven-sh/setup-bun` forced to Node 24. Not urgent yet but blocks all CI if ignored. Revisit May 2026)
+- Reviewer severity prompt fix (14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Real but low-impact — hasn't caused a missed bug yet)
