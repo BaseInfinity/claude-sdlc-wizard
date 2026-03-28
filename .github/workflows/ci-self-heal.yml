@@ -440,7 +440,11 @@ jobs:
       - name: Create friction-signal issue
         if: |
           steps.pr.outputs.skip != 'true' &&
-          steps.count.outputs.exceeded != 'true'
+          steps.count.outputs.exceeded != 'true' &&
+          (
+            steps.source.outputs.mode == 'ci-failure' ||
+            (steps.source.outputs.mode == 'review-findings' && steps.review.outputs.has_findings == 'true')
+          )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MODE: ${{ steps.source.outputs.mode }}
