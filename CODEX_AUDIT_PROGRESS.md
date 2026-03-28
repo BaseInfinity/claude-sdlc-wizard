@@ -4,23 +4,28 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 
 ## Current Status
 
-- Deep repo audit passes 1-6 completed on `main`; pass 6 ran on `2026-03-28`.
-- Pass 6 re-ran the pass-5 repros with executable proof:
-  - `evaluate.sh` now hard-fails total LLM-judge outages with `pass: false` and `error: true`
-  - `cusum.sh` now reads CI-shaped `score-history.jsonl` correctly for both total and per-criterion drift
-  - `run-simulation.sh` now copies the fixture contents into the temp repo root; a stubbed `claude` binary saw `package.json` at root and no nested `test-repo/`
-- Pass 6 also re-checked the pass-4 product-truth gaps:
-  - weekly update now consumes open `friction-signal` issues
-  - competitive-watchlist docs/tests now truthfully point to the weekly community scan
-  - README setup wording is now scoped to generated-asset validation, with setup-path E2E left on the roadmap
-- Pass 6 found two remaining substantive issues:
-  - the full manual `run-simulation.sh` path still exits on its first warning because `check-compliance.sh` combines `set -e` with warning paths that return non-zero
-  - `CLAUDE_CODE_SDLC_WIZARD.md` still claims idempotent / safe reruns without executable proof
+- Deep repo audit passes 1-7 completed on `main`; pass 7 ran on `2026-03-28`.
+- Pass 7 verified the pass-6 closure commit landed on `main`:
+  - `5b3118d` / `fix: address Codex pass-6 audit findings (#99)`
+  - changed `tests/e2e/check-compliance.sh`, `tests/test-compliance.sh`, `CLAUDE_CODE_SDLC_WIZARD.md`, and both audit ledgers
+- Pass 7 re-ran the remaining closure checks with executable proof:
+  - `./tests/test-compliance.sh` passed (`10` passed, `0` failed)
+  - stubbed `claude` + dummy `ANTHROPIC_API_KEY` against `./tests/e2e/run-simulation.sh add-feature` exited `0`
+  - the stub saw `package.json`, `CLAUDE.md`, and `.claude/settings.json` at the temp repo root, with no nested `test-repo/`
+  - warning-only compliance misses now print a full summary (`Passed: 2`, `Failed: 0`, `Warnings: 4`) and do not abort the run
+- Pass 7 verified the wizard rerun/idempotence language is now appropriately qualified:
+  - `CLAUDE_CODE_SDLC_WIZARD.md` now says the wizard is "designed to be idempotent"
+  - rerun benefits are phrased as intended/design-goal behavior (`aims to`, `designed to`, `design goal`)
+  - the wizard explicitly notes that cross-stack setup-path E2E is still roadmap work
+- Remaining repo-visible gaps on this audit lane are not substantive defects:
+  - cross-stack setup-path E2E remains an explicit roadmap item / accepted tradeoff
+  - `CHANGELOG.md` still contains stronger historical v1.3.0 release-note wording, but that is archival copy rather than current operative guidance
+- Current open findings for roadmap item `13`: none substantive.
 - Current open findings are tracked in `ISSUES_FOUND_BY_CODEX.md`.
 - Repo is currently assessed at `B+`.
 - This is not the final quality bar for the repo.
-- Item `13` should remain open; do not mark it `DONE` yet.
-- Another pass is only worthwhile after the remaining manual-runner / idempotence issues change.
+- Item `13` can now be marked `DONE`.
+- Further passes on this audit lane would mostly duplicate existing proof; follow-on work belongs to roadmap items `13.5`, `13.6`, and `20`.
 
 ## What Has Already Been Audited
 
@@ -38,42 +43,30 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 
 ## Current Open Themes
 
-- Manual proof-path closure:
-  the `run-simulation.sh` copy-path bug is fixed, but the full-simulation path still aborts on the first warning because `check-compliance.sh` treats warning-only misses as non-zero under `set -e`.
-- Wizard rerun truth:
-  the wizard still claims idempotent / safe / non-duplicating reruns without executable proof.
-- Setup-path proof scope:
-  cross-stack onboarding E2E is still roadmap work, but this is now an explicitly documented tradeoff rather than a hidden CI claim.
+- No substantive open findings remain on the deep repo audit lane for item `13`.
+- Follow-on roadmap work remains outside this closure decision: live-fire CI job audit (`13.5`).
+- Follow-on roadmap work remains outside this closure decision: dogfood cross-model review in the local SDLC (`13.6`).
+- Follow-on roadmap work remains outside this closure decision: cross-stack setup-path E2E proof (`20`).
 
 ## Next Audit Phase
 
-Name: `Targeted Closure Follow-up`
+Name: `Closed for Item 13`
 
 Goal:
-- Re-check the remaining manual/full E2E runner behavior after `check-compliance.sh` warning semantics are fixed or explicitly scoped.
-- Re-check wizard rerun/idempotence wording after proof lands or the claim is narrowed.
-- Confirm the only remaining setup-path gap is the explicitly accepted roadmap item, not a hidden trust problem.
+- Do not re-run the deep repo audit lane unless a new substantive trust gap appears.
+- Shift future audit effort to narrower follow-on items with fresh proof obligations: `13.5`, `13.6`, and `20`.
 
 ## Required Method For Next Pass
 
-1. Re-run the stubbed full `run-simulation.sh` path after the compliance semantics change.
-   - verify the temp repo root is still correct
-   - verify warning-only checks no longer abort the run
-   - verify the script prints a full compliance summary and exits `0` when there are no hard failures
-
-2. Resolve the wizard rerun/idempotence claim one way or the other.
-   - add executable rerun/idempotence proof, or
-   - narrow/remove wording that implies the safety guarantee is already proven
-
-3. Keep setup-path proof explicitly separated from idempotence truth.
-   - setup-path E2E can remain a roadmap tradeoff
-   - idempotence/safe-rerun claims should not stay stronger than the proof
-
-4. Only consider item `13` done when the remaining open issues are either fixed, explicitly accepted tradeoffs, or low-value wording nits.
+1. Only reopen this lane if a new repo-visible claim appears to outrun its proof.
+2. For future audit effort, target one specific roadmap item at a time instead of re-auditing the whole repo.
+3. For `13.5`, exercise the live CI paths that still lack recent green proof.
+4. For `13.6`, dogfood Codex in the local pre-PR review loop.
+5. For `20`, add CI-backed setup-path E2E against greenfield fixtures.
 
 ## Progress Estimate
 
-- Roughly `92-95%` through the full repo-visible audit.
+- `100%` through the closure criteria for roadmap item `13`.
 - High confidence on:
   - workflow correctness
   - PR review / self-heal mechanics
@@ -83,18 +76,17 @@ Goal:
   - friction-loop consumption
   - competitor/watchlist cadence truth
   - broad docs drift
-- Remaining high-value frontier is narrow:
-  - manual/full E2E runner warning semantics
-  - wizard idempotence / rerun proof or wording
-  - final confirmation that only explicit roadmap tradeoffs remain
-- That remaining `5-8%` is concentrated in closure work, not broad discovery.
+- Remaining uncertainty sits outside this closed lane:
+  - live-fire CI proof for some workflows
+  - greenfield setup-path E2E
+  - review-pipeline dogfooding
+- That remaining work is roadmap follow-on, not unfinished closure on item `13`.
 
 ## Stop Condition
 
-The next pass should stop only when:
-- the full `run-simulation.sh` path can complete a warning-only stubbed run without aborting early, or the repo explicitly scopes that path as best-effort rather than robust proof, and
-- the wizard rerun/idempotence claim is either backed by executable proof or narrowed to match reality, and
-- any remaining setup-path gap is just the already-accepted roadmap tradeoff, not a hidden trust problem.
+- Reached.
+- New findings on this lane are now low-value nits or explicitly accepted tradeoffs.
+- Further checking on the same lane would mostly duplicate existing proof without materially changing confidence.
 
 ## Notes For Future Codex Pass
 
@@ -103,3 +95,4 @@ The next pass should stop only when:
 - Prefer consolidating related doc drift into one root-cause finding instead of logging dozens of tiny wording bugs.
 - Keep `ISSUES_FOUND_BY_CODEX.md` as the findings ledger.
 - Use this file as the pass-state / audit-process ledger.
+- If item `13` is revisited, start from the pass-7 verdict and only reopen it for new evidence, not to repeat the same repros.
