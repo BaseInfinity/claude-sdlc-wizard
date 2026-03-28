@@ -10,6 +10,111 @@
 > - The PR-local review for `fix/codex-main-audit` (already fixed and merged)
 > - The historical `fix/codex-audit-findings` audit record (already fixed)
 
+## Current deep main audit (pass 6, 2026-03-28)
+
+Audit target: merged `main`
+
+### Scope and verification
+
+- Branch reviewed on a clean `main` worktree
+- Re-ran targeted regressions during this pass:
+  - `./tests/test-evaluate-bugs.sh` -> passed (`22` passed, `0` failed)
+  - `./tests/test-cusum.sh` -> passed (`17` passed, `0` failed)
+  - `./tests/test-prove-it.sh` -> passed (`19` passed, `0` failed)
+  - `./tests/test-workflow-triggers.sh` -> passed (`170` passed, `0` failed)
+  - `./tests/test-compliance.sh` -> passed (`9` passed, `0` failed)
+  - `./tests/e2e/run-simulation.sh` -> passed in validation-only mode
+- Executable reproductions during this pass:
+  - stubbed total LLM-judge failure via temp `curl` shadow:
+    - `./tests/e2e/evaluate.sh tests/e2e/scenarios/add-feature.md tests/e2e/golden-outputs/high-compliance.txt --json`
+    - exited `1`
+    - emitted `pass: false`, `error: true`, `baseline_status: fail`
+    - all six LLM-scored criteria were `0`
+  - seeded a CI-shaped `score-history.jsonl` record with `score: 7.0` and target-matching per-criterion points:
+    - `./tests/e2e/cusum.sh --check` -> `CUSUM=0.00 STATUS=NORMAL`
+    - `./tests/e2e/cusum.sh --check-criteria` -> `CUSUM=0.00 STATUS=NORMAL` for every criterion
+  - stubbed `claude` binary against `./tests/e2e/run-simulation.sh add-feature`:
+    - stub observed the temp repo root as cwd
+    - root contained `package.json`, `CLAUDE.md`, and `.claude/settings.json`
+    - no nested `test-repo/` directory existed
+    - the run still exited `1` during compliance checking after the first warning
+
+### Findings
+
+#### P1: FIXED — a total LLM-judge outage now surfaces as evaluator failure
+
+- Evidence:
+  - `tests/e2e/evaluate.sh:208-218` now counts failed criteria against total LLM criteria and forces `LLM_OUTAGE="true"`
+  - `tests/e2e/evaluate.sh:353-355` now injects `error: true` into JSON output on outage
+  - verified reproduction with a stubbed `curl` returned `pass: false`, `error: true`, `baseline_status: fail`, and exit code `1`
+- Closure decision:
+  - the pass-5 evaluator-outage finding is fixed
+
+#### P1: FIXED — `cusum.sh` now reads the CI-written JSONL schema correctly
+
+- Evidence:
+  - `tests/e2e/cusum.sh:73-80` reads total history from `.score`
+  - `tests/e2e/cusum.sh:109-118` reads per-criterion history from `.criteria[$c].points`
+  - verified reproduction with a CI-shaped record returned `CUSUM=0.00 STATUS=NORMAL` for both total and all criteria
+  - `./tests/test-cusum.sh` passed (`17` passed, `0` failed)
+- Closure decision:
+  - the pass-5 CUSUM/schema finding is fixed
+
+#### P2: the full `run-simulation.sh` path still fails on its first optional compliance warning, so the manual-proof lane is not actually closed
+
+- Evidence:
+  - `tests/e2e/run-simulation.sh:183-188` invokes `check-compliance.sh` inside full-simulation mode
+  - `tests/e2e/check-compliance.sh:6` enables `set -e`
+  - `tests/e2e/check-compliance.sh:48-53` returns `1` even when `required=false` and only a warning was emitted
+  - `tests/e2e/check-compliance.sh:83-124` calls those warning-mode checks as simple commands, so the script exits on the first missing optional pattern
+  - verified reproduction with a stubbed `claude` binary showed the pass-5 copy-path fix is real (`package.json` at root, no nested `test-repo/`), but `run-simulation.sh add-feature` still exited `1` immediately after `WARN: TDD approach mentioned`
+  - `tests/test-compliance.sh:68-70` explicitly documents that early-exit behavior as expected, and `tests/test-compliance.sh:123-138` keeps it green as a passing test
+- Why this matters:
+  - the pass-5 `cp` fix repaired the working tree, but the documented manual E2E runner still treats warning-only heuristics as hard failures
+- Impact:
+  - local full simulations can stop before reporting full compliance results
+  - the regression suite currently preserves that fragility instead of catching it
+- Recommended fix:
+  - make warning-only checks return `0`, or otherwise guard them from `set -e`
+  - update `tests/test-compliance.sh` to expect completion with warnings rather than early exit
+
+#### P2: the wizard still makes a strong idempotence / safe-rerun claim without executable proof
+
+- Evidence:
+  - `CLAUDE_CODE_SDLC_WIZARD.md:2904-2906` says `The wizard is idempotent`
+  - `CLAUDE_CODE_SDLC_WIZARD.md:3049-3061` says reruns are safe anytime, will not duplicate or break setup, preserve customizations, and fill gaps automatically
+  - repo search during this pass still found no workflow/test that executes setup against `fresh-nextjs`, `fresh-python`, `go-api`, `python-fastapi`, `nextjs-typescript`, or `mern-stack`; only fixtures/roadmap mention them
+  - `ROADMAP.md:33` still tracks setup-path E2E as future work
+- Why this matters:
+  - the top-level README setup wording is now scoped honestly, but the wizard itself still makes a direct safety guarantee about reruns
+- Impact:
+  - users can reasonably infer rerun/idempotence behavior is proven today when it is not
+- Recommended fix:
+  - add a real rerun/idempotence proof lane, or narrow the wizard copy to say this is intended behavior rather than audited behavior
+
+### Closure decisions
+
+- `FIXED`: the pass-4 friction-loop-consumption finding. `weekly-update.yml` now fetches open `friction-signal` issues and injects them into the community scan prompt:
+  - `.github/workflows/weekly-update.yml:713-742`
+  - verified by `./tests/test-workflow-triggers.sh`
+- `FIXED`: the pass-4 competitive-watchlist cadence finding. Docs/tests now consistently point to the weekly community scan:
+  - `COMPETITIVE_AUDIT.md:4`
+  - `CI_CD.md:143-144`
+  - `tests/test-prove-it.sh:375-395`
+- `ACCEPTED TRADEOFF`: cross-stack setup-path proof is still roadmap work, but the repo-level/docs surface is now scoped honestly enough for audit purposes:
+  - `README.md:41`
+  - `ROADMAP.md:33`
+  - `tests/test-workflow-triggers.sh:3317-3342`
+
+### Verdict
+
+- Pass 6 closed the evaluator outage, CUSUM/schema, friction-loop, and watchlist-cadence findings.
+- The pass-5 `run-simulation.sh` copy-path fix is real, but the manual E2E lane is still not closure-complete because warning-only compliance checks abort the run.
+- Item `13` should remain open.
+- Another pass is needed after either fixing or explicitly narrowing:
+  - the manual-runner warning semantics
+  - the wizard's idempotence / safe-rerun claim
+
 ## Current deep main audit (pass 5, 2026-03-27)
 
 Audit target: merged `main`

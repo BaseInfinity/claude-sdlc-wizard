@@ -47,10 +47,11 @@ check_output() {
 
     if [ "$required" = "true" ]; then
         fail "$message"
+        return 1
     else
         warn "$message"
+        return 0
     fi
-    return 1
 }
 
 check_file_exists() {
