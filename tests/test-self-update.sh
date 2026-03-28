@@ -257,24 +257,43 @@ test_cross_model_review_step() {
     fi
 }
 
-# Test 18: SKILL.md references cross-model review
+# Test 18: SKILL.md has a real TodoWrite step for cross-model review (not just a comment)
 test_skill_cross_model_review() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
-    if grep -qi "cross-model review" "$skill_file"; then
-        pass "SKILL.md references cross-model review"
+    # Exclude // comment lines in the TodoWrite block — we need an actual step
+    if grep -i 'content:.*cross-model review' "$skill_file" | grep -qv '^\s*//'; then
+        pass "SKILL.md has TodoWrite step for cross-model review"
     else
-        fail "SKILL.md should reference cross-model review"
+        fail "SKILL.md should have a TodoWrite step (not a comment) for cross-model review"
     fi
 }
 
-# Test 19: Wizard template SKILL copy references cross-model review
+# Test 19: Wizard embedded SKILL has a real TodoWrite step for cross-model review
 test_wizard_skill_cross_model_review() {
-    # The wizard template contains a copy of the SKILL content in step 6
-    # Check that the wizard's embedded SKILL also references cross-model review
-    if grep -A 500 "## Full SDLC Checklist" "$WIZARD" | grep -qi "cross-model review"; then
-        pass "Wizard template SKILL copy references cross-model review"
+    # The wizard's embedded SKILL checklist should have the real step, not just a comment
+    if grep -A 500 "## Full SDLC Checklist" "$WIZARD" | grep -i 'content:.*cross-model review' | grep -qv '^\s*//'; then
+        pass "Wizard embedded SKILL has TodoWrite step for cross-model review"
     else
-        fail "Wizard template SKILL copy should reference cross-model review"
+        fail "Wizard embedded SKILL should have a TodoWrite step (not a comment) for cross-model review"
+    fi
+}
+
+# Test 20: SKILL.md has a dedicated cross-model review instructions section
+test_skill_cross_model_review_instructions() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    if grep -q "## Cross-Model Review" "$skill_file"; then
+        pass "SKILL.md has dedicated cross-model review section"
+    else
+        fail "SKILL.md should have a '## Cross-Model Review' section with instructions"
+    fi
+}
+
+# Test 21: Wizard embedded SKILL has a dedicated cross-model review section
+test_wizard_skill_cross_model_review_instructions() {
+    if grep -A 500 "## Full SDLC Checklist" "$WIZARD" | grep -q "## Cross-Model Review"; then
+        pass "Wizard embedded SKILL has cross-model review section"
+    else
+        fail "Wizard embedded SKILL should have a '## Cross-Model Review' section"
     fi
 }
 
@@ -298,6 +317,8 @@ test_cross_model_review_section
 test_cross_model_review_step
 test_skill_cross_model_review
 test_wizard_skill_cross_model_review
+test_skill_cross_model_review_instructions
+test_wizard_skill_cross_model_review_instructions
 
 echo ""
 echo "=== Results ==="
