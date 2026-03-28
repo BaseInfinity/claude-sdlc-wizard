@@ -205,9 +205,17 @@ done
 # Finalize LLM results (adds summary + improvements)
 EVAL_RESULT=$(finalize_eval_result "$ACCUMULATED_RESULT")
 
-# Report any API failures
+# Report any API failures and detect total judge outage
+LLM_OUTAGE="false"
 if [ -n "$FAILED_CRITERIA" ]; then
     echo "Warning: Some criteria had API failures:$FAILED_CRITERIA" >&2
+    LLM_CRITERIA_COUNT=$(echo "$LLM_CRITERIA" | wc -w | tr -d ' ')
+    FAILED_COUNT=$(echo "$FAILED_CRITERIA" | wc -w | tr -d ' ')
+    if [ "$FAILED_COUNT" -ge "$LLM_CRITERIA_COUNT" ] && [ "$LLM_CRITERIA_COUNT" -gt 0 ]; then
+        echo "Error: All $LLM_CRITERIA_COUNT LLM criteria failed — judge outage detected" >&2
+        LLM_OUTAGE="true"
+        PASS="false"
+    fi
 fi
 
 # Merge deterministic scores (task_tracking, confidence, tdd_red) into LLM-scored
@@ -252,7 +260,10 @@ fi
 # Pass: score >= baseline
 # Warn: score >= min_acceptable but < baseline
 # Fail: score < min_acceptable
-if [ "$(echo "$SCORE >= $BASELINE" | bc -l)" -eq 1 ]; then
+# Skip: LLM judge outage already forced PASS=false
+if [ "$LLM_OUTAGE" = "true" ]; then
+    BASELINE_STATUS="fail"
+elif [ "$(echo "$SCORE >= $BASELINE" | bc -l)" -eq 1 ]; then
     PASS="true"
     BASELINE_STATUS="pass"
 elif [ "$(echo "$SCORE >= $MIN_ACCEPTABLE" | bc -l)" -eq 1 ]; then
@@ -339,6 +350,11 @@ if [ "$JSON_OUTPUT" = "--json" ]; then
                 interpretation: $sdp_interpretation
             }
         }')
+    # Inject error flag on LLM judge outage
+    if [ "$LLM_OUTAGE" = "true" ]; then
+        ENRICHED_RESULT=$(echo "$ENRICHED_RESULT" | jq '. + {error: true, error_reason: "All LLM judge criteria failed — API outage detected"}')
+    fi
+
     echo "$ENRICHED_RESULT"
 else
     EVAL_DURATION=$(($(date +%s) - EVAL_START))
@@ -370,6 +386,11 @@ else
     echo "Robustness: $SDP_ROBUSTNESS"
     echo "Interpretation: $SDP_INTERPRETATION"
     echo ""
+
+    # Report LLM judge outage (PASS already set to false at detection site)
+    if [ "$LLM_OUTAGE" = "true" ]; then
+        echo -e "${RED}ERROR: LLM judge outage — all criteria API calls failed${NC}"
+    fi
 
     # Show pass/fail with baseline status
     if [ "$BASELINE_STATUS" = "pass" ]; then
