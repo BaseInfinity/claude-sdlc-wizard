@@ -1,0 +1,363 @@
+---
+name: sdlc
+description: Full SDLC workflow for implementing features, fixing bugs, refactoring code, and creating new functionality. Use this skill when implementing, fixing, refactoring, adding features, or building new code.
+argument-hint: [task description]
+effort: high
+---
+# SDLC Skill - Full Development Workflow
+
+## Task
+$ARGUMENTS
+
+## Full SDLC Checklist
+
+Your FIRST action must be TodoWrite with these steps:
+
+```
+TodoWrite([
+  // PLANNING PHASE (Plan Mode for non-trivial tasks)
+  { content: "Find and read relevant documentation", status: "in_progress", activeForm: "Reading docs" },
+  { content: "Assess doc health - flag issues (ask before cleaning)", status: "pending", activeForm: "Checking doc health" },
+  { content: "DRY scan: What patterns exist to reuse?", status: "pending", activeForm: "Scanning for reusable patterns" },
+  { content: "Blast radius: What depends on code I'm changing?", status: "pending", activeForm: "Checking dependencies" },
+  { content: "Design system check (if UI change)", status: "pending", activeForm: "Checking design system" },
+  { content: "Restate task in own words - verify understanding", status: "pending", activeForm: "Verifying understanding" },
+  { content: "Scrutinize test design - right things tested? Follow TESTING.md?", status: "pending", activeForm: "Reviewing test approach" },
+  { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
+  { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
+  // TRANSITION PHASE (After plan mode, before compact)
+  { content: "Update feature docs with discovered gotchas", status: "pending", activeForm: "Updating feature docs" },
+  { content: "Request /compact before TDD", status: "pending", activeForm: "Requesting compact" },
+  // IMPLEMENTATION PHASE (After compact)
+  { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
+  { content: "TDD GREEN: Implement, verify test passes", status: "pending", activeForm: "Implementing feature" },
+  { content: "Run lint/typecheck", status: "pending", activeForm: "Running lint and typecheck" },
+  { content: "Run ALL tests", status: "pending", activeForm: "Running all tests" },
+  { content: "Production build check", status: "pending", activeForm: "Verifying production build" },
+  // REVIEW PHASE
+  { content: "DRY check: Is logic duplicated elsewhere?", status: "pending", activeForm: "Checking for duplication" },
+  { content: "Visual consistency check (if UI change)", status: "pending", activeForm: "Checking visual consistency" },
+  { content: "Self-review: run /code-review", status: "pending", activeForm: "Running code review" },
+  { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
+  { content: "Cross-model review (if configured — see below)", status: "pending", activeForm: "Running cross-model review" },
+  // CI FEEDBACK LOOP (if CI monitoring enabled in setup - skip if no CI)
+  { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
+  { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
+  { content: "Read CI review - implement valid suggestions, iterate until clean", status: "pending", activeForm: "Addressing CI review feedback" },
+  // FINAL
+  { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" }
+])
+```
+
+## New Pattern & Test Design Scrutiny (PLANNING)
+
+**New design patterns require human approval:**
+1. Search first - do similar patterns exist in codebase?
+2. If YES and they're good - use as building block
+3. If YES but they're bad - propose improvement, get approval
+4. If NO (new pattern) - explain why needed, get explicit approval
+
+**Test design scrutiny during planning:**
+- Are we testing the right things?
+- Does test approach follow TESTING.md philosophies?
+- If introducing new test patterns, same scrutiny as code patterns
+
+## Plan Mode Integration
+
+**Use plan mode for:** Multi-file changes, new features, LOW confidence, bugs needing investigation.
+
+**Workflow:**
+1. **Plan Mode** (editing blocked): Research -> Write plan file -> Present approach + confidence
+2. **Transition** (after approval): Update feature docs -> Request /compact
+3. **Implementation** (after compact): TDD RED -> GREEN -> PASS
+
+**Before TDD, MUST ask:** "Docs updated. Run `/compact` before implementation?"
+
+## Confidence Check (REQUIRED)
+
+Before presenting approach, STATE your confidence:
+
+| Level | Meaning | Action |
+|-------|---------|--------|
+| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval |
+| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties |
+| LOW (<60%) | Not sure | ASK USER before proceeding |
+| FAILED 2x | Something's wrong | STOP. ASK USER immediately |
+| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help |
+
+## Self-Review Loop (CRITICAL)
+
+```
+PLANNING -> DOCS -> TDD RED -> TDD GREEN -> Tests Pass -> Self-Review
+    ^                                                      |
+    |                                                      v
+    |                                            Issues found?
+    |                                            |-- NO -> Present to user
+    |                                            +-- YES v
+    +------------------------------------------- Ask user: fix in new plan?
+```
+
+**The loop goes back to PLANNING, not TDD RED.** When self-review finds issues:
+1. Ask user: "Found issues. Want to create a plan to fix?"
+2. If yes -> back to PLANNING phase with new plan doc
+3. Then -> docs update -> TDD -> review (proper SDLC loop)
+
+**How to self-review:**
+1. Run `/code-review` to review your changes
+2. It launches parallel agents (CLAUDE.md compliance, bug detection, logic & security)
+3. Issues at confidence >= 80 are real findings — go back to PLANNING to fix
+4. Issues below 80 are likely false positives — skip unless obviously valid
+5. Address issues by going back through the proper SDLC loop
+
+## Cross-Model Review (If Configured)
+
+**When to run:** High-stakes changes (auth, payments, data handling), complex refactors, research-heavy work.
+**When to skip:** Trivial changes (typo fixes, config tweaks), time-sensitive hotfixes, risk < review cost.
+
+**Prerequisites:** Codex CLI installed (`npm i -g @openai/codex`), OpenAI API key set.
+
+**Steps:**
+1. After self-review passes, write `.reviews/handoff.json`:
+   ```jsonc
+   {
+     "review_id": "feature-xyz-001",
+     "status": "PENDING_REVIEW",
+     "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
+     "review_instructions": "Review for security, edge cases, and correctness",
+     "artifact_path": ".reviews/feature-xyz-001/"
+   }
+   ```
+2. Tell the user to run the independent reviewer:
+   ```bash
+   codex exec \
+     -c 'model_reasoning_effort="xhigh"' \
+     -s danger-full-access \
+     -o .reviews/latest-review.md \
+     "You are an independent code reviewer. Read .reviews/handoff.json, \
+      review the listed files, and write your findings to the artifact_path. \
+      End with CERTIFIED or NOT CERTIFIED."
+   ```
+3. Read `.reviews/latest-review.md` — if CERTIFIED, proceed to CI. If NOT CERTIFIED, fix findings and repeat from step 1.
+
+```
+Self-review passes → write handoff.json → user runs codex exec
+    ^                                              |
+    |                                    CERTIFIED? → YES → CI feedback loop
+    |                                              |
+    |                                              → NO (findings)
+    |                                              |
+    └──────── Fix findings ←───────────────────────┘
+                  (repeat until CERTIFIED, or ask user)
+```
+
+**Tool-agnostic:** The value is adversarial diversity (different model, different blind spots), not the specific tool. Any competing AI reviewer works.
+
+**Full protocol:** See the wizard's "Cross-Model Review Loop (Optional)" section for key flags and reasoning effort guidance.
+
+## Test Review (Harder Than Implementation)
+
+During self-review, critique tests HARDER than app code:
+1. **Testing the right things?** - Not just that tests pass
+2. **Tests prove correctness?** - Or just verify current behavior?
+3. **Follow our philosophies (TESTING.md)?**
+   - Testing Diamond (integration-heavy)?
+   - Minimal mocking (real DB, mock external APIs only)?
+   - Real fixtures from captured data?
+
+**Tests are the foundation.** Bad tests = false confidence = production bugs.
+
+## Flaky Test Recovery
+
+When a test fails intermittently:
+1. **Don't dismiss it** — "flaky" means "bug we haven't found yet"
+2. **Identify the layer** — test code? app code? environment?
+3. **Stress-test** — run the suspect test N times to reproduce reliably
+4. **Fix root cause** — don't just retry-and-pray
+5. **If CI infrastructure** — make cosmetic steps non-blocking, keep quality gates strict
+
+## Scope Guard (Stay in Your Lane)
+
+**Only make changes directly related to the task.**
+
+If you notice something else that should be fixed:
+- NOTE it in your summary ("I noticed X could be improved")
+- DON'T fix it unless asked
+
+**Why this matters:** AI agents can drift into "helpful" changes that weren't requested. This creates unexpected diffs, breaks unrelated things, and makes code review harder.
+
+## Test Failure Recovery (SDET Philosophy)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ALL TESTS MUST PASS. NO EXCEPTIONS.                                │
+│                                                                     │
+│  This is not negotiable. This is not flexible. This is absolute.   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Not acceptable:**
+- "Those were already failing" → Fix them first
+- "Not related to my changes" → Doesn't matter, fix it
+- "It's flaky" → Flaky = bug, investigate
+
+**Treat test code like app code.** Test failures are bugs. Investigate them the way a 15-year SDET would - with thought and care, not by brushing them aside.
+
+If tests fail:
+1. Identify which test(s) failed
+2. Diagnose WHY - this is the important part:
+   - Your code broke it? Fix your code (regression)
+   - Test is for deleted code? Delete the test
+   - Test has wrong assertions? Fix the test
+   - Test is "flaky"? Investigate - flakiness is just another word for bug
+3. Fix appropriately (fix code, fix test, or delete dead test)
+4. Run specific test individually first
+5. Then run ALL tests
+6. Still failing? ASK USER - don't spin your wheels
+
+**Flaky tests are bugs, not mysteries:**
+- Sometimes the bug is in app code (race condition, timing issue)
+- Sometimes the bug is in test code (shared state, not parallel-safe)
+- Sometimes the bug is in test environment (cleanup not proper)
+
+Debug it. Find root cause. Fix it properly. Tests ARE code.
+
+## CI Feedback Loop (After Commit)
+
+**The SDLC doesn't end at local tests.** CI must pass too.
+
+```
+Local tests pass -> Commit -> Push -> Watch CI
+                                         |
+                              CI passes? -+-> YES -> Present for review
+                                         |
+                                         +-> NO -> Fix -> Push -> Watch CI
+                                                           |
+                                                   (max 2 attempts)
+                                                           |
+                                                   Still failing?
+                                                           |
+                                                   STOP and ASK USER
+```
+
+**How to watch CI:**
+1. Push changes to remote
+2. Check CI status:
+   ```bash
+   # Watch checks in real-time (blocks until complete)
+   gh pr checks --watch
+
+   # Or check status without blocking
+   gh pr checks
+
+   # View specific failed run logs
+   gh run view <RUN_ID> --log-failed
+   ```
+3. If CI fails:
+   - Read failure logs: `gh run view <RUN_ID> --log-failed`
+   - Diagnose root cause (same philosophy as local test failures)
+   - Fix and push again
+4. Max 2 fix attempts - if still failing, ASK USER
+5. If CI passes - proceed to present final summary
+
+**Context GC (compact during idle):** While waiting for CI (typically 3-5 min), suggest `/compact` if the conversation is long. Think of it like a time-based garbage collector — idle time + high memory pressure = good time to collect. Don't suggest on short conversations.
+
+**CI failures follow same rules as test failures:**
+- Your code broke it? Fix your code
+- CI config issue? Fix the config
+- Flaky? Investigate - flakiness is a bug
+- Stuck? ASK USER
+
+## CI Review Feedback Loop (After CI Passes)
+
+**CI passing isn't the end.** If CI includes a code reviewer, read and address its suggestions.
+
+```
+CI passes -> Read review suggestions
+                    |
+        Valid improvements? -+-> YES -> Implement -> Run tests -> Push
+                             |                                      |
+                             |                          Review again (iterate)
+                             |
+                             +-> NO (just opinions/style) -> Skip, note why
+                             |
+                             +-> None -> Done, present to user
+```
+
+**How to evaluate suggestions:**
+1. Read all CI review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
+2. For each suggestion, ask: **"Is this a real improvement or just an opinion?"**
+   - **Real improvement:** Fixes a bug, improves performance, adds missing error handling, reduces duplication, improves test coverage → Implement it
+   - **Opinion/style:** Different but equivalent formatting, subjective naming preference, "you could also..." without clear benefit → Skip it
+3. Implement the valid ones, run tests locally, push
+4. CI re-reviews — repeat until no substantive suggestions remain
+5. Max 3 iterations — if reviewer keeps finding new things, ASK USER
+
+**The goal:** User is only brought in at the very end, when both CI and reviewer are satisfied. The code should be polished before human review.
+
+**Customizable behavior** (set during wizard setup):
+- **Auto-implement** (default): Implement valid suggestions autonomously, skip opinions
+- **Ask first**: Present suggestions to user, let them decide which to implement
+- **Skip review feedback**: Ignore CI review suggestions, only fix CI failures
+
+## DRY Principle
+
+**Before coding:** "What patterns exist I can reuse?"
+**After coding:** "Did I accidentally duplicate anything?"
+
+## Design System Check (If UI Change)
+
+**When to check:** CSS/styling changes, new UI components, color/font usage.
+**When to skip:** Backend-only changes, config/build changes, non-visual code.
+
+**Planning phase - "Design system check":**
+1. Read DESIGN_SYSTEM.md if it exists
+2. Check if change involves colors, fonts, spacing, or components
+3. Verify intended styles match design system tokens
+4. Flag if introducing new patterns not in design system
+
+**Review phase - "Visual consistency check":**
+1. Are colors from the design system palette?
+2. Are fonts/sizes from typography scale?
+3. Are spacing values from the spacing scale?
+4. Do new components follow existing patterns?
+
+**If no DESIGN_SYSTEM.md exists:** Skip these checks (project has no documented design system).
+
+## Deployment Tasks (If Task Involves Deploy)
+
+**When to check:** Task mentions "deploy", "release", "push to prod", "staging", etc.
+**When to skip:** Code changes only, no deployment involved.
+
+**Before any deployment:**
+1. Read ARCHITECTURE.md → Find the Environments table and Deployment Checklist
+2. Verify which environment is the target (dev/staging/prod)
+3. Follow the deployment checklist in ARCHITECTURE.md
+
+**Confidence levels for deployment:**
+
+| Target | Required Confidence | If Lower |
+|--------|---------------------|----------|
+| Dev/Preview | MEDIUM or higher | Proceed with caution |
+| Staging | MEDIUM or higher | Proceed, note uncertainties |
+| **Production** | **HIGH only** | **ASK USER before deploying** |
+
+**Production deployment requires:**
+- All tests passing
+- Production build succeeding
+- Changes tested in staging/preview first
+- HIGH confidence (90%+)
+- If ANY doubt → ASK USER first
+
+**If ARCHITECTURE.md has no Environments section:** Ask user "How do you deploy to [target]?" before proceeding.
+
+## DELETE Legacy Code
+
+- Legacy code? DELETE IT
+- Backwards compatibility? NO - DELETE IT
+- "Just in case" fallbacks? DELETE IT
+
+**THE RULE:** Delete old code first. If it breaks, fix it properly.
+
+---
+
+**Full reference:** SDLC.md
