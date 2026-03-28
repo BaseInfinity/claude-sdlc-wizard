@@ -49,8 +49,8 @@ setup_test_repo() {
 
     log_info "Setting up test repo at $test_dir"
 
-    # Copy template
-    cp -r "$FIXTURES_DIR/test-repo" "$test_dir"
+    # Copy template contents (not the directory itself) into test dir
+    cp -r "$FIXTURES_DIR/test-repo/." "$test_dir/"
 
     # Initialize git (needed for some SDLC features)
     cd "$test_dir"

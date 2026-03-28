@@ -86,7 +86,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 # Validation only (no API key needed)
 ./tests/e2e/run-simulation.sh
 
-# Full simulation (requires ANTHROPIC_API_KEY)
+# Full simulation (requires Claude Code CLI + ANTHROPIC_API_KEY)
 ANTHROPIC_API_KEY=xxx ./tests/e2e/run-simulation.sh
 ```
 
@@ -199,7 +199,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 # All script-based tests (no API key needed)
 ./tests/test-version-logic.sh && ./tests/test-analysis-schema.sh
 
-# E2E simulation (requires ANTHROPIC_API_KEY)
+# E2E simulation (requires Claude Code CLI + ANTHROPIC_API_KEY)
 ANTHROPIC_API_KEY=xxx ./tests/e2e/run-simulation.sh
 ```
 

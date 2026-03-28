@@ -361,6 +361,104 @@ test_tier2_no_silent_zero_fallback() {
 test_tier2_no_stderr_suppression
 test_tier2_no_silent_zero_fallback
 
+# --- BUG 8: evaluate.sh false-green on total LLM judge outage ---
+
+echo ""
+echo "--- LLM Judge Outage Detection Tests ---"
+
+EVALUATE_SCRIPT="$SCRIPT_DIR/e2e/evaluate.sh"
+
+# Test 18: evaluate.sh detects when all LLM criteria fail
+test_evaluate_has_outage_detection() {
+    if [ ! -f "$EVALUATE_SCRIPT" ]; then
+        fail "evaluate.sh not found"
+        return
+    fi
+
+    # Must count failed criteria vs total LLM criteria
+    if grep -q 'FAILED_COUNT' "$EVALUATE_SCRIPT" && grep -q 'LLM_CRITERIA_COUNT\|LLM_OUTAGE' "$EVALUATE_SCRIPT"; then
+        pass "evaluate.sh has LLM judge outage detection logic"
+    else
+        fail "evaluate.sh should count FAILED_CRITERIA vs total and detect outage"
+    fi
+}
+
+# Test 19: evaluate.sh sets .error = true on judge outage
+test_evaluate_sets_error_on_outage() {
+    if [ ! -f "$EVALUATE_SCRIPT" ]; then
+        fail "evaluate.sh not found"
+        return
+    fi
+
+    if grep -q 'error.*true' "$EVALUATE_SCRIPT" && grep -q 'LLM_OUTAGE\|outage' "$EVALUATE_SCRIPT"; then
+        pass "evaluate.sh sets .error = true on LLM judge outage"
+    else
+        fail "evaluate.sh should set .error = true when all LLM criteria fail"
+    fi
+}
+
+# Test 20: evaluate.sh overrides PASS to false on outage
+test_evaluate_overrides_pass_on_outage() {
+    if [ ! -f "$EVALUATE_SCRIPT" ]; then
+        fail "evaluate.sh not found"
+        return
+    fi
+
+    # After outage detection, PASS must be forced to false
+    if grep -q 'LLM_OUTAGE' "$EVALUATE_SCRIPT" && grep -A5 'LLM_OUTAGE.*true' "$EVALUATE_SCRIPT" | grep -q 'PASS=.*false\|PASS="false"'; then
+        pass "evaluate.sh overrides PASS to false on LLM judge outage"
+    else
+        fail "evaluate.sh should set PASS=false when LLM judge outage detected"
+    fi
+}
+
+test_evaluate_has_outage_detection
+test_evaluate_sets_error_on_outage
+test_evaluate_overrides_pass_on_outage
+
+# --- BUG 9: run-simulation.sh wrong working tree ---
+
+echo ""
+echo "--- Run-Simulation Working Tree Tests ---"
+
+RUN_SIM_SCRIPT="$SCRIPT_DIR/e2e/run-simulation.sh"
+
+# Test 21: run-simulation.sh copies fixture contents, not the directory itself
+test_simulation_copies_contents() {
+    if [ ! -f "$RUN_SIM_SCRIPT" ]; then
+        fail "run-simulation.sh not found"
+        return
+    fi
+
+    # The cp command should copy contents (using /. or /*), not the directory
+    # Bad: cp -r "$FIXTURES_DIR/test-repo" "$test_dir"
+    # Good: cp -r "$FIXTURES_DIR/test-repo/." "$test_dir/"
+    if grep -q 'test-repo/\.' "$RUN_SIM_SCRIPT" || grep -q 'test-repo/\*' "$RUN_SIM_SCRIPT"; then
+        pass "run-simulation.sh copies fixture contents (not nested directory)"
+    else
+        fail "run-simulation.sh should copy fixture contents with /. or /*, not the directory itself"
+    fi
+}
+
+# Test 22: Docs mention Claude CLI prerequisite for full E2E
+test_docs_mention_claude_cli() {
+    local TESTING_MD="$SCRIPT_DIR/../TESTING.md"
+
+    if [ ! -f "$TESTING_MD" ]; then
+        fail "TESTING.md not found"
+        return
+    fi
+
+    if grep -qi 'claude.*cli\|Claude Code CLI\|claude CLI' "$TESTING_MD"; then
+        pass "TESTING.md mentions Claude CLI prerequisite for E2E simulation"
+    else
+        fail "TESTING.md should mention Claude CLI as prerequisite for full E2E simulation"
+    fi
+}
+
+test_simulation_copies_contents
+test_docs_mention_claude_cli
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

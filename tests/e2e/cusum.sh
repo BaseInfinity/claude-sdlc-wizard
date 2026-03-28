@@ -75,9 +75,9 @@ get_all_total_scores() {
     if [ -f "$HISTORY_FILE" ] && [ -s "$HISTORY_FILE" ]; then
         cat "$HISTORY_FILE"
     fi
-    # Scores from JSON-lines file (extract .total)
+    # Scores from JSON-lines file (extract .score — CI schema)
     if [ -f "$JSONL_HISTORY_FILE" ] && [ -s "$JSONL_HISTORY_FILE" ]; then
-        jq -r '.total' "$JSONL_HISTORY_FILE"
+        jq -r '.score' "$JSONL_HISTORY_FILE"
     fi
 }
 
@@ -115,7 +115,7 @@ calculate_criterion_cusum() {
         return
     fi
 
-    jq -r --arg c "$criterion" '.[$c] // 0' "$JSONL_HISTORY_FILE" | awk -v target="$target" '
+    jq -r --arg c "$criterion" '.criteria[$c].points // 0' "$JSONL_HISTORY_FILE" | awk -v target="$target" '
     BEGIN { cusum = 0 }
     {
         deviation = $1 - target
@@ -184,7 +184,7 @@ get_latest_score() {
         latest_txt=$(tail -1 "$HISTORY_FILE")
     fi
     if [ -f "$JSONL_HISTORY_FILE" ] && [ -s "$JSONL_HISTORY_FILE" ]; then
-        latest_jsonl=$(tail -1 "$JSONL_HISTORY_FILE" | jq -r '.total')
+        latest_jsonl=$(tail -1 "$JSONL_HISTORY_FILE" | jq -r '.score')
     fi
 
     # Return whichever was added most recently (by file modification time)
@@ -300,14 +300,14 @@ add_json_score() {
     local json="$1"
     ensure_history
 
-    # Validate it's valid JSON with a .total field
-    if ! echo "$json" | jq -e '.total' > /dev/null 2>&1; then
-        echo "Error: JSON must have a .total field" >&2
+    # Validate it's valid JSON with a .score field (CI schema)
+    if ! echo "$json" | jq -e '.score' > /dev/null 2>&1; then
+        echo "Error: JSON must have a .score field" >&2
         exit 1
     fi
 
     local total
-    total=$(echo "$json" | jq -r '.total')
+    total=$(echo "$json" | jq -r '.score')
 
     # Validate total is in range
     if echo "$total" | awk '{exit !($1 < 0 || $1 > 11)}'; then

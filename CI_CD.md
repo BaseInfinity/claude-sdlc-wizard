@@ -280,7 +280,7 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 **What you can test locally:**
 - YAML syntax: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"`
 - Shell script logic: `./tests/test-workflow-triggers.sh`
-- E2E simulation (with API key): `ANTHROPIC_API_KEY=xxx ./tests/e2e/run-simulation.sh`
+- E2E simulation (requires Claude Code CLI + API key): `ANTHROPIC_API_KEY=xxx ./tests/e2e/run-simulation.sh`
 
 ## Secrets Required
 
