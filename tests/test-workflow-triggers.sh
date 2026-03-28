@@ -3406,8 +3406,23 @@ test_selfheal_friction_defaults_before_template
 test_readme_setup_not_proven
 test_weekly_fetches_friction_issues
 test_readme_setup_scopes_generated_assets
+# Test 171: Tier 2 (e2e-full-evaluation) git init includes origin remote
+# Without origin, claude-code-action@v1 fails on "git fetch origin main" trust check.
+test_tier2_git_init_has_origin() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # The Tier 2 git init block must add origin remote (same as Tier 1 quick check)
+    if grep -A 10 "Initialize workspace git directory (Tier 2)" "$CI_FILE" | grep -q 'git remote add origin'; then
+        pass "Tier 2 git init includes origin remote"
+    else
+        fail "Tier 2 git init missing 'git remote add origin' — claude-code-action will fail on trust check"
+    fi
+}
+
 test_competitive_audit_says_weekly
 test_cicd_weekly_mentions_watchlist
+test_tier2_git_init_has_origin
 
 echo ""
 echo "=== Results ==="
