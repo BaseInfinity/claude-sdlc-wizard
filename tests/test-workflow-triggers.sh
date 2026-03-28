@@ -2844,7 +2844,7 @@ test_skill_no_act_for_workflows
 
 # --- Round 2: Codex cross-model review findings (2026-03-27) ---
 
-# Test 131: README raw install URL matches actual GitHub remote
+# Test 131: README install URL references correct repo name
 test_readme_raw_url_matches_remote() {
     local README="$REPO_ROOT/README.md"
     if [ ! -f "$README" ]; then
@@ -2852,11 +2852,11 @@ test_readme_raw_url_matches_remote() {
         return
     fi
 
-    # The raw URL must use the correct repo name (agentic-ai-sdlc-wizard)
-    if grep -q 'raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/' "$README"; then
-        pass "README raw URL uses correct repo name"
+    # Post-npm-distribution: verify GitHub install shorthand uses correct repo name
+    if grep -q 'github:BaseInfinity/agentic-ai-sdlc-wizard' "$README"; then
+        pass "README install URL uses correct repo name"
     else
-        fail "README raw URL does not match remote (expected agentic-ai-sdlc-wizard)"
+        fail "README install URL does not reference agentic-ai-sdlc-wizard"
     fi
 }
 
