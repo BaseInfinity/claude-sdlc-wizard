@@ -30,7 +30,7 @@
 | 17 | Setup Drift Prevention | CI detects when installed setup drifts from wizard template |
 | 18 | Tool/Plugin Discovery Automation | Weekly-update fetches marketplace.json, diffs against cache, LLM-recommends relevant new CC features |
 | 19 | Monthly GC Audit (recurring) | "Less is more" — try removing things, check if scores hold. Fix weak tests or delete fluff |
-| 20 | Setup-Path E2E Proof | Run wizard setup against greenfield fixtures (fresh-nextjs, fresh-python) in CI. Proves cross-stack onboarding claim |
+| 20 | Setup-Path E2E Proof | DONE — `test-setup-path.sh` validates init across 7 fixture types (47 tests). Wired into CI |
 | 21 | Scan Routing Refactor | Replace count-only `findings_count` gating with typed routing (`origin`, `lane`) and full payload handoff between jobs. Enables friction-only weeks to trigger digest without false community E2E |
 
 ## Review Pipeline
