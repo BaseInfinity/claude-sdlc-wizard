@@ -65,10 +65,6 @@ test_script_exists() {
     fi
 }
 
-# Note: check-compliance.sh uses set -e, and check_output returns 1
-# on non-match even when required=false. This causes early exit when
-# the first non-matching pattern is hit. Tests account for this behavior.
-
 # Test 2: Simple scenario with all patterns matching runs to completion
 test_simple_all_match() {
     local scenario
@@ -120,24 +116,26 @@ test_hard_all_match() {
     fi
 }
 
-# Test 5: Script exits early on non-matching pattern (set -e behavior)
-test_early_exit_on_mismatch() {
+# Test 5: Warning-only checks (required=false) do not abort the script
+test_warnings_dont_abort() {
     local scenario
     scenario=$(create_scenario "Simple")
-    # Intentionally omit "read" pattern - first check should cause early exit
+    # Intentionally omit all matching keywords — all checks are required=false (warnings)
     local test_dir
     test_dir=$(create_test_dir "Something without any matching keywords xyz.")
 
     local exit_code=0
-    "$COMPLIANCE_SCRIPT" "$test_dir" "$scenario" >/dev/null 2>&1 || exit_code=$?
-    if [ "$exit_code" -ne 0 ]; then
-        pass "Script exits with non-zero when patterns don't match (set -e)"
+    local output
+    output=$("$COMPLIANCE_SCRIPT" "$test_dir" "$scenario" 2>&1) || exit_code=$?
+    # Script should run to completion with exit 0 and show warnings
+    if [ "$exit_code" -eq 0 ] && echo "$output" | grep -q "Compliance Results"; then
+        pass "Warning-only checks run to completion without aborting (exit 0)"
     else
-        fail "Should exit non-zero on pattern mismatch"
+        fail "Script should complete with exit 0 and warnings, got exit=$exit_code"
     fi
 }
 
-# Test 6: Missing claude_output.txt causes early exit
+# Test 6: Missing claude_output.txt completes with warnings and exit 0
 test_missing_output_file() {
     local scenario
     scenario=$(create_scenario "Simple")
@@ -145,12 +143,13 @@ test_missing_output_file() {
     mkdir -p "$empty_dir"
 
     local exit_code=0
-    "$COMPLIANCE_SCRIPT" "$empty_dir" "$scenario" >/dev/null 2>&1 || exit_code=$?
-    # Script should exit (non-zero) because no patterns can match
-    if [ "$exit_code" -ne 0 ]; then
-        pass "Missing output file causes non-zero exit (expected)"
+    local output
+    output=$("$COMPLIANCE_SCRIPT" "$empty_dir" "$scenario" 2>&1) || exit_code=$?
+    # All checks are required=false (warnings), so script completes with exit 0
+    if [ "$exit_code" -eq 0 ] && echo "$output" | grep -q "passed with warnings\|Warnings:"; then
+        pass "Missing output file completes with warnings (exit 0)"
     else
-        fail "Missing output file should cause non-zero exit"
+        fail "Missing output file should complete with exit 0 and warnings, got exit=$exit_code"
     fi
 }
 
@@ -203,16 +202,34 @@ test_results_section() {
     fi
 }
 
+# Test 10: Wizard idempotence claim uses qualified language
+test_wizard_idempotence_qualified() {
+    local WIZARD_MD="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$WIZARD_MD" ]; then
+        fail "CLAUDE_CODE_SDLC_WIZARD.md not found"
+        return
+    fi
+
+    # The wizard should NOT make unqualified safety guarantees about idempotence
+    # It should use language like "designed to be" or "intended" rather than absolute claims
+    if grep -q 'designed to be idempotent\|intended to be idempotent' "$WIZARD_MD"; then
+        pass "Wizard idempotence claim uses qualified language"
+    else
+        fail "Wizard should use qualified idempotence language (designed/intended) rather than absolute claims"
+    fi
+}
+
 # Run all tests
 test_script_exists
 test_simple_all_match
 test_medium_all_match
 test_hard_all_match
-test_early_exit_on_mismatch
+test_warnings_dont_abort
 test_missing_output_file
 test_complexity_extraction
 test_case_insensitive
 test_results_section
+test_wizard_idempotence_qualified
 
 echo ""
 echo "=== Results ==="

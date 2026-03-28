@@ -2903,7 +2903,7 @@ If Claude repeatedly struggles in a codebase area:
 
 ## Staying Updated (Idempotent Wizard)
 
-**The wizard is idempotent.** Run it anytime - new setup or existing - it detects what you have and only adds what's missing.
+**The wizard is designed to be idempotent.** You can run it on new or existing setups - it aims to detect what you have and only add what's missing.
 
 ### How to Update
 
@@ -3046,19 +3046,21 @@ When we add something new to the wizard:
 
 **This is recursive** - every future wizard update follows the same pattern.
 
-### Why Idempotent?
+### Why Designed to Be Idempotent?
 
 Like `apt-get install`:
 - If package installed → skip
 - If package missing → install
 - If package outdated → offer update
-- Never breaks existing state
+- Designed to not break existing state
 
-**Benefits:**
-- **Safe to run anytime** - won't duplicate or break existing setup
+**Intended benefits:**
+- **Safe to rerun** - designed to not duplicate or break existing setup
 - **One command for everyone** - new users, old users, current users
-- **Preserves customizations** - your modifications stay intact
-- **Fills gaps automatically** - detects and addresses what's missing
+- **Preserves customizations** - designed to keep your modifications intact
+- **Fills gaps** - aims to detect and address what's missing
+
+> Note: Idempotent behavior is a design goal. Cross-stack setup-path E2E testing is tracked in the roadmap.
 
 ### What Gets Compared
 
