@@ -170,7 +170,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | **Install** | Copy wizard file + run setup | npm install | npm install |
 | **Philosophy** | Lightweight, prove-it-or-delete | Scale and optimization | Documentation-first |
 
-**Our unique strengths:** Statistical rigor (CUSUM + 95% CI), SDP scoring (model quality vs SDLC compliance), self-healing CI, Prove-It A/B pipeline, 354+ automated tests, dogfooding enforcement.
+**Our unique strengths:** Statistical rigor (CUSUM + 95% CI), SDP scoring (model quality vs SDLC compliance), self-healing CI, Prove-It A/B pipeline, comprehensive automated test suite, dogfooding enforcement.
 
 **Where others are stronger:** everything-claude-code has broader language/framework coverage. claude-sdlc has webhook-driven automation. Both have npm distribution.
 
