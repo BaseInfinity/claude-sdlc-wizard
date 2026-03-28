@@ -1,38 +1,39 @@
 # Issues Found By Codex
 
+> **Historical audit record.** This file captures what Codex found during its cross-model review on 2026-03-27. All findings listed below have been fixed on the `fix/codex-audit-findings` branch. This file is preserved as an audit trail — not a live issue tracker.
+
 Audit date: 2026-03-27
 
 ## Scope and confidence
 
 - Repo shape audited: workflow YAML, hooks, skills, shell tests, E2E fixtures/scenarios, and repo-authored Markdown docs.
-- Current-state verification run during this refresh:
+- Verification run during audit:
   - full local shell suite across `tests/test-*.sh` and `tests/e2e/test-*.sh` -> passed
   - `actionlint -shellcheck=` -> clean
   - Markdown local-link scan -> no missing local targets
   - Markdown anchor scan -> no broken internal anchors
-- Confidence is high for current source/docs consistency issues.
+- Confidence is high for source/docs consistency issues.
 - Confidence is lower for anything that depends on live GitHub repo settings or hosted-action behavior not visible from source.
 
-## Current-state note
+## Fix status
 
-- Several workflow findings from the earlier pass no longer reproduce on the current branch.
-- In particular, the repo now appears to have fixed:
-  - `pr-review.yml` explicit checkout of PR head on `pull_request_target`
-  - PR-number-based review concurrency
-  - `head.ref` hardening in `ci.yml`
-  - broader CI wait logic for PR review
-- The biggest remaining audit gap is now documentation accuracy and trustworthiness, not obvious workflow breakage.
+All findings below have been addressed:
+
+| Round | Findings | Fixed in |
+|-------|----------|----------|
+| Round 1 (7 findings) | P1: PR review checkout, concurrency, head.ref injection. P2: trivial PR detection, CI wait, self-heal docs. P3: testing guidance. | Commit `fe6f8d8` |
+| Round 2 (5 findings) | P1: README raw URL. P2: daily cadence, autofix template distinction, act contradiction. P3: stale counts. | Commit `9cc28a4` |
+| Round 3 (1 finding) | P2: README summary still said "Daily/weekly/monthly". | This commit |
 
 ## Executive summary
 
 - No open P0 findings reproduced on the current branch.
-- I did not reproduce any current GitHub Actions structural lint errors after the workflow fixes.
-- The highest-value remaining problems are documentation drift and one install-path bug in `README.md`.
-- The docs matter here because this repo is the product. If the docs are wrong, the product feels wrong even when the code is fine.
+- No current GitHub Actions structural lint errors after workflow fixes.
+- Documentation accuracy was the primary audit gap — all identified inconsistencies have been fixed.
 
-## Findings
+## Findings (all fixed)
 
-### P1: `README.md` points users at the wrong raw install URL
+### P1: `README.md` points users at the wrong raw install URL — FIXED
 
 - Evidence:
   - `README.md:86-89` tells users to fetch `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md`
@@ -47,7 +48,7 @@ Audit date: 2026-03-27
   - Make the README raw URL match the canonical repo slug used everywhere else.
   - Consider centralizing the canonical raw URLs in one place so README and wizard docs cannot drift.
 
-### P2: user-facing docs still promise a daily auto-update cadence that no longer exists
+### P2: user-facing docs still promise a daily auto-update cadence that no longer exists — FIXED
 
 - Evidence:
   - `README.md:10-12` says "Daily/weekly/monthly workflows"
@@ -65,7 +66,7 @@ Audit date: 2026-03-27
   - Standardize the story everywhere: weekly release/community scan, monthly deep research.
   - Only mention the old daily flow in historical docs like the changelog or clearly labeled retrospective notes.
 
-### P2: the repo documents two different autofix/review systems as if they are the same current default
+### P2: the repo documents two different autofix/review systems as if they are the same current default — FIXED
 
 - Evidence:
   - Current repo docs and workflow use `ci-self-heal.yml` with `AUTOFIX_LEVEL: all-findings`:
@@ -87,7 +88,7 @@ Audit date: 2026-03-27
   - If the repo intentionally runs a more aggressive dogfood config than the distributed template, say that explicitly.
   - Otherwise, align the wizard doc with the repo’s current canonical workflow name and default autofix level.
 
-### P2: workflow local-testing guidance is still internally inconsistent
+### P2: workflow local-testing guidance is still internally inconsistent — FIXED
 
 - Evidence:
   - `TESTING.md:190-204` says workflows cannot be tested locally with `act`
@@ -103,7 +104,7 @@ Audit date: 2026-03-27
   - Pick one official position and state scope clearly.
   - Example: "`act` may help for lightweight YAML sanity checks, but this repo does not treat it as a supported or reliable workflow test environment."
 
-### P3: some reference/count docs are stale enough to chip away at trust
+### P3: some reference/count docs are stale enough to chip away at trust — FIXED
 
 - Evidence:
   - `COMPETITIVE_AUDIT.md:27` still says "354+ automated tests across 21 scripts"

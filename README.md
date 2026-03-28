@@ -8,7 +8,7 @@ Five layers working together:
 
 ```
 Layer 5: SELF-IMPROVEMENT
-  Daily/weekly/monthly workflows detect changes, test them
+  Weekly/monthly workflows detect changes, test them
   statistically, create PRs. Baselines evolve organically.
 
 Layer 4: STATISTICAL VALIDATION

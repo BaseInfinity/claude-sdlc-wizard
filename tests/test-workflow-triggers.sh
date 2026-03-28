@@ -2878,12 +2878,13 @@ test_readme_raw_url_matches_remote() {
 }
 
 # Test 132: No stale "daily" cadence references in key docs
-# Weekly + monthly exist, daily was removed
+# Weekly + monthly exist, daily was removed. Check broadly — not just specific phrases.
 test_no_stale_daily_cadence() {
     local ERRORS=0
 
-    # README.md auto-update table should not say "Daily"
-    if grep -qi 'Daily.*Claude Code releases' "$REPO_ROOT/README.md" 2>/dev/null; then
+    # README.md should not describe daily cadence anywhere (table, summary, etc.)
+    # Exclude changelog/historical lines by checking current-tense descriptions
+    if grep -qiE 'Daily[/ ].*workflow|Daily.*Claude Code|Daily/weekly/monthly' "$REPO_ROOT/README.md" 2>/dev/null; then
         ERRORS=$((ERRORS + 1))
     fi
 
