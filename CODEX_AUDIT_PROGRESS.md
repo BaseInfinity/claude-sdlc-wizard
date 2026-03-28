@@ -5,6 +5,7 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 ## Current Status
 
 - Deep repo audit pass completed on `main` on 2026-03-27.
+- Claim-verification / adversarial trust pass continued on `main` on 2026-03-27.
 - Current open findings are tracked in `ISSUES_FOUND_BY_CODEX.md`.
 - Repo is currently assessed at `B+`.
 - This is not the final quality bar for the repo.
@@ -25,56 +26,42 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 
 - Observability trust:
   `score-history.jsonl` / `SCORE_TRENDS.md` do not yet fully support the repo's longitudinal measurement claims on `main`.
-- Scoring-model drift:
-  some human-facing docs no longer match the live evaluator.
-- CI least privilege:
-  `ci.yml` still grants workflow-level write permissions broader than necessary.
-- Summary-doc contradictions:
-  a few top-level docs still oversimplify or contradict actual behavior.
+- Wizard onboarding proof:
+  the repo strongly claims stack-aware bespoke setup, but the live CI/E2E path still validates generated assets in `tests/e2e/fixtures/test-repo` much more than it validates the wizard's actual setup flow across fixtures/stacks.
+- Self-evolution proof:
+  the repo clearly proves scheduled external update/research loops, but the "friction encountered" feedback loop is still narrative unless it becomes an explicit captured/tested mechanism.
 
 ## Next Audit Phase
 
-Name: `Claim Verification / Adversarial E2E Audit`
+Name: `Setup-Path / Product-Truth Audit`
 
 Goal:
-- Verify that every important repo claim is actually true, currently true, and provable from the repo/workflows/tests.
-- Verify that novel features are tested in the same spirit they are marketed.
-- Catch "blowing smoke" issues where docs, README, CI/CD docs, or the wizard overclaim or underclaim reality.
+- Verify that the wizard's setup/onboarding path is executable, not just described.
+- Verify that the repo's most novel product claims are backed by first-class proof or are narrowed to honest wording.
+- Catch remaining places where repo narrative outruns what the live paths actually prove.
 
 ## Required Method For Next Pass
 
-1. Build a claim matrix.
-   For each major claim in `README.md`, `CI_CD.md`, `CLAUDE_CODE_SDLC_WIZARD.md`, and `ARCHITECTURE.md`:
-   - claim text
-   - proving file/workflow/test
-   - status: proven / partially proven / stale / missing proof
+1. Add or design true setup-path proof.
+   For at least one greenfield fixture and one non-Node fixture:
+   - run the wizard setup flow or a close simulation of it
+   - verify generated hooks/skills/docs/settings
+   - verify claimed auto-detection outputs map to fixture reality
 
-2. Audit novel repo loops explicitly.
-   - self-evolving update loop
-   - self-heal loop
-   - prove-it / native-vs-custom loop
-   - scoring / SDP / CUSUM loop
-   - PR review loop
-   - optional cross-model review posture
-
-3. Run adversarial E2E checks, not just happy-path checks.
+2. Audit product-truth claims explicitly.
    Focus on:
-   - stale observability artifacts
-   - merge-path persistence assumptions
-   - workflow output-shape drift
-   - bootstrapping / no-baseline behavior
-   - missing-secret / degraded-service behavior
-   - docs claiming a feature that is only partial or dormant
+   - stack-aware onboarding
+   - self-evolution from friction
+   - longitudinal measurement / trends
+   - prove-it / native-vs-custom posture
 
-4. Add trust tests where needed.
-   These are tests that verify claims, not just implementation mechanics.
+3. Prefer trust tests over more static checking.
    Examples:
-   - doc summary matches workflow behavior
-   - README scoring summary matches evaluator
-   - generated/stored observability artifacts are actually current if claimed current
-   - repo capabilities are surfaced if they exist
+   - fixture README says it tests onboarding -> a real test/workflow uses it
+   - README claim maps to a current proving workflow/test
+   - "friction" wording maps to an actual captured signal, or gets narrowed
 
-5. Re-score the repo only after the above pass reaches diminishing returns.
+4. Re-score the repo only after the above pass reaches diminishing returns.
 
 ## Stop Condition
 
