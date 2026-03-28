@@ -140,8 +140,9 @@ Token tracking can be re-enabled when the action starts exposing usage fields (`
 5. If different: Analyzes release with Claude
 6. Creates PR with analysis and relevance level
 7. Closes stale auto-update PRs
-8. Scans GitHub for Claude Code community patterns
-9. Creates digest issues for notable findings
+8. Scans GitHub for Claude Code community patterns (includes competitive watchlist via `analyze-community.md`)
+9. Feeds open `friction-signal` issues into the scan for internal feedback
+10. Creates digest issues for notable findings
 
 ### Two-Phase Version Testing
 
@@ -223,7 +224,7 @@ Every self-heal event creates a `friction-signal` GitHub issue with structured d
 - Whether a fix was applied and what changed
 - Error summary
 
-These issues accumulate over time, enabling pattern analysis for process improvement.
+Open friction-signal issues are fed into the weekly community scan prompt alongside external findings. Claude uses them to inform recommended actions. Full downstream automation (digest creation, E2E from friction-only weeks) is a follow-up improvement.
 
 ### Token Approaches
 

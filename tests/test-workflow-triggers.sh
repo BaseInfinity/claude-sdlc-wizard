@@ -3326,6 +3326,63 @@ test_readme_setup_not_proven() {
     fi
 }
 
+# Test 164: Weekly community scan fetches open friction-signal issues
+test_weekly_fetches_friction_issues() {
+    local WF="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    if [ ! -f "$WF" ]; then fail "weekly-update.yml not found"; return; fi
+
+    # The weekly workflow must query friction-signal issues to feed them into the scan prompt
+    if grep -q 'friction-signal' "$WF" && grep -q 'gh issue list' "$WF"; then
+        pass "Weekly scan fetches friction-signal issues for prompt"
+    else
+        fail "Weekly scan should fetch friction-signal issues to close the feedback loop"
+    fi
+}
+
+# Test 165: README setup claim scopes to generated-asset validation (not setup flow)
+test_readme_setup_scopes_generated_assets() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+
+    # The claim about auto-detection should clarify CI validates generated assets, not the setup flow
+    if grep -i 'auto-detect' "$README" | grep -qi 'generated.*asset\|asset.*validat\|validates.*generated'; then
+        pass "README setup claim scopes to generated-asset validation"
+    else
+        fail "README setup claim should clarify CI validates generated assets, not setup flow"
+    fi
+}
+
+# Test 166: COMPETITIVE_AUDIT.md says Weekly (not Monthly) for watchlist review cadence
+test_competitive_audit_says_weekly() {
+    local AUDIT="$REPO_ROOT/COMPETITIVE_AUDIT.md"
+    if [ ! -f "$AUDIT" ]; then fail "COMPETITIVE_AUDIT.md not found"; return; fi
+
+    if grep -qi 'next review.*weekly' "$AUDIT"; then
+        pass "COMPETITIVE_AUDIT.md correctly says weekly review cadence"
+    else
+        fail "COMPETITIVE_AUDIT.md should say Weekly review cadence (watchlist is in weekly scan)"
+    fi
+}
+
+# Test 167: CI_CD.md weekly section mentions competitive watchlist
+test_cicd_weekly_mentions_watchlist() {
+    local CICD="$REPO_ROOT/CI_CD.md"
+    if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
+
+    # The weekly workflow section should mention competitive watchlist since that's where it runs
+    local section
+    section=$(sed -n '/## Weekly Update/,/## Monthly/p' "$CICD")
+    if [ -z "$section" ]; then
+        fail "Could not extract Weekly Update section from CI_CD.md (heading may have changed)"
+        return
+    fi
+    if echo "$section" | grep -qi 'competitive\|watchlist'; then
+        pass "CI_CD.md weekly section mentions competitive watchlist"
+    else
+        fail "CI_CD.md weekly section should mention competitive watchlist"
+    fi
+}
+
 test_score_trends_generated_before_commit
 test_score_trends_included_in_commit
 test_score_trends_honest_footer
@@ -3347,6 +3404,10 @@ test_roadmap_has_setup_path_e2e
 test_selfheal_friction_gated_on_has_findings
 test_selfheal_friction_defaults_before_template
 test_readme_setup_not_proven
+test_weekly_fetches_friction_issues
+test_readme_setup_scopes_generated_assets
+test_competitive_audit_says_weekly
+test_cicd_weekly_mentions_watchlist
 
 echo ""
 echo "=== Results ==="
