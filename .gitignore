@@ -4,6 +4,9 @@ node_modules/
 # E2E test artifacts
 tests/e2e/.cache/
 
+# Claude Code local state
+.claude/plans/
+
 # Editor/OS
 .DS_Store
 *.swp

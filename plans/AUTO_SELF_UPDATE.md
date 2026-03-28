@@ -806,33 +806,9 @@ The commit/push/re-trigger cycle was already proven on PR #52 (ci-failure mode).
 
 **Why the race condition doesn't invalidate the test:** The self-heal correctly triggered, entered review-findings mode, passed all-findings filtering, and invoked Claude. Claude found no diff because the manual fix was already on the branch. The filtering logic is the critical path — it's verified.
 
-### Remaining Roadmap (ordered)
+### Remaining Roadmap
 
-1. ~~Weekly workflow consolidation~~ — DONE (PR #70)
-2. ~~Verify all-findings self-heal (#27)~~ — VERIFIED (PR #70)
-3. ~~"Prove It's Better" CI automation~~ — DONE (v1.10.0)
-4. ~~Tier 2 E2E full suite audit (#24)~~ — DONE (13 scripts wired, 3 bugs fixed)
-5. ~~Full system audit (#25)~~ — DONE: 4 bugs fixed, 6 tests added, native CC overlap audited (all KEEP CUSTOM)
-6. ~~Package self-update for users (#26)~~ — DONE: rewrote "Staying Updated" with explicit URLs + CHANGELOG-first, optional CI notification workflow, 12 tests
-7. ~~Post-update audit~~ — DONE: CI dispatch bug fixed (PR #75), Prove-It validated with synthetic scores, self-update URLs verified E2E, docs updated (CONTRIBUTING.md, SDLC.md)
-8. ~~Competitive audit (#10)~~ — DONE: Audited aistupidlevel.info (added as Source 3 in benchmark cascade), everything-claude-code, claude-sdlc, and 5 other repos. Added competitive watchlist to weekly community scan. Created COMPETITIVE_AUDIT.md with honest positioning. See PR #77
-9. ~~`--bare` for non-E2E workflows~~ — DONE (PR #81): Added `--bare` to 8 non-E2E `claude-code-action` steps across 4 workflows, skips hooks/LSP/plugins in headless CI. 6 new tests (including negative tests for E2E steps). 12 E2E simulation steps unchanged.
-10. ~~Trigger weekly/monthly workflows + audit~~ — DONE: Triggered both, found 4 bugs (missing .gitignore PR #87, missing auto-generated label, E2E evaluator flakiness PR #88). All fixed. Scores went from 7/5 (broken) to 8/8.
-11. ~~Re-run wizard on ourselves (PR)~~ — DONE (PR #89): Compared installed setup against wizard template. Found 4 gaps: missing SDLC.md metadata comments (breaks update detection), stale self-review reference in hook, "daily" instead of "weekly", CC baseline version stale. 6 new tests added (tests 19-24 in test-hooks.sh). No dead code found.
-12. ~~CI efficiency audit (#29)~~ — DONE (PR #92): 1 orphaned test script found (test-external-benchmark.sh, 15 invisible tests), wired into CI. Added structural guard (test 121) to catch future orphans. CI already lean (22s validate, ~5min E2E API-bound). No parallelization, caching, or skip wins.
-13. Cross-model full repo audit — Run Codex CLI (GPT-5.4, xhigh reasoning) pointed at the entire repo as an independent auditor before distribution. Submit PRs for any findings. Proven effective on other repos (anticheat, tuscon-investigation). Local-only, user runs in separate session.
-13.5. Wire cross-model review into our own local SDLC — We document cross-model review in the wizard but don't actually run it ourselves yet. Add `codex exec` (GPT-5.4, xhigh reasoning) as a step in our own local workflow: after Claude self-review (/code-review) passes, run Codex review before creating the PR. Update SKILL.md to make the optional comment a concrete step. Dogfooding — we recommend it, we should do it.
-14. Distribution (#30) — Make it easy for new users to install (research done: npx CLI or curl one-liner)
-
-### Post-Distribution
-
-15. Tool/Plugin Discovery Automation — Add to weekly-update: fetch official `marketplace.json` (public at `anthropics/claude-plugins-official`), diff against cached snapshot, detect new CC features from changelog, LLM-recommend which are relevant. ~50-80 lines. Confidence: HIGH (85%).
-16. E2E Scenario Coverage Audit — Review scenarios for gaps: who uses this wizard (senior devs, juniors, non-coders per generalize-beyond-coding vision), what tasks aren't covered (UI changes, API work, multi-file refactors, deployment tasks). Add scenarios for underrepresented use cases. Consider different repo archetypes (monorepo, microservices, data science).
-17. Scoring System Review — One-time deep audit after all pre-distribution work is complete. Then revisit every 2-3 months. Check: are criteria still relevant? Is weighting fair? Are LLM judges drifting? Is the 1.5-point regression threshold right? Are deterministic checks (tdd_red, task_tracking, confidence) catching what they should?
-18. Setup Drift Prevention — Investigate: can CI detect when installed setup drifts from wizard template? Two drift vectors: (a) local edits silently desync hooks/skills/SDLC.md from template, (b) new wizard version releases add features we don't have. Options: CI job that checksums hooks against template, test that compares wizard version comment in SDLC.md vs CLAUDE_CODE_SDLC_WIZARD.md, weekly-update step that flags wizard-vs-installed diff. Tests 19-24 (PR #89) are a partial solution — extend to cover skills and settings.json too.
-19. Monthly GC Audit (recurring) — Once a month, comprehensive "less is more" audit. Try removing or trimming wizard content, hooks, skills, tests, and CI steps, then run E2E to see if scores hold. If scores stay the same after removing something, ask WHY: (a) our tests/automation are too weak to detect the loss, or (b) the content was genuinely fluff and things got better without it. Fix weak tests or delete the fluff — either way we win. Philosophy: the wizard should shrink over time, not grow. The ultimate success state is when the wizard is no longer needed because the philosophy is internalized. Less scaffolding, more signal.
-
-**Back burner:** Mutation testing (#21, experimental), Node.js 20 (#68, June 2026), reviewer severity prompt fix (CI reviewer under-categorizes silent no-op bugs as suggestions — 14% misclassification rate found in audit)
+**Moved to `ROADMAP.md` as the single source of truth.** See that file for all current, post-distribution, and back-burner items.
 
 ### Item 16: Eval Framework Improvements (Targeted, Not Framework Adoption)
 
