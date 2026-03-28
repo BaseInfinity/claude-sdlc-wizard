@@ -17,7 +17,7 @@
 | 11 | Re-run wizard on ourselves | DONE (PR #89) |
 | 12 | CI efficiency audit | DONE (PR #92) |
 | 13 | Cross-model full repo audit | DONE — pass 7 closed (PRs #97-100). No substantive open findings |
-| 13.5 | Live-fire CI job audit | TODO — verify untested CI paths (see details below) |
+| 13.5 | Live-fire CI job audit | DONE — all CI paths verified (PR #102 fixed Tier 2 git init, 5-trial eval passed) |
 | 13.6 | Wire cross-model review into own SDLC | DONE — cross-model review is now a first-class SDLC step |
 | 14 | Distribution | TODO — npx CLI or curl one-liner (research done) |
 
@@ -74,11 +74,11 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 
 | Job/Trigger | Last Green | Gap | Action |
 |---|---|---|---|
-| `e2e-full-evaluation` (merge-ready label) | Feb 12 | 6+ weeks, massive changes since | Label this PR with `merge-ready` to verify Tier 2 pipeline |
-| `weekly-update.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger untested since label fix | Wait for next Monday schedule run |
-| `monthly-research.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger passed Mar 27 | VERIFIED — next scheduled run Apr 1 |
+| `e2e-full-evaluation` (merge-ready label) | Mar 28 (PR #102) | Bug found: missing `git remote add origin` in Tier 2 init | VERIFIED — fix merged, 5-trial Tier 2 passed in 9m5s |
+| `weekly-update.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger untested since label fix | VERIFIED — dispatch passed Mar 27 |
+| `monthly-research.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger passed Mar 27 | VERIFIED — dispatch passed Mar 27 |
 | Stale `ci-autofix.yml` (ID 232420762) | Never (dead workflow) | Orphaned after rename to ci-self-heal.yml | DONE — disabled via `gh workflow disable` on Mar 28 |
-| Node.js 20 deprecation | N/A | `actions/checkout@v4` + `oven-sh/setup-bun` will be forced to Node 24 on June 2, 2026 | Track in back burner |
+| Node.js 20 deprecation | N/A | `actions/checkout@v4` + `oven-sh/setup-bun` will be forced to Node 24 on June 2, 2026 | Back burner (revisit May 2026) |
 
 ## Back Burner
 
