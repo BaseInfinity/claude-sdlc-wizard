@@ -805,6 +805,136 @@ test_tdd_consistency_forces_pass_to_no
 test_tdd_consistency_noop_when_ran
 test_tdd_consistency_forces_even_when_already_zero
 
+# -----------------------------------------------
+# check_critical_criteria tests
+# -----------------------------------------------
+echo ""
+echo "--- check_critical_criteria ---"
+
+test_critical_criteria_all_pass() {
+    local json='{
+        "criteria": {
+            "tdd_red": {"points": 2, "max": 2, "evidence": "Test before impl"},
+            "self_review": {"points": 1, "max": 1, "evidence": "Reviewed files"},
+            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"}
+        }
+    }'
+    local result
+    result=$(check_critical_criteria "$json" 2>/dev/null) || true
+    if [ -z "$result" ]; then
+        fail "check_critical_criteria should return a result"
+        return
+    fi
+    local miss
+    miss=$(echo "$result" | jq -r '.critical_miss')
+    if [ "$miss" = "false" ]; then
+        pass "All critical criteria pass → critical_miss=false"
+    else
+        fail "Expected critical_miss=false, got $miss"
+    fi
+}
+
+test_critical_criteria_self_review_fail() {
+    local json='{
+        "criteria": {
+            "tdd_red": {"points": 2, "max": 2, "evidence": "Test before impl"},
+            "self_review": {"points": 0, "max": 1, "evidence": "No review"},
+            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"}
+        }
+    }'
+    local result
+    result=$(check_critical_criteria "$json" 2>/dev/null) || true
+    if [ -z "$result" ]; then
+        fail "check_critical_criteria should return a result"
+        return
+    fi
+    local miss failures
+    miss=$(echo "$result" | jq -r '.critical_miss')
+    failures=$(echo "$result" | jq -r '.critical_failures | join(",")')
+    if [ "$miss" = "true" ] && [ "$failures" = "self_review" ]; then
+        pass "self_review=0 → critical_miss=true, failures=[self_review]"
+    else
+        fail "Expected critical_miss=true + self_review failure, got miss=$miss failures=$failures"
+    fi
+}
+
+test_critical_criteria_tdd_red_fail() {
+    local json='{
+        "criteria": {
+            "tdd_red": {"points": 0, "max": 2, "evidence": "No TDD"},
+            "self_review": {"points": 1, "max": 1, "evidence": "Reviewed"},
+            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"}
+        }
+    }'
+    local result
+    result=$(check_critical_criteria "$json" 2>/dev/null) || true
+    if [ -z "$result" ]; then
+        fail "check_critical_criteria should return a result"
+        return
+    fi
+    local miss failures
+    miss=$(echo "$result" | jq -r '.critical_miss')
+    failures=$(echo "$result" | jq -r '.critical_failures | join(",")')
+    if [ "$miss" = "true" ] && [ "$failures" = "tdd_red" ]; then
+        pass "tdd_red=0 → critical_miss=true, failures=[tdd_red]"
+    else
+        fail "Expected critical_miss=true + tdd_red failure, got miss=$miss failures=$failures"
+    fi
+}
+
+test_critical_criteria_both_fail() {
+    local json='{
+        "criteria": {
+            "tdd_red": {"points": 0, "max": 2, "evidence": "No TDD"},
+            "self_review": {"points": 0, "max": 1, "evidence": "No review"},
+            "clean_code": {"points": 1, "max": 1, "evidence": "Clean"}
+        }
+    }'
+    local result
+    result=$(check_critical_criteria "$json" 2>/dev/null) || true
+    if [ -z "$result" ]; then
+        fail "check_critical_criteria should return a result"
+        return
+    fi
+    local miss count
+    miss=$(echo "$result" | jq -r '.critical_miss')
+    count=$(echo "$result" | jq '.critical_failures | length')
+    if [ "$miss" = "true" ] && [ "$count" = "2" ]; then
+        pass "Both critical criteria fail → critical_miss=true, 2 failures"
+    else
+        fail "Expected critical_miss=true + 2 failures, got miss=$miss count=$count"
+    fi
+}
+
+test_critical_criteria_non_critical_fail() {
+    local json='{
+        "criteria": {
+            "tdd_red": {"points": 2, "max": 2, "evidence": "Test before impl"},
+            "self_review": {"points": 1, "max": 1, "evidence": "Reviewed"},
+            "clean_code": {"points": 0, "max": 1, "evidence": "Messy"}
+        }
+    }'
+    local result
+    result=$(check_critical_criteria "$json" 2>/dev/null) || true
+    if [ -z "$result" ]; then
+        fail "check_critical_criteria should return a result"
+        return
+    fi
+    local miss
+    miss=$(echo "$result" | jq -r '.critical_miss')
+    if [ "$miss" = "false" ]; then
+        pass "Non-critical fail (clean_code=0) → critical_miss=false"
+    else
+        fail "Expected critical_miss=false for non-critical failure, got $miss"
+    fi
+}
+
+test_critical_criteria_all_pass
+test_critical_criteria_self_review_fail
+test_critical_criteria_tdd_red_fail
+test_critical_criteria_both_fail
+test_critical_criteria_non_critical_fail
+
 test_tech_debt_not_ui
 test_requires_not_ui
 test_actual_ui_detected

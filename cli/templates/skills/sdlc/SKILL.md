@@ -49,6 +49,26 @@ TodoWrite([
 ])
 ```
 
+## SDLC Quality Checklist (Scoring Rubric)
+
+Your work is scored on these criteria. **Critical** criteria are must-pass.
+
+| Criterion | Points | Critical? | What Counts |
+|-----------|--------|-----------|-------------|
+| task_tracking | 1 | | Use TodoWrite or TaskCreate |
+| confidence | 1 | | State HIGH/MEDIUM/LOW |
+| tdd_red | 2 | **YES** | Write/edit test files BEFORE implementation files |
+| plan_mode_outline | 1 | | Outline steps before coding |
+| plan_mode_tool | 1 | | Use TodoWrite/TaskCreate/EnterPlanMode |
+| tdd_green_ran | 1 | | Run tests, show runner output |
+| tdd_green_pass | 1 | | All tests pass in final run |
+| self_review | 1 | **YES** | Read back files/diffs you modified |
+| clean_code | 1 | | One coherent approach, no dead code |
+
+**Total: 10 points** (11 for UI tasks, +1 for design_system check)
+
+Critical miss on `tdd_red` or `self_review` = process failure regardless of total score.
+
 ## New Pattern & Test Design Scrutiny (PLANNING)
 
 **New design patterns require human approval:**
