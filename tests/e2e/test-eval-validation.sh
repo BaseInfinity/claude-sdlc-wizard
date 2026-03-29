@@ -737,6 +737,74 @@ test_plan_mode_tool_not_require_enterplanmode() {
     fi
 }
 
+# -----------------------------------------------
+# enforce_tdd_consistency tests
+# -----------------------------------------------
+echo ""
+echo "--- enforce_tdd_consistency ---"
+
+test_tdd_consistency_forces_pass_to_no() {
+    local json='{
+        "criteria": {
+            "tdd_green_ran": {"met": false, "points": 0, "max": 1, "evidence": "No tests ran"},
+            "tdd_green_pass": {"met": true, "points": 1, "max": 1, "evidence": "LLM hallucinated"}
+        }
+    }'
+    local result
+    result=$(enforce_tdd_consistency "$json")
+    local pts met evidence
+    pts=$(echo "$result" | jq '.criteria.tdd_green_pass.points')
+    met=$(echo "$result" | jq '.criteria.tdd_green_pass.met')
+    evidence=$(echo "$result" | jq -r '.criteria.tdd_green_pass.evidence')
+    if [ "$pts" = "0" ] && [ "$met" = "false" ] && echo "$evidence" | grep -q "Forced"; then
+        pass "tdd_green_pass forced to NO when tdd_green_ran=0"
+    else
+        fail "Expected tdd_green_pass forced to 0/false, got pts=$pts met=$met"
+    fi
+}
+
+test_tdd_consistency_noop_when_ran() {
+    local json='{
+        "criteria": {
+            "tdd_green_ran": {"met": true, "points": 1, "max": 1, "evidence": "Tests ran"},
+            "tdd_green_pass": {"met": true, "points": 1, "max": 1, "evidence": "All passed"}
+        }
+    }'
+    local result
+    result=$(enforce_tdd_consistency "$json")
+    local pts evidence
+    pts=$(echo "$result" | jq '.criteria.tdd_green_pass.points')
+    evidence=$(echo "$result" | jq -r '.criteria.tdd_green_pass.evidence')
+    if [ "$pts" = "1" ] && [ "$evidence" = "All passed" ]; then
+        pass "tdd_green_pass unchanged when tdd_green_ran=1"
+    else
+        fail "Expected tdd_green_pass unchanged, got pts=$pts evidence=$evidence"
+    fi
+}
+
+test_tdd_consistency_forces_even_when_already_zero() {
+    local json='{
+        "criteria": {
+            "tdd_green_ran": {"met": false, "points": 0, "max": 1, "evidence": "No tests ran"},
+            "tdd_green_pass": {"met": false, "points": 0, "max": 1, "evidence": "No tests"}
+        }
+    }'
+    local result
+    result=$(enforce_tdd_consistency "$json")
+    local pts evidence
+    pts=$(echo "$result" | jq '.criteria.tdd_green_pass.points')
+    evidence=$(echo "$result" | jq -r '.criteria.tdd_green_pass.evidence')
+    if [ "$pts" = "0" ] && echo "$evidence" | grep -q "Forced"; then
+        pass "tdd_green_pass forced (even when already 0, evidence updated)"
+    else
+        fail "Expected evidence updated to Forced, got pts=$pts evidence=$evidence"
+    fi
+}
+
+test_tdd_consistency_forces_pass_to_no
+test_tdd_consistency_noop_when_ran
+test_tdd_consistency_forces_even_when_already_zero
+
 test_tech_debt_not_ui
 test_requires_not_ui
 test_actual_ui_detected

@@ -49,7 +49,10 @@ The evaluation pipeline uses per-criterion API calls instead of a single monolit
 | 1. Deterministic pre-checks | Grep-based scoring for task_tracking, confidence, tdd_red (free, fast) |
 | 2. Per-criterion LLM calls | Each subjective criterion (plan_mode, tdd_green, self_review, clean_code, design_system) scored independently with focused calibration examples |
 | 3. Aggregation | Individual results merged into standard JSON structure |
-| 4. Validation | Schema check, bounds clamping, deterministic merge |
+| 4. Consistency guards | `enforce_tdd_consistency`: if tdd_green_ran=NO, force tdd_green_pass=NO (prevents LLM hallucination) |
+| 5. Validation | Schema check, bounds clamping, deterministic merge |
+
+**Prompt version:** v5 (tightened self_review and clean_code prompts 2026-03-28). self_review now requires evidence of actually inspecting work product (not just stating intent). clean_code now requires a single coherent approach.
 
 **Why per-criterion:** Reduces score variance. If the LLM hallucinates one score, it doesn't drag down others. Improves Tier 2 statistical power without more trials.
 
@@ -157,6 +160,16 @@ Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 
 ### Required Secrets
 - `ANTHROPIC_API_KEY`: For Claude analysis
+
+### Plugin Discovery (Roadmap Item 18)
+
+The weekly-update pipeline doubles as plugin/feature discovery automation:
+- Release analysis (`analyze-release.md`) includes a Custom Feature Inventory table comparing wizard features against native CC capabilities
+- `plugin_check.replaces_custom` field flags overlap between wizard custom features and new CC native features
+- When overlap is detected, the `prove-it-test` job runs A/B comparison (wizard vs native) to validate replacement
+- Community scan covers competitive repos and new tools in the CC ecosystem
+
+No separate marketplace registry exists for Claude Code — the LLM-driven release analysis approach captures all feature information from release notes.
 
 ## Monthly Research Workflow (`monthly-research.yml`)
 

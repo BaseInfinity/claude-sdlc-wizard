@@ -3,6 +3,8 @@
 ## Complexity
 Medium - requires investigation, understanding root cause, TDD
 
+## Fixture: test-repo
+
 ## Task
 Users report that the `add` function returns incorrect results when given decimal numbers.
 

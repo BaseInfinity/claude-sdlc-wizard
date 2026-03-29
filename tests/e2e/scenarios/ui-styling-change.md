@@ -3,6 +3,8 @@
 ## Complexity
 Medium - involves UI/CSS changes, requires design system check
 
+## Fixture: test-repo
+
 ## Task
 Update the button styles in `src/components/Button.tsx` to use the design system colors.
 

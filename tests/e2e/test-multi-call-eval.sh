@@ -45,11 +45,11 @@ echo ""
 
 echo "--- Prompt version ---"
 
-test_prompt_version_v4() {
-    if [ "$EVAL_PROMPT_VERSION" = "v4" ]; then
-        pass "EVAL_PROMPT_VERSION is v4"
+test_prompt_version_v5() {
+    if [ "$EVAL_PROMPT_VERSION" = "v5" ]; then
+        pass "EVAL_PROMPT_VERSION is v5"
     else
-        fail "EVAL_PROMPT_VERSION should be v4, got: $EVAL_PROMPT_VERSION"
+        fail "EVAL_PROMPT_VERSION should be v5, got: $EVAL_PROMPT_VERSION"
     fi
 }
 
@@ -386,7 +386,7 @@ test_finalize_perfect_score_no_improvements() {
 # Run all tests
 # -----------------------------------------------
 
-test_prompt_version_v4
+test_prompt_version_v5
 test_criteria_list_standard
 test_criteria_list_ui
 test_criteria_names_standard

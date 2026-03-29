@@ -3,6 +3,8 @@
 ## Complexity
 Medium - multi-file changes, requires cross-module coordination
 
+## Fixture: test-repo
+
 ## Task
 A product manager requests a new `/api/users/:id/preferences` endpoint.
 

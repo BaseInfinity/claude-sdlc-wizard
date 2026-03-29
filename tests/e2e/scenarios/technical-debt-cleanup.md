@@ -3,6 +3,8 @@
 ## Complexity
 Medium - requires usage analysis, safe deletion, test updates
 
+## Fixture: test-repo
+
 ## Task
 The codebase has a deprecated `legacyCalculate` function that was replaced by
 `calculate` months ago. Tech debt ticket says:
