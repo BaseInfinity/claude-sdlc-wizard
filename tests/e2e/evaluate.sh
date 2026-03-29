@@ -240,6 +240,14 @@ EVAL_RESULT=$(echo "$EVAL_RESULT" | jq \
     .max_score = ([.criteria[].max] | add)
     ')
 
+# Check critical criteria (self_review and tdd_red are must-pass)
+CRITICAL_RESULT=$(check_critical_criteria "$EVAL_RESULT")
+CRITICAL_MISS=$(echo "$CRITICAL_RESULT" | jq -r '.critical_miss')
+CRITICAL_FAILURES=$(echo "$CRITICAL_RESULT" | jq -c '.critical_failures')
+if [ "$CRITICAL_MISS" = "true" ]; then
+    echo "CRITICAL MISS: $CRITICAL_FAILURES" >&2
+fi
+
 # Parse the evaluation result
 SCORE=$(echo "$EVAL_RESULT" | jq -r '.score // 0')
 SUMMARY=$(echo "$EVAL_RESULT" | jq -r '.summary // "No summary"')
@@ -260,11 +268,14 @@ if [ -f "$BASELINES_FILE" ]; then
 fi
 
 # Determine pass/warn/fail based on baseline comparison
-# Pass: score >= baseline
+# Pass: score >= baseline AND no critical miss
 # Warn: score >= min_acceptable but < baseline
-# Fail: score < min_acceptable
-# Skip: LLM judge outage already forced PASS=false
-if [ "$LLM_OUTAGE" = "true" ]; then
+# Fail: score < min_acceptable OR critical miss OR LLM outage
+if [ "$CRITICAL_MISS" = "true" ]; then
+    PASS="false"
+    BASELINE_STATUS="fail"
+    echo "FAIL: Critical criteria missed ($CRITICAL_FAILURES) — process failure regardless of score" >&2
+elif [ "$LLM_OUTAGE" = "true" ]; then
     BASELINE_STATUS="fail"
 elif [ "$(echo "$SCORE >= $BASELINE" | bc -l)" -eq 1 ]; then
     PASS="true"
@@ -332,10 +343,14 @@ if [ "$JSON_OUTPUT" = "--json" ]; then
         --arg sdp_interpretation "$SDP_INTERPRETATION" \
         --argjson eval_duration "$EVAL_DURATION" \
         --arg eval_prompt_version "$EVAL_PROMPT_VERSION" \
+        --argjson critical_miss "$CRITICAL_MISS" \
+        --argjson critical_failures "$CRITICAL_FAILURES" \
         '. + {
             pass: ($pass == "true"),
             eval_duration: $eval_duration,
             eval_prompt_version: $eval_prompt_version,
+            critical_miss: $critical_miss,
+            critical_failures: $critical_failures,
             baseline_comparison: {
                 status: $baseline_status,
                 baseline: $baseline,
