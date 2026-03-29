@@ -45,11 +45,11 @@ echo ""
 
 echo "--- Prompt version ---"
 
-test_prompt_version_v5() {
-    if [ "$EVAL_PROMPT_VERSION" = "v5" ]; then
-        pass "EVAL_PROMPT_VERSION is v5"
+test_prompt_version_v6() {
+    if [ "$EVAL_PROMPT_VERSION" = "v6" ]; then
+        pass "EVAL_PROMPT_VERSION is v6"
     else
-        fail "EVAL_PROMPT_VERSION should be v5, got: $EVAL_PROMPT_VERSION"
+        fail "EVAL_PROMPT_VERSION should be v6, got: $EVAL_PROMPT_VERSION"
     fi
 }
 
@@ -383,10 +383,61 @@ test_finalize_perfect_score_no_improvements() {
 }
 
 # -----------------------------------------------
+# Few-shot calibration tests
+# -----------------------------------------------
+
+echo ""
+echo "--- Few-shot calibration examples ---"
+
+test_few_shot_examples_in_prompts() {
+    local criteria
+    criteria=$(get_llm_criteria "ui")  # UI has all criteria
+    local all_have=true
+    for name in $criteria; do
+        local question
+        question=$(_get_binary_question "$name")
+        if ! echo "$question" | grep -q "YES example:"; then
+            all_have=false
+            fail "$name prompt missing 'YES example:'"
+            break
+        fi
+        if ! echo "$question" | grep -q "NO example:"; then
+            all_have=false
+            fail "$name prompt missing 'NO example:'"
+            break
+        fi
+    done
+    if [ "$all_have" = true ]; then
+        pass "All criterion prompts contain YES and NO calibration examples"
+    fi
+}
+
+test_few_shot_examples_distinct() {
+    local criteria
+    criteria=$(get_llm_criteria "standard")
+    local all_distinct=true
+    for name in $criteria; do
+        local question
+        question=$(_get_binary_question "$name")
+        local yes_example no_example
+        yes_example=$(echo "$question" | grep "YES example:" | head -1)
+        no_example=$(echo "$question" | grep "NO example:" | head -1)
+        if [ "$yes_example" = "$no_example" ]; then
+            all_distinct=false
+            fail "$name YES and NO examples are identical"
+            break
+        fi
+    done
+    if [ "$all_distinct" = true ]; then
+        pass "All criterion YES/NO examples are distinct"
+    fi
+}
+
+# -----------------------------------------------
 # Run all tests
 # -----------------------------------------------
 
-test_prompt_version_v5
+test_prompt_version_v6
 test_criteria_list_standard
 test_criteria_list_ui
 test_criteria_names_standard
@@ -409,6 +460,8 @@ test_aggregate_preserves_evidence
 test_finalize_adds_summary
 test_finalize_validates_schema
 test_finalize_perfect_score_no_improvements
+test_few_shot_examples_in_prompts
+test_few_shot_examples_distinct
 
 echo ""
 echo "=========================================="

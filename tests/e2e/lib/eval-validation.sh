@@ -11,7 +11,7 @@
 #   source "$(dirname "$0")/lib/eval-validation.sh"
 
 # Prompt version — increment when the eval prompt changes materially
-EVAL_PROMPT_VERSION="v5"
+EVAL_PROMPT_VERSION="v6"
 
 # Validate that eval result JSON has required structure
 #
@@ -151,6 +151,30 @@ clamp_criteria_bounds() {
                 end
             )
         ) | from_entries)
+    '
+}
+
+# Check critical criteria — self_review and tdd_red are must-pass
+# Failing either means the SDLC process was fundamentally violated.
+#
+# Args:
+#   $1 - JSON string with .criteria object (must include tdd_red and self_review)
+#
+# Returns:
+#   JSON string: {"critical_miss": bool, "critical_failures": [...]}
+check_critical_criteria() {
+    local json="$1"
+    echo "$json" | jq '
+        {
+            critical_miss: (
+                (.criteria.self_review.points == 0) or
+                (.criteria.tdd_red.points == 0)
+            ),
+            critical_failures: [
+                (if .criteria.tdd_red.points == 0 then "tdd_red" else empty end),
+                (if .criteria.self_review.points == 0 then "self_review" else empty end)
+            ]
+        }
     '
 }
 

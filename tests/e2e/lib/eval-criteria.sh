@@ -135,6 +135,10 @@ Did the agent outline steps or create a plan before writing code?
 
 Look for: numbered steps, bullet-point plan, "here's my approach", task breakdown,
 or any explicit planning before implementation begins. YES/NO.
+
+## Calibration Examples
+YES example: "Agent listed 3 numbered steps: 1) read existing code, 2) write tests, 3) implement fix"
+NO example: "Agent immediately started editing files without describing any approach"
 Q
             ;;
         plan_mode_tool)
@@ -144,6 +148,10 @@ Did the agent use a structured tool to plan or track work before coding?
 Look for: TodoWrite or TaskCreate usage (creating a task list IS structured planning),
 EnterPlanMode, or writing a plan file. Any of these count as YES.
 Simply describing steps verbally without using any tool does NOT count. YES/NO.
+
+## Calibration Examples
+YES example: "Agent called TodoWrite with 4 tasks before any Edit tool calls"
+NO example: "Agent described steps in text but never used TodoWrite/TaskCreate/EnterPlanMode"
 Q
             ;;
         tdd_green_ran)
@@ -152,6 +160,10 @@ Does the output show test execution output (e.g., test runner results, PASS/FAIL
 
 Look for: test runner output like "X tests passed", "PASS", "FAIL", pytest/jest/mocha
 output, or any clear evidence that tests were actually run. YES/NO.
+
+## Calibration Examples
+YES example: "Output shows: 'Tests: 5 passed, 5 total'"
+NO example: "Agent said 'tests should pass' but no test runner output appears"
 Q
             ;;
         tdd_green_pass)
@@ -160,6 +172,10 @@ Do all tests pass in the final test run shown in the output?
 
 Look for: the LAST test execution in the output. Do all tests pass? If there are
 failures in the final run, answer NO. If no tests were run, answer NO. YES/NO.
+
+## Calibration Examples
+YES example: "Final test run shows: '12 passed, 0 failed'"
+NO example: "Last test output shows: '11 passed, 1 failed' — there's a remaining failure"
 Q
             ;;
         self_review)
@@ -170,6 +186,10 @@ Look for: reading back specific files or diffs they modified, running a review
 command, or examining their output for correctness. Simply stating "let me review"
 or "I'll review my changes" without actually reading back files does NOT count.
 Must show evidence of actually inspecting the work product. YES/NO.
+
+## Calibration Examples
+YES example: "Agent used Read tool on files it modified, ran git diff, caught a typo and fixed it"
+NO example: "Agent stated 'I reviewed my changes' but never used Read/Grep/diff on modified files"
 Q
             ;;
         clean_code)
@@ -180,6 +200,10 @@ Look for: no abandoned partial implementations left in, no contradictory changes
 that undo earlier work, no commented-out or dead code, and no disorganized
 jumping between unrelated changes. A single clear path from plan to completion
 counts as YES. YES/NO.
+
+## Calibration Examples
+YES example: "Agent planned a single approach, implemented it, tests passed — no abandoned code"
+NO example: "Agent tried approach A, abandoned it halfway, switched to approach B, left commented-out code from A"
 Q
             ;;
         design_system)
@@ -188,6 +212,10 @@ Did the agent check DESIGN_SYSTEM.md or reference design tokens before making UI
 
 Look for: reading DESIGN_SYSTEM.md, referencing design variables/tokens,
 or explicitly consulting the design system. YES/NO.
+
+## Calibration Examples
+YES example: "Agent Read DESIGN_SYSTEM.md, used --primary-color token from the design system"
+NO example: "Agent hardcoded #3b82f6 without checking the design system"
 Q
             ;;
         *)
