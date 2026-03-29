@@ -62,8 +62,9 @@ Respond with valid JSON:
   "sources_checked": ["reddit", "hackernews", "devblogs", "official"],
   "findings": [
     {
-      "source": "reddit/hackernews/devblog/official",
-      "url": "link to discussion",
+      "origin": "external" | "internal-friction",
+      "source": "reddit/hackernews/devblog/official/friction-signal",
+      "url": "link to discussion or GitHub issue URL",
       "title": "Thread/article title",
       "summary": "2-3 sentence summary of what was discussed",
       "relevance": "HIGH" | "MEDIUM" | "LOW",
@@ -91,3 +92,4 @@ Respond with valid JSON:
 - Don't recommend adding features just because they're popular
 - Focus on what aligns with wizard philosophy
 - Human decides what (if anything) to incorporate
+- **Origin field:** Use `"external"` for community discussions (Reddit, HN, blogs). Use `"internal-friction"` for friction-signal issues from CI. This controls downstream routing — external findings trigger E2E testing, friction findings create digest visibility only.
