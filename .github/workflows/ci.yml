@@ -612,6 +612,8 @@ jobs:
           cp SCORE_TRENDS.md /tmp/score-trends-updated.md 2>/dev/null || true
 
           # Checkout the actual PR branch (not the merge ref)
+          # Discard simulation artifacts first (test-repo changes from E2E run)
+          git checkout -- .
           git fetch origin "$PR_BRANCH"
           git checkout "$PR_BRANCH"
           git pull --rebase origin "$PR_BRANCH"
