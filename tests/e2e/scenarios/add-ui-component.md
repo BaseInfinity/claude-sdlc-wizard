@@ -3,6 +3,8 @@
 ## Complexity
 Medium - new UI component, requires design system adherence
 
+## Fixture: test-repo
+
 ## Task
 Create a new `Card` component in `src/components/Card.tsx` for displaying content cards.
 

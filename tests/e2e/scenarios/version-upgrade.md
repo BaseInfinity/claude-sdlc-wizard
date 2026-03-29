@@ -3,6 +3,8 @@
 ## Complexity
 Medium - Testing SDLC enforcement with new Claude Code version
 
+## Fixture: test-repo
+
 ## Task
 Implement a simple feature following SDLC principles: Add a `formatDate` function to `src/app.js` that formats dates to ISO 8601 format.
 

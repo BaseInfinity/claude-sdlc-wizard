@@ -25,13 +25,15 @@
 
 | # | Item | Description |
 |---|------|-------------|
-| 15 | E2E Scenario Coverage Audit | Review scenario gaps: user archetypes, task types, repo types |
-| 16 | Scoring System Review | One-time deep audit, then every 2-3 months. Criteria relevance, weighting, LLM judge drift |
-| 17 | Setup Drift Prevention | CI detects when installed setup drifts from wizard template |
-| 18 | Tool/Plugin Discovery Automation | Weekly-update fetches marketplace.json, diffs against cache, LLM-recommends relevant new CC features |
+| 15 | E2E Scenario Coverage Audit | DONE — added `## Fixture: test-repo` to all 16 scenarios, `get_fixture_for_scenario()` in scenario-selector.sh, 3 new scenarios targeting real fixture gaps (searchTasks, batchComplete, persistence). 5 new tests. Documented 7 existing scenario-fixture mismatches |
+| 16 | Scoring System Review | DONE — enforce_tdd_consistency guard, tightened self_review + clean_code prompts, EVAL_PROMPT_VERSION v4→v5. 3 new tests (41 total in eval-validation) |
+| 17 | Setup Drift Prevention | DONE — `sdlc-wizard check [--json]` subcommand. SHA-256 content hash, executable permission check, .gitignore line-aware matching, npm update detection. Exits non-zero on MISSING/DRIFT for CI gating. 6 tests |
+| 18 | Tool/Plugin Discovery Automation | DONE — existing weekly-update release analysis + prove-it pipeline covers it. No marketplace.json registry exists for CC |
 | 19 | Monthly GC Audit (recurring) | "Less is more" — try removing things, check if scores hold. Fix weak tests or delete fluff |
 | 20 | Setup-Path E2E Proof | DONE — `test-setup-path.sh` validates init across 7 fixture types (47 tests). Wired into CI |
 | 21 | Scan Routing Refactor | Replace count-only `findings_count` gating with typed routing (`origin`, `lane`) and full payload handoff between jobs. Enables friction-only weeks to trigger digest without false community E2E |
+| 22 | Setup Wizard Skill (CRITICAL) | Add `/setup-wizard` skill — tight step-by-step checklist that Claude follows mechanically. Fixes: wizard doc is 137KB reference, Claude skips Q&A steps. Update instructions-loaded-check.sh to explicitly invoke the skill. E2E test that verifies setup asks all questions and generates correct files |
+| 23 | Complex Repo Install Test | Install wizard on an existing repo with real complexity (not greenfield). Validate hooks fire, setup completes, no conflicts with existing .claude/ config. Every problem found becomes a TDD test. Complements item 20 (greenfield fixture tests) |
 
 ## Review Pipeline
 

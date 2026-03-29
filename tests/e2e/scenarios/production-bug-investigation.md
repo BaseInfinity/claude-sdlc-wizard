@@ -3,6 +3,8 @@
 ## Complexity
 Hard - requires investigation, root cause analysis, defensive fix + regression test
 
+## Fixture: test-repo
+
 ## Task
 Users are reporting intermittent 500 errors in production. The error log shows:
 

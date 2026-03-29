@@ -293,6 +293,104 @@ test_no_allowed_tools() {
     rm -rf "$d"
 }
 
+# Test 17: check on fresh init shows all MATCH
+test_check_all_match() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local output
+    output=$(cd "$d" && node "$CLI" check 2>&1)
+    local exit_code=$?
+    if [ "$exit_code" -eq 0 ] && echo "$output" | grep -q "MATCH"; then
+        pass "check on fresh init shows MATCH and exits 0"
+    else
+        fail "check on fresh init should show MATCH and exit 0 (exit=$exit_code)"
+    fi
+    rm -rf "$d"
+}
+
+# Test 18: check on modified file shows CUSTOMIZED
+test_check_customized() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    echo "modified" >> "$d/.claude/settings.json"
+    local output
+    output=$(cd "$d" && node "$CLI" check 2>&1)
+    if echo "$output" | grep -q "CUSTOMIZED"; then
+        pass "check on modified file shows CUSTOMIZED"
+    else
+        fail "check should show CUSTOMIZED for modified settings.json"
+    fi
+    rm -rf "$d"
+}
+
+# Test 19: check on empty dir shows all MISSING
+test_check_all_missing() {
+    local d
+    d=$(make_temp)
+    local output exit_code
+    output=$(cd "$d" && node "$CLI" check 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    if [ "$exit_code" -ne 0 ] && echo "$output" | grep -q "MISSING"; then
+        pass "check on empty dir shows MISSING and exits non-zero"
+    else
+        fail "check on empty dir should show MISSING and exit non-zero (exit=$exit_code)"
+    fi
+    rm -rf "$d"
+}
+
+# Test 20: check --json outputs valid JSON
+test_check_json() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local output
+    output=$(cd "$d" && node "$CLI" check --json 2>&1)
+    if echo "$output" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+        pass "check --json outputs valid JSON"
+    else
+        fail "check --json should output valid JSON"
+    fi
+    rm -rf "$d"
+}
+
+# Test 21: check detects non-executable hook (DRIFT)
+test_check_drift_permissions() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    chmod -x "$d/.claude/hooks/sdlc-prompt-check.sh"
+    local output exit_code
+    output=$(cd "$d" && node "$CLI" check 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    if [ "$exit_code" -ne 0 ] && echo "$output" | grep -q "DRIFT"; then
+        pass "check detects non-executable hook as DRIFT"
+    else
+        fail "check should detect non-executable hook (exit=$exit_code)"
+    fi
+    rm -rf "$d"
+}
+
+# Test 22: check detects missing .gitignore entries (DRIFT)
+test_check_drift_gitignore() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    # Replace .gitignore with commented-out entries (should NOT match)
+    echo "# .claude/plans/" > "$d/.gitignore"
+    echo "# .claude/settings.local.json" >> "$d/.gitignore"
+    local output exit_code
+    output=$(cd "$d" && node "$CLI" check 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    if [ "$exit_code" -ne 0 ] && echo "$output" | grep -q "DRIFT"; then
+        pass "check detects commented .gitignore entries as DRIFT"
+    else
+        fail "check should detect missing .gitignore entries (exit=$exit_code)"
+    fi
+    rm -rf "$d"
+}
+
 # Run all tests
 test_help
 test_version
@@ -310,6 +408,12 @@ test_hook_content
 test_skill_frontmatter
 test_tdd_hook_generic
 test_no_allowed_tools
+test_check_all_match
+test_check_customized
+test_check_all_missing
+test_check_json
+test_check_drift_permissions
+test_check_drift_gitignore
 
 echo ""
 echo "=== Results ==="

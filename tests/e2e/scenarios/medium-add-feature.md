@@ -3,6 +3,8 @@
 ## Complexity
 Medium - new functionality, requires TDD
 
+## Fixture: test-repo
+
 ## Task
 Add a `validateEmail` function to `src/app.js` that validates email addresses.
 

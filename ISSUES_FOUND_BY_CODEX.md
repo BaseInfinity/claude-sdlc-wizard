@@ -62,7 +62,9 @@ No new substantive findings.
 - Pass 7 verified the pass-6 fixes landed correctly on `main`.
 - The remaining pass-6 issues are now closed or accepted tradeoffs.
 - Item `13` can be marked `DONE`.
-- Further checking on this lane would mostly duplicate existing proof; future audit work should move to roadmap items `13.5`, `13.6`, and `20`.
+- Further checking on this lane would mostly duplicate existing proof.
+- Follow-on roadmap work `13.5` and `13.6` is already complete.
+- Future proof-oriented audit work should move to roadmap item `20` or to any new repo-wide trust gap introduced after this closure.
 
 ## Current deep main audit (pass 6, 2026-03-28)
 

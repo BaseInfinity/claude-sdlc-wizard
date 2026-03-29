@@ -16,6 +16,20 @@ list_scenarios() {
     ls "$scenarios_dir"/*.md 2>/dev/null | sort
 }
 
+# Extract fixture name from scenario's ## Fixture header
+# Args: $1 = path to scenario .md file
+# Returns: fixture name (defaults to "test-repo" if no header found)
+get_fixture_for_scenario() {
+    local scenario_file="$1"
+    local fixture
+    fixture=$(grep -m1 '^## Fixture' "$scenario_file" 2>/dev/null | sed 's/^## Fixture[: ]*//' | tr -d '[:space:]')
+    if [ -z "$fixture" ]; then
+        echo "test-repo"
+    else
+        echo "$fixture"
+    fi
+}
+
 # Select a scenario based on PR number (deterministic round-robin)
 # Args:
 #   $1 = scenarios directory

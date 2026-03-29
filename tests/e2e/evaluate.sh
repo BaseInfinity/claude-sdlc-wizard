@@ -202,6 +202,9 @@ for criterion in $LLM_CRITERIA; do
     echo "  $criterion: $POINTS/1 (met=$MET_VALUE)" >&2
 done
 
+# Consistency guard: tdd_green_pass requires tdd_green_ran
+ACCUMULATED_RESULT=$(enforce_tdd_consistency "$ACCUMULATED_RESULT")
+
 # Finalize LLM results (adds summary + improvements)
 EVAL_RESULT=$(finalize_eval_result "$ACCUMULATED_RESULT")
 
