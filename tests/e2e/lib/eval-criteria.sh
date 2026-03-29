@@ -164,18 +164,22 @@ Q
             ;;
         self_review)
             cat << 'Q'
-Did the agent explicitly review their changes before finishing?
+Did the agent explicitly review their own changes before finishing?
 
-Look for: "let me review", reading back their own changes, checking diffs,
-re-reading modified files, or any explicit self-review step. YES/NO.
+Look for: reading back specific files or diffs they modified, running a review
+command, or examining their output for correctness. Simply stating "let me review"
+or "I'll review my changes" without actually reading back files does NOT count.
+Must show evidence of actually inspecting the work product. YES/NO.
 Q
             ;;
         clean_code)
             cat << 'Q'
-Is the approach coherent without dead code, contradictions, or disorganization?
+Does the output show exactly one coherent approach from start to finish?
 
-Look for: a logical flow from start to finish, no abandoned approaches left in,
-no contradictory changes, no commented-out dead code. YES/NO.
+Look for: no abandoned partial implementations left in, no contradictory changes
+that undo earlier work, no commented-out or dead code, and no disorganized
+jumping between unrelated changes. A single clear path from plan to completion
+counts as YES. YES/NO.
 Q
             ;;
         design_system)

@@ -134,6 +134,82 @@ test_push_fallback() {
     fi
 }
 
+# -----------------------------------------------
+# Fixture extraction tests
+# -----------------------------------------------
+
+echo ""
+echo "--- Fixture extraction ---"
+
+# Test 9: get_fixture_for_scenario extracts fixture name from header
+test_fixture_extraction() {
+    local fixture
+    fixture=$(get_fixture_for_scenario "$SCENARIOS_DIR/add-feature.md")
+    if [ "$fixture" = "test-repo" ]; then
+        pass "get_fixture_for_scenario extracts 'test-repo' from add-feature.md"
+    else
+        fail "Expected fixture 'test-repo', got '$fixture'"
+    fi
+}
+
+# Test 10: get_fixture_for_scenario defaults to 'test-repo' when no header
+test_fixture_default() {
+    local tmpfile
+    tmpfile=$(mktemp "${TMPDIR:-/tmp}/scenario-XXXXXX.md")
+    echo "# Scenario: No Fixture Header" > "$tmpfile"
+    echo "## Task" >> "$tmpfile"
+    echo "Do something" >> "$tmpfile"
+    local fixture
+    fixture=$(get_fixture_for_scenario "$tmpfile")
+    if [ "$fixture" = "test-repo" ]; then
+        pass "get_fixture_for_scenario defaults to 'test-repo' when no Fixture header"
+    else
+        fail "Expected default 'test-repo', got '$fixture'"
+    fi
+    rm -f "$tmpfile"
+}
+
+# Test 11: All scenarios have ## Fixture header
+test_all_scenarios_have_fixture() {
+    local missing=0
+    local missing_files=""
+    while IFS= read -r scenario; do
+        if ! grep -q '^## Fixture' "$scenario"; then
+            missing=$((missing + 1))
+            missing_files="$missing_files $(basename "$scenario")"
+        fi
+    done < <(list_scenarios "$SCENARIOS_DIR")
+    if [ "$missing" -eq 0 ]; then
+        pass "All scenarios have ## Fixture header"
+    else
+        fail "$missing scenarios missing ## Fixture header:$missing_files"
+    fi
+}
+
+# Test 12: Scenario count is at least 16 (13 existing + 3 new)
+test_scenario_count() {
+    local count
+    count=$(list_scenarios "$SCENARIOS_DIR" | wc -l | tr -d ' ')
+    if [ "$count" -ge 16 ]; then
+        pass "At least 16 scenarios present ($count found)"
+    else
+        fail "Expected at least 16 scenarios, got $count"
+    fi
+}
+
+# Test 13: New scenarios target test-repo fixture gaps
+test_new_scenarios_exist() {
+    local ok=true
+    [ -f "$SCENARIOS_DIR/expand-test-coverage.md" ] || ok=false
+    [ -f "$SCENARIOS_DIR/add-batch-operations.md" ] || ok=false
+    [ -f "$SCENARIOS_DIR/add-task-persistence.md" ] || ok=false
+    if [ "$ok" = true ]; then
+        pass "3 new gap-filling scenarios exist"
+    else
+        fail "Missing new scenarios: expand-test-coverage, add-batch-operations, add-task-persistence"
+    fi
+}
+
 # Run all tests
 test_returns_valid_file
 test_deterministic
@@ -143,6 +219,11 @@ test_pr_zero
 test_large_pr
 test_list_scenarios
 test_push_fallback
+test_fixture_extraction
+test_fixture_default
+test_all_scenarios_have_fixture
+test_scenario_count
+test_new_scenarios_exist
 
 echo ""
 echo "=========================================="

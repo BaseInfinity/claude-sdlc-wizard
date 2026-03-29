@@ -3,6 +3,8 @@
 ## Complexity
 Hard - requires careful planning, preserving behavior, comprehensive testing
 
+## Fixture: test-repo
+
 ## Task
 The `legacy-messy` codebase has significant code smells. Refactor the user registration
 flow to address these issues:

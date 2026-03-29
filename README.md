@@ -95,7 +95,15 @@ npx github:BaseInfinity/agentic-ai-sdlc-wizard init
 
 **Manual:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and follow setup instructions inside.
 
-**Check for updates:** Ask Claude "Check if the SDLC wizard has updates" — it reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each).
+**Check installation health:**
+```bash
+npx agentic-sdlc-wizard check        # Human-readable
+npx agentic-sdlc-wizard check --json  # Machine-readable (CI-friendly)
+```
+
+Reports MATCH / CUSTOMIZED / MISSING / DRIFT for every installed file, checks .gitignore entries, and flags available npm updates. Exits non-zero on MISSING or DRIFT — use in CI to catch setup regressions.
+
+**Check for content updates:** Ask Claude "Check if the SDLC wizard has updates" — it reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each).
 
 ## Self-Evolving System
 

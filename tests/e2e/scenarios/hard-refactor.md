@@ -3,6 +3,8 @@
 ## Complexity
 Hard - multi-file changes, architectural decision
 
+## Fixture: test-repo
+
 ## Task
 Refactor `src/app.js` from individual functions to a Calculator class:
 

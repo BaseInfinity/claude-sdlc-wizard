@@ -11,7 +11,7 @@
 #   source "$(dirname "$0")/lib/eval-validation.sh"
 
 # Prompt version — increment when the eval prompt changes materially
-EVAL_PROMPT_VERSION="v4"
+EVAL_PROMPT_VERSION="v5"
 
 # Validate that eval result JSON has required structure
 #
@@ -151,5 +151,27 @@ clamp_criteria_bounds() {
                 end
             )
         ) | from_entries)
+    '
+}
+
+# Enforce: tdd_green_pass requires tdd_green_ran
+# If tdd_green_ran=NO (0 points), force tdd_green_pass=NO regardless of LLM output
+#
+# Args:
+#   $1 - JSON string with .criteria object (object-keyed, not array)
+#
+# Returns:
+#   JSON string with consistency enforced
+enforce_tdd_consistency() {
+    local json="$1"
+    echo "$json" | jq '
+        if (.criteria.tdd_green_ran.points == 0)
+        then .criteria.tdd_green_pass = {
+            met: false,
+            points: 0,
+            max: .criteria.tdd_green_pass.max,
+            evidence: "Forced to NO: tdd_green_ran was NO"
+        }
+        else . end
     '
 }

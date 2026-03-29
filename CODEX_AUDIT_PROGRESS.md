@@ -25,7 +25,8 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 - Repo is currently assessed at `B+`.
 - This is not the final quality bar for the repo.
 - Item `13` can now be marked `DONE`.
-- Further passes on this audit lane would mostly duplicate existing proof; follow-on work belongs to roadmap items `13.5`, `13.6`, and `20`.
+- Further passes on this audit lane would mostly duplicate existing proof.
+- Follow-on roadmap work has already closed `13.5` and `13.6`; the remaining proof-oriented follow-on is item `20`.
 
 ## What Has Already Been Audited
 
@@ -44,9 +45,9 @@ Purpose: keep the repo-wide audit state explicit so future passes resume from th
 ## Current Open Themes
 
 - No substantive open findings remain on the deep repo audit lane for item `13`.
-- Follow-on roadmap work remains outside this closure decision: live-fire CI job audit (`13.5`).
-- Follow-on roadmap work remains outside this closure decision: dogfood cross-model review in the local SDLC (`13.6`).
-- Follow-on roadmap work remains outside this closure decision: cross-stack setup-path E2E proof (`20`).
+- Follow-on roadmap work `13.5` is complete: live-fire CI job audit closed in `ROADMAP.md`.
+- Follow-on roadmap work `13.6` is complete: cross-model review is now a first-class SDLC step.
+- The remaining adjacent proof-oriented work is cross-stack setup-path E2E proof (`20`).
 
 ## Next Audit Phase
 
@@ -54,15 +55,16 @@ Name: `Closed for Item 13`
 
 Goal:
 - Do not re-run the deep repo audit lane unless a new substantive trust gap appears.
-- Shift future audit effort to narrower follow-on items with fresh proof obligations: `13.5`, `13.6`, and `20`.
+- Treat item `13` as closed.
+- Treat items `13.5` and `13.6` as completed follow-ons, not open audit work.
+- If a future audit-oriented pass is needed, target item `20` or a newly introduced trust gap.
 
 ## Required Method For Next Pass
 
 1. Only reopen this lane if a new repo-visible claim appears to outrun its proof.
 2. For future audit effort, target one specific roadmap item at a time instead of re-auditing the whole repo.
-3. For `13.5`, exercise the live CI paths that still lack recent green proof.
-4. For `13.6`, dogfood Codex in the local pre-PR review loop.
-5. For `20`, add CI-backed setup-path E2E against greenfield fixtures.
+3. Do not reopen this lane just to repeat already-closed follow-ons `13.5` or `13.6`.
+4. For `20`, add CI-backed setup-path E2E against greenfield fixtures.
 
 ## Progress Estimate
 
@@ -77,10 +79,10 @@ Goal:
   - competitor/watchlist cadence truth
   - broad docs drift
 - Remaining uncertainty sits outside this closed lane:
-  - live-fire CI proof for some workflows
   - greenfield setup-path E2E
-  - review-pipeline dogfooding
-- That remaining work is roadmap follow-on, not unfinished closure on item `13`.
+  - future repo-wide claims introduced after this closure
+- Live-fire CI proof (`13.5`) and review-pipeline dogfooding (`13.6`) are already closed.
+- Remaining work is roadmap follow-on, not unfinished closure on item `13`.
 
 ## Stop Condition
 

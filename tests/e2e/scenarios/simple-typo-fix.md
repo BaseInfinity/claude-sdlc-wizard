@@ -3,6 +3,8 @@
 ## Complexity
 Simple - single file, obvious fix
 
+## Fixture: test-repo
+
 ## Task
 Fix the typo in `src/app.js`: the function `calulcate` should be `calculate`.
 

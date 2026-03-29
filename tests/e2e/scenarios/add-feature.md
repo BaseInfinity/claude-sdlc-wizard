@@ -3,6 +3,8 @@
 ## Complexity
 Medium - new functionality, requires TDD and planning
 
+## Fixture: test-repo
+
 ## Task
 Add a user authentication feature to the application:
 
