@@ -56,8 +56,10 @@ check_tdd_red() {
         return
     fi
     operations=$(jq -r '
+        # Normalize: object with .messages → extract array; bare array → use as-is
+        (if type == "array" then . elif .messages then .messages else [.] end) |
         [.[] | select(type == "object" and .role == "assistant") |
-         (.content // [])[] |
+         (if (.content | type) == "array" then .content[] else empty end) |
          select(type == "object" and .type == "tool_use" and (.name == "Write" or .name == "Edit")) |
          .input.file_path // empty
         ] | .[]
