@@ -1,0 +1,15 @@
+{
+  "allowedTools": ["Read", "Glob", "Grep", "Bash(npm test)"],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/custom-lint.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

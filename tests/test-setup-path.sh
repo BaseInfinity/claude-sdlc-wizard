@@ -42,7 +42,7 @@ echo ""
 # Per-fixture tests: init into each project type
 # ─────────────────────────────────────────────────────
 
-FIXTURE_NAMES="fresh-nextjs fresh-python go-api legacy-messy mern-stack nextjs-typescript python-fastapi"
+FIXTURE_NAMES="fresh-nextjs fresh-python go-api legacy-messy mern-stack nextjs-typescript python-fastapi complex-existing-config"
 
 for fixture in $FIXTURE_NAMES; do
     # Test: init exits 0
@@ -222,6 +222,81 @@ if [ -d "$FIXTURES_DIR/python-fastapi/tests" ]; then
 else
     pass "[python-fastapi] no tests/ dir to verify (skip)"
 fi
+rm -rf "$d"
+
+# ─────────────────────────────────────────────────────
+# Complex existing config tests (existing .claude/ dir)
+# ─────────────────────────────────────────────────────
+
+d=$(make_fixture "complex-existing-config")
+(cd "$d" && node "$CLI" init > /dev/null 2>&1)
+
+# Test: custom hook preserved
+original=$(cat "$FIXTURES_DIR/complex-existing-config/.claude/hooks/custom-lint.sh")
+installed=$(cat "$d/.claude/hooks/custom-lint.sh")
+if [ "$original" = "$installed" ]; then
+    pass "[complex-existing-config] custom hook preserved after init"
+else
+    fail "[complex-existing-config] custom-lint.sh was modified by init"
+fi
+
+# Test: custom skill preserved
+original=$(cat "$FIXTURES_DIR/complex-existing-config/.claude/skills/deploy/SKILL.md")
+installed=$(cat "$d/.claude/skills/deploy/SKILL.md")
+if [ "$original" = "$installed" ]; then
+    pass "[complex-existing-config] custom skill preserved after init"
+else
+    fail "[complex-existing-config] deploy/SKILL.md was modified by init"
+fi
+
+# Test: custom command preserved
+original=$(cat "$FIXTURES_DIR/complex-existing-config/.claude/commands/review.md")
+installed=$(cat "$d/.claude/commands/review.md")
+if [ "$original" = "$installed" ]; then
+    pass "[complex-existing-config] custom command preserved after init"
+else
+    fail "[complex-existing-config] commands/review.md was modified by init"
+fi
+
+# Test: settings.local.json preserved
+original=$(cat "$FIXTURES_DIR/complex-existing-config/.claude/settings.local.json")
+installed=$(cat "$d/.claude/settings.local.json")
+if [ "$original" = "$installed" ]; then
+    pass "[complex-existing-config] settings.local.json preserved after init"
+else
+    fail "[complex-existing-config] settings.local.json was modified by init"
+fi
+
+# Test: CLAUDE.md preserved
+original=$(cat "$FIXTURES_DIR/complex-existing-config/CLAUDE.md")
+installed=$(cat "$d/CLAUDE.md")
+if [ "$original" = "$installed" ]; then
+    pass "[complex-existing-config] CLAUDE.md preserved after init"
+else
+    fail "[complex-existing-config] CLAUDE.md was modified by init"
+fi
+
+# Test: settings.json has wizard hooks after merge
+if grep -q "sdlc-prompt-check" "$d/.claude/settings.json"; then
+    pass "[complex-existing-config] settings.json has wizard hooks after init"
+else
+    fail "[complex-existing-config] settings.json should have wizard hooks after merge"
+fi
+
+# Test: settings.json preserves allowedTools
+if grep -q "allowedTools" "$d/.claude/settings.json"; then
+    pass "[complex-existing-config] settings.json preserves allowedTools"
+else
+    fail "[complex-existing-config] settings.json should preserve allowedTools after merge"
+fi
+
+# Test: settings.json preserves custom hooks
+if grep -q "custom-lint" "$d/.claude/settings.json"; then
+    pass "[complex-existing-config] settings.json preserves custom hooks"
+else
+    fail "[complex-existing-config] settings.json should preserve custom hooks after merge"
+fi
+
 rm -rf "$d"
 
 echo ""
