@@ -1583,7 +1583,7 @@ test_ci_autofix_no_show_full_output() {
     fi
 }
 
-# Test 70: weekly-update community-e2e-test triggers on findings (not just actions)
+# Test 70: weekly-update community-e2e-test gates on external findings only
 test_weekly_e2e_triggers_on_findings() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
@@ -1592,8 +1592,41 @@ test_weekly_e2e_triggers_on_findings() {
         return
     fi
 
-    # has_suggestions should be based on findings_count (not actions_count)
-    # because Claude may structure output without .recommended_actions key
+    # E2E job should gate on has_external_findings (not has_suggestions or bare findings_count)
+    # Only external community findings should trigger expensive E2E testing
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+e2e_job = jobs.get('community-e2e-test', {})
+gate = str(e2e_job.get('if', ''))
+if 'has_external_findings' in gate:
+    print('USES_EXTERNAL')
+elif 'has_suggestions' in gate:
+    print('USES_SUGGESTIONS')
+elif 'has_findings' in gate:
+    print('USES_ALL_FINDINGS')
+else:
+    print('UNKNOWN')
+" > /tmp/weekly_trigger_check.txt 2>&1
+
+    if grep -q "USES_EXTERNAL" /tmp/weekly_trigger_check.txt; then
+        pass "weekly-update community-e2e-test gates on has_external_findings (typed routing)"
+    else
+        fail "weekly-update community-e2e-test should gate on has_external_findings, not has_suggestions"
+    fi
+}
+
+# Test 70b: scan-community has typed outputs (has_findings, has_external_findings, scan_payload)
+test_scan_community_has_typed_outputs() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
     python3 -c "
 import yaml
 with open('$WORKFLOW') as f:
@@ -1601,20 +1634,101 @@ with open('$WORKFLOW') as f:
 jobs = wf.get('jobs', {})
 scan_job = jobs.get('scan-community', {})
 outputs = scan_job.get('outputs', {})
-has_suggestions = str(outputs.get('has_suggestions', ''))
-# Should reference findings_count, not actions_count
-if 'findings_count' in has_suggestions:
-    print('USES_FINDINGS')
-elif 'actions_count' in has_suggestions:
-    print('USES_ACTIONS')
+required = ['has_findings', 'has_external_findings', 'scan_payload']
+missing = [k for k in required if k not in outputs]
+if not missing:
+    print('ALL_PRESENT')
 else:
-    print('UNKNOWN')
-" > /tmp/weekly_trigger_check.txt 2>&1
+    print('MISSING: ' + ', '.join(missing))
+" > /tmp/typed_outputs_check.txt 2>&1
 
-    if grep -q "USES_FINDINGS" /tmp/weekly_trigger_check.txt; then
-        pass "weekly-update community-e2e-test triggers on findings_count (robust)"
+    if grep -q "ALL_PRESENT" /tmp/typed_outputs_check.txt; then
+        pass "scan-community has typed outputs (has_findings, has_external_findings, scan_payload)"
     else
-        fail "weekly-update community-e2e-test triggers on actions_count (fragile — depends on exact JSON key name)"
+        DETAIL=$(cat /tmp/typed_outputs_check.txt)
+        fail "scan-community missing typed outputs: $DETAIL"
+    fi
+}
+
+# Test 70c: scan-community no longer has has_suggestions output (replaced by typed routing)
+test_scan_community_no_count_only_gate() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+jobs = wf.get('jobs', {})
+scan_job = jobs.get('scan-community', {})
+outputs = scan_job.get('outputs', {})
+if 'has_suggestions' in outputs:
+    print('HAS_SUGGESTIONS_PRESENT')
+else:
+    print('REMOVED')
+" > /tmp/no_suggestions_check.txt 2>&1
+
+    if grep -q "REMOVED" /tmp/no_suggestions_check.txt; then
+        pass "scan-community no longer has has_suggestions output (typed routing replaces it)"
+    else
+        fail "scan-community still has has_suggestions output — should use has_findings + has_external_findings"
+    fi
+}
+
+# Test 70d: digest issue creation gates on total_findings (includes friction signals)
+test_digest_gates_on_total_findings() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    # The "Create digest issue" step should gate on total_findings, not findings_count
+    # This ensures friction-only weeks still create digest issues
+    if grep -A 1 "Create digest issue" "$WORKFLOW" | grep -q 'total_findings'; then
+        pass "digest issue creation gates on total_findings (friction signals visible)"
+    else
+        fail "digest issue creation should gate on total_findings to include friction signals"
+    fi
+}
+
+# Test 70e: community-e2e-test receives scan_payload (not just count)
+test_e2e_receives_scan_payload() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    # The "Apply community suggestions" step should reference scan_payload for full data
+    if grep -A 15 "Apply community suggestions" "$WORKFLOW" | grep -q 'scan_payload'; then
+        pass "community-e2e-test receives scan_payload (full data handoff)"
+    else
+        fail "community-e2e-test should receive scan_payload, not just a count"
+    fi
+}
+
+# Test 70f: parse step uses origin fallback for null-safety
+test_origin_fallback_in_parse() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    # The jq filter for external count should use // "external" fallback
+    # so findings without an origin field are treated as external (conservative)
+    if grep -q '// "external"' "$WORKFLOW"; then
+        pass "parse step uses origin fallback (missing origin defaults to external)"
+    else
+        fail "parse step should use // \"external\" null-coalescing for missing origin field"
     fi
 }
 
@@ -3423,6 +3537,11 @@ test_tier2_git_init_has_origin() {
 test_competitive_audit_says_weekly
 test_cicd_weekly_mentions_watchlist
 test_tier2_git_init_has_origin
+test_scan_community_has_typed_outputs
+test_scan_community_no_count_only_gate
+test_digest_gates_on_total_findings
+test_e2e_receives_scan_payload
+test_origin_fallback_in_parse
 
 echo ""
 echo "=== Results ==="
