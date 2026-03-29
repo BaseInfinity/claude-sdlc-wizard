@@ -1,0 +1,16 @@
+{
+  "name": "complex-existing-config",
+  "version": "2.1.0",
+  "description": "A realistic Node.js/TypeScript project already using Claude Code",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint src/"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "eslint": "^9.0.0"
+  }
+}
