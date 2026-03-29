@@ -35,7 +35,7 @@ Scan the project root for:
 
 Present findings to the user in a clear summary with detected values.
 
-### Step 2: Ask ALL 16 Questions
+### Step 2: Ask ALL 17 Questions
 
 Ask every question. Pre-fill detected values but let the user confirm or override.
 
@@ -50,27 +50,25 @@ Ask every question. Pre-fill detected values but let the user confirm or overrid
 6. Run all tests command
 7. Run single test file command
 8. Production build command
-
-**Deployment:**
-8.5. Deployment setup (detected environments, confirm or customize)
+9. Deployment setup (detected environments, confirm or customize)
 
 **Infrastructure:**
-9. Database(s) used
-10. Caching layer (Redis, etc.)
-11. Test duration (<1 min, 1-5 min, 5+ min)
+10. Database(s) used
+11. Caching layer (Redis, etc.)
+12. Test duration (<1 min, 1-5 min, 5+ min)
 
 **Output Preferences:**
-12. Response detail level (small/medium/large)
+13. Response detail level (small/medium/large)
 
 **Testing Philosophy:**
-13. Testing approach (strict TDD, test-after, mixed, minimal, none yet)
-14. Test types wanted (unit, integration, E2E, API)
-15. Mocking philosophy (minimal, heavy, no mocking)
+14. Testing approach (strict TDD, test-after, mixed, minimal, none yet)
+15. Test types wanted (unit, integration, E2E, API)
+16. Mocking philosophy (minimal, heavy, no mocking)
 
 **Coverage:**
-16. Code coverage preferences (enforce threshold, report only, AI suggestions, skip)
+17. Code coverage preferences (enforce threshold, report only, AI suggestions, skip)
 
-DO NOT proceed to file generation until ALL 16 questions have answers.
+DO NOT proceed to file generation until ALL 17 questions have answers.
 
 ### Step 3: Generate CLAUDE.md
 
