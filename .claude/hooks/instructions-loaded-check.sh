@@ -17,7 +17,7 @@ fi
 
 if [ -n "$MISSING" ]; then
     echo "WARNING: Missing SDLC wizard files: ${MISSING}"
-    echo "Run the wizard setup to generate them."
+    echo "Invoke Skill tool, skill=\"setup-wizard\" to generate them."
 fi
 
 exit 0
