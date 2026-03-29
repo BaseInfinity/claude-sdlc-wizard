@@ -61,7 +61,9 @@ function mergeSettings(existingPath, templatePath, force) {
       }
     }
 
-    return JSON.stringify(existing, null, 2) + '\n';
+    const merged = JSON.stringify(existing, null, 2) + '\n';
+    const original = fs.readFileSync(existingPath, 'utf8');
+    return merged === original ? null : merged;
   } catch (_) {
     return null;
   }

@@ -483,7 +483,23 @@ test_merge_invalid_json_fallback() {
     rm -rf "$d"
 }
 
-# Test 27: merge is idempotent — running init twice doesn't duplicate hooks
+# Test 27: --force with invalid JSON falls through to OVERWRITE
+test_merge_force_invalid_json() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    echo "not valid json {{{" > "$d/.claude/settings.json"
+    local output
+    output=$(cd "$d" && node "$CLI" init --force 2>&1)
+    if echo "$output" | grep -q "OVERWRITE.*settings.json"; then
+        pass "--force with invalid JSON falls through to OVERWRITE"
+    else
+        fail "--force with invalid JSON should show OVERWRITE for settings.json"
+    fi
+    rm -rf "$d"
+}
+
+# Test 28: merge is idempotent — running init twice doesn't duplicate hooks
 test_merge_idempotent() {
     local d
     d=$(make_temp)
@@ -507,7 +523,7 @@ FIXTURE
     rm -rf "$d"
 }
 
-# Test 28: --force updates wizard hooks but preserves custom keys
+# Test 29: --force updates wizard hooks but preserves custom keys
 test_merge_force_updates_hooks() {
     local d
     d=$(make_temp)
@@ -579,6 +595,7 @@ test_setup_wizard_frontmatter
 test_merge_settings_output
 test_merge_preserves_keys
 test_merge_invalid_json_fallback
+test_merge_force_invalid_json
 test_merge_idempotent
 test_merge_force_updates_hooks
 
