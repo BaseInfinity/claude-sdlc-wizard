@@ -167,12 +167,12 @@ check_critical_criteria() {
     echo "$json" | jq '
         {
             critical_miss: (
-                (.criteria.self_review.points == 0) or
-                (.criteria.tdd_red.points == 0)
+                ((.criteria.self_review.points // 0) == 0) or
+                ((.criteria.tdd_red.points // 0) == 0)
             ),
             critical_failures: [
-                (if .criteria.tdd_red.points == 0 then "tdd_red" else empty end),
-                (if .criteria.self_review.points == 0 then "self_review" else empty end)
+                (if (.criteria.tdd_red.points // 0) == 0 then "tdd_red" else empty end),
+                (if (.criteria.self_review.points // 0) == 0 then "self_review" else empty end)
             ]
         }
     '
