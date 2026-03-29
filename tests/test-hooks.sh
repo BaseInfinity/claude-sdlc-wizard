@@ -343,6 +343,20 @@ test_sdlc_update_frequency() {
     fi
 }
 
+# Test 25: instructions-loaded-check.sh mentions setup-wizard when files missing
+test_instructions_hook_mentions_setup_wizard() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "setup-wizard"; then
+        pass "instructions-loaded-check.sh mentions setup-wizard when files missing"
+    else
+        fail "Should mention setup-wizard skill invocation, got: $output"
+    fi
+}
+
 # Run all tests
 test_sdlc_hook_exists
 test_sdlc_hook_keywords
@@ -368,6 +382,7 @@ test_sdlc_setup_date
 test_sdlc_completed_steps
 test_sdlc_hook_self_review_reference
 test_sdlc_update_frequency
+test_instructions_hook_mentions_setup_wizard
 
 echo ""
 echo "=== Results ==="
