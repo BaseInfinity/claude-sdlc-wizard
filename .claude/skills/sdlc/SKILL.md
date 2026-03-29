@@ -25,10 +25,9 @@ TodoWrite([
   { content: "Scrutinize test design - right things tested? Follow TESTING.md?", status: "pending", activeForm: "Reviewing test approach" },
   { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
   { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
-  // TRANSITION PHASE (After plan mode, before compact)
+  // TRANSITION PHASE (After plan mode)
   { content: "Update feature docs with discovered gotchas", status: "pending", activeForm: "Updating feature docs" },
-  { content: "Request /compact before TDD", status: "pending", activeForm: "Requesting compact" },
-  // IMPLEMENTATION PHASE (After compact)
+  // IMPLEMENTATION PHASE
   { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
   { content: "TDD GREEN: Implement, verify test passes", status: "pending", activeForm: "Implementing feature" },
   { content: "Run lint/typecheck", status: "pending", activeForm: "Running lint and typecheck" },
@@ -88,10 +87,8 @@ Critical miss on `tdd_red` or `self_review` = process failure regardless of tota
 
 **Workflow:**
 1. **Plan Mode** (editing blocked): Research -> Write plan file -> Present approach + confidence
-2. **Transition** (after approval): Update feature docs -> Request /compact
-3. **Implementation** (after compact): TDD RED -> GREEN -> PASS
-
-**Before TDD, MUST ask:** "Docs updated. Run `/compact` before implementation?"
+2. **Transition** (after approval): Update feature docs
+3. **Implementation**: TDD RED -> GREEN -> PASS
 
 ## Confidence Check (REQUIRED)
 
