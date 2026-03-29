@@ -8,6 +8,7 @@ const RESET = '\x1b[0m';
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
+const MAGENTA = '\x1b[35m';
 const CYAN = '\x1b[36m';
 
 const TEMPLATES_DIR = path.join(__dirname, 'templates');
@@ -23,16 +24,77 @@ const FILES = [
   { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md' },
 ];
 
+const WIZARD_HOOK_MARKERS = FILES
+  .filter((f) => f.executable && f.dest.startsWith('.claude/hooks/'))
+  .map((f) => path.basename(f.src));
+
 const GITIGNORE_ENTRIES = ['.claude/plans/', '.claude/settings.local.json'];
+
+function isWizardHookEntry(hookEntry) {
+  if (!hookEntry || !hookEntry.hooks) return false;
+  return hookEntry.hooks.some((h) =>
+    WIZARD_HOOK_MARKERS.some((marker) => h.command && h.command.includes(marker))
+  );
+}
+
+function mergeSettings(existingPath, templatePath, force) {
+  try {
+    const existing = JSON.parse(fs.readFileSync(existingPath, 'utf8'));
+    const template = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
+
+    if (!existing.hooks) existing.hooks = {};
+
+    for (const [event, templateEntries] of Object.entries(template.hooks || {})) {
+      if (!existing.hooks[event]) {
+        existing.hooks[event] = templateEntries;
+        continue;
+      }
+
+      // Each template event has exactly one hook entry
+      const templateEntry = templateEntries[0];
+      const existingIdx = existing.hooks[event].findIndex(isWizardHookEntry);
+
+      if (existingIdx === -1) {
+        existing.hooks[event].push(templateEntry);
+      } else if (force) {
+        existing.hooks[event][existingIdx] = templateEntry;
+      }
+    }
+
+    const merged = JSON.stringify(existing, null, 2) + '\n';
+    const original = fs.readFileSync(existingPath, 'utf8');
+    return merged === original ? null : merged;
+  } catch (_) {
+    return null;
+  }
+}
 
 function planOperations(targetDir, { force }) {
   const ops = [];
 
   for (const file of FILES) {
     const destPath = path.join(targetDir, file.dest);
+    const srcPath = path.join(TEMPLATES_DIR, file.src);
     const exists = fs.existsSync(destPath);
+
+    if (exists && file.dest === '.claude/settings.json') {
+      const merged = mergeSettings(destPath, srcPath, force);
+      if (merged) {
+        ops.push({
+          src: srcPath,
+          dest: destPath,
+          relativeDest: file.dest,
+          action: 'MERGE',
+          mergedContent: merged,
+          executable: false,
+        });
+        continue;
+      }
+      // Invalid JSON — fall through to normal SKIP/OVERWRITE
+    }
+
     ops.push({
-      src: path.join(TEMPLATES_DIR, file.src),
+      src: srcPath,
       dest: destPath,
       relativeDest: file.dest,
       action: exists ? (force ? 'OVERWRITE' : 'SKIP') : 'CREATE',
@@ -62,7 +124,11 @@ function executeOperations(ops) {
   for (const op of ops) {
     if (op.action === 'SKIP') continue;
     ensureDir(op.dest);
-    fs.copyFileSync(op.src, op.dest);
+    if (op.action === 'MERGE') {
+      fs.writeFileSync(op.dest, op.mergedContent);
+    } else {
+      fs.copyFileSync(op.src, op.dest);
+    }
     if (op.executable) {
       fs.chmodSync(op.dest, 0o755);
     }
@@ -90,7 +156,10 @@ function updateGitignore(targetDir, { dryRun }) {
 
 function printOps(ops) {
   for (const op of ops) {
-    const color = op.action === 'CREATE' ? GREEN : op.action === 'SKIP' ? YELLOW : CYAN;
+    const color = op.action === 'CREATE' ? GREEN
+      : op.action === 'SKIP' ? YELLOW
+      : op.action === 'MERGE' ? MAGENTA
+      : CYAN;
     console.log(`  ${color}${op.action}${RESET}  ${op.relativeDest}`);
   }
 }

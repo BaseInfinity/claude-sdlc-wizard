@@ -410,6 +410,164 @@ test_setup_wizard_frontmatter() {
     rm -rf "$d"
 }
 
+# Test 24: init merges settings.json when existing has valid JSON
+test_merge_settings_output() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "allowedTools": ["Read", "Glob"],
+  "hooks": {}
+}
+FIXTURE
+    local output
+    output=$(cd "$d" && node "$CLI" init 2>&1)
+    if echo "$output" | grep -q "MERGE"; then
+        pass "init shows MERGE for existing settings.json with valid JSON"
+    else
+        fail "init should show MERGE when settings.json exists with valid JSON"
+    fi
+    rm -rf "$d"
+}
+
+# Test 25: merge preserves custom keys and adds wizard hooks
+test_merge_preserves_keys() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "allowedTools": ["Read", "Glob"],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash my-custom-hook.sh" }
+        ]
+      }
+    ]
+  }
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local ok=true
+    # Custom keys preserved
+    grep -q "allowedTools" "$d/.claude/settings.json" || ok=false
+    grep -q "my-custom-hook" "$d/.claude/settings.json" || ok=false
+    # Wizard hooks added
+    grep -q "sdlc-prompt-check" "$d/.claude/settings.json" || ok=false
+    grep -q "tdd-pretool-check" "$d/.claude/settings.json" || ok=false
+    grep -q "instructions-loaded-check" "$d/.claude/settings.json" || ok=false
+    if [ "$ok" = true ]; then
+        pass "merge preserves custom keys and adds wizard hooks"
+    else
+        fail "merge should preserve allowedTools + custom hooks AND add wizard hooks"
+    fi
+    rm -rf "$d"
+}
+
+# Test 26: merge falls back to SKIP for invalid JSON
+test_merge_invalid_json_fallback() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    echo "not valid json {{{" > "$d/.claude/settings.json"
+    local output
+    output=$(cd "$d" && node "$CLI" init 2>&1)
+    if echo "$output" | grep -q "SKIP.*settings.json"; then
+        pass "merge falls back to SKIP for invalid JSON"
+    else
+        fail "merge should fall back to SKIP when settings.json has invalid JSON"
+    fi
+    rm -rf "$d"
+}
+
+# Test 27: --force with invalid JSON falls through to OVERWRITE
+test_merge_force_invalid_json() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    echo "not valid json {{{" > "$d/.claude/settings.json"
+    local output
+    output=$(cd "$d" && node "$CLI" init --force 2>&1)
+    if echo "$output" | grep -q "OVERWRITE.*settings.json"; then
+        pass "--force with invalid JSON falls through to OVERWRITE"
+    else
+        fail "--force with invalid JSON should show OVERWRITE for settings.json"
+    fi
+    rm -rf "$d"
+}
+
+# Test 28: merge is idempotent — running init twice doesn't duplicate hooks
+test_merge_idempotent() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "allowedTools": ["Read"],
+  "hooks": {}
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    # Count occurrences of sdlc-prompt-check — should be exactly 1
+    local count
+    count=$(grep -c "sdlc-prompt-check" "$d/.claude/settings.json")
+    if [ "$count" -eq 1 ]; then
+        pass "merge is idempotent — no duplicate wizard hooks"
+    else
+        fail "merge should not duplicate wizard hooks (found $count occurrences)"
+    fi
+    rm -rf "$d"
+}
+
+# Test 29: --force updates wizard hooks but preserves custom keys
+test_merge_force_updates_hooks() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "allowedTools": ["Read", "Glob"],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash my-custom-hook.sh" }
+        ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sdlc-prompt-check.sh" }
+        ]
+      }
+    ]
+  }
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init --force > /dev/null 2>&1)
+    local ok=true
+    # Custom keys preserved
+    grep -q "allowedTools" "$d/.claude/settings.json" || ok=false
+    grep -q "my-custom-hook" "$d/.claude/settings.json" || ok=false
+    # Wizard hooks present (updated)
+    grep -q "sdlc-prompt-check" "$d/.claude/settings.json" || ok=false
+    grep -q "tdd-pretool-check" "$d/.claude/settings.json" || ok=false
+    grep -q "instructions-loaded-check" "$d/.claude/settings.json" || ok=false
+    # Not duplicated
+    local sdlc_count
+    sdlc_count=$(grep -c "sdlc-prompt-check" "$d/.claude/settings.json")
+    [ "$sdlc_count" -eq 1 ] || ok=false
+    if [ "$ok" = true ]; then
+        pass "--force updates wizard hooks but preserves custom keys"
+    else
+        fail "--force should update wizard hooks AND preserve custom allowedTools + hooks"
+    fi
+    rm -rf "$d"
+}
+
 # Run all tests
 test_help
 test_version
@@ -434,6 +592,12 @@ test_check_json
 test_check_drift_permissions
 test_check_drift_gitignore
 test_setup_wizard_frontmatter
+test_merge_settings_output
+test_merge_preserves_keys
+test_merge_invalid_json_fallback
+test_merge_force_invalid_json
+test_merge_idempotent
+test_merge_force_updates_hooks
 
 echo ""
 echo "=== Results ==="
