@@ -67,7 +67,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 7 expected files
+# Test 4: init creates all 8 expected files
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -79,11 +79,12 @@ test_creates_all_files() {
     [ -f "$d/.claude/hooks/instructions-loaded-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/testing/SKILL.md" ] && count=$((count + 1))
+    [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 7 ]; then
-        pass "init creates all 7 expected files"
+    if [ "$count" -eq 8 ]; then
+        pass "init creates all 8 expected files"
     else
-        fail "init should create 7 files, found $count"
+        fail "init should create 8 files, found $count"
     fi
     rm -rf "$d"
 }
@@ -154,10 +155,11 @@ test_dir_structure() {
     [ -d "$d/.claude/hooks" ] || ok=false
     [ -d "$d/.claude/skills/sdlc" ] || ok=false
     [ -d "$d/.claude/skills/testing" ] || ok=false
+    [ -d "$d/.claude/skills/setup" ] || ok=false
     if [ "$ok" = true ]; then
         pass "init creates correct directory structure"
     else
-        fail "init should create .claude/hooks, .claude/skills/sdlc, .claude/skills/testing"
+        fail "init should create .claude/hooks, .claude/skills/sdlc, .claude/skills/testing, .claude/skills/setup"
     fi
     rm -rf "$d"
 }
@@ -237,10 +239,11 @@ test_hook_content() {
     grep -q "SDLC BASELINE" "$d/.claude/hooks/sdlc-prompt-check.sh" || ok=false
     grep -q "TDD CHECK" "$d/.claude/hooks/tdd-pretool-check.sh" || ok=false
     grep -q "SDLC wizard files" "$d/.claude/hooks/instructions-loaded-check.sh" || ok=false
+    grep -q "setup-wizard" "$d/.claude/hooks/instructions-loaded-check.sh" || ok=false
     if [ "$ok" = true ]; then
         pass "Template hooks contain expected content"
     else
-        fail "Template hooks should contain SDLC BASELINE, TDD CHECK, SDLC wizard files"
+        fail "Template hooks should contain SDLC BASELINE, TDD CHECK, SDLC wizard files, setup-wizard"
     fi
     rm -rf "$d"
 }
@@ -391,6 +394,22 @@ test_check_drift_gitignore() {
     rm -rf "$d"
 }
 
+# Test 23: Template setup-wizard skill has correct frontmatter
+test_setup_wizard_frontmatter() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local ok=true
+    grep -q "^name: setup-wizard$" "$d/.claude/skills/setup/SKILL.md" || ok=false
+    grep -q "^effort: high$" "$d/.claude/skills/setup/SKILL.md" || ok=false
+    if [ "$ok" = true ]; then
+        pass "Template setup-wizard skill has correct frontmatter (name + effort)"
+    else
+        fail "setup-wizard skill should have name: setup-wizard and effort: high in frontmatter"
+    fi
+    rm -rf "$d"
+}
+
 # Run all tests
 test_help
 test_version
@@ -414,6 +433,7 @@ test_check_all_missing
 test_check_json
 test_check_drift_permissions
 test_check_drift_gitignore
+test_setup_wizard_frontmatter
 
 echo ""
 echo "=== Results ==="

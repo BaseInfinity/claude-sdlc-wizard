@@ -20,6 +20,7 @@ const FILES = [
   { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true },
   { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md' },
   { src: 'skills/testing/SKILL.md', dest: '.claude/skills/testing/SKILL.md' },
+  { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md' },
 ];
 
 const GITIGNORE_ENTRIES = ['.claude/plans/', '.claude/settings.local.json'];
@@ -130,7 +131,7 @@ ${YELLOW}Important:${RESET} Hooks and settings load at session start.
 
 Next steps:
   1. Start Claude Code in this directory (or restart if already running)
-  2. Tell Claude: "Run the SDLC wizard setup"
+  2. Tell Claude: "/setup-wizard" (or it will auto-invoke when SDLC files are missing)
   3. Claude will scan your project and create CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
 
 The wizard doc is at: CLAUDE_CODE_SDLC_WIZARD.md

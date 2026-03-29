@@ -15,6 +15,7 @@ REMOVABLE_ALLOWLIST=(
     ".claude/hooks/instructions-loaded-check.sh"
     ".claude/skills/sdlc/SKILL.md"
     ".claude/skills/testing/SKILL.md"
+    ".claude/skills/setup/SKILL.md"
 )
 
 # Map hook files to their settings.json event key
