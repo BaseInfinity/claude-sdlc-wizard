@@ -3073,7 +3073,7 @@ test_readme_raw_url_matches_remote
 test_no_stale_daily_cadence
 test_wizard_autofix_template_distinction
 test_wizard_no_act_recommendation
-test_competitive_audit_current_counts
+test_competitive_audit_no_stale_counts
 test_auto_self_update_no_daily
 
 # --- Round 3: Codex main-branch audit findings (2026-03-27) ---
