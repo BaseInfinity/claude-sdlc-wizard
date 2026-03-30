@@ -2,6 +2,54 @@
 
 A **self-evolving SDLC enforcement system for AI coding agents**. Makes Claude plan before coding, test before shipping, and ask when uncertain. Measures itself getting better over time.
 
+## Install
+
+**Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)** (Anthropic's CLI for Claude).
+
+Run from your terminal or from inside Claude Code (`!` prefix):
+```bash
+npx agentic-sdlc-wizard init
+```
+Then tell Claude: `Run the SDLC wizard setup`
+
+Claude scans your project and generates bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md.
+
+<details>
+<summary>Alternative install methods</summary>
+
+**From GitHub (no npm needed):**
+```bash
+npx github:BaseInfinity/agentic-ai-sdlc-wizard init
+```
+
+**Manual:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and tell Claude `Run the SDLC wizard setup`.
+</details>
+
+<details>
+<summary>Health check & updates</summary>
+
+```bash
+npx agentic-sdlc-wizard check        # Human-readable
+npx agentic-sdlc-wizard check --json  # Machine-readable (CI-friendly)
+```
+
+Reports MATCH / CUSTOMIZED / MISSING / DRIFT for every installed file. Exits non-zero on MISSING or DRIFT — use in CI to catch setup regressions.
+
+**Check for content updates:** Tell Claude `Check if the SDLC wizard has updates` — it reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes.
+</details>
+
+## Why Use This
+
+You want Claude Code to follow engineering discipline automatically:
+- **Plan before coding** (not guess-and-check)
+- **Write tests first** (TDD enforced via hooks)
+- **State confidence** (LOW = ask user, don't guess)
+- **Track work visibly** (TaskCreate)
+- **Self-review before presenting**
+- **Prove it's better** (use native features unless you prove custom wins)
+
+The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs.
+
 ## What This Actually Is
 
 Five layers working together:
@@ -27,18 +75,6 @@ Layer 1: PHILOSOPHY
   The wizard document. KISS. TDD. Confidence levels.
   Copy it, run setup, get a bespoke SDLC.
 ```
-
-## Why Someone Uses This
-
-You want Claude Code to follow engineering discipline automatically:
-- **Plan before coding** (not guess-and-check)
-- **Write tests first** (TDD enforced via hooks)
-- **State confidence** (LOW = ask user, don't guess)
-- **Track work visibly** (TaskCreate)
-- **Self-review before presenting**
-- **Prove it's better** (use native features unless you prove custom wins)
-
-The wizard auto-detects your stack (package.json, test framework, deployment targets) and generates bespoke hooks + skills + docs. CI validates the generated assets; cross-stack setup-path E2E is on the [roadmap](ROADMAP.md).
 
 ## What Makes This Different
 
@@ -78,32 +114,6 @@ CI/CD PIPELINE
   - Statistical: 5x trials, 95% CI
   - Model-aware: SDP adjusts for external conditions
 ```
-
-## Using It
-
-**One command (recommended):**
-```bash
-npx agentic-sdlc-wizard init
-```
-
-Installs hooks, skills, settings, and the wizard doc. Then start Claude Code and tell it "Run the SDLC wizard setup" — it'll scan your project and generate bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md.
-
-**From GitHub (no npm needed):**
-```bash
-npx github:BaseInfinity/agentic-ai-sdlc-wizard init
-```
-
-**Manual:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and follow setup instructions inside.
-
-**Check installation health:**
-```bash
-npx agentic-sdlc-wizard check        # Human-readable
-npx agentic-sdlc-wizard check --json  # Machine-readable (CI-friendly)
-```
-
-Reports MATCH / CUSTOMIZED / MISSING / DRIFT for every installed file, checks .gitignore entries, and flags available npm updates. Exits non-zero on MISSING or DRIFT — use in CI to catch setup regressions.
-
-**Check for content updates:** Ask Claude "Check if the SDLC wizard has updates" — it reads [CHANGELOG.md](CHANGELOG.md), shows what's new, and offers to apply changes (opt-in each).
 
 ## Self-Evolving System
 
