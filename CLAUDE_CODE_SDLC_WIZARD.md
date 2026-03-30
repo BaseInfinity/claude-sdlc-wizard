@@ -236,6 +236,8 @@ Claude Code's **effort level** controls how much thinking the model does before 
 
 **Cost note:** `max` uses significantly more tokens than `high`. Use it when the problem justifies it, not as a default.
 
+> See also: the **Effort** column in the [Confidence Check table](#confidence-check-required) below for per-confidence-level guidance on when to escalate to `max`.
+
 ---
 
 ## Claude Code Feature Updates
