@@ -564,7 +564,7 @@ FIXTURE
     rm -rf "$d"
 }
 
-# Test 30: init removes obsolete .claude/skills/testing/ on upgrade
+# Test 30: init removes obsolete .claude/skills/testing/ on fresh install
 test_upgrade_removes_obsolete_testing() {
     local d
     d=$(make_temp)
@@ -573,9 +573,28 @@ test_upgrade_removes_obsolete_testing() {
     echo "old testing skill" > "$d/.claude/skills/testing/SKILL.md"
     (cd "$d" && node "$CLI" init > /dev/null 2>&1)
     if [ ! -d "$d/.claude/skills/testing" ]; then
-        pass "init removes obsolete .claude/skills/testing/ on upgrade"
+        pass "init removes obsolete .claude/skills/testing/ on fresh install"
     else
         fail "init should remove obsolete .claude/skills/testing/ directory"
+    fi
+    rm -rf "$d"
+}
+
+# Test 31: init removes obsolete testing skill even when all managed files exist (SKIP path)
+test_upgrade_removes_testing_on_skip_path() {
+    local d
+    d=$(make_temp)
+    # First install — creates all managed files
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    # Simulate stale testing skill left over from old version
+    mkdir -p "$d/.claude/skills/testing"
+    echo "old testing skill" > "$d/.claude/skills/testing/SKILL.md"
+    # Re-run init (no --force) — all managed files are SKIP, but obsolete must still be removed
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    if [ ! -d "$d/.claude/skills/testing" ]; then
+        pass "init removes obsolete testing skill even on all-SKIP path"
+    else
+        fail "init should remove .claude/skills/testing/ even when all managed files are SKIP"
     fi
     rm -rf "$d"
 }
@@ -611,6 +630,7 @@ test_merge_force_invalid_json
 test_merge_idempotent
 test_merge_force_updates_hooks
 test_upgrade_removes_obsolete_testing
+test_upgrade_removes_testing_on_skip_path
 
 echo ""
 echo "=== Results ==="

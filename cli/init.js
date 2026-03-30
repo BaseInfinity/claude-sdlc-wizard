@@ -202,17 +202,18 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   console.log('');
   printOps(ops);
 
-  if (ops.every((o) => o.action === 'SKIP')) {
+  // Always clean up obsolete paths, even when all managed files are SKIP
+  const obsolete = removeObsoletePaths(targetDir, { dryRun: false });
+  for (const p of obsolete) {
+    console.log(`  ${RED}REMOVE${RESET}  ${p} (obsolete)`);
+  }
+
+  if (ops.every((o) => o.action === 'SKIP') && obsolete.length === 0) {
     console.log('\nAll files already exist. Use --force to overwrite.');
     return true;
   }
 
   executeOperations(ops);
-
-  const obsolete = removeObsoletePaths(targetDir, { dryRun: false });
-  for (const p of obsolete) {
-    console.log(`  ${RED}REMOVE${RESET}  ${p} (obsolete)`);
-  }
 
   const gitignoreAdds = updateGitignore(targetDir, { dryRun: false });
   if (gitignoreAdds.length > 0) {
@@ -223,12 +224,13 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
 ${GREEN}SDLC Wizard installed successfully!${RESET}
 
 ${YELLOW}Important:${RESET} Hooks and settings load at session start.
-  If Claude Code is already running, exit and restart it.
+  If Claude Code is already running, type ${CYAN}/exit${RESET} then ${CYAN}claude${RESET} to restart.
+  (Or ${CYAN}claude --continue${RESET} to keep your conversation history.)
 
 Next steps:
   1. Start Claude Code in this directory (or restart if already running)
-  2. Tell Claude anything — setup-wizard auto-invokes when SDLC files are missing
-  3. Claude will scan your project and create CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
+  2. Tell Claude anything — setup auto-invokes when SDLC files are missing
+  3. Claude reads the wizard doc and creates CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
 
 The wizard doc is at: CLAUDE_CODE_SDLC_WIZARD.md
   `);
