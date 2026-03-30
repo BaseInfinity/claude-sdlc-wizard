@@ -206,6 +206,32 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ANTHROPIC_API_KEY=xxx ./tests/e2e/run-simulation.sh
 ```
 
+## Playwright MCP vs Playwright Tests
+
+**They are different tools for different jobs. Don't confuse them.**
+
+| | Playwright MCP (debugging) | Playwright Test Framework (automation) |
+|---|---|---|
+| **What** | MCP server Claude uses to interact with a live browser | Automated test runner (`npx playwright test`) |
+| **When** | Debugging a visual issue, inspecting DOM state, verifying a fix looks right | Regression testing on every PR, CI gating |
+| **Who runs it** | Claude (via MCP tool calls during a conversation) | CI pipeline (headless, no human) |
+| **Repeatable** | No — interactive, exploratory, one-off | Yes — deterministic, runs the same every time |
+| **Replaces** | A human opening DevTools to inspect the page | Nothing — this IS the automated test layer |
+
+**Playwright MCP replaces a human doing visual testing.** Instead of you opening a browser, clicking around, and eyeballing whether things look right — Claude does it. For any web project, this is huge:
+- "Does this CSS change actually look right?" — Claude screenshots it and tells you
+- "Is the modal centered on mobile?" — Claude resizes the viewport and checks
+- "Click through the checkout flow and tell me what breaks" — Claude does it like a QA tester would
+- "What's the DOM state after this interaction?" — Claude inspects it like DevTools
+
+**It does NOT replace `npx playwright test`.** Automated browser regression tests must:
+- Run headless in CI on every PR
+- Cover critical user flows (login, checkout, form submission)
+- Catch regressions without human intervention
+- Produce deterministic pass/fail results
+
+**The rule:** Use Playwright MCP to debug and verify during development. Use Playwright tests to prevent regressions in CI. If someone tells you "we have Playwright MCP so we don't need E2E tests" — that's like saying "I have Chrome DevTools so I don't need a test suite."
+
 ## Known Gaps
 
 ### Cannot Fully Test in CI
