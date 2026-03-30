@@ -4,7 +4,7 @@
 
 # Check if setup has been completed
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
-if [ ! -f "$PROJECT_DIR/SDLC.md" ] || [ ! -f "$PROJECT_DIR/TESTING.md" ]; then
+if [ ! -s "$PROJECT_DIR/SDLC.md" ] || [ ! -s "$PROJECT_DIR/TESTING.md" ]; then
     cat << 'SETUP'
 SETUP NOT COMPLETE: SDLC.md and/or TESTING.md are missing.
 

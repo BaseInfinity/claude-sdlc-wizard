@@ -387,12 +387,12 @@ test_sdlc_hook_setup_redirect_missing_testing() {
     fi
 }
 
-# Test 28: sdlc-prompt-check outputs normal baseline when both files exist
+# Test 28: sdlc-prompt-check outputs normal baseline when both files exist (non-empty)
 test_sdlc_hook_normal_when_setup_complete() {
     local tmpdir
     tmpdir=$(mktemp -d)
-    touch "$tmpdir/SDLC.md"
-    touch "$tmpdir/TESTING.md"
+    echo "# SDLC" > "$tmpdir/SDLC.md"
+    echo "# Testing" > "$tmpdir/TESTING.md"
     local output
     output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
@@ -400,6 +400,39 @@ test_sdlc_hook_normal_when_setup_complete() {
         pass "sdlc-prompt-check.sh outputs normal baseline when setup complete"
     else
         fail "Should output SDLC BASELINE (not setup redirect) when both files exist"
+    fi
+}
+
+# Test 29: sdlc-prompt-check redirects when files are empty stubs
+test_sdlc_hook_setup_redirect_empty_stubs() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "setup-wizard" && ! echo "$output" | grep -q "SDLC BASELINE"; then
+        pass "sdlc-prompt-check.sh redirects to setup-wizard for empty stub files"
+    else
+        fail "Empty stub files should trigger setup-wizard redirect, not baseline"
+    fi
+}
+
+# Test 30: Template hook behaves identically to repo hook (post-install execution test)
+test_template_hook_setup_redirect() {
+    local TEMPLATE_HOOK="$SCRIPT_DIR/../cli/templates/hooks/sdlc-prompt-check.sh"
+    if [ ! -f "$TEMPLATE_HOOK" ]; then fail "Template hook not found"; return; fi
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # Templates aren't executable in repo — CLI sets chmod +x at install time
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" bash "$TEMPLATE_HOOK" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "setup-wizard"; then
+        pass "Template hook redirects to setup-wizard when files missing"
+    else
+        fail "Template hook should redirect to setup-wizard, got: $output"
     fi
 }
 
@@ -432,6 +465,8 @@ test_instructions_hook_mentions_setup_wizard
 test_sdlc_hook_setup_redirect_missing_sdlc
 test_sdlc_hook_setup_redirect_missing_testing
 test_sdlc_hook_normal_when_setup_complete
+test_sdlc_hook_setup_redirect_empty_stubs
+test_template_hook_setup_redirect
 
 echo ""
 echo "=== Results ==="
