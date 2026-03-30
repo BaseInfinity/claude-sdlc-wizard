@@ -3634,6 +3634,40 @@ test_ci_eval_extracts_critical_miss
 test_ci_score_history_no_silent_fail
 test_ci_score_commit_no_silent_fail
 
+# --- Round 6: Review pipeline experiment (#27) ---
+
+# Test 181: AGENTS.md exists at repo root (Codex review guidelines)
+test_agents_md_exists() {
+    if [ -f "$REPO_ROOT/AGENTS.md" ]; then
+        pass "AGENTS.md exists (Codex review guidelines)"
+    else
+        fail "AGENTS.md should exist for Codex review guidelines"
+    fi
+}
+
+# Test 182: AGENTS.md references CODE_REVIEW_EXCEPTIONS.md
+test_agents_md_references_exceptions() {
+    if [ ! -f "$REPO_ROOT/AGENTS.md" ]; then fail "AGENTS.md not found"; return; fi
+    if grep -q "CODE_REVIEW_EXCEPTIONS" "$REPO_ROOT/AGENTS.md"; then
+        pass "AGENTS.md references CODE_REVIEW_EXCEPTIONS.md"
+    else
+        fail "AGENTS.md should reference CODE_REVIEW_EXCEPTIONS.md"
+    fi
+}
+
+# Test 183: Review experiment tracking file exists
+test_review_experiment_tracking_exists() {
+    if [ -f "$REPO_ROOT/.reviews/experiment-tracking.md" ]; then
+        pass "Review experiment tracking file exists"
+    else
+        fail ".reviews/experiment-tracking.md should exist for the Claude vs Codex experiment"
+    fi
+}
+
+test_agents_md_exists
+test_agents_md_references_exceptions
+test_review_experiment_tracking_exists
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
