@@ -367,6 +367,10 @@ jobs:
           echo "Baseline score: $SCORE"
           echo "baseline_score=$SCORE" >> $GITHUB_OUTPUT
 
+          # Extract baseline critical miss status for fair comparison
+          BASELINE_CRITICAL=$(echo "$RESULT" | jq -r '.critical_miss // false')
+          echo "baseline_critical_miss=$BASELINE_CRITICAL" >> $GITHUB_OUTPUT
+
           # Save output for comparison
           cp "$OUTPUT_FILE" "/tmp/baseline-output.json" 2>/dev/null || true
 
@@ -603,32 +607,16 @@ jobs:
             echo "Score trends report generated"
           fi
 
-      - name: Commit score history
+      - name: Upload score data artifact
         if: steps.check-baseline.outputs.should_simulate == 'true'
-        working-directory: pr-branch
-        env:
-          # Pass head.ref via env block, not inline in shell (injection hardening)
-          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          # Save updated score files (we're on detached HEAD at refs/pull/N/merge)
-          cp tests/e2e/score-history.jsonl /tmp/score-history-updated.jsonl
-          cp SCORE_TRENDS.md /tmp/score-trends-updated.md 2>/dev/null || true
-
-          # Checkout the actual PR branch (not the merge ref)
-          # Discard simulation artifacts first (test-repo changes from E2E run)
-          git checkout -- .
-          git fetch origin "$PR_BRANCH"
-          git checkout "$PR_BRANCH"
-          git pull --rebase origin "$PR_BRANCH"
-
-          # Restore the updated files and commit
-          cp /tmp/score-history-updated.jsonl tests/e2e/score-history.jsonl
-          cp /tmp/score-trends-updated.md SCORE_TRENDS.md 2>/dev/null || true
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/score-history.jsonl SCORE_TRENDS.md
-          git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
-          git push origin "$PR_BRANCH"
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-data-tier1
+          path: |
+            pr-branch/tests/e2e/score-history.jsonl
+            pr-branch/SCORE_TRENDS.md
+          retention-days: 90
+          if-no-files-found: warn
 
       - name: Compute historical context for comment
         if: steps.check-baseline.outputs.should_simulate == 'true'
@@ -735,12 +723,18 @@ jobs:
           fi
 
           # Critical criteria override — process failure regardless of score delta
+          # But only if candidate regressed (baseline didn't also have critical miss)
           CRITICAL_MISS="${{ steps.eval-candidate.outputs.critical_miss }}"
+          BASELINE_CRITICAL="${{ steps.eval-baseline.outputs.baseline_critical_miss }}"
           if [ "$CRITICAL_MISS" = "true" ]; then
-            echo "CRITICAL MISS: Overriding score-based verdict"
-            STATUS="CRITICAL_MISS"
-            EMOJI=":rotating_light:"
-            PASS="false"
+            if [ "$BASELINE_CRITICAL" = "true" ]; then
+              echo "CRITICAL MISS on both baseline and candidate — not a regression"
+            else
+              echo "CRITICAL MISS: Overriding score-based verdict"
+              STATUS="CRITICAL_MISS"
+              EMOJI=":rotating_light:"
+              PASS="false"
+            fi
           fi
 
           echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
@@ -1362,18 +1356,15 @@ jobs:
             echo "Score trends report generated"
           fi
 
-      - name: Commit score history (Tier 2)
-        working-directory: pr-branch
-        env:
-          # Pass head.ref via env block, not inline in shell (injection hardening)
-          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/score-history.jsonl SCORE_TRENDS.md
-          git diff --staged --quiet || git commit -m "chore: record e2e score for ${{ steps.select-scenario.outputs.scenario_name }}"
-          # Push to PR branch explicitly — checkout is detached HEAD (refs/pull/N/merge)
-          git push origin "HEAD:refs/heads/$PR_BRANCH" || echo "Nothing to push"
+      - name: Upload score data artifact (Tier 2)
+        uses: actions/upload-artifact@v4
+        with:
+          name: score-data-tier2
+          path: |
+            pr-branch/tests/e2e/score-history.jsonl
+            pr-branch/SCORE_TRENDS.md
+          retention-days: 90
+          if-no-files-found: warn
 
       - name: Compute historical context (Tier 2)
         id: historical
