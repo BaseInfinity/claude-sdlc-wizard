@@ -14,7 +14,6 @@ REMOVABLE_ALLOWLIST=(
     ".claude/hooks/tdd-pretool-check.sh"
     ".claude/hooks/instructions-loaded-check.sh"
     ".claude/skills/sdlc/SKILL.md"
-    ".claude/skills/testing/SKILL.md"
     ".claude/skills/setup/SKILL.md"
 )
 

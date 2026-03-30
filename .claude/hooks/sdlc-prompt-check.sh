@@ -1,6 +1,6 @@
 #!/bin/bash
 # Light SDLC hook - baseline reminder every prompt (~100 tokens)
-# Full guidance in skills: .claude/skills/sdlc/ and .claude/skills/testing/
+# Full guidance in skill: .claude/skills/sdlc/
 
 # Check if setup has been completed
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
@@ -23,10 +23,8 @@ SDLC BASELINE:
 4. FAILED 2x? STOP and ASK USER
 5. ALL TESTS MUST PASS BEFORE COMMIT - NO EXCEPTIONS
 
-AUTO-INVOKE SKILLS (Claude MUST do this FIRST):
-- implement/fix/refactor/feature/bug/build → Invoke: Skill tool, skill="sdlc"
-- test/TDD/write test (standalone) → Invoke: Skill tool, skill="testing"
-- If BOTH match (e.g., "fix the test") → sdlc takes precedence (includes TDD)
+AUTO-INVOKE SKILL (Claude MUST do this FIRST):
+- implement/fix/refactor/feature/bug/build/test/TDD → Invoke: Skill tool, skill="sdlc"
 - DON'T invoke for: questions, explanations, reading/exploring code, simple queries
 - DON'T wait for user to type /sdlc - AUTO-INVOKE based on task type
 

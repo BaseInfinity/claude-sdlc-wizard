@@ -178,10 +178,40 @@ During self-review, critique tests HARDER than app code:
 2. **Tests prove correctness?** - Or just verify current behavior?
 3. **Follow our philosophies (TESTING.md)?**
    - Testing Diamond (integration-heavy)?
-   - Minimal mocking (real DB, mock external APIs only)?
+   - Minimal mocking (see table below)?
    - Real fixtures from captured data?
 
 **Tests are the foundation.** Bad tests = false confidence = production bugs.
+
+### Minimal Mocking Philosophy
+
+| What | Mock? | Why |
+|------|-------|-----|
+| Database | NEVER | Use test DB or in-memory |
+| Cache | NEVER | Use isolated test instance |
+| External APIs | YES | Real calls = flaky + expensive |
+| Time/Date | YES | Determinism |
+
+**Mocks MUST come from REAL captured data** — capture real API responses, save to fixtures directory, import in tests. Never guess mock shapes.
+
+### Unit Tests = Pure Logic ONLY
+
+A function qualifies for unit testing ONLY if:
+- No database calls
+- No external API calls
+- No file system access
+- No cache calls
+- Input -> Output transformation only
+
+Everything else needs integration tests.
+
+### TDD Tests Must PROVE
+
+| Phase | What It Proves |
+|-------|----------------|
+| RED | Test FAILS -> Bug exists or feature missing |
+| GREEN | Test PASSES -> Fix works or feature implemented |
+| Forever | Regression protection |
 
 ## Flaky Test Recovery
 
@@ -374,6 +404,13 @@ CI passes -> Read review suggestions
 - "Just in case" fallbacks? DELETE IT
 
 **THE RULE:** Delete old code first. If it breaks, fix it properly.
+
+## After Session (Capture Learnings)
+
+If this session revealed insights, update the right place:
+- **Testing patterns, gotchas** → `TESTING.md`
+- **Feature-specific quirks** → Feature docs (`*_PLAN.md`)
+- **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
 
 ---
 
