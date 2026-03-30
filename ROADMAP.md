@@ -90,3 +90,4 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 
 - Node.js 20 deprecation (June 2, 2026 deadline — `actions/checkout@v4` + `oven-sh/setup-bun` forced to Node 24. Not urgent yet but blocks all CI if ignored. Revisit May 2026)
 - Reviewer severity prompt fix (14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Real but low-impact — hasn't caused a missed bug yet)
+- Mutation testing (experimental — explore if/when scoring system needs deeper validation)
