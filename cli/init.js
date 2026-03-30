@@ -29,6 +29,11 @@ const WIZARD_HOOK_MARKERS = FILES
 
 const GITIGNORE_ENTRIES = ['.claude/plans/', '.claude/settings.local.json'];
 
+// Paths from previous versions that should be removed on upgrade
+const OBSOLETE_PATHS = [
+  '.claude/skills/testing',  // consolidated into /sdlc in v1.17.0
+];
+
 function isWizardHookEntry(hookEntry) {
   if (!hookEntry || !hookEntry.hooks) return false;
   return hookEntry.hooks.some((h) =>
@@ -134,6 +139,20 @@ function executeOperations(ops) {
   }
 }
 
+function removeObsoletePaths(targetDir, { dryRun }) {
+  const removed = [];
+  for (const rel of OBSOLETE_PATHS) {
+    const fullPath = path.join(targetDir, rel);
+    if (fs.existsSync(fullPath)) {
+      if (!dryRun) {
+        fs.rmSync(fullPath, { recursive: true, force: true });
+      }
+      removed.push(rel);
+    }
+  }
+  return removed;
+}
+
 function updateGitignore(targetDir, { dryRun }) {
   const gitignorePath = path.join(targetDir, '.gitignore');
   let content = '';
@@ -169,6 +188,10 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   if (dryRun) {
     console.log('Dry run — no files will be written:\n');
     printOps(ops);
+    const obsolete = removeObsoletePaths(targetDir, { dryRun: true });
+    for (const p of obsolete) {
+      console.log(`  ${RED}REMOVE${RESET}  ${p} (obsolete)`);
+    }
     const gitignoreAdds = updateGitignore(targetDir, { dryRun: true });
     if (gitignoreAdds.length > 0) {
       console.log(`  ${GREEN}APPEND${RESET}  .gitignore (${gitignoreAdds.join(', ')})`);
@@ -185,6 +208,11 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   }
 
   executeOperations(ops);
+
+  const obsolete = removeObsoletePaths(targetDir, { dryRun: false });
+  for (const p of obsolete) {
+    console.log(`  ${RED}REMOVE${RESET}  ${p} (obsolete)`);
+  }
 
   const gitignoreAdds = updateGitignore(targetDir, { dryRun: false });
   if (gitignoreAdds.length > 0) {

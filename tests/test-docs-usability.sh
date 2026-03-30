@@ -278,6 +278,36 @@ test_sdlc_has_after_session() {
     fi
 }
 
+# Test: /sdlc skill has mocking table (migrated from /testing — zero content loss)
+test_sdlc_has_mocking_table() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -q 'Database.*NEVER' "$SDLC_SKILL" && grep -q 'External APIs.*YES' "$SDLC_SKILL"; then
+        pass "/sdlc skill has mocking table (DB=NEVER, APIs=YES)"
+    else
+        fail "/sdlc skill missing mocking table — was this migrated from /testing?"
+    fi
+}
+
+# Test: /sdlc skill has unit test qualification criteria (migrated from /testing)
+test_sdlc_has_unit_test_criteria() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -qi 'pure logic only\|no database calls\|input.*output.*transformation' "$SDLC_SKILL"; then
+        pass "/sdlc skill has unit test qualification criteria"
+    else
+        fail "/sdlc skill missing unit test criteria — was this migrated from /testing?"
+    fi
+}
+
+# Test: /sdlc skill has TDD PROVE content (migrated from /testing)
+test_sdlc_has_tdd_prove() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -qi 'RED.*FAILS\|test.*FAILS.*bug exists\|TDD.*PROVE' "$SDLC_SKILL"; then
+        pass "/sdlc skill has TDD Must PROVE content"
+    else
+        fail "/sdlc skill missing TDD Must PROVE content — was this migrated from /testing?"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
@@ -300,6 +330,9 @@ echo "--- Skill consolidation (#28) ---"
 test_hook_no_testing_route
 test_no_testing_skill_template
 test_sdlc_has_after_session
+test_sdlc_has_mocking_table
+test_sdlc_has_unit_test_criteria
+test_sdlc_has_tdd_prove
 
 echo ""
 echo "--- All docs structural health ---"
