@@ -508,6 +508,15 @@ jobs:
           echo "Candidate score: $SCORE"
           echo "candidate_score=$SCORE" >> $GITHUB_OUTPUT
 
+          # Extract critical miss status from evaluation result
+          CRITICAL_MISS=$(echo "$RESULT" | jq -r '.critical_miss // false')
+          EVAL_PASS=$(echo "$RESULT" | jq -r '.pass // true')
+          echo "critical_miss=$CRITICAL_MISS" >> $GITHUB_OUTPUT
+          echo "eval_pass=$EVAL_PASS" >> $GITHUB_OUTPUT
+          if [ "$CRITICAL_MISS" = "true" ]; then
+            echo "::warning::Critical criteria missed — process failure regardless of score"
+          fi
+
           # Save evaluation result for score history recording
           echo "$RESULT" > "${RUNNER_TEMP:-/tmp}/eval-result-candidate.json"
 
@@ -545,7 +554,6 @@ jobs:
 
       - name: Record score to history
         if: steps.check-baseline.outputs.should_simulate == 'true'
-        continue-on-error: true
         working-directory: pr-branch
         run: |
           SCORE="${{ steps.eval-candidate.outputs.candidate_score }}"
@@ -594,7 +602,6 @@ jobs:
 
       - name: Commit score history
         if: steps.check-baseline.outputs.should_simulate == 'true'
-        continue-on-error: true
         working-directory: pr-branch
         env:
           # Pass head.ref via env block, not inline in shell (injection hardening)
@@ -605,6 +612,8 @@ jobs:
           cp SCORE_TRENDS.md /tmp/score-trends-updated.md 2>/dev/null || true
 
           # Checkout the actual PR branch (not the merge ref)
+          # Discard simulation artifacts first (test-repo changes from E2E run)
+          git checkout -- .
           git fetch origin "$PR_BRANCH"
           git checkout "$PR_BRANCH"
           git pull --rebase origin "$PR_BRANCH"
@@ -664,13 +673,23 @@ jobs:
           # Handle bootstrapping scenario (no baseline wizard in main)
           if [ "$HAS_BASELINE" != "true" ]; then
             echo "BOOTSTRAPPING: No baseline wizard to compare against"
+            CRITICAL_MISS="${{ steps.eval-candidate.outputs.critical_miss }}"
+            BOOT_PASS="true"
+            BOOT_STATUS="BOOTSTRAPPING"
+            BOOT_EMOJI=":seedling:"
+            if [ "$CRITICAL_MISS" = "true" ]; then
+              echo "CRITICAL MISS during bootstrapping"
+              BOOT_PASS="false"
+              BOOT_STATUS="CRITICAL_MISS"
+              BOOT_EMOJI=":rotating_light:"
+            fi
             echo "is_bootstrapping=true" >> $GITHUB_OUTPUT
             echo "baseline=N/A" >> $GITHUB_OUTPUT
             echo "candidate=$CANDIDATE" >> $GITHUB_OUTPUT
             echo "delta=N/A" >> $GITHUB_OUTPUT
-            echo "status=BOOTSTRAPPING" >> $GITHUB_OUTPUT
-            echo "emoji=:seedling:" >> $GITHUB_OUTPUT
-            echo "pass=true" >> $GITHUB_OUTPUT
+            echo "status=$BOOT_STATUS" >> $GITHUB_OUTPUT
+            echo "emoji=$BOOT_EMOJI" >> $GITHUB_OUTPUT
+            echo "pass=$BOOT_PASS" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -710,6 +729,15 @@ jobs:
               EMOJI=":warning:"
               PASS="true"  # Minor dips within variance are acceptable
             fi
+          fi
+
+          # Critical criteria override — process failure regardless of score delta
+          CRITICAL_MISS="${{ steps.eval-candidate.outputs.critical_miss }}"
+          if [ "$CRITICAL_MISS" = "true" ]; then
+            echo "CRITICAL MISS: Overriding score-based verdict"
+            STATUS="CRITICAL_MISS"
+            EMOJI=":rotating_light:"
+            PASS="false"
           fi
 
           echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
@@ -1196,6 +1224,7 @@ jobs:
           echo "Running candidate evaluation 5 times..."
           SCORES=""
           LAST_RESULT=""
+          ANY_CRITICAL_MISS="false"
           for i in 1 2 3 4 5; do
             echo "Candidate evaluation run $i/5..."
             EVAL_STDERR="/tmp/eval-stderr-candidate-t2-$i.log"
@@ -1227,6 +1256,13 @@ jobs:
               exit 1
             fi
 
+            # Track critical miss across all trials (any miss = fail)
+            TRIAL_CRIT=$(echo "$RESULT" | jq -r '.critical_miss // false')
+            if [ "$TRIAL_CRIT" = "true" ]; then
+              echo "::warning::Candidate eval run $i has critical_miss"
+              ANY_CRITICAL_MISS="true"
+            fi
+
             SCORES="$SCORES $SCORE"
             LAST_RESULT="$RESULT"
             echo "  Run $i score: $SCORE"
@@ -1247,6 +1283,7 @@ jobs:
           echo "candidate_ci=$CI_RESULT" >> $GITHUB_OUTPUT
           echo "candidate_ci_lower=$CI_LOWER" >> $GITHUB_OUTPUT
           echo "candidate_ci_upper=$CI_UPPER" >> $GITHUB_OUTPUT
+          echo "critical_miss=$ANY_CRITICAL_MISS" >> $GITHUB_OUTPUT
 
           # Save evaluation result for score history recording
           echo "$LAST_RESULT" > "${RUNNER_TEMP:-/tmp}/eval-result-candidate.json"
@@ -1280,7 +1317,6 @@ jobs:
           echo "sdp_interpretation=$SDP_INTERPRETATION" >> $GITHUB_OUTPUT
 
       - name: Record score to history (Tier 2)
-        continue-on-error: true
         working-directory: pr-branch
         run: |
           SCORE="${{ steps.eval-candidate.outputs.candidate_score }}"
@@ -1324,7 +1360,6 @@ jobs:
           fi
 
       - name: Commit score history (Tier 2)
-        continue-on-error: true
         working-directory: pr-branch
         env:
           # Pass head.ref via env block, not inline in shell (injection hardening)
@@ -1387,6 +1422,18 @@ jobs:
           # Handle bootstrapping scenario (no baseline wizard in main)
           if [ "$HAS_BASELINE" != "true" ]; then
             echo "BOOTSTRAPPING: No baseline wizard to compare against"
+            CRITICAL_MISS="${{ steps.eval-candidate.outputs.critical_miss }}"
+            BOOT_PASS="true"
+            BOOT_STATUS="BOOTSTRAPPING"
+            BOOT_EMOJI=":seedling:"
+            BOOT_VERDICT="First wizard installation - no baseline to compare"
+            if [ "$CRITICAL_MISS" = "true" ]; then
+              echo "CRITICAL MISS during bootstrapping"
+              BOOT_PASS="false"
+              BOOT_STATUS="CRITICAL_MISS"
+              BOOT_EMOJI=":rotating_light:"
+              BOOT_VERDICT="Critical criteria missed (tdd_red or self_review) — process failure regardless of score"
+            fi
             echo "is_bootstrapping=true" >> $GITHUB_OUTPUT
             echo "baseline=N/A" >> $GITHUB_OUTPUT
             echo "baseline_ci=N/A" >> $GITHUB_OUTPUT
@@ -1397,10 +1444,10 @@ jobs:
             echo "candidate_ci_lower=$CANDIDATE_CI_LOWER" >> $GITHUB_OUTPUT
             echo "candidate_ci_upper=$CANDIDATE_CI_UPPER" >> $GITHUB_OUTPUT
             echo "delta=N/A" >> $GITHUB_OUTPUT
-            echo "status=BOOTSTRAPPING" >> $GITHUB_OUTPUT
-            echo "emoji=:seedling:" >> $GITHUB_OUTPUT
-            echo "pass=true" >> $GITHUB_OUTPUT
-            echo "verdict=First wizard installation - no baseline to compare" >> $GITHUB_OUTPUT
+            echo "status=$BOOT_STATUS" >> $GITHUB_OUTPUT
+            echo "emoji=$BOOT_EMOJI" >> $GITHUB_OUTPUT
+            echo "pass=$BOOT_PASS" >> $GITHUB_OUTPUT
+            echo "verdict=$BOOT_VERDICT" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -1442,6 +1489,16 @@ jobs:
               VERDICT="CIs overlap = no statistically significant difference (stable)"
               ;;
           esac
+
+          # Critical criteria override — process failure regardless of statistical verdict
+          CRITICAL_MISS="${{ steps.eval-candidate.outputs.critical_miss }}"
+          if [ "$CRITICAL_MISS" = "true" ]; then
+            echo "CRITICAL MISS: Overriding statistical verdict"
+            STATUS="CRITICAL_MISS"
+            EMOJI=":rotating_light:"
+            PASS="false"
+            VERDICT="Critical criteria missed (tdd_red or self_review) — process failure regardless of score"
+          fi
 
           echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
           echo "candidate=$CANDIDATE" >> $GITHUB_OUTPUT

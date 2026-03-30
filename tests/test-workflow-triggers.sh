@@ -3543,6 +3543,96 @@ test_digest_gates_on_total_findings
 test_e2e_receives_scan_payload
 test_origin_fallback_in_parse
 
+# Test 172: ci.yml Compare step checks critical_miss (Bug 1 regression)
+test_ci_verdict_checks_critical_miss() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # The Tier 1 Compare step must reference critical_miss to override score-based verdict
+    if grep -A 80 'name: Compare scores$' "$CI_FILE" | grep -q 'critical_miss'; then
+        pass "ci.yml Tier 1 Compare step checks critical_miss"
+    else
+        fail "ci.yml Tier 1 Compare step ignores critical_miss — process failures bypass CI gate"
+    fi
+}
+
+# Test 173: ci.yml eval-candidate extracts critical_miss to step output (Bug 1 regression)
+test_ci_eval_extracts_critical_miss() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # Tier 1 eval-candidate must output critical_miss for Compare to read
+    if python3 -c "
+import yaml, sys
+with open('$CI_FILE') as f:
+    wf = yaml.safe_load(f)
+job = wf['jobs']['e2e-quick-check']
+for step in job['steps']:
+    if step.get('id') == 'eval-candidate':
+        run_block = step.get('run', '')
+        if 'critical_miss' in run_block and 'GITHUB_OUTPUT' in run_block:
+            sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+        pass "ci.yml Tier 1 eval-candidate outputs critical_miss"
+    else
+        fail "ci.yml Tier 1 eval-candidate does not output critical_miss — Compare step can't read it"
+    fi
+}
+
+# Test 174: ci.yml "Record score to history" does NOT silently swallow failures (Bug 3 regression)
+test_ci_score_history_no_silent_fail() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # The "Record score to history" step must NOT have continue-on-error: true
+    if python3 -c "
+import yaml, sys
+with open('$CI_FILE') as f:
+    wf = yaml.safe_load(f)
+job = wf['jobs']['e2e-quick-check']
+for step in job['steps']:
+    if step.get('name', '') == 'Record score to history':
+        if step.get('continue-on-error', False):
+            sys.exit(1)  # Still has continue-on-error — bug not fixed
+        sys.exit(0)
+sys.exit(1)  # Step not found
+" 2>/dev/null; then
+        pass "ci.yml 'Record score to history' does not silently swallow failures"
+    else
+        fail "ci.yml 'Record score to history' has continue-on-error: true — failures are invisible"
+    fi
+}
+
+# Test 175: ci.yml "Commit score history" does NOT silently swallow failures (Bug 3 regression)
+test_ci_score_commit_no_silent_fail() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # The "Commit score history" step must NOT have continue-on-error: true
+    if python3 -c "
+import yaml, sys
+with open('$CI_FILE') as f:
+    wf = yaml.safe_load(f)
+job = wf['jobs']['e2e-quick-check']
+for step in job['steps']:
+    if step.get('name', '') == 'Commit score history':
+        if step.get('continue-on-error', False):
+            sys.exit(1)  # Still has continue-on-error — bug not fixed
+        sys.exit(0)
+sys.exit(1)  # Step not found
+" 2>/dev/null; then
+        pass "ci.yml 'Commit score history' does not silently swallow failures"
+    else
+        fail "ci.yml 'Commit score history' has continue-on-error: true — history never persists"
+    fi
+}
+
+test_ci_verdict_checks_critical_miss
+test_ci_eval_extracts_critical_miss
+test_ci_score_history_no_silent_fail
+test_ci_score_commit_no_silent_fail
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
