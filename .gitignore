@@ -7,6 +7,9 @@ tests/e2e/.cache/
 # Claude Code local state
 .claude/plans/
 
+# Review artifacts (local Codex/cross-model reviews)
+.reviews/
+
 # Editor/OS
 .DS_Store
 *.swp
