@@ -211,6 +211,33 @@ When Anthropic provides official plugins or tools that handle something:
 
 ---
 
+## Recommended Effort Level
+
+Claude Code's **effort level** controls how much thinking the model does before responding. Higher effort = deeper reasoning but more tokens.
+
+| Level | When to Use | How to Set |
+|-------|-------------|------------|
+| `high` | **Default for all SDLC work.** Features, bug fixes, refactoring, tests, reviews | `effort: high` in skill frontmatter (already set) |
+| `max` | LOW confidence, FAILED 2x, architecture decisions, complex debugging, cross-model reviews | `/effort max` (session only — resets next session) |
+
+**Why `high` is the default:** The `/sdlc` skill sets `effort: high` in its frontmatter, so every SDLC invocation automatically uses high effort. This gives thorough reasoning without the unbounded token cost of `max`.
+
+**When to escalate to `max`:**
+- You hit LOW confidence on your approach — deeper thinking may find clarity
+- You've failed the same thing twice — something non-obvious is wrong
+- Architecture decisions with wide blast radius
+- Complex multi-system debugging where you need to hold many constraints
+- Cross-model review analysis (reading and evaluating external reviewer findings)
+
+**How it works:**
+- `/effort max` changes effort for the current session only (resets next session)
+- `effort: high` in SKILL.md frontmatter persists — every `/sdlc` invocation uses `high`
+- You can also type `ultrathink` in any prompt for a single high-effort turn
+
+**Cost note:** `max` uses significantly more tokens than `high`. Use it when the problem justifies it, not as a default.
+
+---
+
 ## Claude Code Feature Updates
 
 > **Keep your SDLC current**: Claude Code evolves. This section documents features that enhance the SDLC workflow. Check [Claude Code releases](https://github.com/anthropics/claude-code/releases) periodically.
@@ -1681,13 +1708,13 @@ TodoWrite([
 
 Before presenting approach, STATE your confidence:
 
-| Level | Meaning | Action |
-|-------|---------|--------|
-| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval |
-| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties |
-| LOW (<60%) | Not sure | ASK USER before proceeding |
-| FAILED 2x | Something's wrong | STOP. ASK USER immediately |
-| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help |
+| Level | Meaning | Action | Effort |
+|-------|---------|--------|--------|
+| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval | `high` (default) |
+| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties | `high` (default) |
+| LOW (<60%) | Not sure | ASK USER before proceeding | Consider `/effort max` |
+| FAILED 2x | Something's wrong | STOP. ASK USER immediately | Try `/effort max` |
+| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help | Try `/effort max` |
 
 ## Self-Review Loop (CRITICAL)
 

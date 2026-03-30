@@ -1,6 +1,6 @@
 ---
 name: sdlc
-description: Full SDLC workflow for implementing features, fixing bugs, refactoring code, and creating new functionality. Use this skill when implementing, fixing, refactoring, adding features, or building new code.
+description: Full SDLC workflow for implementing features, fixing bugs, refactoring code, testing, and creating new functionality. Use this skill when implementing, fixing, refactoring, testing, adding features, or building new code.
 argument-hint: [task description]
 effort: high
 ---
@@ -94,13 +94,13 @@ Critical miss on `tdd_red` or `self_review` = process failure regardless of tota
 
 Before presenting approach, STATE your confidence:
 
-| Level | Meaning | Action |
-|-------|---------|--------|
-| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval |
-| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties |
-| LOW (<60%) | Not sure | ASK USER before proceeding |
-| FAILED 2x | Something's wrong | STOP. ASK USER immediately |
-| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help |
+| Level | Meaning | Action | Effort |
+|-------|---------|--------|--------|
+| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval | `high` (default) |
+| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties | `high` (default) |
+| LOW (<60%) | Not sure | ASK USER before proceeding | Consider `/effort max` |
+| FAILED 2x | Something's wrong | STOP. ASK USER immediately | Try `/effort max` |
+| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help | Try `/effort max` |
 
 ## Self-Review Loop (CRITICAL)
 
