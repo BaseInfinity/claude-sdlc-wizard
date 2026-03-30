@@ -411,6 +411,89 @@ Confidence: HIGH"
     fi
 }
 
+# -----------------------------------------------
+# check_tdd_red format resilience tests (Bug 2 regression)
+# -----------------------------------------------
+
+echo ""
+echo "--- check_tdd_red (format resilience) ---"
+
+# Helper: create object-wrapped execution output (real claude-code-action format)
+# {messages: [{role, content}], result: "..."}
+make_object_execution_json() {
+    local tmpfile
+    tmpfile=$(mktemp)
+    local json_entries=""
+    local first=true
+    while [ $# -gt 0 ]; do
+        local tool_name="$1"
+        local file_path="$2"
+        shift 2
+        if [ "$first" = true ]; then
+            first=false
+        else
+            json_entries="$json_entries,"
+        fi
+        json_entries="$json_entries
+  {\"role\": \"assistant\", \"content\": [{\"type\": \"tool_use\", \"name\": \"$tool_name\", \"input\": {\"file_path\": \"$file_path\", \"content\": \"\"}}]},
+  {\"role\": \"user\", \"content\": [{\"type\": \"tool_result\", \"content\": \"ok\"}]}"
+    done
+    # Wrap in object format: {result: "...", messages: [...]}
+    echo "{\"result\": \"Task completed\", \"messages\": [$json_entries
+]}" > "$tmpfile"
+    echo "$tmpfile"
+}
+
+test_tdd_red_object_format_test_first() {
+    local tmpfile
+    tmpfile=$(make_object_execution_json "Write" "tests/validate.test.js" "Write" "src/validate.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "2" ]; then
+        pass "TDD RED: object-wrapped format detected test-first"
+    else
+        fail "Object-wrapped format should score 2 (test-first), got $result"
+    fi
+}
+
+test_tdd_red_object_format_impl_first() {
+    local tmpfile
+    tmpfile=$(make_object_execution_json "Write" "src/validate.js" "Write" "tests/validate.test.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: object-wrapped format detected impl-first (score 0)"
+    else
+        fail "Object-wrapped impl-first should score 0, got $result"
+    fi
+}
+
+test_tdd_red_content_as_string() {
+    # Real execution output may have string content (text) mixed with array content (tool_use)
+    local tmpfile
+    tmpfile=$(mktemp)
+    cat > "$tmpfile" << 'TESTJSON'
+[
+  {"role": "assistant", "content": "I'll help you with that task."},
+  {"role": "user", "content": "Great, please proceed."},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {"file_path": "tests/app.test.js", "content": ""}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {"file_path": "src/app.js", "content": ""}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}
+]
+TESTJSON
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "2" ]; then
+        pass "TDD RED: mixed string/array content handled correctly"
+    else
+        fail "Mixed content format should score 2 (test-first), got $result"
+    fi
+}
+
 # Run all tests
 test_task_tracking_with_todowrite
 test_task_tracking_with_taskcreate
@@ -430,6 +513,10 @@ test_tdd_red_edit_test_before_edit_impl
 test_tdd_red_spec_file
 test_tdd_red_empty_json
 test_tdd_red_nonexistent_file
+
+test_tdd_red_object_format_test_first
+test_tdd_red_object_format_impl_first
+test_tdd_red_content_as_string
 
 test_full_compliance
 test_zero_compliance
