@@ -93,3 +93,4 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 - Reviewer severity prompt fix (14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Real but low-impact — hasn't caused a missed bug yet)
 - Mutation testing (experimental — explore if/when scoring system needs deeper validation)
 - Agent-agnostic SDLC (generalize wizard beyond Claude Code — Codex CLI, other AI agents. Auto-detect domain from repo contents, generate domain-appropriate hooks/skills. Reference impl: anticheat repo Content SDLC with GRADE labels, multi-source consensus, 219 tests. NOT immediate — needs #28 consolidation first)
+- Gap analysis vs `/claude-automation-recommender` (run the built-in recommender on wizard-installed repos, compare its suggestions vs what we already ship — find coverage gaps and positioning data. Also run on fresh repos to measure "suggestions" vs "enforcement" delta)
