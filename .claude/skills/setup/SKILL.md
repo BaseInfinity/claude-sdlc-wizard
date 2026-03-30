@@ -13,7 +13,11 @@ $ARGUMENTS
 
 You are an interactive setup wizard. Your job is to scan the project, ask the user ALL configuration questions, and generate the SDLC files. DO NOT skip questions. DO NOT make assumptions. The user's answers drive the output.
 
-Reference: `CLAUDE_CODE_SDLC_WIZARD.md` contains the full wizard documentation with templates and examples for each generated file.
+## MANDATORY FIRST ACTION: Read the Wizard Doc
+
+**Before doing ANYTHING else**, use the Read tool to read the ENTIRE `CLAUDE_CODE_SDLC_WIZARD.md` file. This file contains all templates, examples, and instructions you need. You CANNOT do this setup correctly without reading it first. Do NOT rely on summaries or references — read the full file now.
+
+After reading, use it as the source of truth for every step below.
 
 ## Execution Checklist
 

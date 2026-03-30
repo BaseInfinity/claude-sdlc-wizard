@@ -10,9 +10,7 @@ Run from your terminal or from inside Claude Code (`!` prefix):
 ```bash
 npx agentic-sdlc-wizard init
 ```
-Then tell Claude: `Run the SDLC wizard setup`
-
-Claude scans your project and generates bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md.
+Then start (or restart) Claude Code. Setup auto-invokes — Claude will scan your project and generate bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md. No manual commands needed.
 
 <details>
 <summary>Alternative install methods</summary>

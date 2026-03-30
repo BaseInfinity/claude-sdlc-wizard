@@ -202,6 +202,49 @@ test_contributing_has_quick_start() {
     fi
 }
 
+# Test: README main install flow does NOT tell user to manually run setup
+# (Alternative/manual install in <details> may still need manual invocation — that's OK)
+test_readme_install_no_manual_setup() {
+    local main_install
+    # Extract only the main install flow (before first <details> block)
+    main_install=$(extract_section "$README" "Install" | sed '/<details>/,$d')
+    if echo "$main_install" | grep -qi 'tell claude.*setup\|run the sdlc wizard setup'; then
+        fail "README: Main install still tells users to manually invoke setup — hook auto-invokes now"
+    else
+        pass "README: Main install doesn't require manual setup invocation"
+    fi
+}
+
+# Test: README install mentions auto-invoke / automatic setup
+test_readme_install_mentions_auto() {
+    local install_section
+    install_section=$(extract_section "$README" "Install")
+    if echo "$install_section" | grep -qi 'auto\|automatic'; then
+        pass "README: Install mentions automatic setup"
+    else
+        fail "README: Install should mention that setup auto-invokes — users need to know it just works"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Setup skill — must force-read the wizard doc
+# ---------------------------------------------------------------------------
+
+SETUP_SKILL="$REPO_ROOT/cli/templates/skills/setup/SKILL.md"
+
+# Test: Setup skill explicitly instructs Claude to Read the wizard doc
+test_setup_skill_reads_wizard_doc() {
+    if [ ! -f "$SETUP_SKILL" ]; then
+        fail "Setup skill template not found"
+        return
+    fi
+    if grep -qi 'Read.*CLAUDE_CODE_SDLC_WIZARD\|Read.*wizard.*file\|Read.*entire.*wizard' "$SETUP_SKILL"; then
+        pass "Setup skill explicitly instructs Claude to read the wizard doc"
+    else
+        fail "Setup skill never tells Claude to READ the wizard doc — it just says 'Reference' which Claude ignores"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
@@ -212,6 +255,12 @@ test_readme_install_has_code_block
 test_readme_install_has_npx_command
 test_readme_install_mentions_claude_code
 test_readme_install_mentions_bang_prefix
+test_readme_install_no_manual_setup
+test_readme_install_mentions_auto
+
+echo ""
+echo "--- Setup skill ---"
+test_setup_skill_reads_wizard_doc
 
 echo ""
 echo "--- All docs structural health ---"
