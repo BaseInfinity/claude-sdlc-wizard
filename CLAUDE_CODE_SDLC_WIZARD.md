@@ -2148,9 +2148,27 @@ These are your full reference docs. Start with stubs and expand over time:
 
 **Claude follows this automatically.** When task involves "deploy to prod" and confidence is LOW, Claude will ask before proceeding.
 
+## Post-Deploy Verification
+
+**After deploying to ANY environment, verify it's working:**
+
+| Environment | Health Check | Log Command | Smoke Test |
+|-------------|-------------|-------------|------------|
+| Local Dev | `curl http://localhost:3000/health` | `[your dev log command]` | `npm run test:smoke` |
+| Staging | `curl https://staging.example.com/health` | `[your staging log command]` | `[your staging smoke test]` |
+| Production | `curl https://example.com/health` | `[your prod log command, e.g., kubectl logs]` | `[your prod smoke test]` |
+
+**Monitoring after production deploy:**
+1. Watch error rates for 15 minutes (dashboard: `[your monitoring URL]`)
+2. Check application logs for new errors: `[your log command]`
+3. Run smoke tests against production: `[your smoke test command]`
+4. If issues found → rollback first, THEN start new SDLC loop to fix
+
+**Claude follows this automatically.** After a deploy task, Claude runs through the Post-Deploy Verification table for the target environment. If any check fails, Claude suggests rollback and a new fix cycle.
+
 ## Rollback
 
-If deployment fails or causes issues:
+If deployment fails or post-deploy verification catches issues:
 
 | Environment | Rollback Command | Notes |
 |-------------|------------------|-------|

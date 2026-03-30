@@ -397,6 +397,16 @@ CI passes -> Read review suggestions
 
 **If ARCHITECTURE.md has no Environments section:** Ask user "How do you deploy to [target]?" before proceeding.
 
+**After deploying — Post-Deploy Verification:**
+1. Read ARCHITECTURE.md → Find the Post-Deploy Verification table
+2. Run health check for the target environment
+3. Check logs for new errors
+4. Run smoke tests if configured
+5. Monitor error rates for 15 min (production only)
+6. If issues found → rollback first, then start new SDLC loop to fix
+
+**If ARCHITECTURE.md has no Post-Deploy section:** Ask user "How do you verify [target] is working after deploy?"
+
 ## DELETE Legacy Code
 
 - Legacy code? DELETE IT

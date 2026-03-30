@@ -40,9 +40,10 @@
 | 27 | Review Pipeline Experiment | Track Claude vs Codex review findings over 10-20 non-trivial PRs. Decide: single-provider, dual for labeled PRs, or manual cross-review |
 | 28 | Consolidate /testing into /sdlc | DONE — PR #113. Moved mocking table, unit test criteria, TDD Must PROVE, After Session into /sdlc skill. Deleted /testing skill + hook routing. Added upgrade cleanup (OBSOLETE_PATHS). 4 consolidation tests, 4 effort tests. Zero content loss verified |
 | 29 | Effort Level Recommendations | Add `## Recommended Effort Level` section to wizard. `high` default via skill frontmatter, suggest `max` for LOW confidence / FAILED 2x / architecture decisions. Confidence table gets Effort column. 4 tests |
-| 30 | DEPLOY.md / Deployment Checklist | Wizard should generate a DEPLOY.md with mechanical deployment steps (build, deploy, watch logs, rollback). Reduces forgotten steps and token cost by not re-explaining deploy process each time |
+| 30 | Post-Deploy Verification | DONE — Added Post-Deploy Verification section to ARCHITECTURE.md template (health checks, log commands, smoke tests per environment, monitoring guidance). SDLC skill deployment section now includes post-deploy verification steps. 3 tests |
 | 31 | `/init` for Blank Repos | Test what happens when wizard runs on truly blank repos (no CLAUDE.md). Consider recommending Claude's built-in `/init` first. Add E2E test for blank-repo setup path |
 | 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
+| 33 | `/update-wizard` Skill | Smart update system — shows what changed between versions, lets users selectively adopt changes, preserves customizations. Currently users update with `init --force` (blunt overwrite) or `check` (drift detection). This adds a guided upgrade path |
 
 ## Review Pipeline
 
