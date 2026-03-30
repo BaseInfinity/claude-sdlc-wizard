@@ -1,6 +1,6 @@
 ---
 name: sdlc
-description: Full SDLC workflow for implementing features, fixing bugs, refactoring code, and creating new functionality. Use this skill when implementing, fixing, refactoring, adding features, or building new code.
+description: Full SDLC workflow for implementing features, fixing bugs, refactoring code, testing, and creating new functionality. Use this skill when implementing, fixing, refactoring, testing, adding features, or building new code.
 argument-hint: [task description]
 effort: high
 ---
@@ -97,13 +97,13 @@ Critical miss on `tdd_red` or `self_review` = process failure regardless of tota
 
 Before presenting approach, STATE your confidence:
 
-| Level | Meaning | Action |
-|-------|---------|--------|
-| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval |
-| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties |
-| LOW (<60%) | Not sure | ASK USER before proceeding |
-| FAILED 2x | Something's wrong | STOP. ASK USER immediately |
-| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help |
+| Level | Meaning | Action | Effort |
+|-------|---------|--------|--------|
+| HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval | `high` (default) |
+| MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties | `high` (default) |
+| LOW (<60%) | Not sure | ASK USER before proceeding | Consider `/effort max` |
+| FAILED 2x | Something's wrong | STOP. ASK USER immediately | Try `/effort max` |
+| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help | Try `/effort max` |
 
 ## Self-Review Loop (CRITICAL)
 
@@ -399,6 +399,16 @@ CI passes -> Read review suggestions
 - If ANY doubt → ASK USER first
 
 **If ARCHITECTURE.md has no Environments section:** Ask user "How do you deploy to [target]?" before proceeding.
+
+**After deploying — Post-Deploy Verification:**
+1. Read ARCHITECTURE.md → Find the Post-Deploy Verification table
+2. Run health check for the target environment
+3. Check logs for new errors
+4. Run smoke tests if configured
+5. Monitor error rates for 15 min (production only)
+6. If issues found → rollback first, then start new SDLC loop to fix
+
+**If ARCHITECTURE.md has no Post-Deploy section:** Ask user "How do you verify [target] is working after deploy?"
 
 ## DELETE Legacy Code
 

@@ -309,6 +309,45 @@ test_sdlc_has_tdd_prove() {
 }
 
 # ---------------------------------------------------------------------------
+# Deployment guidance tests (#30)
+# ---------------------------------------------------------------------------
+
+# Test: ARCHITECTURE.md template has post-deploy verification section
+test_wizard_arch_has_post_deploy() {
+    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if grep -qi 'post-deploy\|post.deploy.*verif' "$WIZARD"; then
+        pass "Wizard ARCHITECTURE.md template has post-deploy verification"
+    else
+        fail "Wizard ARCHITECTURE.md template should have post-deploy verification section"
+    fi
+}
+
+# Test: ARCHITECTURE.md template has health check / monitoring guidance
+test_wizard_arch_has_health_check() {
+    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    # Look within the ARCHITECTURE.md template section
+    local section
+    section=$(sed -n '/ARCHITECTURE.md.*IMPORTANT/,/^---$/p' "$WIZARD")
+    if echo "$section" | grep -qi 'health.*check\|smoke.*test\|monitor\|log.*command'; then
+        pass "Wizard ARCHITECTURE.md template has health check / monitoring guidance"
+    else
+        fail "Wizard ARCHITECTURE.md template should mention health checks, smoke tests, or log monitoring"
+    fi
+}
+
+# Test: SDLC skill deployment section mentions post-deploy verification
+test_skill_has_post_deploy() {
+    local SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    local section
+    section=$(sed -n '/## Deployment Tasks/,/^## /p' "$SKILL")
+    if echo "$section" | grep -qi 'post-deploy\|after deploy\|verify.*deploy\|monitor.*after'; then
+        pass "SDLC skill mentions post-deploy verification"
+    else
+        fail "SDLC skill deployment section should mention post-deploy verification"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -333,6 +372,12 @@ test_sdlc_has_after_session
 test_sdlc_has_mocking_table
 test_sdlc_has_unit_test_criteria
 test_sdlc_has_tdd_prove
+
+echo ""
+echo "--- Deployment guidance (#30) ---"
+test_wizard_arch_has_post_deploy
+test_wizard_arch_has_health_check
+test_skill_has_post_deploy
 
 echo ""
 echo "--- All docs structural health ---"
