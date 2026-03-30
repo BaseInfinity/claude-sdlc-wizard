@@ -16,8 +16,8 @@
 This repository uses the SDLC Wizard to enforce:
 
 ### 1. Planning Before Coding
-- Complex tasks require `EnterPlanMode`
-- Multi-step tasks use `TaskCreate`
+- Complex tasks require planning before coding
+- Multi-step tasks use `TodoWrite` or `TaskCreate`
 - Confidence levels stated before implementation
 
 ### 2. TDD Approach
@@ -51,7 +51,7 @@ To verify SDLC compliance:
 
 1. **Manual check**: Start new Claude session, observe hook output
 2. **E2E test**: Run `./tests/e2e/run-simulation.sh`
-3. **PR review**: All PRs trigger AI code review workflow
+3. **PR review**: Non-trivial PRs trigger AI code review workflow after CI passes
 
 ## Updating the Wizard
 
@@ -69,7 +69,7 @@ When Claude Code releases new features:
 ├── settings.json                  # Hook configuration
 ├── hooks/
 │   ├── sdlc-prompt-check.sh      # SDLC baseline
-│   ├── tdd-pretool-check.sh      # TDD enforcement
+│   ├── tdd-pretool-check.sh      # TDD reminder
 │   └── instructions-loaded-check.sh  # Session start validation
 └── skills/
     ├── sdlc/SKILL.md             # SDLC workflow

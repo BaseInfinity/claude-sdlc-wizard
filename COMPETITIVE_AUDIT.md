@@ -24,7 +24,7 @@ Honest assessment of where we stand in the Claude Code ecosystem. What we do wel
 3. **Self-healing CI** — `ci-self-heal.yml` detects CI failure, invokes Claude to fix it, commits and re-triggers. Proven on PR #52 (7 turns, 28.5s, exact 6-line fix).
 4. **Prove-It A/B pipeline** — Before keeping any custom feature, we prove it outperforms native alternatives with statistical evidence. If we can't prove it, we delete it.
 5. **CUSUM drift detection** — Per-criterion tracking (not just overall). Catches "plan_mode is degrading while tdd_green is stable" — isolates which SDLC area is slipping.
-6. **Dogfooding enforcement** — The wizard tests itself. Every PR to this repo runs the same SDLC evaluation we recommend for users. Comprehensive automated tests across 23 scripts.
+6. **Dogfooding enforcement** — The wizard tests itself. Every PR to this repo runs the same SDLC evaluation we recommend for users. Comprehensive automated test suite validated by CI on every PR.
 7. **Auto-update research** — Weekly Claude Code release checks + community scan, monthly deep research. Automated trend detection.
 
 ## What Others Do Better
@@ -36,7 +36,7 @@ Honest assessment of where we stand in the Claude Code ecosystem. What we do wel
 | Cross-platform hooks | everything-claude-code | Node.js (Windows/macOS/Linux) | Bash only (macOS/Linux) |
 | Token/cost tracking | everything-claude-code | Per-session cost monitoring | Blocked — `claude-code-action` doesn't expose usage data |
 | Webhook automation | claude-sdlc | GitHub issues auto-trigger SDLC | Manual PR creation |
-| npm distribution | everything-claude-code, claude-sdlc | `npm install` or GitHub App | Copy-paste wizard file |
+| npm distribution | everything-claude-code, claude-sdlc | `npm install` or GitHub App | `npx agentic-sdlc-wizard init` (CLI shipped) |
 | Pattern learning | everything-claude-code | Auto-extract patterns from sessions | Manual identification |
 
 ## What We Incorporated From This Audit
@@ -72,9 +72,9 @@ Status: Documented for future. Will open issues/PRs when timing is right.
 - **When:** Weekly update workflow will detect when this becomes available
 - **Plan:** Add tokens/run to score-history.jsonl, token regression detection to compare_ci
 
-### npm Distribution (#30)
-- **Research done:** npx CLI is best ROI (MCP loses enforcement, skills already portable)
-- **Status:** Next roadmap item after this audit
+### Distribution (Shipped)
+- CLI install shipped: `npx agentic-sdlc-wizard init`
+- Remaining: docs polish, npm registry publishing
 
 ## Philosophical Position
 

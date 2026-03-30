@@ -7,7 +7,7 @@ Thank you for your interest in improving the SDLC Wizard!
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
 3. Make your changes
-4. Run tests (all 25 scripts that CI validate runs):
+4. Run tests (same scripts CI validate runs):
    ```bash
    ./tests/test-version-logic.sh && ./tests/test-analysis-schema.sh && \
    ./tests/test-workflow-triggers.sh && ./tests/test-cusum.sh && \
@@ -17,6 +17,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-prove-it.sh && ./tests/test-self-update.sh && \
    ./tests/test-external-benchmark.sh && \
    ./tests/test-cli.sh && ./tests/test-setup-path.sh && \
+   ./tests/test-docs-usability.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \
@@ -135,7 +136,7 @@ This methodology is evolving. If you have ideas for improving our evaluation app
 # Validate YAML workflows
 python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 
-# Run all 23 test scripts (same as CI validate job)
+# Run all test scripts (same as CI validate job)
 ./tests/test-version-logic.sh
 ./tests/test-analysis-schema.sh
 ./tests/test-workflow-triggers.sh
@@ -151,6 +152,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/test-external-benchmark.sh
 ./tests/test-cli.sh
 ./tests/test-setup-path.sh
+./tests/test-docs-usability.sh
 ./tests/e2e/run-simulation.sh
 ./tests/e2e/test-deterministic-checks.sh
 ./tests/e2e/test-scenario-rotation.sh
