@@ -141,6 +141,9 @@ jobs:
       - name: Run setup-path E2E tests
         run: ./tests/test-setup-path.sh
 
+      - name: Run docs usability tests
+        run: ./tests/test-docs-usability.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   # ci-self-heal.yml uses 'gh workflow run ci.yml' which triggers workflow_dispatch —

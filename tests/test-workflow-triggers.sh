@@ -3035,18 +3035,19 @@ test_wizard_no_act_recommendation() {
     fi
 }
 
-# Test 135: COMPETITIVE_AUDIT.md has current test counts (23 scripts)
-test_competitive_audit_current_counts() {
+# Test 135: COMPETITIVE_AUDIT.md does not hardcode stale test script counts
+test_competitive_audit_no_stale_counts() {
     local AUDIT="$REPO_ROOT/COMPETITIVE_AUDIT.md"
     if [ ! -f "$AUDIT" ]; then
         fail "COMPETITIVE_AUDIT.md not found"
         return
     fi
 
-    if grep -q '23 scripts' "$AUDIT"; then
-        pass "COMPETITIVE_AUDIT.md has current test script count (23)"
+    # Should NOT hardcode a specific number of scripts (goes stale)
+    if grep -qE '[0-9]+ scripts' "$AUDIT"; then
+        fail "COMPETITIVE_AUDIT.md hardcodes a script count (will go stale)"
     else
-        fail "COMPETITIVE_AUDIT.md has stale test script count (expected 23)"
+        pass "COMPETITIVE_AUDIT.md does not hardcode test script count"
     fi
 }
 
