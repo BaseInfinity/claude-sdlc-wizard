@@ -316,7 +316,7 @@ permissions:
 
 # ci.yml job-level overrides (cleanup-old-comments, e2e-quick-check, e2e-full-evaluation)
 permissions:
-  contents: write      # For score-history commits
+  contents: write      # For score-history artifacts + PR branch operations
   pull-requests: write # For sticky PR comments
 ```
 

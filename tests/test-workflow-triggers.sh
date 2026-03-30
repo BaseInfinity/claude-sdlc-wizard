@@ -1549,8 +1549,10 @@ test_ci_no_dead_token_extraction() {
     fi
 }
 
-# Test 68: ci.yml has score history git commit step
-test_ci_score_history_committed() {
+# Test 68: ci.yml uploads score data as artifact (not git commit/push)
+# Score commits pushed via GITHUB_TOKEN don't trigger CI, blocking auto-merge.
+# Artifacts preserve data without polluting PR branches.
+test_ci_score_history_uploaded_as_artifact() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
@@ -1558,12 +1560,10 @@ test_ci_score_history_committed() {
         return
     fi
 
-    # score-history.jsonl must be committed back to the repo
-    # so it persists across CI runs (ephemeral runners lose it otherwise)
-    if grep -A 5 'score-history.jsonl' "$WORKFLOW" | grep -q 'git commit'; then
-        pass "ci.yml commits score-history.jsonl back to repo"
+    if grep -q 'upload-artifact' "$WORKFLOW" && grep -q 'score-history' "$WORKFLOW"; then
+        pass "ci.yml uploads score data as artifact"
     else
-        fail "ci.yml does not commit score-history.jsonl (history lost on ephemeral runner)"
+        fail "ci.yml should upload score data as artifact (not git commit/push)"
     fi
 }
 
@@ -1768,8 +1768,8 @@ else:
     fi
 }
 
-# Test 72: ci.yml score history push uses explicit branch ref (not bare git push)
-test_ci_score_history_push_explicit_ref() {
+# Test 72: ci.yml uses upload-artifact for score data in both tiers
+test_ci_score_upload_artifact_both_tiers() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
@@ -1777,13 +1777,14 @@ test_ci_score_history_push_explicit_ref() {
         return
     fi
 
-    # On pull_request events, actions/checkout checks out refs/pull/N/merge (detached HEAD).
-    # Bare `git push` on detached HEAD fails silently with continue-on-error.
-    # Must use explicit ref: git push origin HEAD:refs/heads/<branch>
-    if grep -A 15 'Commit score history' "$WORKFLOW" | grep -q 'git push origin.*refs/heads/\|git push origin.*\$PR_BRANCH'; then
-        pass "ci.yml score history push uses explicit branch ref (detached HEAD safe)"
+    # Score data must be uploaded as artifacts (not git pushed) in both Tier 1 and Tier 2.
+    # GITHUB_TOKEN pushes don't trigger CI, blocking auto-merge on PRs.
+    local count
+    count=$(grep -c 'Upload score data artifact' "$WORKFLOW" 2>/dev/null || echo 0)
+    if [ "$count" -ge 2 ]; then
+        pass "ci.yml uploads score artifacts in both Tier 1 and Tier 2"
     else
-        fail "ci.yml score history push uses bare 'git push' (fails silently on detached HEAD)"
+        fail "ci.yml should upload score artifacts in both tiers (found $count, need 2)"
     fi
 }
 
@@ -1969,11 +1970,11 @@ test_monthly_has_pr_write_permission
 test_ci_autofix_has_actions_write
 test_tier1_regression_threshold
 test_ci_no_dead_token_extraction
-test_ci_score_history_committed
+test_ci_score_history_uploaded_as_artifact
 test_ci_autofix_no_show_full_output
 test_weekly_e2e_triggers_on_findings
 test_monthly_e2e_triggers_on_notable
-test_ci_score_history_push_explicit_ref
+test_ci_score_upload_artifact_both_tiers
 test_ci_autofix_no_workflows_permission
 test_ci_workspace_git_init
 test_ci_max_turns_sufficient
@@ -2057,24 +2058,24 @@ test_all_schedules_active() {
     fi
 }
 
-# Test 85: ci.yml score history checkouts PR branch before push
-test_ci_score_history_checkouts_pr_branch() {
+# Test 85: ci.yml score artifact upload uses retention-days
+test_ci_score_artifact_has_retention() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
     if [ ! -f "$WORKFLOW" ]; then
         fail "CI workflow file not found"
         return
     fi
-    # The score history step must checkout the actual PR branch (not push from detached HEAD)
-    if grep -A 15 'Commit score history' "$WORKFLOW" | grep -q 'git checkout'; then
-        pass "ci.yml score history checks out PR branch before push"
+    # Artifacts should have explicit retention to avoid unbounded storage growth
+    if grep -A 10 'Upload score data artifact' "$WORKFLOW" | grep -q 'retention-days'; then
+        pass "ci.yml score artifact upload has retention-days set"
     else
-        fail "ci.yml score history pushes from detached HEAD (will fail silently)"
+        fail "ci.yml score artifact upload missing retention-days"
     fi
 }
 
 test_weekly_update_monday_schedule
 test_all_schedules_active
-test_ci_score_history_checkouts_pr_branch
+test_ci_score_artifact_has_retention
 
 # ============================================
 # Weekly-Update Consolidation Structure Tests
@@ -3167,37 +3168,40 @@ test_readme_no_brittle_test_count
 
 # --- Round 4: Codex pass-2 audit findings (2026-03-27) ---
 
-# Test 143: ci.yml generates SCORE_TRENDS.md before committing score history (Tier 1)
-test_score_trends_generated_before_commit() {
+# Test 143: ci.yml generates SCORE_TRENDS.md before uploading artifact (Tier 1)
+test_score_trends_generated_before_upload() {
     local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
     if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
 
-    # Find line numbers of generate and commit steps in Tier 1 (e2e-quick-check job)
-    local gen_line commit_line
+    # Find line numbers of generate and upload steps in Tier 1 (e2e-quick-check job)
+    local gen_line upload_line
     gen_line=$(grep -n 'Generate score trends report' "$CI_FILE" | head -1 | cut -d: -f1)
-    commit_line=$(grep -n 'Commit score history' "$CI_FILE" | head -1 | cut -d: -f1)
+    upload_line=$(grep -n 'Upload score.*artifact' "$CI_FILE" | head -1 | cut -d: -f1)
 
-    if [ -z "$gen_line" ] || [ -z "$commit_line" ]; then
-        fail "Could not find score trends generate or commit steps in ci.yml"
+    if [ -z "$gen_line" ] || [ -z "$upload_line" ]; then
+        fail "Could not find score trends generate or upload steps in ci.yml"
         return
     fi
 
-    if [ "$gen_line" -lt "$commit_line" ]; then
-        pass "ci.yml generates SCORE_TRENDS.md before committing score history"
+    if [ "$gen_line" -lt "$upload_line" ]; then
+        pass "ci.yml generates SCORE_TRENDS.md before uploading artifact"
     else
-        fail "ci.yml generates SCORE_TRENDS.md AFTER commit step (line $gen_line > $commit_line)"
+        fail "ci.yml generates SCORE_TRENDS.md AFTER upload step (line $gen_line > $upload_line)"
     fi
 }
 
-# Test 144: ci.yml git add includes SCORE_TRENDS.md
-test_score_trends_included_in_commit() {
+# Test 144: ci.yml does NOT push score commits to PR branches
+test_ci_no_score_git_push_to_pr_branch() {
     local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
     if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
 
-    if grep -q 'git add.*SCORE_TRENDS.md' "$CI_FILE" 2>/dev/null; then
-        pass "ci.yml includes SCORE_TRENDS.md in git add"
+    # Score recording should NOT git push to PR branches — GITHUB_TOKEN pushes
+    # don't trigger CI, creating a new HEAD with zero checks and blocking auto-merge.
+    # Check the full score commit steps (both Tier 1 and Tier 2) for git push.
+    if grep -B 2 -A 30 'Commit score history' "$CI_FILE" | grep -q 'git push'; then
+        fail "ci.yml still pushes score commits to PR branches (blocks auto-merge)"
     else
-        fail "ci.yml does not include SCORE_TRENDS.md in git add"
+        pass "ci.yml does not push score commits to PR branches"
     fi
 }
 
@@ -3498,8 +3502,8 @@ test_cicd_weekly_mentions_watchlist() {
     fi
 }
 
-test_score_trends_generated_before_commit
-test_score_trends_included_in_commit
+test_score_trends_generated_before_upload
+test_ci_no_score_git_push_to_pr_branch
 test_score_trends_honest_footer
 test_readme_tdd_green_is_ai_judge
 test_readme_scoring_split_accurate
@@ -3605,34 +3609,25 @@ sys.exit(1)  # Step not found
     fi
 }
 
-# Test 175: ci.yml "Commit score history" does NOT silently swallow failures (Bug 3 regression)
-test_ci_score_commit_no_silent_fail() {
+# Test 175: ci.yml has NO "Commit score history" step (removed — caused auto-merge blocking)
+test_ci_no_score_commit_step() {
     local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
     if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
 
-    # The "Commit score history" step must NOT have continue-on-error: true
-    if python3 -c "
-import yaml, sys
-with open('$CI_FILE') as f:
-    wf = yaml.safe_load(f)
-job = wf['jobs']['e2e-quick-check']
-for step in job['steps']:
-    if step.get('name', '') == 'Commit score history':
-        if step.get('continue-on-error', False):
-            sys.exit(1)  # Still has continue-on-error — bug not fixed
-        sys.exit(0)
-sys.exit(1)  # Step not found
-" 2>/dev/null; then
-        pass "ci.yml 'Commit score history' does not silently swallow failures"
+    # "Commit score history" steps were removed because GITHUB_TOKEN pushes
+    # don't trigger CI, creating PR HEADs with zero checks (blocks auto-merge).
+    # Score data is now uploaded as artifacts instead.
+    if grep -q 'Commit score history' "$CI_FILE" 2>/dev/null; then
+        fail "ci.yml still has 'Commit score history' step (should use artifacts instead)"
     else
-        fail "ci.yml 'Commit score history' has continue-on-error: true — history never persists"
+        pass "ci.yml has no 'Commit score history' step (uses artifacts)"
     fi
 }
 
 test_ci_verdict_checks_critical_miss
 test_ci_eval_extracts_critical_miss
 test_ci_score_history_no_silent_fail
-test_ci_score_commit_no_silent_fail
+test_ci_no_score_commit_step
 
 # --- Round 6: Review pipeline experiment (#27) ---
 
