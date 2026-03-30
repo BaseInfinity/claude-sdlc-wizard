@@ -357,6 +357,52 @@ test_instructions_hook_mentions_setup_wizard() {
     fi
 }
 
+# Test 26: sdlc-prompt-check outputs setup-wizard directive when SDLC.md missing
+test_sdlc_hook_setup_redirect_missing_sdlc() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/TESTING.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "setup-wizard" && ! echo "$output" | grep -q "SDLC BASELINE"; then
+        pass "sdlc-prompt-check.sh redirects to setup-wizard when SDLC.md missing"
+    else
+        fail "Should output setup-wizard directive (not SDLC BASELINE) when SDLC.md missing"
+    fi
+}
+
+# Test 27: sdlc-prompt-check outputs setup-wizard directive when TESTING.md missing
+test_sdlc_hook_setup_redirect_missing_testing() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/SDLC.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "setup-wizard" && ! echo "$output" | grep -q "SDLC BASELINE"; then
+        pass "sdlc-prompt-check.sh redirects to setup-wizard when TESTING.md missing"
+    else
+        fail "Should output setup-wizard directive (not SDLC BASELINE) when TESTING.md missing"
+    fi
+}
+
+# Test 28: sdlc-prompt-check outputs normal baseline when both files exist
+test_sdlc_hook_normal_when_setup_complete() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    touch "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local output
+    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "SDLC BASELINE" && ! echo "$output" | grep -q "SETUP NOT COMPLETE"; then
+        pass "sdlc-prompt-check.sh outputs normal baseline when setup complete"
+    else
+        fail "Should output SDLC BASELINE (not setup redirect) when both files exist"
+    fi
+}
+
 # Run all tests
 test_sdlc_hook_exists
 test_sdlc_hook_keywords
@@ -383,6 +429,9 @@ test_sdlc_completed_steps
 test_sdlc_hook_self_review_reference
 test_sdlc_update_frequency
 test_instructions_hook_mentions_setup_wizard
+test_sdlc_hook_setup_redirect_missing_sdlc
+test_sdlc_hook_setup_redirect_missing_testing
+test_sdlc_hook_normal_when_setup_complete
 
 echo ""
 echo "=== Results ==="

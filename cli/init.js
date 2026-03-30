@@ -200,7 +200,7 @@ ${YELLOW}Important:${RESET} Hooks and settings load at session start.
 
 Next steps:
   1. Start Claude Code in this directory (or restart if already running)
-  2. Tell Claude: "/setup-wizard" (or it will auto-invoke when SDLC files are missing)
+  2. Tell Claude anything — setup-wizard auto-invokes when SDLC files are missing
   3. Claude will scan your project and create CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
 
 The wizard doc is at: CLAUDE_CODE_SDLC_WIZARD.md
