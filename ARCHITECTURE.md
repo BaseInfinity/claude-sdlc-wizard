@@ -15,7 +15,7 @@ The SDLC Wizard is a documentation-first approach to enforcing SDLC practices in
 │  tests/                       ← Test scripts and fixtures   │
 └─────────────────────────────────────────────────────────────┘
                               │
-                              │ User copies wizard to their repo
+                              │ User runs `npx agentic-sdlc-wizard init`
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     User's Project                          │
@@ -34,7 +34,7 @@ The SDLC Wizard is a documentation-first approach to enforcing SDLC practices in
 
 **File**: `CLAUDE_CODE_SDLC_WIZARD.md`
 
-The main document that users copy to their repos. Contains:
+The main wizard document (installed by `npx agentic-sdlc-wizard init` or copied manually). Contains:
 - SDLC philosophy
 - Installation instructions
 - Hook/skill templates
@@ -240,7 +240,7 @@ sdlc-wizard/
         │   ├── scenario-selector.sh    # Scenario auto-discovery
         │   ├── external-benchmark.sh   # Benchmark fetcher
         │   └── sdp-score.sh       # SDP calculation
-        ├── scenarios/             # 13 test scenarios
+        ├── scenarios/             # E2E test scenarios
         ├── golden-outputs/        # Verified expected scores
         └── fixtures/test-repo/    # Template for simulations
 ```

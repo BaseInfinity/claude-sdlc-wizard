@@ -1,6 +1,6 @@
 # Claude Code SDLC Wizard
 
-A **self-evolving SDLC enforcement system for AI coding agents**. Makes Claude plan before coding, test before shipping, and ask when uncertain. Measures itself getting better over time.
+A **self-evolving Software Development Life Cycle (SDLC) enforcement system for AI coding agents**. Makes Claude plan before coding, test before shipping, and ask when uncertain. Measures itself getting better over time.
 
 ## Install
 
@@ -69,7 +69,7 @@ Layer 3: SCORING ENGINE
 
 Layer 2: ENFORCEMENT
   Hooks fire every interaction (~100 tokens).
-  PreToolUse blocks source edits without tests.
+  PreToolUse reminds Claude to write tests first.
 
 Layer 1: PHILOSOPHY
   The wizard document. KISS. TDD. Confidence levels.
@@ -84,7 +84,7 @@ Layer 1: PHILOSOPHY
 | **Before/after A/B testing** | Compares wizard changes against a baseline with 95% confidence intervals to prove improvements aren't noise |
 | **SDP normalization** | Separates "the model had a bad day" from "our SDLC broke" by cross-referencing external benchmarks |
 | **CUSUM drift detection** | Catches gradual quality decay over time — borrowed from manufacturing quality control |
-| **Pre-tool TDD hooks** | Claude can't write code without writing tests first — enforced at the hook level, not just guidance |
+| **Pre-tool TDD hooks** | Before source edits, a hook reminds Claude to write tests first. CI scoring checks whether it actually followed TDD |
 | **Self-evolving loop** | Weekly/monthly external research + CI friction signals from self-heal — you approve, the system gets better |
 
 ## How It Works
@@ -166,7 +166,7 @@ Tests aren't just validation - they're the foundation everything else builds on.
 |--------|---------|-------|
 | `claude-md-management` | **Required** - CLAUDE.md maintenance | CLAUDE.md only |
 | `claude-code-setup` | Recommends automations | Recommendations |
-| `code-review` | PR review (optional) | PRs only |
+| `code-review` | Local self-review and PR review (optional) | Local + PRs |
 
 ## Prove It's Better
 

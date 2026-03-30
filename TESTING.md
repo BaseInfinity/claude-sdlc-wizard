@@ -79,7 +79,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 - Wizard installation on test repo
 - SDLC compliance during tasks
 - Hook firing behavior
-- Scoring criteria (7 criteria, 10/11 points)
+- Scoring criteria (10 checks across 7 categories, up to 11 points on UI scenarios)
 
 **How to run:**
 ```bash
@@ -145,7 +145,7 @@ These are sourced by tests and workflows, not run directly:
 | `tests/e2e/lib/eval-validation.sh` | Schema/bounds validation + prompt version |
 | `tests/e2e/lib/deterministic-checks.sh` | Grep-based scoring (task_tracking, confidence, tdd_red) |
 | `tests/e2e/lib/scenario-selector.sh` | Scenario auto-discovery and rotation |
-| `tests/e2e/evaluate.sh` | AI-powered SDLC scoring (0-10) |
+| `tests/e2e/evaluate.sh` | AI-powered SDLC scoring (0-10, up to 11 for UI scenarios) |
 | `tests/e2e/check-compliance.sh` | Pattern-based compliance checks |
 | `tests/e2e/cusum.sh` | CUSUM drift detection (total + per-criterion) |
 | `tests/e2e/run-simulation.sh` | E2E test runner |
@@ -170,6 +170,9 @@ These are sourced by tests and workflows, not run directly:
 | Multi-File API Endpoint | Medium | `tests/e2e/scenarios/multi-file-api-endpoint.md` |
 | Production Bug Investigation | Hard | `tests/e2e/scenarios/production-bug-investigation.md` |
 | Technical Debt Cleanup | Medium | `tests/e2e/scenarios/technical-debt-cleanup.md` |
+| Expand Test Coverage | Medium | `tests/e2e/scenarios/expand-test-coverage.md` |
+| Add Batch Operations | Medium | `tests/e2e/scenarios/add-batch-operations.md` |
+| Add Task Persistence | Medium | `tests/e2e/scenarios/add-task-persistence.md` |
 
 ## CI Integration
 
@@ -206,11 +209,10 @@ ANTHROPIC_API_KEY=xxx ./tests/e2e/run-simulation.sh
 ## Known Gaps
 
 ### Cannot Fully Test in CI
-- Actual Claude API responses (mocked in fixtures)
-- PR/issue creation (requires repo permissions)
-- Hook firing during real sessions
+- Real interactive hook firing inside live user sessions
+- PR/issue creation side effects (requires repo permissions)
 
-### Mitigation
-- Validate structure/logic in CI
-- Manual testing before merge
-- E2E simulation with real API locally
+### What CI Does Test
+- Script-level tests use fixtures (no API key needed)
+- E2E quick-check and full-evaluation run real Claude API simulations on PRs
+- Structure, logic, and scoring validation on every push
