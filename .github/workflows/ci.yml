@@ -367,6 +367,10 @@ jobs:
           echo "Baseline score: $SCORE"
           echo "baseline_score=$SCORE" >> $GITHUB_OUTPUT
 
+          # Extract baseline critical miss status for fair comparison
+          BASELINE_CRITICAL=$(echo "$RESULT" | jq -r '.critical_miss // false')
+          echo "baseline_critical_miss=$BASELINE_CRITICAL" >> $GITHUB_OUTPUT
+
           # Save output for comparison
           cp "$OUTPUT_FILE" "/tmp/baseline-output.json" 2>/dev/null || true
 
@@ -719,12 +723,18 @@ jobs:
           fi
 
           # Critical criteria override — process failure regardless of score delta
+          # But only if candidate regressed (baseline didn't also have critical miss)
           CRITICAL_MISS="${{ steps.eval-candidate.outputs.critical_miss }}"
+          BASELINE_CRITICAL="${{ steps.eval-baseline.outputs.baseline_critical_miss }}"
           if [ "$CRITICAL_MISS" = "true" ]; then
-            echo "CRITICAL MISS: Overriding score-based verdict"
-            STATUS="CRITICAL_MISS"
-            EMOJI=":rotating_light:"
-            PASS="false"
+            if [ "$BASELINE_CRITICAL" = "true" ]; then
+              echo "CRITICAL MISS on both baseline and candidate — not a regression"
+            else
+              echo "CRITICAL MISS: Overriding score-based verdict"
+              STATUS="CRITICAL_MISS"
+              EMOJI=":rotating_light:"
+              PASS="false"
+            fi
           fi
 
           echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
