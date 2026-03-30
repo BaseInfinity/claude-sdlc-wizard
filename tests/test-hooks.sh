@@ -436,6 +436,57 @@ test_template_hook_setup_redirect() {
     fi
 }
 
+# ---- Effort level recommendation tests ----
+
+# Test 31: Wizard doc has "Effort Level" section
+test_wizard_effort_level_section() {
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    if grep -q "## .*Effort Level" "$wizard"; then
+        pass "Wizard doc has Effort Level section"
+    else
+        fail "Wizard doc should have an Effort Level section"
+    fi
+}
+
+# Test 32: Wizard doc recommends high as default effort
+test_wizard_effort_high_default() {
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    if grep -qi "high.*default\|default.*high" "$wizard" && grep -q "effort.*high\|high.*effort" "$wizard"; then
+        pass "Wizard doc recommends high as default effort"
+    else
+        fail "Wizard doc should recommend high as the default effort level"
+    fi
+}
+
+# Test 33: Wizard confidence table mentions /effort max for LOW confidence
+test_wizard_confidence_effort_max() {
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    if grep -q '/effort max' "$wizard" && grep -q 'LOW' "$wizard"; then
+        # Verify they appear in proximity (within the confidence table area)
+        local section
+        section=$(sed -n '/## Confidence Check/,/^## /p' "$wizard")
+        if echo "$section" | grep -q '/effort max'; then
+            pass "Wizard confidence table mentions /effort max"
+        else
+            fail "Wizard confidence table should mention /effort max for LOW confidence"
+        fi
+    else
+        fail "Wizard should mention /effort max in confidence section"
+    fi
+}
+
+# Test 34: SDLC skill confidence table mentions /effort max for LOW confidence
+test_skill_confidence_effort_max() {
+    local skill="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    local section
+    section=$(sed -n '/## Confidence Check/,/^## /p' "$skill")
+    if echo "$section" | grep -q '/effort max'; then
+        pass "SDLC skill confidence table mentions /effort max"
+    else
+        fail "SDLC skill confidence table should mention /effort max for LOW confidence"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # SDLC Enforcement Gap Audit Tests
 # Verify that documented SDLC sections have TodoWrite enforcement
@@ -560,6 +611,10 @@ test_sdlc_hook_setup_redirect_missing_testing
 test_sdlc_hook_normal_when_setup_complete
 test_sdlc_hook_setup_redirect_empty_stubs
 test_template_hook_setup_redirect
+test_wizard_effort_level_section
+test_wizard_effort_high_default
+test_wizard_confidence_effort_max
+test_skill_confidence_effort_max
 
 echo ""
 echo "--- SDLC enforcement gap audit ---"
