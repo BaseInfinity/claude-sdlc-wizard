@@ -38,6 +38,7 @@
 | 25 | Codex README/Docs Audit | DONE — Codex audit on all user-facing docs. Fixed install UX (first section, copy-pasteable), honest claims across 6 docs, added Playwright MCP vs Tests section, docs usability regression test (10 checks). Setup wizard auto-invoke UX fix (sdlc-prompt-check.sh redirects to setup-wizard when SDLC files missing) |
 | 26 | npm Registry Publish | DONE — published `agentic-sdlc-wizard@1.15.0` to npm. v1.16.0 includes setup-wizard auto-invoke hook fix |
 | 27 | Review Pipeline Experiment | Track Claude vs Codex review findings over 10-20 non-trivial PRs. Decide: single-provider, dual for labeled PRs, or manual cross-review |
+| 28 | Consolidate /testing into /sdlc | /testing skips self-review and CI loop — tests are code, should get full SDLC. Move 3 unique items (mocking table, unit test criteria, capture-learnings) into TESTING.md, update hook to route all tasks to /sdlc, delete /testing skill. **Constraint: zero content loss — diff every line before deleting.** Must also update CLI templates, hook in both locations, and all tests that reference /testing |
 
 ## Review Pipeline
 
@@ -91,3 +92,4 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 - Node.js 20 deprecation (June 2, 2026 deadline — `actions/checkout@v4` + `oven-sh/setup-bun` forced to Node 24. Not urgent yet but blocks all CI if ignored. Revisit May 2026)
 - Reviewer severity prompt fix (14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Real but low-impact — hasn't caused a missed bug yet)
 - Mutation testing (experimental — explore if/when scoring system needs deeper validation)
+- Agent-agnostic SDLC (generalize wizard beyond Claude Code — Codex CLI, other AI agents. Auto-detect domain from repo contents, generate domain-appropriate hooks/skills. Reference impl: anticheat repo Content SDLC with GRADE labels, multi-source consensus, 219 tests. NOT immediate — needs #28 consolidation first)
