@@ -1926,7 +1926,9 @@ Sometimes the flakiness is genuinely in CI infrastructure (runner environment, G
 - **Keep quality gates strict** — the actual pass/fail decision must NOT have `continue-on-error`
 - **Separate "fail the build" from "nice to have"** — a missing PR comment is not a regression
 
-## CI Feedback Loop (After Commit)
+## CI Feedback Loop — Local Shepherd (After Commit)
+
+**This is the "local shepherd" — the primary CI fix mechanism.** It runs in your active session with full context. The optional CI Auto-Fix bot (`.github/workflows/ci-autofix.yml`) is a fallback for unattended PRs only. When both are active, the bot detects your local pushes via SHA comparison and skips automatically.
 
 **The SDLC doesn't end at local tests.** CI must pass too.
 
@@ -1972,7 +1974,7 @@ Local tests pass -> Commit -> Push -> Watch CI
 - Flaky? Investigate - flakiness is a bug
 - Stuck? ASK USER
 
-## CI Review Feedback Loop (After CI Passes)
+## CI Review Feedback Loop — Local Shepherd (After CI Passes)
 
 **CI passing isn't the end.** If CI includes a code reviewer, read and address its suggestions.
 
@@ -2003,6 +2005,25 @@ CI passes -> Read review suggestions
 - **Auto-implement** (default): Implement valid suggestions autonomously, skip opinions
 - **Ask first**: Present suggestions to user, let them decide which to implement
 - **Skip review feedback**: Ignore CI review suggestions, only fix CI failures
+
+## Shepherd vs. Bot: Two-Tier CI Fix Model
+
+| Aspect | Local Shepherd | CI Auto-Fix Bot |
+|--------|---------------|-----------------|
+| **When** | Active session (you're working) | Unattended (pushed and walked away) |
+| **Context** | Full: codebase, conversation, intent | Minimal: `--bare`, 200-line truncated logs |
+| **Cost** | Session tokens (marginal cost ~$0) | Separate API calls ($0.50-$2.00 per fix) |
+| **Noise** | 0 extra commits | 1+ `[autofix N/M]` commits per attempt |
+| **Quality** | High: full diagnosis, targeted fix | Lower: stateless, may repeat same approach |
+| **Speed** | Immediate: fix locally, push once | Delayed: workflow_run trigger + runner queue |
+| **Deconfliction** | N/A (is the primary) | SHA check: skips if branch advanced since failure |
+
+**The shepherd is the default.** It runs as part of the SDLC checklist above whenever you push from an active session. The bot is optional and only adds value for:
+- Dependabot/Renovate PRs (no human session)
+- PRs where you push and walk away
+- Overnight CI runs
+
+If you set up the bot, the SHA-based suppression ensures they never conflict.
 
 ## DRY Principle
 
@@ -2749,7 +2770,9 @@ Claude: [fetches via gh api, discusses with you interactively]
 
 This is optional - skip if you prefer fresh reviews only.
 
-### CI Auto-Fix Loop (Optional)
+### CI Auto-Fix Loop (Optional — Bot Fallback)
+
+> **Two-tier model:** The SDLC skill's CI loops (above) are the "local shepherd" — they handle CI fixes during active sessions. This bot is the second tier: an unattended fallback for when no one is watching. The bot includes SHA-based suppression — if you push a fix locally before the bot runs, it skips automatically.
 
 Automatically fix CI failures and PR review findings. Claude reads the error context, fixes the code, commits, and re-triggers CI. Loops until CI passes AND review has no findings at your chosen level, or max retries hit.
 

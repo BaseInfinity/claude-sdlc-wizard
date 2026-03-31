@@ -480,6 +480,51 @@ test_wizard_convergence_rule
 test_skill_template_parity
 test_wizard_recheck_prompt_parity
 
+# --- CI Shepherd Model Tests (#36) ---
+
+# Wizard documents two-tier CI fix model
+test_wizard_two_tier_model() {
+    if grep -q "Two-Tier CI Fix" "$WIZARD" || grep -q "Shepherd vs. Bot" "$WIZARD"; then
+        pass "Wizard documents two-tier CI fix model"
+    else
+        fail "Wizard should document the two-tier (shepherd vs bot) CI fix model"
+    fi
+}
+
+# Wizard contains shepherd vs bot comparison
+test_wizard_shepherd_comparison() {
+    if grep -q "Local Shepherd" "$WIZARD" && grep -q "CI Auto-Fix Bot" "$WIZARD"; then
+        pass "Wizard contains shepherd vs bot comparison"
+    else
+        fail "Wizard should contain comparison between Local Shepherd and CI Auto-Fix Bot"
+    fi
+}
+
+# CI_CD.md documents shepherd tier
+test_cicd_shepherd_section() {
+    local cicd="$SCRIPT_DIR/../CI_CD.md"
+    if grep -q "Local Shepherd" "$cicd"; then
+        pass "CI_CD.md documents the local shepherd tier"
+    else
+        fail "CI_CD.md should document the local shepherd tier"
+    fi
+}
+
+# SKILL.md labels CI feedback loops as shepherd
+test_skill_shepherd_label() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    if grep -q "Local Shepherd" "$skill_file"; then
+        pass "SKILL.md labels CI feedback loops as Local Shepherd"
+    else
+        fail "SKILL.md should label CI feedback loops as 'Local Shepherd'"
+    fi
+}
+
+test_wizard_two_tier_model
+test_wizard_shepherd_comparison
+test_cicd_shepherd_section
+test_skill_shepherd_label
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
