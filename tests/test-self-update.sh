@@ -385,21 +385,33 @@ test_step_registry_update_wizard
 
 # --- Cross-Model Review Dialogue Tests (#40) ---
 
-# Test 22: Wizard cross-model section documents response.json protocol
+# Helper: extract wizard cross-model blocks (embedded SKILL + deep-dive)
+wizard_cross_model_blocks() {
+    # Embedded SKILL section: ## Cross-Model Review ... ## Test Review
+    sed -n '/^## Cross-Model Review (If Configured)/,/^## Test Review/p' "$WIZARD"
+    # Deep-dive section: ### Cross-Model Review Loop ... next ### or EOF
+    sed -n '/^### Cross-Model Review Loop/,/^### [^C]/p' "$WIZARD"
+}
+
+# Test 22: Wizard cross-model sections document response.json protocol
 test_wizard_response_protocol() {
-    if grep -q "response.json" "$WIZARD" && grep -q "DISPUTED" "$WIZARD"; then
-        pass "Wizard documents response.json dialogue protocol"
+    local blocks
+    blocks=$(wizard_cross_model_blocks)
+    if echo "$blocks" | grep -q "response.json" && echo "$blocks" | grep -q "DISPUTED"; then
+        pass "Wizard cross-model sections document response.json dialogue protocol"
     else
-        fail "Wizard should document response.json with DISPUTED action"
+        fail "Wizard cross-model sections should document response.json with DISPUTED action"
     fi
 }
 
-# Test 23: Wizard documents targeted recheck (not just full re-review)
+# Test 23: Wizard cross-model sections document targeted recheck
 test_wizard_targeted_recheck() {
-    if grep -qi "targeted recheck" "$WIZARD"; then
-        pass "Wizard documents targeted recheck for round 2+"
+    local blocks
+    blocks=$(wizard_cross_model_blocks)
+    if echo "$blocks" | grep -qi "targeted recheck"; then
+        pass "Wizard cross-model sections document targeted recheck for round 2+"
     else
-        fail "Wizard should document targeted recheck protocol"
+        fail "Wizard cross-model sections should document targeted recheck protocol"
     fi
 }
 
@@ -409,23 +421,27 @@ test_skill_dialogue_protocol() {
     local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
     local ok=true
     for f in "$skill_file" "$template_file"; do
-        if ! grep -q "FIXED" "$f" || ! grep -q "DISPUTED" "$f" || ! grep -q "ACCEPTED" "$f"; then
+        local section
+        section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$f")
+        if ! echo "$section" | grep -q "FIXED" || ! echo "$section" | grep -q "DISPUTED" || ! echo "$section" | grep -q "ACCEPTED"; then
             ok=false
         fi
     done
     if $ok; then
-        pass "Both SKILL.md copies document FIXED/DISPUTED/ACCEPTED response actions"
+        pass "Both SKILL.md cross-model sections document FIXED/DISPUTED/ACCEPTED"
     else
-        fail "Both SKILL.md copies should document the dialogue response actions"
+        fail "Both SKILL.md cross-model sections should document the dialogue response actions"
     fi
 }
 
-# Test 25: Wizard documents convergence rule (max rounds)
+# Test 25: Wizard cross-model sections document convergence rule
 test_wizard_convergence_rule() {
-    if grep -qi "max.*round\|escalate.*user" "$WIZARD"; then
-        pass "Wizard documents convergence rule"
+    local blocks
+    blocks=$(wizard_cross_model_blocks)
+    if echo "$blocks" | grep -qi "max.*round\|escalate.*user"; then
+        pass "Wizard cross-model sections document convergence rule"
     else
-        fail "Wizard should document max rounds / escalation"
+        fail "Wizard cross-model sections should document max rounds / escalation"
     fi
 }
 
@@ -443,11 +459,26 @@ test_skill_template_parity() {
     fi
 }
 
+# Test 27: All recheck prompts in wizard are consistent (catches deep-dive drift)
+test_wizard_recheck_prompt_parity() {
+    # Count actual codex exec recheck prompts (quoted strings, not flow diagrams)
+    local prompts
+    prompts=$(grep -c '"You are doing a TARGETED RECHECK.*First read .reviews/handoff.json' "$WIZARD")
+    local total
+    total=$(grep -c '"You are doing a TARGETED RECHECK' "$WIZARD")
+    if [ "$prompts" -eq "$total" ] && [ "$total" -ge 2 ]; then
+        pass "All $total wizard recheck prompts include handoff.json-first instruction"
+    else
+        fail "Wizard has $total recheck prompts but only $prompts include handoff.json-first ($total expected)"
+    fi
+}
+
 test_wizard_response_protocol
 test_wizard_targeted_recheck
 test_skill_dialogue_protocol
 test_wizard_convergence_rule
 test_skill_template_parity
+test_wizard_recheck_prompt_parity
 
 echo ""
 echo "=== Results ==="
