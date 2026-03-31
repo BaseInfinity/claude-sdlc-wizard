@@ -70,7 +70,10 @@
 
 ## Unprioritized
 
-_(All items moved to This Release or Back Burner)_
+| # | Item | Description |
+|---|------|-------------|
+| 50 | Skill Deduplication Audit | During setup, scan existing `.claude/skills/` for overlap with wizard-provided skills. Flag redundant skills, suggest merges, show comparison ("your `/testing` does X, wizard's `/sdlc` already covers X+Y+Z"). Ties into #48 workflow analyzer — same "audit what you already have" philosophy |
+| 51 | Global Install Mode | Support `npm install -g` with a global template that auto-seeds new repos. Currently per-repo only (`npx agentic-sdlc-wizard init` in each repo). Research whether users want a global default config that gets applied automatically |
 
 ## Review Pipeline
 
