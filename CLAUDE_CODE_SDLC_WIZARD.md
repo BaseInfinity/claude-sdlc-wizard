@@ -951,17 +951,18 @@ After SDLC setup is complete, run `/claude-automation-recommender` for stack-spe
 
 **The wizard is an enforcement engine** — it installs working hooks, skills, and process guardrails that run automatically. **The recommender is a suggestion engine** — it analyzes your codebase and suggests additional automations you might want. They're complementary:
 
-| Category | Wizard Ships | Recommender Suggests |
-|----------|-------------|---------------------|
-| SDLC process (TDD, planning, review) | Enforced via hooks + skills | Not covered |
-| CI workflows (self-heal, PR review) | Templates + docs | Not covered |
-| MCP servers (context7, Playwright, DB) | Not covered | Per-stack suggestions |
-| Auto-formatting hooks (Prettier, ESLint) | Not covered | Per-stack suggestions |
-| Type-checking hooks (tsc, mypy) | Not covered | Per-stack suggestions |
-| Subagent templates (code-reviewer, etc.) | Cross-model review only | 8 templates |
-| Plugin recommendations (LSPs, etc.) | Not covered | Per-stack suggestions |
+| Category | Wizard Ships | Recommender Suggests | `/ci-analyzer` |
+|----------|-------------|---------------------|----------------|
+| SDLC process (TDD, planning, review) | Enforced via hooks + skills | Not covered | Not covered |
+| CI workflows (self-heal, PR review) | Templates + docs | Not covered | Analyzes existing workflows for gaps |
+| CI linting/review/E2E gaps | Not covered | Not covered | Specific recommendations per workflow |
+| MCP servers (context7, Playwright, DB) | Not covered | Per-stack suggestions | Not covered |
+| Auto-formatting hooks (Prettier, ESLint) | Not covered | Per-stack suggestions | Not covered |
+| Type-checking hooks (tsc, mypy) | Not covered | Per-stack suggestions | Not covered |
+| Subagent templates (code-reviewer, etc.) | Cross-model review only | 8 templates | Not covered |
+| Plugin recommendations (LSPs, etc.) | Not covered | Per-stack suggestions | Not covered |
 
-The recommender's suggestions are additive — they don't replace the wizard's TDD hooks or SDLC enforcement.
+The recommender's suggestions are additive — they don't replace the wizard's TDD hooks or SDLC enforcement. `/ci-analyzer` focuses specifically on CI workflow gaps (linting, review hooks, E2E coverage) within your existing GitHub Actions workflows.
 
 ### Git Workflow Preference
 
@@ -1026,26 +1027,36 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 
 **Back-and-forth:** User questions live in PR comments. Bot's response is always the latest sticky comment. Clean and organized.
 
-**CI monitoring question:**
-> "Should Claude monitor CI checks after pushing and auto-diagnose failures? (y/n)"
+**CI shepherd opt-in (only if CI detected during auto-scan):**
+> "Enable CI shepherd role? Claude will actively watch CI, auto-fix failures, iterate on review feedback, and optionally run an unattended bot fallback. (y/n)"
 
-- **Yes** → Enable CI feedback loop in SDLC skill, add `gh` CLI to allowedTools
-- **No** → Skip CI monitoring steps (Claude still runs local tests, just doesn't watch CI)
+- **Yes** → Enable full shepherd loop: CI fix loop + review feedback loop + bot fallback option. Ask detail questions below
+- **No** → Skip CI shepherd entirely (Claude still runs local tests, just doesn't interact with CI after pushing)
 
-**What this does:**
-1. After pushing, Claude runs `gh pr checks` to watch CI status
-2. If checks fail, Claude reads logs via `gh run view --log-failed`
-3. Claude diagnoses the failure and proposes a fix
-4. Max 2 fix attempts, then asks user
-5. Job isn't done until CI is green
+**What the CI shepherd does:**
+1. **CI fix loop:** After pushing, Claude watches CI via `gh pr checks`, reads failure logs, diagnoses and fixes, pushes again (max 2 attempts)
+2. **Review feedback loop:** After CI passes, Claude reads automated review comments, implements valid suggestions, pushes and re-reviews (max 3 iterations)
+3. **Bot fallback (optional):** An unattended `ci-self-heal.yml` workflow for PRs where no one is watching (dependabot, overnight runs). SHA-based deconfliction prevents conflicts with the local shepherd
 
-**Recommendation:** Yes if you have CI configured. This closes the loop between
-"local tests pass" and "PR is actually ready to merge."
+**Recommendation:** Yes if you have CI configured. The shepherd closes the loop between "local tests pass" and "PR is actually ready to merge." Run `/ci-analyzer` to see specific integration points for your workflows.
 
 **Requirements:**
 - `gh` CLI installed and authenticated
 - CI/CD configured (GitHub Actions, etc.)
 - If no CI yet: skip, add later when you set up CI
+
+**Stored in SDLC.md metadata as:**
+```
+<!-- CI Shepherd: enabled -->
+```
+
+**Detail questions (only if CI shepherd is enabled):**
+
+**CI monitoring detail:**
+> "Should Claude monitor CI checks after pushing and auto-diagnose failures? (y/n)"
+
+- **Yes** → Enable CI feedback loop in SDLC skill, add `gh` CLI to allowedTools
+- **No** → Skip CI monitoring steps (Claude still runs local tests, just doesn't watch CI)
 
 **CI review feedback question (only if CI monitoring is enabled):**
 > "What level of automated review response do you want?"
@@ -2716,7 +2727,7 @@ Add project-specific guidance to skills:
 
 ### Complementary Tools
 
-The wizard handles SDLC process enforcement. For stack-specific tooling, run `/claude-automation-recommender` — it suggests MCP servers, formatting hooks, type-checking hooks, subagent templates, and plugins based on your detected tech stack. See [Step 0.3](#step-03-additional-recommendations-optional) for the full comparison.
+The wizard handles SDLC process enforcement. For stack-specific tooling, run `/claude-automation-recommender` — it suggests MCP servers, formatting hooks, type-checking hooks, subagent templates, and plugins based on your detected tech stack. For CI-specific gap analysis, run `/ci-analyzer` — it reads your GitHub Actions workflows and recommends linting steps, review hooks, and E2E coverage improvements. See [Step 0.3](#step-03-additional-recommendations-optional) for the full comparison.
 
 ---
 
