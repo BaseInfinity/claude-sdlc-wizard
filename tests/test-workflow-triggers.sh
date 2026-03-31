@@ -1851,7 +1851,7 @@ test_ci_max_turns_sufficient() {
     fi
 }
 
-# Test 76: Tier 1 regression threshold must be >= 1.5 (absorbs ±1 LLM noise)
+# Test 76: Tier 1 regression threshold must be >= 3.0 (absorbs ±3-4 LLM noise)
 test_tier1_regression_threshold() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
 
@@ -1860,8 +1860,9 @@ test_tier1_regression_threshold() {
         return
     fi
 
-    # Tier 1 uses single-trial comparison. LLM judge + simulation has ±1 point
-    # stochastic variance. A threshold < 1.5 causes false REGRESSION failures.
+    # Tier 1 uses single-trial comparison. 6/10 criteria are LLM-judged (binary),
+    # so a single run can swing ±3-4 points. A threshold < 3.0 causes false
+    # REGRESSION failures. Tier 2 (5x + CI overlap) is the real statistical gate.
     # Extract the threshold from the "Compare scores" step's bc comparison.
     # Pattern: DELTA < -X.X where X.X is the threshold
     THRESHOLD=$(grep -oE 'DELTA < -[0-9]+\.?[0-9]*' "$WORKFLOW" | head -1 | grep -oE '[0-9]+\.?[0-9]*')
@@ -1871,11 +1872,11 @@ test_tier1_regression_threshold() {
         return
     fi
 
-    # Compare using bc: threshold must be >= 1.5
-    if [ "$(echo "$THRESHOLD >= 1.5" | bc -l)" -eq 1 ]; then
+    # Compare using bc: threshold must be >= 3.0
+    if [ "$(echo "$THRESHOLD >= 3.0" | bc -l)" -eq 1 ]; then
         pass "Tier 1 regression threshold is $THRESHOLD (absorbs LLM noise)"
     else
-        fail "Tier 1 regression threshold is $THRESHOLD (too tight — causes false regressions from ±1 LLM noise, need >= 1.5)"
+        fail "Tier 1 regression threshold is $THRESHOLD (too tight — causes false regressions from ±3 LLM noise, need >= 3.0)"
     fi
 }
 
