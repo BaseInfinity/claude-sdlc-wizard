@@ -44,7 +44,7 @@
 | 39 | SDLC Enforcement Gap Audit | DONE — Audited all documented SDLC sections vs TodoWrite/hook/E2E enforcement. Fixed 5 gaps: capture learnings, scope guard, deploy tasks, new pattern approval, legacy delete check. Enforcement coverage 7/12 → 12/12. 6 new tests. Future: add E2E scoring criteria for scope_guard, after_session, deploy |
 | 41 | ~~Auto-Update PR CI Trigger~~ DONE | PR #119. Added `gh workflow run ci.yml` dispatch after all 3 `peter-evans/create-pull-request` calls. Added `actions: write` to weekly-update + monthly-research. 4 tests |
 
-## This Release (ordered)
+## Previous Release (v1.18.0)
 
 | # | Item | Description |
 |---|------|-------------|
@@ -52,11 +52,11 @@
 | 40 | ~~Cross-Model Review Dialogue~~ DONE | Evolved cross-model review from one-way gate to negotiation loop. FIXED/DISPUTED/ACCEPTED per finding. Targeted rechecks. Max 3 rounds convergence. 6 new tests |
 | 33 | ~~`/update-wizard` Skill~~ DONE | Smart update system — shows changelog diff, per-file comparison, selective adoption. 10-step guided checklist. CLI distributes skill (8 managed files). 5 new tests, version bump to 1.18.0 |
 
-## Next Release (ordered)
+## This Release (ordered)
 
 | # | Item | Description |
 |---|------|-------------|
-| 36 | ~~CI Local Shepherd Model~~ DONE | Formalized two-tier CI fix model: shepherd (primary, in-session) + bot (fallback, unattended). SHA-based suppression deconflicts them. Real data proof: 80% bot retry rate, 91% wasted workflow runs, $0 marginal shepherd cost. 9 new tests (PR #124) |
+| 36 | ~~CI Local Shepherd Model~~ DONE | Formalized two-tier CI fix model: shepherd (primary, in-session) + bot (fallback, unattended). SHA-based suppression in ci-self-heal.yml prevents redundant bot runs when shepherd already pushed. Documented comparison table in wizard + CI_CD.md. 9 new tests. PR #124 |
 | 35 | Gap Analysis vs `/claude-automation-recommender` | Run the built-in recommender on wizard-installed repos, compare suggestions vs what we ship — find coverage gaps and positioning data. Run on fresh repos to measure "suggestions" vs "enforcement" delta |
 | 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 | 42 | Token Efficiency Auditing | Add token usage tracking to weekly/monthly improvement loops. Scan for techniques that reduce token consumption while maintaining quality (shorter prompts, smarter context, fewer agent spawns). Part of performance testing — community may discover new efficiency patterns. Consider: token budget per workflow, cost trending, alert on spikes |
