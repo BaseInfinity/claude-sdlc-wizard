@@ -644,6 +644,33 @@ Security review depth should match your project's risk profile. During wizard se
 
 ---
 
+## Context Management: `/clear` vs `/compact`
+
+Two tools for managing context — use the right one:
+
+| | `/compact` | `/clear` |
+|---|---|---|
+| **What it does** | Summarizes conversation, frees space | Resets conversation entirely |
+| **When to use** | Continuing same task, need more room | Switching to an unrelated task |
+| **Preserves** | Summary of decisions + progress | Nothing (fresh start) |
+| **CLAUDE.md** | Re-loaded from disk | Re-loaded from disk |
+| **Hooks/skills/settings** | Unaffected | Unaffected |
+| **Task list** | Persists | Cleared |
+
+**Rules of thumb:**
+- `/compact` between planning and implementation (plan preserved in summary)
+- `/clear` between unrelated tasks (stale context wastes tokens and misleads Claude)
+- `/clear` after 2+ failed corrections on the same issue (context is polluted with bad approaches — start fresh with a better prompt)
+- After committing a PR, `/clear` before starting the next feature
+
+**Auto-compact** fires automatically at ~95% context capacity. You don't need to manage this manually — Claude Code handles it. The SDLC skill suggests `/compact` during CI idle time as a "context GC" opportunity.
+
+**What survives `/compact`:** Key decisions, code changes, task state (as a summary). What can be lost: detailed early-conversation instructions not in CLAUDE.md, specific file contents read long ago.
+
+**Best practice:** Put persistent instructions in CLAUDE.md (survives both `/compact` and `/clear`), not in conversation.
+
+---
+
 ## Example Workflow (End-to-End)
 
 Here's what a typical task looks like with this system:

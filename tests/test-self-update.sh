@@ -569,6 +569,50 @@ test_wizard_gap_analysis
 test_wizard_complementary_tools
 test_setup_skill_recommender
 
+# --- Context Management Guidance Tests (#38) ---
+
+# Wizard documents /clear vs /compact comparison
+test_wizard_clear_vs_compact() {
+    if grep -q "/clear" "$WIZARD" && grep -q "Context Management" "$WIZARD"; then
+        pass "Wizard documents /clear vs /compact context management"
+    else
+        fail "Wizard should document /clear vs /compact comparison"
+    fi
+}
+
+# Wizard explains when to use /clear (between unrelated tasks)
+test_wizard_clear_guidance() {
+    if grep -qi "unrelated task\|fresh context\|switch.*task\|new task" "$WIZARD" && grep -q "/clear" "$WIZARD"; then
+        pass "Wizard explains when to use /clear"
+    else
+        fail "Wizard should explain /clear is for switching between unrelated tasks"
+    fi
+}
+
+# Wizard explains auto-compact behavior
+test_wizard_auto_compact() {
+    if grep -qi "auto-compact\|auto.compact\|automatically.*compact" "$WIZARD"; then
+        pass "Wizard documents auto-compact behavior"
+    else
+        fail "Wizard should document auto-compact behavior"
+    fi
+}
+
+# SKILL.md references /clear for task switching
+test_skill_clear_reference() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    if grep -q "/clear" "$skill_file"; then
+        pass "SKILL.md references /clear for task switching"
+    else
+        fail "SKILL.md should reference /clear for between-task context management"
+    fi
+}
+
+test_wizard_clear_vs_compact
+test_wizard_clear_guidance
+test_wizard_auto_compact
+test_skill_clear_reference
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
