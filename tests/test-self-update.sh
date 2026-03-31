@@ -657,6 +657,30 @@ test_wizard_max_budget
 test_cicd_token_tracking
 test_wizard_cost_command
 
+# --- Blank Repo Guidance Tests (#31) ---
+
+# Wizard documents blank repo setup path
+test_wizard_blank_repo_guidance() {
+    if grep -qi "blank.*repo\|empty.*repo\|no.*CLAUDE.md\|fresh.*repo" "$WIZARD"; then
+        pass "Wizard documents blank repo setup path"
+    else
+        fail "Wizard should document blank repo setup path"
+    fi
+}
+
+# Blank repo fixture exists
+test_blank_repo_fixture() {
+    local fixture_dir="$SCRIPT_DIR/e2e/fixtures/blank-repo"
+    if [ -d "$fixture_dir" ] && [ -f "$fixture_dir/README.md" ]; then
+        pass "Blank repo fixture exists"
+    else
+        fail "Blank repo fixture should exist at tests/e2e/fixtures/blank-repo/"
+    fi
+}
+
+test_wizard_blank_repo_guidance
+test_blank_repo_fixture
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
