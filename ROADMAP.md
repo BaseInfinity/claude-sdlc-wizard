@@ -57,7 +57,7 @@
 | # | Item | Description |
 |---|------|-------------|
 | 36 | ~~CI Local Shepherd Model~~ DONE | Formalized two-tier CI fix model: shepherd (primary, in-session) + bot (fallback, unattended). SHA-based suppression in ci-self-heal.yml prevents redundant bot runs when shepherd already pushed. Documented comparison table in wizard + CI_CD.md. 9 new tests. PR #124 |
-| 35 | Gap Analysis vs `/claude-automation-recommender` | Run the built-in recommender on wizard-installed repos, compare suggestions vs what we ship — find coverage gaps and positioning data. Run on fresh repos to measure "suggestions" vs "enforcement" delta |
+| 35 | ~~Gap Analysis vs `/claude-automation-recommender`~~ DONE | Wizard = enforcement engine, recommender = suggestion engine. Complementary, not competitive. Updated Step 0.3 with comparison table, added Complementary Tools section, setup skill recommends post-setup. 4 new tests. PR #125 |
 | 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 | 42 | Token Efficiency Auditing | Add token usage tracking to weekly/monthly improvement loops. Scan for techniques that reduce token consumption while maintaining quality (shorter prompts, smarter context, fewer agent spawns). Part of performance testing — community may discover new efficiency patterns. Consider: token budget per workflow, cost trending, alert on spikes |
 | 31 | `/init` for Blank Repos | Test what happens when wizard runs on truly blank repos (no CLAUDE.md). Consider recommending Claude's built-in `/init` first. Add E2E test for blank-repo setup path |
