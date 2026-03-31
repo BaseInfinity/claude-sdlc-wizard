@@ -681,6 +681,72 @@ test_blank_repo_fixture() {
 test_wizard_blank_repo_guidance
 test_blank_repo_fixture
 
+# --- Feature Documentation Enforcement Tests (#43) ---
+
+SKILL="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+SKILL_TEMPLATE="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+
+# Wizard has ADR pattern guidance
+test_wizard_adr_pattern() {
+    if grep -q "docs/decisions/" "$WIZARD" && grep -q "ADR" "$WIZARD"; then
+        pass "Wizard has ADR (Architecture Decision Record) pattern guidance"
+    else
+        fail "Wizard should document ADR pattern (docs/decisions/)"
+    fi
+}
+
+# Wizard recommends claude-md-improver for CLAUDE.md health
+test_wizard_claude_md_improver() {
+    if grep -q "claude-md-improver" "$WIZARD" && grep -q "CLAUDE.md health" "$WIZARD"; then
+        pass "Wizard recommends claude-md-improver for CLAUDE.md health"
+    else
+        fail "Wizard should recommend claude-md-improver for CLAUDE.md health"
+    fi
+}
+
+# SDLC skill enforces doc updates when code changes affect documented features
+test_skill_doc_enforcement() {
+    if grep -q "doc.*update" "$SKILL" && grep -q "code change.*doc\|feature doc.*update\|update.*feature doc" "$SKILL"; then
+        pass "SDLC skill enforces doc updates for code changes"
+    else
+        fail "SDLC skill should enforce doc updates when code changes affect documented features"
+    fi
+}
+
+# Wizard documents docs-in-sync detection
+test_wizard_docs_in_sync() {
+    if grep -q "docs.*sync\|doc.*drift\|doc.*stale" "$WIZARD"; then
+        pass "Wizard documents docs-in-sync detection"
+    else
+        fail "Wizard should document how to detect when docs fall out of sync with code"
+    fi
+}
+
+# SDLC skill template matches live skill (parity)
+test_skill_doc_enforcement_template_parity() {
+    if grep -q "doc.*update" "$SKILL_TEMPLATE" && grep -q "code change.*doc\|feature doc.*update\|update.*feature doc" "$SKILL_TEMPLATE"; then
+        pass "SDLC skill template has doc enforcement (parity)"
+    else
+        fail "SDLC skill template should match live skill doc enforcement"
+    fi
+}
+
+# Wizard has feature doc structure with ADR alongside existing patterns
+test_wizard_feature_doc_structure() {
+    if grep -q "docs/decisions/" "$WIZARD" && grep -q "_PLAN.md\|_DOCS.md" "$WIZARD"; then
+        pass "Wizard feature doc structure includes ADRs alongside existing patterns"
+    else
+        fail "Wizard should show ADRs alongside existing feature doc patterns"
+    fi
+}
+
+test_wizard_adr_pattern
+test_wizard_claude_md_improver
+test_skill_doc_enforcement
+test_wizard_docs_in_sync
+test_skill_doc_enforcement_template_parity
+test_wizard_feature_doc_structure
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
