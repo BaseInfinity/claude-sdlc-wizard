@@ -67,7 +67,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 7 expected files
+# Test 4: init creates all 8 expected files
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -79,11 +79,12 @@ test_creates_all_files() {
     [ -f "$d/.claude/hooks/instructions-loaded-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
+    [ -f "$d/.claude/skills/update/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 7 ]; then
-        pass "init creates all 7 expected files"
+    if [ "$count" -eq 8 ]; then
+        pass "init creates all 8 expected files"
     else
-        fail "init should create 7 files, found $count"
+        fail "init should create 8 files, found $count"
     fi
     rm -rf "$d"
 }
@@ -154,10 +155,11 @@ test_dir_structure() {
     [ -d "$d/.claude/hooks" ] || ok=false
     [ -d "$d/.claude/skills/sdlc" ] || ok=false
     [ -d "$d/.claude/skills/setup" ] || ok=false
+    [ -d "$d/.claude/skills/update" ] || ok=false
     if [ "$ok" = true ]; then
         pass "init creates correct directory structure"
     else
-        fail "init should create .claude/hooks, .claude/skills/sdlc, .claude/skills/setup"
+        fail "init should create .claude/hooks, .claude/skills/sdlc, .claude/skills/setup, .claude/skills/update"
     fi
     rm -rf "$d"
 }
