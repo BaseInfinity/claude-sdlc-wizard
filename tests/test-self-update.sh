@@ -403,13 +403,20 @@ test_wizard_targeted_recheck() {
     fi
 }
 
-# Test 24: SKILL.md documents the dialogue response protocol
+# Test 24: SKILL.md documents the dialogue response protocol (both copies)
 test_skill_dialogue_protocol() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
-    if grep -q "FIXED" "$skill_file" && grep -q "DISPUTED" "$skill_file" && grep -q "ACCEPTED" "$skill_file"; then
-        pass "SKILL.md documents FIXED/DISPUTED/ACCEPTED response actions"
+    local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+    local ok=true
+    for f in "$skill_file" "$template_file"; do
+        if ! grep -q "FIXED" "$f" || ! grep -q "DISPUTED" "$f" || ! grep -q "ACCEPTED" "$f"; then
+            ok=false
+        fi
+    done
+    if $ok; then
+        pass "Both SKILL.md copies document FIXED/DISPUTED/ACCEPTED response actions"
     else
-        fail "SKILL.md should document the dialogue response actions"
+        fail "Both SKILL.md copies should document the dialogue response actions"
     fi
 }
 
@@ -422,10 +429,25 @@ test_wizard_convergence_rule() {
     fi
 }
 
+# Test 26: Local SKILL.md and template SKILL.md cross-model sections match
+test_skill_template_parity() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+    local skill_section template_section
+    skill_section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$skill_file")
+    template_section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$template_file")
+    if [ "$skill_section" = "$template_section" ]; then
+        pass "Local and template SKILL.md cross-model sections are identical"
+    else
+        fail "Local and template SKILL.md cross-model sections have drifted"
+    fi
+}
+
 test_wizard_response_protocol
 test_wizard_targeted_recheck
 test_skill_dialogue_protocol
 test_wizard_convergence_rule
+test_skill_template_parity
 
 echo ""
 echo "=== Results ==="

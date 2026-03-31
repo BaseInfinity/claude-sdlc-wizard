@@ -1805,10 +1805,13 @@ When the reviewer finds issues, respond per-finding instead of silently fixing e
      -c 'model_reasoning_effort="xhigh"' \
      -s danger-full-access \
      -o .reviews/latest-review.md \
-     "You are doing a TARGETED RECHECK. Read .reviews/response.json for \
-      the author's responses to your previous findings. For each: \
-      FIXED → verify the fix. DISPUTED → evaluate the justification \
-      (ACCEPT if sound, REJECT if not). ACCEPTED → verify it was applied. \
+     "You are doing a TARGETED RECHECK. First read .reviews/handoff.json \
+      to find the previous_review path — read that file for the original \
+      findings and certify conditions. Then read .reviews/response.json \
+      for the author's responses. For each: \
+      FIXED → verify the fix against the original certify condition. \
+      DISPUTED → evaluate the justification (ACCEPT if sound, REJECT if not). \
+      ACCEPTED → verify it was applied. \
       Do NOT raise new findings unless P0 (critical/security). \
       New observations go in 'Notes for next review' (non-blocking). \
       End with CERTIFIED or NOT CERTIFIED."
