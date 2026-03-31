@@ -1895,6 +1895,17 @@ Self-review passes → handoff.json (round 1, PENDING_REVIEW)
 
 **Full protocol:** See the "Cross-Model Review Loop (Optional)" section below for key flags and reasoning effort guidance.
 
+### Release Review Focus
+
+Before any release/publish, add these to `review_instructions`:
+- **CHANGELOG consistency** — all sections present, no lost entries during consolidation
+- **Version parity** — package.json, SDLC.md, CHANGELOG, wizard metadata all match
+- **Stale examples** — hardcoded version strings in docs match current release
+- **Docs accuracy** — README, ARCHITECTURE.md reflect current feature set
+- **CLI-distributed file parity** — live skills, hooks, settings match CLI templates
+
+Evidence: v1.20.0 cross-model review caught CHANGELOG section loss and stale wizard version examples that passed all tests and self-review.
+
 ## Test Review (Harder Than Implementation)
 
 During self-review, critique tests HARDER than app code:
