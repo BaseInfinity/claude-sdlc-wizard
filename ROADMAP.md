@@ -51,7 +51,8 @@
 | 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 | 39 | SDLC Enforcement Gap Audit | DONE — Audited all documented SDLC sections vs TodoWrite/hook/E2E enforcement. Fixed 5 gaps: capture learnings, scope guard, deploy tasks, new pattern approval, legacy delete check. Enforcement coverage 7/12 → 12/12. 6 new tests. Future: add E2E scoring criteria for scope_guard, after_session, deploy |
 | 40 | Cross-Model Review Dialogue | Evolve cross-model review from one-way gate to negotiation loop. Reviewer says what's wrong AND what it would take to certify. Claude fixes valid issues, justifies disagreements. Reviewer accepts reasoning or pushes back. Converge to shared agreement. Builds on #27 experiment data and #32 N-Reviewer pipeline |
-| 41 | Auto-Update PR CI Trigger | `peter-evans/create-pull-request` uses GITHUB_TOKEN which doesn't trigger `pull_request` events (GitHub anti-loop protection). Auto-update PRs (#112 etc.) have no CI checks. Fix: add `gh workflow run ci.yml` dispatch step after PR creation, or use PAT. Low effort, high value — currently every auto-update PR needs manual CI trigger |
+| 41 | ~~Auto-Update PR CI Trigger~~ DONE | PR #119. Added `gh workflow run ci.yml` dispatch after all 3 `peter-evans/create-pull-request` calls. Added `actions: write` to weekly-update + monthly-research. 4 tests |
+| 42 | Token Efficiency Auditing | Add token usage tracking to weekly/monthly improvement loops. Scan for techniques that reduce token consumption while maintaining quality (shorter prompts, smarter context, fewer agent spawns). Part of performance testing — community may discover new efficiency patterns. Consider: token budget per workflow, cost trending, alert on spikes |
 
 ## Review Pipeline
 
