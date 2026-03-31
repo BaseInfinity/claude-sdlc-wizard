@@ -2744,6 +2744,49 @@ _Sources: [Confident AI](https://www.confident-ai.com/blog/llm-testing-in-2024-t
 
 ---
 
+## Token Efficiency
+
+Practical techniques to reduce token consumption without sacrificing quality.
+
+### Monitor Costs
+
+| Tool | What It Shows | When to Use |
+|------|---------------|-------------|
+| `/cost` | Session total: USD, API time, code changes | After a session to review spend |
+| `/context` | What's consuming context window space | When hitting context limits |
+| Status line | Real-time `cost.total_cost_usd` + token counts | Continuous monitoring |
+
+### Reduce Consumption
+
+| Technique | Savings | How |
+|-----------|---------|-----|
+| `/compact` between phases | ~40-60% context | Plan → compact → implement (plan preserved) |
+| `/clear` between tasks | 100% context reset | No stale context from prior work |
+| Delegate verbose ops to subagents | Separate context | `Agent` tool returns summary, not full output |
+| Use skills for on-demand knowledge | Smaller base context | Skills load only when invoked |
+| Scope investigations narrowly | Fewer tokens read | "investigate auth module" > "investigate codebase" |
+| `--effort low` for simple tasks | ~50% thinking tokens | Simple renames, config changes |
+
+### CI Cost Control
+
+Add `--max-budget-usd` to CI workflows as a safety net:
+
+```yaml
+claude_args: "--max-budget-usd 5.00 --max-turns 30"
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--max-budget-usd` | Hard dollar cap per CI invocation |
+| `--max-turns` | Limit agentic turns (prevents infinite loops) |
+| `--effort` | `low`/`medium`/`high` controls thinking depth |
+
+### Advanced: OpenTelemetry
+
+For organization-wide cost tracking, enable `CLAUDE_CODE_ENABLE_TELEMETRY=1`. This exports per-request `cost_usd`, `input_tokens`, `output_tokens` to any OTLP-compatible backend (Datadog, Honeycomb, Prometheus).
+
+---
+
 ## CI/CD Gotchas
 
 Common pitfalls when automating AI-assisted development workflows.
