@@ -436,6 +436,99 @@ test_template_hook_setup_redirect() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# SDLC Enforcement Gap Audit Tests
+# Verify that documented SDLC sections have TodoWrite enforcement
+# ---------------------------------------------------------------------------
+
+SKILL_TEMPLATE="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+
+# Test: TodoWrite checklist has "capture learnings" / "after session" task
+test_todowrite_has_capture_learnings() {
+    local todowrite_section
+    todowrite_section=$(sed -n '/^TodoWrite(\[/,/^\])/p' "$SKILL_TEMPLATE")
+    if echo "$todowrite_section" | grep -qi 'capture.*learning\|after.*session\|learnings'; then
+        pass "TodoWrite has capture learnings task"
+    else
+        fail "TodoWrite missing capture learnings task — After Session section not enforced"
+    fi
+}
+
+# Test: TodoWrite checklist has scope guard / stay in lane reminder
+test_todowrite_has_scope_guard() {
+    local todowrite_section
+    todowrite_section=$(sed -n '/^TodoWrite(\[/,/^\])/p' "$SKILL_TEMPLATE")
+    if echo "$todowrite_section" | grep -qi 'scope.*guard\|stay.*lane\|scope.*check\|only.*related'; then
+        pass "TodoWrite has scope guard task"
+    else
+        fail "TodoWrite missing scope guard task — Scope Guard section not enforced"
+    fi
+}
+
+# Test: TodoWrite checklist has deployment conditional tasks
+test_todowrite_has_deploy_tasks() {
+    local todowrite_section
+    todowrite_section=$(sed -n '/^TodoWrite(\[/,/^\])/p' "$SKILL_TEMPLATE")
+    if echo "$todowrite_section" | grep -qi 'deploy\|post-deploy\|deployment'; then
+        pass "TodoWrite has deployment tasks"
+    else
+        fail "TodoWrite missing deployment tasks — Deployment section not enforced"
+    fi
+}
+
+# Test: TodoWrite checklist has new pattern approval check
+test_todowrite_has_new_pattern_check() {
+    local todowrite_section
+    todowrite_section=$(sed -n '/^TodoWrite(\[/,/^\])/p' "$SKILL_TEMPLATE")
+    if echo "$todowrite_section" | grep -qi 'new.*pattern\|pattern.*approv\|pattern.*exist'; then
+        pass "TodoWrite has new pattern approval check"
+    else
+        fail "TodoWrite missing new pattern check — New Pattern section not enforced"
+    fi
+}
+
+# Test: TodoWrite checklist has legacy/delete code check
+test_todowrite_has_legacy_delete_check() {
+    local todowrite_section
+    todowrite_section=$(sed -n '/^TodoWrite(\[/,/^\])/p' "$SKILL_TEMPLATE")
+    if echo "$todowrite_section" | grep -qi 'legacy\|delete.*old\|fallback.*code\|backward.*compat'; then
+        pass "TodoWrite has legacy code delete check"
+    else
+        fail "TodoWrite missing legacy delete check — DELETE Legacy Code section not enforced"
+    fi
+}
+
+# Test: Enforcement coverage score — count documented sections with TodoWrite tasks
+# This is the "audit score" — tracks how many prose sections have enforcement
+test_enforcement_coverage_score() {
+    local todowrite_section
+    todowrite_section=$(sed -n '/^TodoWrite(\[/,/^\])/p' "$SKILL_TEMPLATE")
+    local enforced=0
+    local total=12
+
+    # Already enforced (baseline)
+    echo "$todowrite_section" | grep -qi 'doc\|read.*doc' && enforced=$((enforced + 1))          # Planning: read docs
+    echo "$todowrite_section" | grep -qi 'DRY\|reuse\|pattern.*exist' && enforced=$((enforced + 1)) # DRY scan
+    echo "$todowrite_section" | grep -qi 'blast.*radius\|depend' && enforced=$((enforced + 1))    # Blast radius
+    echo "$todowrite_section" | grep -qi 'confidence' && enforced=$((enforced + 1))                # Confidence
+    echo "$todowrite_section" | grep -qi 'TDD RED\|failing test' && enforced=$((enforced + 1))    # TDD RED
+    echo "$todowrite_section" | grep -qi 'self.review\|code.review' && enforced=$((enforced + 1)) # Self-review
+    echo "$todowrite_section" | grep -qi 'security' && enforced=$((enforced + 1))                  # Security review
+
+    # New enforcement (gaps we're fixing)
+    echo "$todowrite_section" | grep -qi 'capture.*learning\|after.*session' && enforced=$((enforced + 1))  # After Session
+    echo "$todowrite_section" | grep -qi 'scope.*guard\|stay.*lane\|scope.*check' && enforced=$((enforced + 1))   # Scope Guard
+    echo "$todowrite_section" | grep -qi 'deploy' && enforced=$((enforced + 1))                    # Deploy tasks
+    echo "$todowrite_section" | grep -qi 'new.*pattern\|pattern.*approv' && enforced=$((enforced + 1))  # New pattern
+    echo "$todowrite_section" | grep -qi 'legacy\|delete.*old\|fallback' && enforced=$((enforced + 1))  # Legacy delete
+
+    if [ "$enforced" -ge "$total" ]; then
+        pass "Enforcement coverage: $enforced/$total documented sections have TodoWrite tasks"
+    else
+        fail "Enforcement coverage: $enforced/$total — missing TodoWrite tasks for $((total - enforced)) documented sections"
+    fi
+}
+
 # Run all tests
 test_sdlc_hook_exists
 test_sdlc_hook_keywords
@@ -467,6 +560,15 @@ test_sdlc_hook_setup_redirect_missing_testing
 test_sdlc_hook_normal_when_setup_complete
 test_sdlc_hook_setup_redirect_empty_stubs
 test_template_hook_setup_redirect
+
+echo ""
+echo "--- SDLC enforcement gap audit ---"
+test_todowrite_has_capture_learnings
+test_todowrite_has_scope_guard
+test_todowrite_has_deploy_tasks
+test_todowrite_has_new_pattern_check
+test_todowrite_has_legacy_delete_check
+test_enforcement_coverage_score
 
 echo ""
 echo "=== Results ==="

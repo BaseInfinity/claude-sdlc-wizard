@@ -18,7 +18,7 @@ TodoWrite([
   // PLANNING PHASE (Plan Mode for non-trivial tasks)
   { content: "Find and read relevant documentation", status: "in_progress", activeForm: "Reading docs" },
   { content: "Assess doc health - flag issues (ask before cleaning)", status: "pending", activeForm: "Checking doc health" },
-  { content: "DRY scan: What patterns exist to reuse?", status: "pending", activeForm: "Scanning for reusable patterns" },
+  { content: "DRY scan: What patterns exist to reuse? New pattern = get approval", status: "pending", activeForm: "Scanning for reusable patterns" },
   { content: "Blast radius: What depends on code I'm changing?", status: "pending", activeForm: "Checking dependencies" },
   { content: "Design system check (if UI change)", status: "pending", activeForm: "Checking design system" },
   { content: "Restate task in own words - verify understanding", status: "pending", activeForm: "Verifying understanding" },
@@ -39,12 +39,15 @@ TodoWrite([
   { content: "Self-review: run /code-review", status: "pending", activeForm: "Running code review" },
   { content: "Security review (if warranted)", status: "pending", activeForm: "Checking security implications" },
   { content: "Cross-model review (if configured — see below)", status: "pending", activeForm: "Running cross-model review" },
+  { content: "Scope guard: only changes related to task? No legacy/fallback code left?", status: "pending", activeForm: "Checking scope and legacy code" },
   // CI FEEDBACK LOOP (if CI monitoring enabled in setup - skip if no CI)
   { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
   { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
   { content: "Read CI review - implement valid suggestions, iterate until clean", status: "pending", activeForm: "Addressing CI review feedback" },
+  { content: "Post-deploy verification (if deploy task — see Deployment Tasks)", status: "pending", activeForm: "Verifying deployment" },
   // FINAL
-  { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" }
+  { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" },
+  { content: "Capture learnings (if any — update TESTING.md, CLAUDE.md, or feature docs)", status: "pending", activeForm: "Capturing session learnings" }
 ])
 ```
 
