@@ -159,12 +159,14 @@ Run verification checks:
 
 Report any issues found.
 
-### Step 11: Instruct Restart
+### Step 11: Instruct Restart and Next Steps
 
 Tell the user:
 > Setup complete. Hooks and settings load at session start.
 > **Exit Claude Code and restart it** for the new configuration to take effect.
 > On restart, the SDLC hook will fire and you'll see the checklist in every response.
+>
+> **Optional next step:** Run `/claude-automation-recommender` for stack-specific tooling suggestions (MCP servers, formatting hooks, type-checking hooks, plugins). These are complementary to the SDLC wizard — they add per-stack tooling, not process enforcement.
 
 ## Rules
 
