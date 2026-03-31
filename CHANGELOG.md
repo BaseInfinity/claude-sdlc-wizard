@@ -4,6 +4,32 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.18.0] - 2026-03-30
+
+### Added
+- `/update-wizard` skill — guided update with changelog diff, per-file comparison, selective adoption
+- `step-update-wizard` in wizard step registry
+- CLI distributes `skills/update/SKILL.md` (now 8 managed files)
+- `/update-wizard` reference in wizard "How to Update" section
+
+## [1.17.0] - 2026-03-30
+
+### Fixed
+- Setup skill now force-reads entire wizard doc before proceeding (was just "Reference")
+- README no longer tells users to manually invoke setup — hooks auto-invoke
+- 3 new tests for setup auto-invoke behavior
+
+### Changed
+- Testing consolidation: `/testing` skill merged into `/sdlc` (#28)
+
+## [1.16.0] - 2026-03-29
+
+### Added
+- Cross-model review dialogue protocol — structured FIXED/DISPUTED/ACCEPTED negotiation loop (#40)
+- P0/P1/P2 severity rubric in PR review prompt (#34)
+- Effort level recommendations in wizard
+- 5 enforcement gap fixes in TodoWrite checklist (#39)
+
 ## [1.15.0] - 2026-03-25
 
 ### Added
