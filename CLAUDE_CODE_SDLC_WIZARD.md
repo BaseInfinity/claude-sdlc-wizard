@@ -1693,7 +1693,7 @@ TodoWrite([
   { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
   { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
   // TRANSITION PHASE (After plan mode, before compact)
-  { content: "Update feature docs with discovered gotchas", status: "pending", activeForm: "Updating feature docs" },
+  { content: "Doc sync: update feature docs if code change contradicts or extends documented behavior", status: "pending", activeForm: "Syncing feature docs" },
   { content: "Request /compact before TDD", status: "pending", activeForm: "Requesting compact" },
   // IMPLEMENTATION PHASE (After compact)
   { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
@@ -1734,7 +1734,7 @@ TodoWrite([
 
 **Workflow:**
 1. **Plan Mode** (editing blocked): Research → Write plan file → Present approach + confidence
-2. **Transition** (after approval): Update feature docs → Request /compact
+2. **Transition** (after approval): Doc sync (update feature docs if code contradicts/extends them) → Request /compact
 3. **Implementation** (after compact): TDD RED → GREEN → PASS
 
 **Before TDD, MUST ask:** "Docs updated. Run `/compact` before implementation?"
@@ -2631,9 +2631,17 @@ Want me to file these? (yes/no/not now)
 
 ## Going Further
 
-### Create Feature Plan Docs
+### Feature Documentation
 
-For each major feature, create `FEATURE_NAME_PLAN.md`:
+Keep feature docs alongside code. Three patterns, use what fits:
+
+| Pattern | When to Use | Example |
+|---------|-------------|---------|
+| `*_PLAN.md` / `*_DOCS.md` | Per-feature living docs | `AUTH_DOCS.md`, `PAYMENTS_PLAN.md` |
+| `docs/decisions/NNN-title.md` (ADR) | Architecture decisions that need rationale | `docs/decisions/001-use-postgres.md` |
+| `docs/features/name.md` | Feature docs in a `docs/` directory | `docs/features/auth.md` |
+
+**Feature doc template:**
 
 ```markdown
 # Feature Name
@@ -2651,7 +2659,36 @@ Things that can trip you up.
 What's planned but not done.
 ```
 
-Claude will read these during planning and update them with discoveries.
+**ADR (Architecture Decision Record) template** — for decisions that need context:
+
+```markdown
+# ADR-NNN: Decision Title
+
+## Status
+Accepted | Superseded by ADR-NNN | Deprecated
+
+## Context
+What is the problem? What forces are at play?
+
+## Decision
+What did we decide and why?
+
+## Consequences
+What are the trade-offs? What becomes easier/harder?
+```
+
+Store ADRs in `docs/decisions/`. Number sequentially. Claude reads these during planning to understand why things are built the way they are.
+
+**Keeping docs in sync with code:**
+
+Docs drift when code changes but docs don't. The SDLC skill's planning phase detects this:
+
+- During planning, Claude reads feature docs for the area being changed
+- If the code change contradicts what the doc says, Claude updates the doc
+- The "After Session" step routes learnings to the right doc
+- Stale docs cause low confidence — if Claude struggles, the doc may need updating
+
+**CLAUDE.md health:** Run `/claude-md-improver` periodically (quarterly or after major changes). It audits CLAUDE.md specifically — structure, clarity, completeness (6 criteria, 100-point rubric). It does NOT cover feature docs, TESTING.md, or ADRs — the SDLC workflow handles those.
 
 ### Expand TESTING.md
 
