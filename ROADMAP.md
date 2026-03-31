@@ -38,7 +38,14 @@
 | 25 | Codex README/Docs Audit | DONE — Codex audit on all user-facing docs. Fixed install UX (first section, copy-pasteable), honest claims across 6 docs, added Playwright MCP vs Tests section, docs usability regression test (10 checks). Setup wizard auto-invoke UX fix (sdlc-prompt-check.sh redirects to setup-wizard when SDLC files missing) |
 | 26 | npm Registry Publish | DONE — published `agentic-sdlc-wizard@1.15.0` to npm. v1.16.0 includes setup-wizard auto-invoke hook fix |
 | 27 | Review Pipeline Experiment | Track Claude vs Codex review findings over 10-20 non-trivial PRs. Decide: single-provider, dual for labeled PRs, or manual cross-review |
-| 28 | Consolidate /testing into /sdlc | /testing skips self-review and CI loop — tests are code, should get full SDLC. Move 3 unique items (mocking table, unit test criteria, capture-learnings) into TESTING.md, update hook to route all tasks to /sdlc, delete /testing skill. **Constraint: zero content loss — diff every line before deleting.** Must also update CLI templates, hook in both locations, and all tests that reference /testing |
+| 28 | Consolidate /testing into /sdlc | DONE — PR #113. Moved mocking table, unit test criteria, TDD Must PROVE, After Session into /sdlc skill. Deleted /testing skill + hook routing. Added upgrade cleanup (OBSOLETE_PATHS). 4 consolidation tests, 4 effort tests. Zero content loss verified |
+| 29 | ~~Effort Level Recommendations~~ DONE | Added `## Recommended Effort Level` section to wizard. `high` default via skill frontmatter, suggest `max` for LOW confidence / FAILED 2x / architecture decisions. Confidence table gets Effort column. 4 tests |
+| 30 | ~~Post-Deploy Verification~~ DONE | Added Post-Deploy Verification section to ARCHITECTURE.md template (health checks, log commands, smoke tests per environment, monitoring guidance). SDLC skill deployment section now includes post-deploy verification steps. 3 tests |
+| 31 | `/init` for Blank Repos | Test what happens when wizard runs on truly blank repos (no CLAUDE.md). Consider recommending Claude's built-in `/init` first. Add E2E test for blank-repo setup path |
+| 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
+| 33 | `/update-wizard` Skill | Smart update system — shows what changed between versions, lets users selectively adopt changes, preserves customizations. Currently users update with `init --force` (blunt overwrite) or `check` (drift detection). This adds a guided upgrade path |
+| 34 | Reviewer Severity Prompt Fix | 14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Tune prompt to correctly escalate silent failures to P0/P1. Validate with labeled test cases |
+| 35 | Gap Analysis vs `/claude-automation-recommender` | Run the built-in recommender on wizard-installed repos, compare suggestions vs what we ship — find coverage gaps and positioning data. Run on fresh repos to measure "suggestions" vs "enforcement" delta |
 
 ## Review Pipeline
 
@@ -90,7 +97,5 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 ## Back Burner
 
 - Node.js 20 deprecation (June 2, 2026 deadline — `actions/checkout@v4` + `oven-sh/setup-bun` forced to Node 24. Not urgent yet but blocks all CI if ignored. Revisit May 2026)
-- Reviewer severity prompt fix (14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Real but low-impact — hasn't caused a missed bug yet)
-- Mutation testing (experimental — explore if/when scoring system needs deeper validation)
+- Chaos/Resilience Testing (needs research — beyond mutation testing, think chaos monkey for repos. Inject faults, break things intentionally, see if SDLC catches them. Could be important for AI agent validation or general resilience. Research before committing)
 - Agent-agnostic SDLC (generalize wizard beyond Claude Code — Codex CLI, other AI agents. Auto-detect domain from repo contents, generate domain-appropriate hooks/skills. Reference impl: anticheat repo Content SDLC with GRADE labels, multi-source consensus, 219 tests. NOT immediate — needs #28 consolidation first)
-- Gap analysis vs `/claude-automation-recommender` (run the built-in recommender on wizard-installed repos, compare its suggestions vs what we already ship — find coverage gaps and positioning data. Also run on fresh repos to measure "suggestions" vs "enforcement" delta)
