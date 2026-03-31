@@ -74,6 +74,8 @@
 | # | Item | Description |
 |---|------|-------------|
 | 51 | Global Install Mode | Support `npm install -g` with a global template that auto-seeds new repos. Currently per-repo only (`npx agentic-sdlc-wizard init` in each repo). Research whether users want a global default config that gets applied automatically |
+| 52 | Smart Setup Questions (Confidence-Based) | Setup wizard should auto-answer high-confidence questions from scan results and only ask the user about low-confidence or preference-based ones. Use confidence factor: HIGH = auto-fill and present for confirmation in batch, MEDIUM = ask individually, LOW = must ask. Proven viable in snowcone install where wizard correctly inferred 15/16 answers when told to be smarter |
+| 53 | Plan Auto-Approval Gate | If confidence >= 95% AND complexity is low/medium, skip plan approval step and go straight to TDD. Reduces friction for established patterns. Could be a setup wizard question or SDLC.md setting. Consider: what defines "low/medium complexity"? File count? New patterns? |
 
 ## Review Pipeline
 
