@@ -413,6 +413,14 @@ CI passes -> Read review suggestions
 - **Ask first**: Present suggestions to user, let them decide which to implement
 - **Skip review feedback**: Ignore CI review suggestions, only fix CI failures
 
+## Context Management
+
+- `/compact` between planning and implementation (plan preserved in summary)
+- `/clear` between unrelated tasks (stale context wastes tokens and misleads)
+- `/clear` after 2+ failed corrections (context polluted — start fresh with better prompt)
+- Auto-compact fires at ~95% capacity — no manual management needed
+- After committing a PR, `/clear` before starting the next feature
+
 ## DRY Principle
 
 **Before coding:** "What patterns exist I can reuse?"
