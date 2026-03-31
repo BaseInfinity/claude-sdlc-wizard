@@ -243,7 +243,7 @@ Before any release/publish, add these to `review_instructions`:
 - **Version parity** — package.json, SDLC.md, CHANGELOG, wizard metadata all match
 - **Stale examples** — hardcoded version strings in docs match current release
 - **Docs accuracy** — README, ARCHITECTURE.md reflect current feature set
-- **Template parity** — live skills match CLI templates
+- **CLI-distributed file parity** — live skills, hooks, settings match CLI templates
 
 Evidence: v1.20.0 cross-model review caught CHANGELOG section loss and stale wizard version examples that passed all tests and self-review. Tests catch version mismatches; cross-model review catches semantic issues tests cannot.
 

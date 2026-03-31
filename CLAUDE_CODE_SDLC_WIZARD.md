@@ -3141,14 +3141,14 @@ Before any release or npm publish, add these focus areas to the cross-model `rev
 | Version parity | package.json, SDLC.md, CHANGELOG, wizard metadata all match | SDLC.md says 1.19.0 but package.json says 1.20.0 |
 | Stale examples | Hardcoded version strings in docs/wizard match current release | Wizard examples showing v1.15.0 when publishing v1.20.0 |
 | Docs accuracy | README, ARCHITECTURE.md reflect current feature set | "8 workflows" when there are actually 7 |
-| Template parity | Live skills match CLI templates | SKILL.md edited but cli/templates/ not updated |
+| CLI-distributed file parity | Live skills, hooks, settings match CLI templates | SKILL.md edited but cli/templates/ not updated |
 
 **Example `review_instructions` for releases:**
 ```
 Review for release consistency: CHANGELOG completeness (no lost sections),
 version parity across package.json/SDLC.md/CHANGELOG/wizard metadata,
 stale hardcoded versions in examples, docs accuracy vs actual features,
-live-vs-template skill parity.
+CLI-distributed file parity (skills, hooks, settings).
 ```
 
 **This complements automated tests, not replaces them.** Tests catch exact version mismatches (e.g., `test_package_version_matches_changelog`). Cross-model review catches semantic issues tests cannot — a section silently dropped, examples using outdated but syntactically valid versions, docs describing features that no longer exist.

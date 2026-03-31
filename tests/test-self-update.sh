@@ -1014,6 +1014,29 @@ test_skill_release_review_trigger
 test_skill_release_review_section
 test_wizard_embedded_skill_release_trigger
 
+# Release review focus areas present in both wizard and SKILL
+test_release_review_focus_area_parity() {
+    local areas=("CHANGELOG consistency" "Version parity" "Stale examples" "Docs accuracy" "CLI-distributed file parity")
+    local all_match=true
+    for area in "${areas[@]}"; do
+        if ! grep -q "$area" "$WIZARD"; then
+            fail "Wizard missing release review focus area: $area"
+            all_match=false
+            break
+        fi
+        if ! grep -q "$area" "$SKILL"; then
+            fail "SKILL.md missing release review focus area: $area"
+            all_match=false
+            break
+        fi
+    done
+    if [ "$all_match" = true ]; then
+        pass "All 5 release review focus areas present in both wizard and SKILL"
+    fi
+}
+
+test_release_review_focus_area_parity
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
