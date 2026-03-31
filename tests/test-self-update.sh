@@ -383,6 +383,103 @@ test_update_skill_parity
 test_update_skill_content
 test_step_registry_update_wizard
 
+# --- Cross-Model Review Dialogue Tests (#40) ---
+
+# Helper: extract wizard cross-model blocks (embedded SKILL + deep-dive)
+wizard_cross_model_blocks() {
+    # Embedded SKILL section: ## Cross-Model Review ... ## Test Review
+    sed -n '/^## Cross-Model Review (If Configured)/,/^## Test Review/p' "$WIZARD"
+    # Deep-dive section: ### Cross-Model Review Loop ... next ### or EOF
+    sed -n '/^### Cross-Model Review Loop/,/^### [^C]/p' "$WIZARD"
+}
+
+# Test 22: Wizard cross-model sections document response.json protocol
+test_wizard_response_protocol() {
+    local blocks
+    blocks=$(wizard_cross_model_blocks)
+    if echo "$blocks" | grep -q "response.json" && echo "$blocks" | grep -q "DISPUTED"; then
+        pass "Wizard cross-model sections document response.json dialogue protocol"
+    else
+        fail "Wizard cross-model sections should document response.json with DISPUTED action"
+    fi
+}
+
+# Test 23: Wizard cross-model sections document targeted recheck
+test_wizard_targeted_recheck() {
+    local blocks
+    blocks=$(wizard_cross_model_blocks)
+    if echo "$blocks" | grep -qi "targeted recheck"; then
+        pass "Wizard cross-model sections document targeted recheck for round 2+"
+    else
+        fail "Wizard cross-model sections should document targeted recheck protocol"
+    fi
+}
+
+# Test 24: SKILL.md documents the dialogue response protocol (both copies)
+test_skill_dialogue_protocol() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+    local ok=true
+    for f in "$skill_file" "$template_file"; do
+        local section
+        section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$f")
+        if ! echo "$section" | grep -q "FIXED" || ! echo "$section" | grep -q "DISPUTED" || ! echo "$section" | grep -q "ACCEPTED"; then
+            ok=false
+        fi
+    done
+    if $ok; then
+        pass "Both SKILL.md cross-model sections document FIXED/DISPUTED/ACCEPTED"
+    else
+        fail "Both SKILL.md cross-model sections should document the dialogue response actions"
+    fi
+}
+
+# Test 25: Wizard cross-model sections document convergence rule
+test_wizard_convergence_rule() {
+    local blocks
+    blocks=$(wizard_cross_model_blocks)
+    if echo "$blocks" | grep -qi "max.*round\|escalate.*user"; then
+        pass "Wizard cross-model sections document convergence rule"
+    else
+        fail "Wizard cross-model sections should document max rounds / escalation"
+    fi
+}
+
+# Test 26: Local SKILL.md and template SKILL.md cross-model sections match
+test_skill_template_parity() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+    local skill_section template_section
+    skill_section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$skill_file")
+    template_section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$template_file")
+    if [ "$skill_section" = "$template_section" ]; then
+        pass "Local and template SKILL.md cross-model sections are identical"
+    else
+        fail "Local and template SKILL.md cross-model sections have drifted"
+    fi
+}
+
+# Test 27: All recheck prompts in wizard are consistent (catches deep-dive drift)
+test_wizard_recheck_prompt_parity() {
+    # Count actual codex exec recheck prompts (quoted strings, not flow diagrams)
+    local prompts
+    prompts=$(grep -c '"You are doing a TARGETED RECHECK.*First read .reviews/handoff.json' "$WIZARD")
+    local total
+    total=$(grep -c '"You are doing a TARGETED RECHECK' "$WIZARD")
+    if [ "$prompts" -eq "$total" ] && [ "$total" -ge 2 ]; then
+        pass "All $total wizard recheck prompts include handoff.json-first instruction"
+    else
+        fail "Wizard has $total recheck prompts but only $prompts include handoff.json-first ($total expected)"
+    fi
+}
+
+test_wizard_response_protocol
+test_wizard_targeted_recheck
+test_skill_dialogue_protocol
+test_wizard_convergence_rule
+test_skill_template_parity
+test_wizard_recheck_prompt_parity
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
