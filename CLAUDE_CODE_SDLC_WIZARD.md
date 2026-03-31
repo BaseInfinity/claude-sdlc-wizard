@@ -2322,7 +2322,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.19.0 -->
+<!-- SDLC Wizard Version: 1.20.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3221,21 +3221,19 @@ Claude reads the CHANGELOG to show you what's new **before** applying anything. 
 ```
 Claude: "Fetching CHANGELOG to check for updates..."
 
-Your version: 1.8.0
-Latest version: 1.13.0
+Your version: X.Y.0
+Latest version: X.Z.0
 
-What's new since 1.8.0:
-- v1.13.0: Self-update improvements, optional CI notification
-- v1.12.0: Full system audit, apply step fixes
-- v1.11.0: Stale output cleanup, error handling
-- v1.10.0: "Prove It's Better" CI automation
-- v1.9.0: Workflow consolidation (6 → 5 workflows)
+What's new since X.Y.0:
+- vX.Z.0: Latest features and improvements
+- vX.Y+1.0: Previous version changes
+  (... entries from CHANGELOG between your version and latest ...)
 
 Now checking your setup against latest wizard...
 
 ✓ Hooks - up to date
 ✓ Skills - content differs (update available)
-✗ step-update-notify - NOT DONE (new in v1.13.0, optional)
+✗ step-update-notify - NOT DONE (new in vX.Z.0, optional)
 
 Summary:
 - 1 file update available (SDLC skill)
@@ -3251,7 +3249,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.19.0 -->
+<!-- SDLC Wizard Version: 1.20.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

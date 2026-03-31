@@ -46,12 +46,12 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.15.0
-Latest:    1.19.0
+Latest:    1.20.0
 
 What changed:
+- [1.20.0] Version-pinned CC update gate, Tier 1 flakiness fix, flaky test guidance, ...
 - [1.19.0] CI shepherd model, token efficiency, feature doc enforcement, ...
 - [1.18.0] Added /update-wizard skill, ...
-- [1.17.0] Consolidated /testing into /sdlc, ...
 ```
 
 **If versions match:** Say "You're up to date! (version X.X.X)" and stop.
