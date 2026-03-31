@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
 
 env:
   # E2E test scenario for version testing
@@ -349,6 +350,7 @@ jobs:
           done
 
       - name: Create PR for all updates
+        id: create-update-pr
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -361,6 +363,16 @@ jobs:
             auto-update
             relevance-${{ steps.parse.outputs.relevance }}
           delete-branch: true
+
+      - name: Trigger CI on new PR
+        if: steps.create-update-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # GITHUB_TOKEN PRs don't trigger pull_request events (anti-loop protection).
+          # Dispatch CI manually so auto-update PRs get checked.
+          echo "Dispatching CI for PR #${{ steps.create-update-pr.outputs.pull-request-number }}..."
+          gh workflow run ci.yml --ref auto-update/claude-code-${{ steps.latest-release.outputs.latest_version }} || true
 
   # Version Testing: Validate SDLC enforcement with new CC version
   version-test:
@@ -1110,6 +1122,7 @@ jobs:
           fi
 
       - name: Create PR with results
+        id: create-community-pr
         if: steps.verdict.outputs.verdict == 'IMPROVED' || steps.verdict.outputs.verdict == 'STABLE'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -1144,6 +1157,14 @@ jobs:
             community-patterns
             e2e-tested
             ${{ steps.verdict.outputs.verdict }}
+
+      - name: Trigger CI on community PR
+        if: steps.create-community-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Dispatching CI for community PR #${{ steps.create-community-pr.outputs.pull-request-number }}..."
+          gh workflow run ci.yml --ref community-patterns/${{ needs.scan-community.outputs.current_date }} || true
 
   # "Prove It's Better": Compare custom vs native when overlap detected
   prove-it-test:
