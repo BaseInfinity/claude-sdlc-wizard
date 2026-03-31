@@ -61,6 +61,7 @@
 | 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 | 42 | Token Efficiency Auditing | Add token usage tracking to weekly/monthly improvement loops. Scan for techniques that reduce token consumption while maintaining quality (shorter prompts, smarter context, fewer agent spawns). Part of performance testing — community may discover new efficiency patterns. Consider: token budget per workflow, cost trending, alert on spikes |
 | 31 | `/init` for Blank Repos | Test what happens when wizard runs on truly blank repos (no CLAUDE.md). Consider recommending Claude's built-in `/init` first. Add E2E test for blank-repo setup path |
+| 43 | Feature Documentation Enforcement | Research: growing developer docs that stay in sync with code. `claude-md-improver` only covers CLAUDE.md health — doesn't enforce feature-level docs, ADRs (Architecture Decision Records), or docs-in-sync-with-code. Research: ADR pattern (`docs/decisions/001-why-x.md`), feature docs (`docs/feature-name.md`), enforce doc updates in SDLC skill, auto-detect when code changes need doc updates. Docs should be viewable on GitHub, lean, and part of the self-improving loop. Test `claude-md-improver` on our repo first — adopt for CLAUDE.md health, build our own for feature docs |
 
 ## Unprioritized
 
