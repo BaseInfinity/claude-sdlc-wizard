@@ -63,16 +63,16 @@
 |----------|---|------|-------------|
 | 1 | 48 | CI Shepherd Opt-In + Workflow Analyzer | Setup wizard detects CI but doesn't offer shepherd loop as explicit choice. Add: (1) opt-in question during setup for shepherd role, (2) agent/skill that reads existing CI workflows and recommends integration points (linting gaps, review hooks, E2E suggestions). Ties into `/claude-automation-recommender` |
 | 2 | 49 | Cross-Model Release Review Recommendation | v1.20.0 release review caught 2 real issues (CHANGELOG inconsistency, stale wizard example) that self-review and tests missed. Add guidance to wizard/SKILL recommending cross-model review before npm publish. Evidence: PR for v1.20.0. Also triage monthly research #84 recommendations |
-| 3 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
-| 4 | 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected |
-| 5 | 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
-| 6 | 45 | `/agents` Subagent Exploration | Research: explore Claude Code's `/agents` (custom subagents in `.claude/agents/`). Can an `sdlc-reviewer` or `ci-debug` agent add value beyond hooks+skills? Testing story for agent behavior |
+| 3 | 50 | Skill Deduplication Audit | During setup, scan existing `.claude/skills/` for overlap with wizard-provided skills. Flag redundant skills, suggest merges, show comparison ("your `/testing` does X, wizard's `/sdlc` already covers X+Y+Z"). Ties into #48 workflow analyzer — same "audit what you already have" philosophy |
+| 4 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
+| 5 | 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected |
+| 6 | 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
+| 7 | 45 | `/agents` Subagent Exploration | Research: explore Claude Code's `/agents` (custom subagents in `.claude/agents/`). Can an `sdlc-reviewer` or `ci-debug` agent add value beyond hooks+skills? Testing story for agent behavior |
 
 ## Unprioritized
 
 | # | Item | Description |
 |---|------|-------------|
-| 50 | Skill Deduplication Audit | During setup, scan existing `.claude/skills/` for overlap with wizard-provided skills. Flag redundant skills, suggest merges, show comparison ("your `/testing` does X, wizard's `/sdlc` already covers X+Y+Z"). Ties into #48 workflow analyzer — same "audit what you already have" philosophy |
 | 51 | Global Install Mode | Support `npm install -g` with a global template that auto-seeds new repos. Currently per-repo only (`npx agentic-sdlc-wizard init` in each repo). Research whether users want a global default config that gets applied automatically |
 
 ## Review Pipeline
