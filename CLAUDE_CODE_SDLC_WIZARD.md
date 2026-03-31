@@ -1749,38 +1749,100 @@ PLANNING → DOCS → TDD RED → TDD GREEN → Tests Pass → Self-Review
 
 **Prerequisites:** Codex CLI installed (`npm i -g @openai/codex`), OpenAI API key set.
 
-**Steps:**
+### Round 1: Initial Review
+
 1. After self-review passes, write `.reviews/handoff.json`:
    ```jsonc
    {
      "review_id": "feature-xyz-001",
      "status": "PENDING_REVIEW",
+     "round": 1,
      "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
      "review_instructions": "Review for security, edge cases, and correctness",
      "artifact_path": ".reviews/feature-xyz-001/"
    }
    ```
-2. Tell the user to run the independent reviewer:
+2. Run the independent reviewer:
    ```bash
    codex exec \
      -c 'model_reasoning_effort="xhigh"' \
      -s danger-full-access \
      -o .reviews/latest-review.md \
      "You are an independent code reviewer. Read .reviews/handoff.json, \
-      review the listed files, and write your findings to the artifact_path. \
+      review the listed files. Output each finding with: an ID (1, 2, ...), \
+      severity (P0/P1/P2), description, and a 'certify condition' stating \
+      what specific change would resolve it. \
       End with CERTIFIED or NOT CERTIFIED."
    ```
-3. Read `.reviews/latest-review.md` — if CERTIFIED, proceed to CI. If NOT CERTIFIED, fix findings and repeat from step 1.
+3. If CERTIFIED → proceed to CI. If NOT CERTIFIED → go to Round 2.
+
+### Round 2+: Dialogue Loop
+
+When the reviewer finds issues, respond per-finding instead of silently fixing everything:
+
+1. Write `.reviews/response.json`:
+   ```jsonc
+   {
+     "review_id": "feature-xyz-001",
+     "round": 2,
+     "responding_to": ".reviews/latest-review.md",
+     "responses": [
+       { "finding": "1", "action": "FIXED", "summary": "Added missing validation" },
+       { "finding": "2", "action": "DISPUTED", "justification": "This is intentional — see CODE_REVIEW_EXCEPTIONS.md" },
+       { "finding": "3", "action": "ACCEPTED", "summary": "Will add test coverage" }
+     ]
+   }
+   ```
+   - **FIXED**: "I fixed this. Here is what changed." Reviewer verifies.
+   - **DISPUTED**: "This is intentional/incorrect. Here is why." Reviewer accepts or rejects.
+   - **ACCEPTED**: "You are right. Fixing now." (Same as FIXED, batched.)
+
+2. Update `handoff.json` with `"status": "PENDING_RECHECK"`, increment `round`, add `"response_path"` and `"previous_review"` fields.
+
+3. Run targeted recheck (NOT a full re-review):
+   ```bash
+   codex exec \
+     -c 'model_reasoning_effort="xhigh"' \
+     -s danger-full-access \
+     -o .reviews/latest-review.md \
+     "You are doing a TARGETED RECHECK. First read .reviews/handoff.json \
+      to find the previous_review path — read that file for the original \
+      findings and certify conditions. Then read .reviews/response.json \
+      for the author's responses. For each: \
+      FIXED → verify the fix against the original certify condition. \
+      DISPUTED → evaluate the justification (ACCEPT if sound, REJECT if not). \
+      ACCEPTED → verify it was applied. \
+      Do NOT raise new findings unless P0 (critical/security). \
+      New observations go in 'Notes for next review' (non-blocking). \
+      End with CERTIFIED or NOT CERTIFIED."
+   ```
+
+4. If CERTIFIED → done. If NOT CERTIFIED (rejected disputes or failed fixes) → fix rejected items and repeat.
+
+### Convergence
+
+Max 3 recheck rounds (4 total including initial review). If still NOT CERTIFIED after round 4, escalate to the user with a summary of open findings. Don't spin indefinitely.
 
 ```
-Self-review passes → write handoff.json → user runs codex exec
-    ^                                              |
-    |                                    CERTIFIED? → YES → CI feedback loop
-    |                                              |
-    |                                              → NO (findings)
-    |                                              |
-    └──────── Fix findings ←───────────────────────┘
-                  (repeat until CERTIFIED, or ask user)
+Self-review passes → handoff.json (round 1, PENDING_REVIEW)
+                            |
+                   Reviewer: FULL REVIEW (structured findings)
+                            |
+                   CERTIFIED? → YES → CI feedback loop
+                            |
+                            NO (findings with IDs + certify conditions)
+                            |
+                   Claude writes response.json:
+                     FIXED / DISPUTED / ACCEPTED per finding
+                            |
+                   handoff.json (round 2+, PENDING_RECHECK)
+                            |
+                   Reviewer: TARGETED RECHECK (previous findings only)
+                            |
+                   All resolved? → YES → CERTIFIED
+                            |
+                            NO → fix rejected items, repeat
+                            (max 3 rechecks, then escalate to user)
 ```
 
 **Tool-agnostic:** The value is adversarial diversity (different model, different blind spots), not the specific tool. Any competing AI reviewer works.
@@ -2789,13 +2851,14 @@ Use an independent AI model from a different company as a code reviewer. The aut
 {
   "review_id": "feature-xyz-001",
   "status": "PENDING_REVIEW",
+  "round": 1,
   "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
   "review_instructions": "Review for security, edge cases, and correctness",
   "artifact_path": ".reviews/feature-xyz-001/"
 }
 ```
 
-3. Run the independent reviewer:
+3. Run the independent reviewer (Round 1 — full review). These commands use your Codex default model — configure it to the latest, most capable model available:
 
 ```bash
 codex exec \
@@ -2803,23 +2866,95 @@ codex exec \
   -s danger-full-access \
   -o .reviews/latest-review.md \
   "You are an independent code reviewer. Read .reviews/handoff.json, \
-   review the listed files, and write your findings to the artifact_path. \
+   review the listed files. Output each finding with: an ID (1, 2, ...), \
+   severity (P0/P1/P2), description, and a 'certify condition' stating \
+   what specific change would resolve it. \
    End with CERTIFIED or NOT CERTIFIED."
 ```
 
-**The Loop:**
+4. If CERTIFIED → done. If NOT CERTIFIED → enter the dialogue loop.
+
+**The Dialogue Loop (Round 2+):**
+
+Instead of silently fixing everything and resubmitting for another full review, respond to each finding:
+
+```jsonc
+// .reviews/response.json
+{
+  "review_id": "feature-xyz-001",
+  "round": 2,
+  "responding_to": ".reviews/latest-review.md",
+  "responses": [
+    {
+      "finding": "1",
+      "action": "FIXED",
+      "summary": "Added missing mocking table to SKILL.md",
+      "evidence": "git diff shows table at SKILL.md:195-210"
+    },
+    {
+      "finding": "2",
+      "action": "DISPUTED",
+      "justification": "The upgrade path cleanup runs in init.js:205. Verified with test-cli.sh test 29.",
+      "evidence": "tests/test-cli.sh:583-600"
+    },
+    {
+      "finding": "3",
+      "action": "ACCEPTED",
+      "summary": "Will add EVAL_PROMPT_VERSION bump"
+    }
+  ]
+}
 ```
-Claude writes code → self-review passes → handoff.json
+
+Three response types:
+- **FIXED**: "I fixed this. Here is what changed." Reviewer verifies the fix.
+- **DISPUTED**: "This is intentional/incorrect. Here is why." Reviewer accepts or rejects the reasoning.
+- **ACCEPTED**: "You are right. Fixing now." (Same outcome as FIXED, used when batching fixes.)
+
+Then update `handoff.json` to `"status": "PENDING_RECHECK"`, increment `round`, add `"response_path"` and `"previous_review"` fields. Run a targeted recheck:
+
+```bash
+codex exec \
+  -c 'model_reasoning_effort="xhigh"' \
+  -s danger-full-access \
+  -o .reviews/latest-review.md \
+  "You are doing a TARGETED RECHECK. First read .reviews/handoff.json \
+   to find the previous_review path — read that file for the original \
+   findings and certify conditions. Then read .reviews/response.json \
+   for the author's responses. For each: \
+   FIXED → verify the fix against the original certify condition. \
+   DISPUTED → evaluate the justification (ACCEPT if sound, REJECT if not). \
+   ACCEPTED → verify it was applied. \
+   Do NOT raise new findings unless P0 (critical/security). \
+   New observations go in 'Notes for next review' (non-blocking). \
+   End with CERTIFIED or NOT CERTIFIED."
+```
+
+**The key constraint:** Rechecks are scoped to previous findings only. The reviewer cannot block certification with new P2 observations discovered during recheck. This prevents scope creep and ensures convergence.
+
+**Convergence:** Max 3 recheck rounds (4 total including initial review). If still NOT CERTIFIED after round 4, escalate to the user with a summary of all open findings. Don't spin indefinitely.
+
+```
+Claude writes code → self-review passes → handoff.json (round 1)
     ↑                                          |
     |                                          v
-    |                              Codex reviews (xhigh reasoning)
+    |                              Reviewer: FULL REVIEW
+    |                              (structured findings with IDs)
     |                                          |
     |                              CERTIFIED? -+→ YES → Done
     |                                          |
     |                                          +→ NO (findings)
     |                                          |
-    └────────── Claude fixes findings ←────────┘
-                    (repeat until CERTIFIED, or ask user)
+    |                              Claude writes response.json:
+    |                                FIXED / DISPUTED / ACCEPTED
+    |                                          |
+    |                              Reviewer: TARGETED RECHECK
+    |                              (previous findings only, no new P1/P2)
+    |                                          |
+    |                              All resolved? → YES → CERTIFIED
+    |                                          |
+    └────────── Fix rejected items ←───────────┘
+                    (max 3 rechecks, then escalate to user)
 ```
 
 **Key flags:**

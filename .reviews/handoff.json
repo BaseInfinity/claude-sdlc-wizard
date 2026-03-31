@@ -1,17 +1,15 @@
 {
-  "review_id": "session-2026-03-29",
-  "status": "FIXES_APPLIED_RECHECK",
+  "review_id": "cross-model-dialogue-040",
+  "status": "PENDING_RECHECK",
+  "round": 3,
   "files_changed": [
-    ".claude/hooks/sdlc-prompt-check.sh",
-    "cli/templates/hooks/sdlc-prompt-check.sh",
-    "cli/init.js",
-    "tests/test-hooks.sh",
-    "tests/test-workflow-triggers.sh",
-    "TESTING.md",
-    "AGENTS.md",
-    ".reviews/experiment-tracking.md",
-    "ROADMAP.md"
+    ".claude/skills/sdlc/SKILL.md",
+    "cli/templates/skills/sdlc/SKILL.md",
+    "CLAUDE_CODE_SDLC_WIZARD.md",
+    "tests/test-self-update.sh"
   ],
-  "review_instructions": "Review all changes from this session (git diff main~5..main). Focus on: correctness of the setup-wizard auto-invoke guard in sdlc-prompt-check.sh, test coverage for the new hook behavior, AGENTS.md quality as Codex review guidelines, and whether any changes could break existing CI or E2E scoring. Check CODE_REVIEW_EXCEPTIONS.md for accepted trade-offs.",
-  "artifact_path": ".reviews/session-2026-03-29/"
+  "review_instructions": "Targeted recheck of findings from round 2",
+  "artifact_path": ".reviews/cross-model-dialogue-040/",
+  "response_path": ".reviews/response.json",
+  "previous_review": ".reviews/latest-review.md"
 }
