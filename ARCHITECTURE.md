@@ -22,7 +22,7 @@ The SDLC Wizard is a documentation-first approach to enforcing SDLC practices in
 ├─────────────────────────────────────────────────────────────┤
 │  .claude/settings.json   ← Hook configuration               │
 │  .claude/hooks/          ← SDLC enforcement scripts         │
-│  .claude/skills/         ← SDLC/Testing guidance            │
+│  .claude/skills/         ← SDLC guidance                    │
 │  CLAUDE.md               ← Project-specific instructions    │
 │  SDLC.md                 ← SDLC configuration               │
 └─────────────────────────────────────────────────────────────┘
@@ -57,7 +57,6 @@ The main wizard document (installed by `npx agentic-sdlc-wizard init` or copied 
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
 | `/sdlc` | User invokes | Full SDLC workflow guidance |
-| `/testing` | User invokes | TDD and testing philosophy |
 
 ### 4. Auto-Update System
 
@@ -193,8 +192,7 @@ sdlc-wizard/
 │   │   ├── tdd-pretool-check.sh   # TDD enforcement hook
 │   │   └── instructions-loaded-check.sh  # Session start validation
 │   └── skills/
-│       ├── sdlc/SKILL.md          # SDLC workflow skill
-│       └── testing/SKILL.md       # Testing skill
+│       └── sdlc/SKILL.md          # SDLC workflow skill
 │
 ├── .github/
 │   ├── workflows/

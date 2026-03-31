@@ -1,12 +1,12 @@
 # Score Trends
 
-_Generated: 2026-03-29T22:19:46Z_
+_Generated: 2026-03-30T18:07:57Z_
 
 ## Overview
 
 | Metric | Value |
 |--------|-------|
-| Total evaluations | 1 |
+| Total evaluations | 4 |
 | Overall average | 7.0 / 10 |
 | Median | 7.0 |
 | Range | 7 - 7 |
@@ -15,7 +15,7 @@ _Generated: 2026-03-29T22:19:46Z_
 ## Score Evolution (last 20)
 
 ```
-=
+====
 ```
 _Legend: `_`=0-2  `.`=3-4  `-`=5-6  `=`=7-8  `#`=9-10_
 
@@ -25,7 +25,7 @@ _Legend: `_`=0-2  `.`=3-4  `-`=5-6  `=`=7-8  `#`=9-10_
 |-------|-------|-----|
 | 0-4 (Low) | 0 |  |
 | 5-6 (Medium) | 0 |  |
-| 7-8 (High) | 1 | # |
+| 7-8 (High) | 4 | #### |
 | 9-10 (Excellent) | 0 |  |
 
 ## Per-Criterion Averages
@@ -53,7 +53,8 @@ Improvement suggestions:
 
 | Scenario | Avg Score | Runs |
 |----------|-----------|------|
+|add-feature|7.0|3|
 |version-upgrade|7.0|1|
 
 ---
-_Data from `score-history.jsonl` (1 entries)_
+_Data from `score-history.jsonl` (4 entries)_

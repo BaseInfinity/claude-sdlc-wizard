@@ -246,6 +246,69 @@ test_setup_skill_reads_wizard_doc() {
 }
 
 # ---------------------------------------------------------------------------
+# Skill consolidation — /testing merged into /sdlc (#28)
+# ---------------------------------------------------------------------------
+
+# Test: Hook routes ALL tasks to /sdlc (no separate /testing route)
+test_hook_no_testing_route() {
+    local HOOK="$REPO_ROOT/cli/templates/hooks/sdlc-prompt-check.sh"
+    if grep -q 'skill="testing"' "$HOOK"; then
+        fail "Hook still routes to skill=\"testing\" — should route all tasks to /sdlc"
+    else
+        pass "Hook routes all tasks to /sdlc (no /testing route)"
+    fi
+}
+
+# Test: /testing skill template does NOT exist (consolidated into /sdlc)
+test_no_testing_skill_template() {
+    if [ -f "$REPO_ROOT/cli/templates/skills/testing/SKILL.md" ]; then
+        fail "Template /testing skill still exists — should be consolidated into /sdlc"
+    else
+        pass "Template /testing skill removed (consolidated into /sdlc)"
+    fi
+}
+
+# Test: /sdlc skill has "After Session" content (migrated from /testing)
+test_sdlc_has_after_session() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -qi 'after session\|capture learnings' "$SDLC_SKILL"; then
+        pass "/sdlc skill has After Session / capture learnings content"
+    else
+        fail "/sdlc skill missing After Session content — was this migrated from /testing?"
+    fi
+}
+
+# Test: /sdlc skill has mocking table (migrated from /testing — zero content loss)
+test_sdlc_has_mocking_table() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -q 'Database.*NEVER' "$SDLC_SKILL" && grep -q 'External APIs.*YES' "$SDLC_SKILL"; then
+        pass "/sdlc skill has mocking table (DB=NEVER, APIs=YES)"
+    else
+        fail "/sdlc skill missing mocking table — was this migrated from /testing?"
+    fi
+}
+
+# Test: /sdlc skill has unit test qualification criteria (migrated from /testing)
+test_sdlc_has_unit_test_criteria() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -qi 'pure logic only\|no database calls\|input.*output.*transformation' "$SDLC_SKILL"; then
+        pass "/sdlc skill has unit test qualification criteria"
+    else
+        fail "/sdlc skill missing unit test criteria — was this migrated from /testing?"
+    fi
+}
+
+# Test: /sdlc skill has TDD PROVE content (migrated from /testing)
+test_sdlc_has_tdd_prove() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -qi 'RED.*FAILS\|test.*FAILS.*bug exists\|TDD.*PROVE' "$SDLC_SKILL"; then
+        pass "/sdlc skill has TDD Must PROVE content"
+    else
+        fail "/sdlc skill missing TDD Must PROVE content — was this migrated from /testing?"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -261,6 +324,15 @@ test_readme_install_mentions_auto
 echo ""
 echo "--- Setup skill ---"
 test_setup_skill_reads_wizard_doc
+
+echo ""
+echo "--- Skill consolidation (#28) ---"
+test_hook_no_testing_route
+test_no_testing_skill_template
+test_sdlc_has_after_session
+test_sdlc_has_mocking_table
+test_sdlc_has_unit_test_criteria
+test_sdlc_has_tdd_prove
 
 echo ""
 echo "--- All docs structural health ---"

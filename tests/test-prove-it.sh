@@ -98,7 +98,7 @@ test_validate_empty_array
 
 # Test 5: Mixed valid and invalid — only returns valid
 test_validate_mixed() {
-    local INPUT='[".claude/hooks/tdd-pretool-check.sh", "/etc/shadow", ".claude/skills/testing/SKILL.md"]'
+    local INPUT='[".claude/hooks/tdd-pretool-check.sh", "/etc/shadow", ".claude/skills/setup/SKILL.md"]'
     local RESULT
     RESULT=$(validate_removable_paths "$INPUT" 2>/dev/null || echo "")
 

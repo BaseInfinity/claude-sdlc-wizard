@@ -20,7 +20,6 @@ const FILES = [
   { src: 'hooks/tdd-pretool-check.sh', dest: '.claude/hooks/tdd-pretool-check.sh', executable: true },
   { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true },
   { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md' },
-  { src: 'skills/testing/SKILL.md', dest: '.claude/skills/testing/SKILL.md' },
   { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md' },
 ];
 
@@ -29,6 +28,11 @@ const WIZARD_HOOK_MARKERS = FILES
   .map((f) => path.basename(f.src));
 
 const GITIGNORE_ENTRIES = ['.claude/plans/', '.claude/settings.local.json'];
+
+// Paths from previous versions that should be removed on upgrade
+const OBSOLETE_PATHS = [
+  '.claude/skills/testing',  // consolidated into /sdlc in v1.17.0
+];
 
 function isWizardHookEntry(hookEntry) {
   if (!hookEntry || !hookEntry.hooks) return false;
@@ -135,6 +139,20 @@ function executeOperations(ops) {
   }
 }
 
+function removeObsoletePaths(targetDir, { dryRun }) {
+  const removed = [];
+  for (const rel of OBSOLETE_PATHS) {
+    const fullPath = path.join(targetDir, rel);
+    if (fs.existsSync(fullPath)) {
+      if (!dryRun) {
+        fs.rmSync(fullPath, { recursive: true, force: true });
+      }
+      removed.push(rel);
+    }
+  }
+  return removed;
+}
+
 function updateGitignore(targetDir, { dryRun }) {
   const gitignorePath = path.join(targetDir, '.gitignore');
   let content = '';
@@ -170,6 +188,10 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   if (dryRun) {
     console.log('Dry run — no files will be written:\n');
     printOps(ops);
+    const obsolete = removeObsoletePaths(targetDir, { dryRun: true });
+    for (const p of obsolete) {
+      console.log(`  ${RED}REMOVE${RESET}  ${p} (obsolete)`);
+    }
     const gitignoreAdds = updateGitignore(targetDir, { dryRun: true });
     if (gitignoreAdds.length > 0) {
       console.log(`  ${GREEN}APPEND${RESET}  .gitignore (${gitignoreAdds.join(', ')})`);
@@ -180,7 +202,13 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   console.log('');
   printOps(ops);
 
-  if (ops.every((o) => o.action === 'SKIP')) {
+  // Always clean up obsolete paths, even when all managed files are SKIP
+  const obsolete = removeObsoletePaths(targetDir, { dryRun: false });
+  for (const p of obsolete) {
+    console.log(`  ${RED}REMOVE${RESET}  ${p} (obsolete)`);
+  }
+
+  if (ops.every((o) => o.action === 'SKIP') && obsolete.length === 0) {
     console.log('\nAll files already exist. Use --force to overwrite.');
     return true;
   }
@@ -196,12 +224,13 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
 ${GREEN}SDLC Wizard installed successfully!${RESET}
 
 ${YELLOW}Important:${RESET} Hooks and settings load at session start.
-  If Claude Code is already running, exit and restart it.
+  If Claude Code is already running, type ${CYAN}/exit${RESET} then ${CYAN}claude${RESET} to restart.
+  (Or ${CYAN}claude --continue${RESET} to keep your conversation history.)
 
 Next steps:
   1. Start Claude Code in this directory (or restart if already running)
-  2. Tell Claude anything — setup-wizard auto-invokes when SDLC files are missing
-  3. Claude will scan your project and create CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
+  2. Tell Claude anything — setup auto-invokes when SDLC files are missing
+  3. Claude reads the wizard doc and creates CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
 
 The wizard doc is at: CLAUDE_CODE_SDLC_WIZARD.md
   `);

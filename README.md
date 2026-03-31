@@ -10,7 +10,7 @@ Run from your terminal or from inside Claude Code (`!` prefix):
 ```bash
 npx agentic-sdlc-wizard init
 ```
-Then start (or restart) Claude Code. Setup auto-invokes — Claude will scan your project and generate bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md. No manual commands needed.
+Then start (or restart) Claude Code — type `/exit` then `claude` to reload hooks. Setup auto-invokes on first prompt — Claude reads the wizard doc, scans your project, and generates bespoke CLAUDE.md, SDLC.md, TESTING.md, and ARCHITECTURE.md. No manual commands needed.
 
 <details>
 <summary>Alternative install methods</summary>
@@ -186,7 +186,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 |--------|------------|----------------------|-------------|
 | **Focus** | SDLC enforcement + measurement | Agent performance optimization | Plugin marketplace |
 | **Hooks** | 3 (SDLC, TDD, instructions) | 12+ (dev blocker, prettier, etc.) | Webhook watcher |
-| **Skills** | 2 (/sdlc, /testing) | 80+ domain-specific | 13 slash commands |
+| **Skills** | 2 (/sdlc, /setup) | 80+ domain-specific | 13 slash commands |
 | **Evaluation** | 95% CI, CUSUM, SDP, Tier 1/2 | Configuration testing | skilltest framework |
 | **Self-healing** | CI auto-fix + re-trigger | No | No |
 | **Auto-updates** | Weekly CC + community scan | No | No |

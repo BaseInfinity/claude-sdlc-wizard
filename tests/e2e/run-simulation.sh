@@ -59,7 +59,7 @@ setup_test_repo() {
     git commit -q -m "Initial commit"
 
     # Install wizard (copy key files)
-    mkdir -p .claude/hooks .claude/skills/sdlc .claude/skills/testing .claude/skills/setup
+    mkdir -p .claude/hooks .claude/skills/sdlc .claude/skills/setup
 
     # Copy wizard if it exists (would be installed by wizard setup)
     if [ -f "$REPO_ROOT/CLAUDE.md" ]; then
