@@ -1933,7 +1933,7 @@ Debug it. Find root cause. Fix it properly. Tests ARE code.
 
 ## Flaky Test Prevention
 
-**Flaky tests are bugs. Period.** They erode trust in the test suite, slow down teams, and mask real regressions.
+**Flaky tests are bugs. Period.** They erode trust in the test suite, slow down teams, and mask real regressions. For a deep dive, see: [How do you Address and Prevent Flaky Tests?](https://softwareautomation.notion.site/How-do-you-Address-and-Prevent-Flaky-Tests-23c539e19b3c46eeb655642b95237dc0)
 
 ### Principles
 

@@ -280,6 +280,8 @@ Everything else needs integration tests.
 
 ## Flaky Test Recovery
 
+**Flaky tests are bugs. Period.** See: [Flaky Test Prevention](https://softwareautomation.notion.site/How-do-you-Address-and-Prevent-Flaky-Tests-23c539e19b3c46eeb655642b95237dc0)
+
 When a test fails intermittently:
 1. **Don't dismiss it** — "flaky" means "bug we haven't found yet"
 2. **Identify the layer** — test code? app code? environment?
