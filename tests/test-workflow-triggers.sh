@@ -3654,6 +3654,59 @@ test_agents_md_exists
 test_agents_md_references_exceptions
 test_review_experiment_tracking_exists
 
+# ============================================
+# Auto-Update CI Trigger Tests (#41)
+# ============================================
+# peter-evans/create-pull-request uses GITHUB_TOKEN which doesn't trigger
+# pull_request events (GitHub anti-loop protection). We need to manually
+# dispatch CI after PR creation so auto-update PRs get checked.
+
+# Test 184: weekly-update.yml has actions: write permission
+test_weekly_has_actions_write() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    if grep -q 'actions: write' "$WORKFLOW"; then
+        pass "weekly-update.yml has actions: write permission (needed for CI dispatch)"
+    else
+        fail "weekly-update.yml missing actions: write permission (gh workflow run returns 403)"
+    fi
+}
+
+# Test 185: monthly-research.yml has actions: write permission
+test_monthly_has_actions_write() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+    if grep -q 'actions: write' "$WORKFLOW"; then
+        pass "monthly-research.yml has actions: write permission (needed for CI dispatch)"
+    else
+        fail "monthly-research.yml missing actions: write permission (gh workflow run returns 403)"
+    fi
+}
+
+# Test 186: weekly-update.yml dispatches CI after auto-update PR creation
+test_weekly_dispatches_ci_after_update_pr() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    # The check-updates job creates the auto-update PR. It must dispatch CI afterward.
+    if grep -q 'gh workflow run ci.yml' "$WORKFLOW"; then
+        pass "weekly-update.yml dispatches CI after PR creation"
+    else
+        fail "weekly-update.yml should dispatch CI after PR creation (GITHUB_TOKEN PRs don't trigger pull_request events)"
+    fi
+}
+
+# Test 187: monthly-research.yml dispatches CI after PR creation
+test_monthly_dispatches_ci_after_pr() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
+    if grep -q 'gh workflow run ci.yml' "$WORKFLOW"; then
+        pass "monthly-research.yml dispatches CI after PR creation"
+    else
+        fail "monthly-research.yml should dispatch CI after PR creation (GITHUB_TOKEN PRs don't trigger pull_request events)"
+    fi
+}
+
+test_weekly_has_actions_write
+test_monthly_has_actions_write
+test_weekly_dispatches_ci_after_update_pr
+test_monthly_dispatches_ci_after_pr
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
