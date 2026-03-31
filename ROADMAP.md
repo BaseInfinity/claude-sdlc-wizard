@@ -69,6 +69,7 @@
 |---|------|-------------|
 | 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
+| 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected. Probably not always needed — repos with no UI or public-facing content don't need one. Could roll into DESIGN_SYSTEM.md or stand alone. Explore: what signals indicate a project needs branding guidelines? Can the SDLC loop detect this during planning phase? |
 
 ## Review Pipeline
 
