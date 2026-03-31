@@ -46,6 +46,9 @@
 | 33 | `/update-wizard` Skill | Smart update system — shows what changed between versions, lets users selectively adopt changes, preserves customizations. Currently users update with `init --force` (blunt overwrite) or `check` (drift detection). This adds a guided upgrade path |
 | 34 | Reviewer Severity Prompt Fix | 14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Tune prompt to correctly escalate silent failures to P0/P1. Validate with labeled test cases |
 | 35 | Gap Analysis vs `/claude-automation-recommender` | Run the built-in recommender on wizard-installed repos, compare suggestions vs what we ship — find coverage gaps and positioning data. Run on fresh repos to measure "suggestions" vs "enforcement" delta |
+| 36 | CI Local Shepherd Model | Research: replace autofix bot back-and-forth with local CI shepherd loop. Agent watches CI, reads all output, fixes locally, pushes once. Iterate until reviewers happy + tests pass. Compare token cost, noise, quality vs bot model. Keep bot as fallback for unattended PRs |
+| 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
+| 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 
 ## Review Pipeline
 
