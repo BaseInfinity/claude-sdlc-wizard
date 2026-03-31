@@ -383,6 +383,50 @@ test_update_skill_parity
 test_update_skill_content
 test_step_registry_update_wizard
 
+# --- Cross-Model Review Dialogue Tests (#40) ---
+
+# Test 22: Wizard cross-model section documents response.json protocol
+test_wizard_response_protocol() {
+    if grep -q "response.json" "$WIZARD" && grep -q "DISPUTED" "$WIZARD"; then
+        pass "Wizard documents response.json dialogue protocol"
+    else
+        fail "Wizard should document response.json with DISPUTED action"
+    fi
+}
+
+# Test 23: Wizard documents targeted recheck (not just full re-review)
+test_wizard_targeted_recheck() {
+    if grep -qi "targeted recheck" "$WIZARD"; then
+        pass "Wizard documents targeted recheck for round 2+"
+    else
+        fail "Wizard should document targeted recheck protocol"
+    fi
+}
+
+# Test 24: SKILL.md documents the dialogue response protocol
+test_skill_dialogue_protocol() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    if grep -q "FIXED" "$skill_file" && grep -q "DISPUTED" "$skill_file" && grep -q "ACCEPTED" "$skill_file"; then
+        pass "SKILL.md documents FIXED/DISPUTED/ACCEPTED response actions"
+    else
+        fail "SKILL.md should document the dialogue response actions"
+    fi
+}
+
+# Test 25: Wizard documents convergence rule (max rounds)
+test_wizard_convergence_rule() {
+    if grep -qi "max.*round\|escalate.*user" "$WIZARD"; then
+        pass "Wizard documents convergence rule"
+    else
+        fail "Wizard should document max rounds / escalation"
+    fi
+}
+
+test_wizard_response_protocol
+test_wizard_targeted_recheck
+test_skill_dialogue_protocol
+test_wizard_convergence_rule
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
