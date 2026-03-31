@@ -41,18 +41,33 @@
 | 28 | Consolidate /testing into /sdlc | DONE — PR #113. Moved mocking table, unit test criteria, TDD Must PROVE, After Session into /sdlc skill. Deleted /testing skill + hook routing. Added upgrade cleanup (OBSOLETE_PATHS). 4 consolidation tests, 4 effort tests. Zero content loss verified |
 | 29 | ~~Effort Level Recommendations~~ DONE | Added `## Recommended Effort Level` section to wizard. `high` default via skill frontmatter, suggest `max` for LOW confidence / FAILED 2x / architecture decisions. Confidence table gets Effort column. 4 tests |
 | 30 | ~~Post-Deploy Verification~~ DONE | Added Post-Deploy Verification section to ARCHITECTURE.md template (health checks, log commands, smoke tests per environment, monitoring guidance). SDLC skill deployment section now includes post-deploy verification steps. 3 tests |
-| 31 | `/init` for Blank Repos | Test what happens when wizard runs on truly blank repos (no CLAUDE.md). Consider recommending Claude's built-in `/init` first. Add E2E test for blank-repo setup path |
-| 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
-| 33 | `/update-wizard` Skill | Smart update system — shows what changed between versions, lets users selectively adopt changes, preserves customizations. Currently users update with `init --force` (blunt overwrite) or `check` (drift detection). This adds a guided upgrade path |
-| 34 | Reviewer Severity Prompt Fix | 14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Tune prompt to correctly escalate silent failures to P0/P1. Validate with labeled test cases |
-| 35 | Gap Analysis vs `/claude-automation-recommender` | Run the built-in recommender on wizard-installed repos, compare suggestions vs what we ship — find coverage gaps and positioning data. Run on fresh repos to measure "suggestions" vs "enforcement" delta |
-| 36 | CI Local Shepherd Model | Research: replace autofix bot back-and-forth with local CI shepherd loop. Agent watches CI, reads all output, fixes locally, pushes once. Iterate until reviewers happy + tests pass. Compare token cost, noise, quality vs bot model. Keep bot as fallback for unattended PRs |
-| 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
-| 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 | 39 | SDLC Enforcement Gap Audit | DONE — Audited all documented SDLC sections vs TodoWrite/hook/E2E enforcement. Fixed 5 gaps: capture learnings, scope guard, deploy tasks, new pattern approval, legacy delete check. Enforcement coverage 7/12 → 12/12. 6 new tests. Future: add E2E scoring criteria for scope_guard, after_session, deploy |
-| 40 | Cross-Model Review Dialogue | Evolve cross-model review from one-way gate to negotiation loop. Reviewer says what's wrong AND what it would take to certify. Claude fixes valid issues, justifies disagreements. Reviewer accepts reasoning or pushes back. Converge to shared agreement. Builds on #27 experiment data and #32 N-Reviewer pipeline |
 | 41 | ~~Auto-Update PR CI Trigger~~ DONE | PR #119. Added `gh workflow run ci.yml` dispatch after all 3 `peter-evans/create-pull-request` calls. Added `actions: write` to weekly-update + monthly-research. 4 tests |
+
+## This Release (ordered)
+
+| # | Item | Description |
+|---|------|-------------|
+| 34 | Reviewer Severity Prompt Fix | 14% misclassification rate — CI reviewer under-categorizes silent no-op bugs as suggestions. Tune prompt to correctly escalate silent failures to P0/P1. Validate with labeled test cases |
+| 40 | Cross-Model Review Dialogue | Evolve cross-model review from one-way gate to negotiation loop. Reviewer says what's wrong AND what it would take to certify. Claude fixes valid issues, justifies disagreements. Reviewer accepts reasoning or pushes back. Converge to shared agreement. Builds on #27 experiment data and #32 N-Reviewer pipeline |
+| 33 | `/update-wizard` Skill | Smart update system — shows what changed between versions, lets users selectively adopt changes, preserves customizations. Currently users update with `init --force` (blunt overwrite) or `check` (drift detection). This adds a guided upgrade path |
+
+## Next Release (ordered)
+
+| # | Item | Description |
+|---|------|-------------|
+| 36 | CI Local Shepherd Model | Research: replace autofix bot back-and-forth with local CI shepherd loop. Agent watches CI, reads all output, fixes locally, pushes once. Iterate until reviewers happy + tests pass. Compare token cost, noise, quality vs bot model. Keep bot as fallback for unattended PRs. Make shepherd part of the SDLC — users may model their CI after this |
+| 35 | Gap Analysis vs `/claude-automation-recommender` | Run the built-in recommender on wizard-installed repos, compare suggestions vs what we ship — find coverage gaps and positioning data. Run on fresh repos to measure "suggestions" vs "enforcement" delta |
+| 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
 | 42 | Token Efficiency Auditing | Add token usage tracking to weekly/monthly improvement loops. Scan for techniques that reduce token consumption while maintaining quality (shorter prompts, smarter context, fewer agent spawns). Part of performance testing — community may discover new efficiency patterns. Consider: token budget per workflow, cost trending, alert on spikes |
+| 31 | `/init` for Blank Repos | Test what happens when wizard runs on truly blank repos (no CLAUDE.md). Consider recommending Claude's built-in `/init` first. Add E2E test for blank-repo setup path |
+
+## Unprioritized
+
+| # | Item | Description |
+|---|------|-------------|
+| 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
+| 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
 
 ## Review Pipeline
 
