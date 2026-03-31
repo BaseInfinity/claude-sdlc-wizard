@@ -183,7 +183,25 @@ No separate marketplace registry exists for Claude Code — the LLM-driven relea
 - Monthly schedule: 11 AM UTC on the 1st (`cron: '0 11 1 * *'`)
 - Manual trigger also available (workflow_dispatch)
 
-## CI Auto-Fix Workflow (`ci-self-heal.yml`)
+## Two-Tier CI Fix Model
+
+The repo uses two complementary mechanisms for fixing CI failures:
+
+### Tier 1: Local Shepherd (Primary)
+
+The SDLC skill's CI feedback loops (`.claude/skills/sdlc/SKILL.md`) run during active development sessions. Claude watches CI via `gh pr checks --watch`, reads failure logs via `gh run view <RUN_ID> --log-failed`, fixes locally, and pushes — all within one session with full context.
+
+**Advantages:** Full codebase context, zero extra commits, immediate iteration, no API cost beyond the session.
+
+**Limits:** Only active when a developer is working with Claude. Does not cover unattended PRs.
+
+### Tier 2: CI Auto-Fix Bot (Fallback)
+
+The `ci-self-heal.yml` workflow triggers on CI failure via `workflow_run`. It's the safety net for unattended PRs (dependabot, overnight runs, push-and-walk-away).
+
+**SHA-based suppression:** Before running, the bot compares the current branch HEAD against the SHA that triggered the failure. If different (someone already pushed a fix), the bot skips. This prevents redundant bot runs when the shepherd has already acted.
+
+## CI Auto-Fix Workflow (`ci-self-heal.yml`) — Tier 2
 
 ### What It Does
 

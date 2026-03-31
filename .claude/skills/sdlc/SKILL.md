@@ -333,7 +333,9 @@ If tests fail:
 
 Debug it. Find root cause. Fix it properly. Tests ARE code.
 
-## CI Feedback Loop (After Commit)
+## CI Feedback Loop — Local Shepherd (After Commit)
+
+**This is the "local shepherd" — the primary CI fix mechanism.** It runs in your active session with full context. The optional CI Auto-Fix bot (`.github/workflows/ci-autofix.yml`) is a fallback for unattended PRs only. When both are active, the bot detects your local pushes via SHA comparison and skips automatically.
 
 **The SDLC doesn't end at local tests.** CI must pass too.
 
@@ -379,7 +381,7 @@ Local tests pass -> Commit -> Push -> Watch CI
 - Flaky? Investigate - flakiness is a bug
 - Stuck? ASK USER
 
-## CI Review Feedback Loop (After CI Passes)
+## CI Review Feedback Loop — Local Shepherd (After CI Passes)
 
 **CI passing isn't the end.** If CI includes a code reviewer, read and address its suggestions.
 
