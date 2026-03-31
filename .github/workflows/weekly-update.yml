@@ -398,6 +398,7 @@ jobs:
       # Phase A: Regression Test
       # Test if new CC version breaks SDLC enforcement with current docs
       - name: Install new Claude Code version
+        id: install-cc
         run: |
           VERSION="${{ needs.check-updates.outputs.latest_version }}"
           # W1: Validate version format before npm install (prevent injection)
@@ -407,6 +408,9 @@ jobs:
           fi
           npm install -g "@anthropic-ai/claude-code@${VERSION}"
           claude --version
+          CC_EXEC_PATH=$(which claude)
+          echo "Using CC binary at: $CC_EXEC_PATH"
+          echo "cc_path=$CC_EXEC_PATH" >> $GITHUB_OUTPUT
 
       - name: Setup test fixture with wizard
         run: |
@@ -424,6 +428,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          path_to_claude_code_executable: ${{ steps.install-cc.outputs.cc_path }}
 
           claude_args: |
             --max-turns 55
@@ -521,6 +526,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          path_to_claude_code_executable: ${{ steps.install-cc.outputs.cc_path }}
           claude_args: "--bare"
           prompt: |
             Analyze the changelog for Claude Code ${{ needs.check-updates.outputs.latest_version }}
@@ -568,6 +574,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          path_to_claude_code_executable: ${{ steps.install-cc.outputs.cc_path }}
 
           claude_args: |
             --max-turns 55

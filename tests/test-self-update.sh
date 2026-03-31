@@ -747,6 +747,57 @@ test_wizard_docs_in_sync
 test_skill_doc_enforcement_template_parity
 test_wizard_feature_doc_structure
 
+# --- Version-Pinned Update Gate Tests (#46) ---
+echo ""
+echo "--- Version-Pinned Update Gate (#46) ---"
+
+# version-test install step has id for output capture
+test_version_gate_install_id() {
+    local workflow="$SCRIPT_DIR/../.github/workflows/weekly-update.yml"
+    if grep -q "id: install-cc" "$workflow"; then
+        pass "weekly-update version-test install step has id: install-cc"
+    else
+        fail "weekly-update version-test install step should have id: install-cc for output capture"
+    fi
+}
+
+# version-test captures CC executable path after install
+test_version_gate_cc_path_capture() {
+    local workflow="$SCRIPT_DIR/../.github/workflows/weekly-update.yml"
+    if grep -q "which claude" "$workflow" && grep -q "cc_path=" "$workflow"; then
+        pass "weekly-update captures CC executable path after install"
+    else
+        fail "weekly-update should capture CC executable path via 'which claude' and output cc_path"
+    fi
+}
+
+# All claude-code-action calls in version-test pass path_to_claude_code_executable
+test_version_gate_path_passed() {
+    local workflow="$SCRIPT_DIR/../.github/workflows/weekly-update.yml"
+    local count
+    count=$(grep -c "path_to_claude_code_executable" "$workflow" || true)
+    if [ "$count" -ge 3 ]; then
+        pass "weekly-update passes path_to_claude_code_executable to all 3 action calls ($count found)"
+    else
+        fail "weekly-update should pass path_to_claude_code_executable to all 3 version-test action calls (found $count, need >= 3)"
+    fi
+}
+
+# CI_CD.md documents version-pinned gate
+test_cicd_version_pinned_gate() {
+    local cicd="$SCRIPT_DIR/../CI_CD.md"
+    if grep -q "Version-Pinned Gate" "$cicd"; then
+        pass "CI_CD.md documents the version-pinned update gate"
+    else
+        fail "CI_CD.md should document the Version-Pinned Gate"
+    fi
+}
+
+test_version_gate_install_id
+test_version_gate_cc_path_capture
+test_version_gate_path_passed
+test_cicd_version_pinned_gate
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
