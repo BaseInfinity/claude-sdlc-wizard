@@ -44,15 +44,7 @@
 | 39 | SDLC Enforcement Gap Audit | DONE — Audited all documented SDLC sections vs TodoWrite/hook/E2E enforcement. Fixed 5 gaps: capture learnings, scope guard, deploy tasks, new pattern approval, legacy delete check. Enforcement coverage 7/12 → 12/12. 6 new tests. Future: add E2E scoring criteria for scope_guard, after_session, deploy |
 | 41 | ~~Auto-Update PR CI Trigger~~ DONE | PR #119. Added `gh workflow run ci.yml` dispatch after all 3 `peter-evans/create-pull-request` calls. Added `actions: write` to weekly-update + monthly-research. 4 tests |
 
-## Previous Release (v1.18.0)
-
-| # | Item | Description |
-|---|------|-------------|
-| 34 | ~~Reviewer Severity Prompt Fix~~ DONE | Added P0/P1/P2 severity rubric to pr-review.yml prompt (aligned with AGENTS.md). P0 explicitly lists silent failure patterns (|| true masking, continue-on-error, 2>/dev/null, no-op code paths). Escalation rule: "will someone notice?" Updated output format to 3-tier. Updated ci-self-heal.yml parser for new format. 4 tests |
-| 40 | ~~Cross-Model Review Dialogue~~ DONE | Evolved cross-model review from one-way gate to negotiation loop. FIXED/DISPUTED/ACCEPTED per finding. Targeted rechecks. Max 3 rounds convergence. 6 new tests |
-| 33 | ~~`/update-wizard` Skill~~ DONE | Smart update system — shows changelog diff, per-file comparison, selective adoption. 10-step guided checklist. CLI distributes skill (8 managed files). 5 new tests, version bump to 1.18.0 |
-
-## This Release (ordered)
+## Previous Release (v1.19.0)
 
 | # | Item | Description |
 |---|------|-------------|
@@ -63,15 +55,19 @@
 | 31 | ~~`/init` for Blank Repos~~ DONE | Verified wizard installs cleanly on blank repos. Added blank-repo fixture, 10 new E2E tests (68 total setup-path). Added guidance: no need for `/init` first, setup wizard generates all docs. PR #128 |
 | 43 | ~~Feature Documentation Enforcement~~ DONE | Added ADR pattern guidance (`docs/decisions/`), `claude-md-improver` recommendation for CLAUDE.md health, "Documentation Sync" section in SDLC skill (enforce doc updates when code contradicts/extends documented behavior), docs-in-sync detection guidance. Strengthened transition step and After Session routing. 6 new tests. PR #129 |
 
-## Unprioritized
+## This Release (ordered)
 
 | # | Item | Description |
 |---|------|-------------|
+| 46 | CC Version-Pinned Update Gate | Turn update PRs from notifications into real quality gates. `weekly-update.yml` installs the specific new CC version (`npm install @anthropic-ai/claude-code@X.Y.Z`) and passes it to E2E via `path_to_claude_code_executable`. Green CI = safe to upgrade. Red = stay on current version until fixed. Prevents blind upgrades. Also enables: version pinning in wizard docs (recommended CC version), regression detection (score drop = don't upgrade), and rollback guidance |
 | 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
-| 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected. Probably not always needed — repos with no UI or public-facing content don't need one. Could roll into DESIGN_SYSTEM.md or stand alone. Explore: what signals indicate a project needs branding guidelines? Can the SDLC loop detect this during planning phase? |
-| 45 | `/agents` Subagent Exploration | Research: explore Claude Code's `/agents` (custom subagents in `.claude/agents/`). Can an `sdlc-reviewer` or `ci-debug` agent add value beyond hooks+skills? Key questions: (1) Does agent-based enforcement improve over hook-based? (2) Can agent definitions be E2E tested (`claude --agent X -p "task" --max-turns N`)? (3) Should CLI distribute agent files alongside skills? (4) Testing story — how to systematically verify agent behavior. Start with proof-of-concept single agent, measure if it catches things hooks miss |
-| 46 | CC Version-Pinned Update Gate | Turn update PRs from notifications into real quality gates. `weekly-update.yml` installs the specific new CC version (`npm install @anthropic-ai/claude-code@X.Y.Z`) and passes it to E2E via `path_to_claude_code_executable`. Green CI = safe to upgrade. Red = stay on current version until fixed. Prevents blind upgrades. Also enables: version pinning in wizard docs (recommended CC version), regression detection (score drop = don't upgrade), and rollback guidance |
+| 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected |
+| 45 | `/agents` Subagent Exploration | Research: explore Claude Code's `/agents` (custom subagents in `.claude/agents/`). Can an `sdlc-reviewer` or `ci-debug` agent add value beyond hooks+skills? Testing story for agent behavior |
+
+## Unprioritized
+
+_(All items moved to This Release or Back Burner)_
 
 ## Review Pipeline
 
