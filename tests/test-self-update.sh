@@ -525,6 +525,50 @@ test_wizard_shepherd_comparison
 test_cicd_shepherd_section
 test_skill_shepherd_label
 
+# --- Gap Analysis vs Automation Recommender Tests (#35) ---
+
+# Wizard Step 0.3 references /claude-automation-recommender
+test_wizard_recommender_reference() {
+    if grep -q "claude-automation-recommender" "$WIZARD"; then
+        pass "Wizard Step 0.3 references /claude-automation-recommender"
+    else
+        fail "Wizard Step 0.3 should reference /claude-automation-recommender by name"
+    fi
+}
+
+# Wizard documents suggestions-vs-enforcement positioning
+test_wizard_gap_analysis() {
+    if grep -qi "suggestion.*engine\|enforcement.*engine\|suggestions.*vs.*enforcement" "$WIZARD"; then
+        pass "Wizard documents suggestions vs enforcement positioning"
+    else
+        fail "Wizard should document the suggestions-vs-enforcement gap analysis"
+    fi
+}
+
+# Wizard Going Further has complementary tools section
+test_wizard_complementary_tools() {
+    if grep -q "Complementary Tools" "$WIZARD" || grep -q "Stack-Specific Configuration" "$WIZARD"; then
+        pass "Wizard has complementary tools section in Going Further"
+    else
+        fail "Wizard should have a complementary tools section under Going Further"
+    fi
+}
+
+# Setup wizard skill mentions automation recommender post-setup
+test_setup_skill_recommender() {
+    local setup_skill="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    if grep -q "claude-automation-recommender" "$setup_skill"; then
+        pass "Setup wizard skill mentions /claude-automation-recommender"
+    else
+        fail "Setup wizard skill should mention /claude-automation-recommender for post-setup"
+    fi
+}
+
+test_wizard_recommender_reference
+test_wizard_gap_analysis
+test_wizard_complementary_tools
+test_setup_skill_recommender
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

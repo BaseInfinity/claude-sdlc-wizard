@@ -912,21 +912,25 @@ The wizard creates TDD-specific automations that official plugins don't provide:
 
 ### Step 0.3: Additional Recommendations (Optional)
 
-After SDLC setup is complete, run `claude-code-setup` for additional recommendations:
+After SDLC setup is complete, run `/claude-automation-recommender` for stack-specific tooling:
 
 ```
-"Based on your codebase, recommend additional automations"
+/claude-automation-recommender
 ```
 
-This may suggest:
-- MCP Servers (context7 for docs, Playwright for frontend)
-- Additional hooks (auto-format if Prettier configured)
-- Subagents (security-reviewer if auth code detected)
+**The wizard is an enforcement engine** — it installs working hooks, skills, and process guardrails that run automatically. **The recommender is a suggestion engine** — it analyzes your codebase and suggests additional automations you might want. They're complementary:
 
-**Claude prompts for each:**
-> "[Detected: Prettier config] Want to add auto-format hook? (y/n)"
+| Category | Wizard Ships | Recommender Suggests |
+|----------|-------------|---------------------|
+| SDLC process (TDD, planning, review) | Enforced via hooks + skills | Not covered |
+| CI workflows (self-heal, PR review) | Templates + docs | Not covered |
+| MCP servers (context7, Playwright, DB) | Not covered | Per-stack suggestions |
+| Auto-formatting hooks (Prettier, ESLint) | Not covered | Per-stack suggestions |
+| Type-checking hooks (tsc, mypy) | Not covered | Per-stack suggestions |
+| Subagent templates (code-reviewer, etc.) | Cross-model review only | 8 templates |
+| Plugin recommendations (LSPs, etc.) | Not covered | Per-stack suggestions |
 
-These are additive—they don't replace our TDD hooks.
+The recommender's suggestions are additive — they don't replace the wizard's TDD hooks or SDLC enforcement.
 
 ### Git Workflow Preference
 
@@ -2641,6 +2645,10 @@ Add project-specific guidance to skills:
 - Common gotchas
 - Preferred patterns
 - Architecture decisions
+
+### Complementary Tools
+
+The wizard handles SDLC process enforcement. For stack-specific tooling, run `/claude-automation-recommender` — it suggests MCP servers, formatting hooks, type-checking hooks, subagent templates, and plugins based on your detected tech stack. See [Step 0.3](#step-03-additional-recommendations-optional) for the full comparison.
 
 ---
 
