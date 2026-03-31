@@ -49,6 +49,7 @@
 | 36 | CI Local Shepherd Model | Research: replace autofix bot back-and-forth with local CI shepherd loop. Agent watches CI, reads all output, fixes locally, pushes once. Iterate until reviewers happy + tests pass. Compare token cost, noise, quality vs bot model. Keep bot as fallback for unattended PRs |
 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
 | 38 | `/clear` vs `/compact` Guidance | Research when `/clear` is beneficial vs `/compact` in SDLC workflows. Add recommendation to wizard setup. Most users never use `/clear` — validate if that's optimal or if there are cases where fresh context beats compressed context |
+| 39 | SDLC Enforcement Gap Audit | DONE — Audited all documented SDLC sections vs TodoWrite/hook/E2E enforcement. Fixed 5 gaps: capture learnings, scope guard, deploy tasks, new pattern approval, legacy delete check. Enforcement coverage 7/12 → 12/12. 6 new tests. Future: add E2E scoring criteria for scope_guard, after_session, deploy |
 
 ## Review Pipeline
 
