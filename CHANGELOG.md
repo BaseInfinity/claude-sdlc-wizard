@@ -4,6 +4,17 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.19.0] - 2026-03-31
+
+### Added
+- CI Local Shepherd Model — two-tier CI fix model (shepherd primary, bot fallback), SHA-based suppression (#36)
+- Gap Analysis vs `/claude-automation-recommender` — complementary tools positioning (#35)
+- `/clear` vs `/compact` context management guidance (#38)
+- Token efficiency auditing — `/cost`, `--max-budget-usd`, OpenTelemetry (#42)
+- Blank repo support — verified clean install, 10 new E2E tests (#31)
+- Feature documentation enforcement — ADR guidance, `claude-md-improver`, doc sync in SDLC (#43)
+- Setup skill description trimmed to 199 chars (v2.1.86 caps at 250)
+
 ## [1.18.0] - 2026-03-30
 
 ### Added
