@@ -3707,6 +3707,55 @@ test_monthly_has_actions_write
 test_weekly_dispatches_ci_after_update_pr
 test_monthly_dispatches_ci_after_pr
 
+# --- Reviewer Severity Prompt Fix Tests (#34) ---
+
+# Test 188: pr-review.yml prompt contains P0/P1/P2 severity rubric
+test_review_prompt_has_severity_rubric() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if grep -q 'P0.*Critical' "$WORKFLOW" && grep -q 'P1.*Must' "$WORKFLOW" && grep -q 'P2.*Suggestion' "$WORKFLOW"; then
+        pass "pr-review.yml prompt has P0/P1/P2 severity rubric"
+    else
+        fail "pr-review.yml prompt should have P0/P1/P2 severity rubric"
+    fi
+}
+
+# Test 189: pr-review.yml prompt explicitly mentions "silent failures" as P0
+test_review_prompt_has_silent_failure_escalation() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if grep -qi 'silent.*fail' "$WORKFLOW"; then
+        pass "pr-review.yml prompt escalates silent failures"
+    else
+        fail "pr-review.yml prompt should explicitly escalate silent failures to P0"
+    fi
+}
+
+# Test 190: pr-review.yml output format uses P0/P1/P2 sections
+test_review_output_format_three_tier() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    if grep -q '#### P0' "$WORKFLOW" && grep -q '#### P1' "$WORKFLOW" && grep -q '#### P2' "$WORKFLOW"; then
+        pass "pr-review.yml output format uses P0/P1/P2 sections"
+    else
+        fail "pr-review.yml output format should use P0/P1/P2 sections (not just Critical/Suggestions)"
+    fi
+}
+
+# Test 191: pr-review.yml severity rubric matches AGENTS.md rubric
+test_review_severity_matches_agents() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
+    local AGENTS="$REPO_ROOT/AGENTS.md"
+    # Both should list the same P0 categories
+    if grep -qi 'silent failures' "$WORKFLOW" && grep -qi 'silent failures' "$AGENTS"; then
+        pass "pr-review.yml and AGENTS.md both classify silent failures as P0"
+    else
+        fail "pr-review.yml and AGENTS.md should have aligned severity definitions"
+    fi
+}
+
+test_review_prompt_has_severity_rubric
+test_review_prompt_has_silent_failure_escalation
+test_review_output_format_three_tier
+test_review_severity_matches_agents
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

@@ -175,14 +175,21 @@ jobs:
           HAS_CRITICALS=false
           HAS_SUGGESTIONS=false
 
-          if echo "$REVIEW_BODY" | grep -q "Critical (must fix)"; then
-            if ! echo "$REVIEW_BODY" | grep -A 1 "Critical (must fix)" | grep -q "None\|No critical\|N/A"; then
+          # Check for P0/P1 criticals (new format) or "Critical (must fix)" (old format)
+          if echo "$REVIEW_BODY" | grep -qE "P0 — Critical|Critical \(must fix\)"; then
+            if ! echo "$REVIEW_BODY" | grep -A 1 -E "P0 — Critical|Critical \(must fix\)" | grep -q "None\|No critical\|N/A"; then
+              HAS_CRITICALS=true
+            fi
+          fi
+          if echo "$REVIEW_BODY" | grep -q "P1 — Must Fix"; then
+            if ! echo "$REVIEW_BODY" | grep -A 1 "P1 — Must Fix" | grep -q "None\|N/A"; then
               HAS_CRITICALS=true
             fi
           fi
 
-          if echo "$REVIEW_BODY" | grep -q "Suggestions (nice to have)"; then
-            if ! echo "$REVIEW_BODY" | grep -A 1 "Suggestions (nice to have)" | grep -q "None\|No suggestions\|N/A"; then
+          # Check for P2 suggestions (new format) or "Suggestions (nice to have)" (old format)
+          if echo "$REVIEW_BODY" | grep -qE "P2 — Suggestions|Suggestions \(nice to have\)"; then
+            if ! echo "$REVIEW_BODY" | grep -A 1 -E "P2 — Suggestions|Suggestions \(nice to have\)" | grep -q "None\|No suggestions\|N/A"; then
               HAS_SUGGESTIONS=true
             fi
           fi

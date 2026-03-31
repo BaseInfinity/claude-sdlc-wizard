@@ -242,6 +242,38 @@ jobs:
             If your finding matches a documented exception, skip it — it has already been
             evaluated and explicitly accepted. Do not re-suggest documented exceptions.
 
+            ### 7. Severity Classification
+
+            Use this rubric when classifying findings:
+
+            - **P0 (Critical — must fix before merge):**
+              - Security vulnerabilities (injection, secret exposure, unsafe interpolation)
+              - Data loss or corruption risk
+              - CI breakage (workflow syntax errors, broken triggers, failing checks)
+              - Silent failures — code that silently does nothing instead of failing:
+                - `|| true` or `|| echo "fallback"` masking real errors
+                - `continue-on-error: true` on steps that should block
+                - `2>/dev/null` hiding diagnostic output that signals failures
+                - Variables that silently default to empty/wrong values
+                - Conditions that silently skip execution (no-op code paths)
+                - Missing error handling where failure looks like success
+
+            - **P1 (Must fix — should fix before merge):**
+              - Logic bugs (wrong behavior, incorrect conditions, off-by-one)
+              - Missing tests for new behavior or changed behavior
+              - Broken E2E coverage (SDLC behavior changed without scenario update)
+              - Unhandled edge cases that produce wrong results (not silent, but incorrect)
+
+            - **P2 (Suggestion — nice to have):**
+              - Style and readability improvements
+              - Minor refactoring opportunities
+              - Documentation improvements
+              - Performance optimizations with no correctness impact
+
+            **Escalation rule:** When in doubt between P1 and P0, ask: "If this bug ships,
+            will someone notice?" If the answer is "no, it will silently do the wrong thing,"
+            it's P0.
+
             Use mcp__github__get_pull_request_diff to get the changes, then output your review.
 
             ## Output Format
@@ -258,10 +290,13 @@ jobs:
 
             ### Findings
 
-            #### Critical (must fix)
+            #### P0 — Critical (must fix before merge)
             - [file:line] Issue description
 
-            #### Suggestions (nice to have)
+            #### P1 — Must Fix (should fix before merge)
+            - [file:line] Issue description
+
+            #### P2 — Suggestions (nice to have)
             - [file:line] Suggestion description
 
             #### Strengths
@@ -272,7 +307,7 @@ jobs:
             - file2.ext
             ```
 
-            If there are no critical issues, recommend APPROVE.
+            If there are no P0 or P1 issues, recommend APPROVE.
             Reference specific files and lines like `src/foo.ts:42` for easy navigation.
 
           claude_args: |
