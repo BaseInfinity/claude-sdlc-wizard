@@ -297,6 +297,64 @@ test_wizard_skill_cross_model_review_instructions() {
     fi
 }
 
+# --- /update-wizard Skill Tests (#33) ---
+
+# Test 22: Update skill file exists in local skills directory
+test_update_skill_exists() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/update/SKILL.md"
+    if [ -f "$skill_file" ]; then
+        pass "Update skill file exists at .claude/skills/update/SKILL.md"
+    else
+        fail "Update skill should exist at .claude/skills/update/SKILL.md"
+    fi
+}
+
+# Test 23: Update skill template exists in CLI templates
+test_update_skill_template_exists() {
+    local template_file="$SCRIPT_DIR/../cli/templates/skills/update/SKILL.md"
+    if [ -f "$template_file" ]; then
+        pass "Update skill template exists at cli/templates/skills/update/SKILL.md"
+    else
+        fail "Update skill template should exist at cli/templates/skills/update/SKILL.md"
+    fi
+}
+
+# Test 24: Local and template update skill files are identical
+test_update_skill_parity() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/update/SKILL.md"
+    local template_file="$SCRIPT_DIR/../cli/templates/skills/update/SKILL.md"
+    if diff -q "$skill_file" "$template_file" > /dev/null 2>&1; then
+        pass "Local and template update skill files are identical"
+    else
+        fail "Local and template update skill files have drifted"
+    fi
+}
+
+# Test 25: Update skill contains key content markers
+test_update_skill_content() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/update/SKILL.md"
+    local ok=true
+    grep -q "name: update-wizard" "$skill_file" || ok=false
+    grep -q "WebFetch" "$skill_file" || ok=false
+    grep -q "CHANGELOG" "$skill_file" || ok=false
+    grep -qi "selective\|per-file\|selectively" "$skill_file" || ok=false
+    grep -q "sdlc-wizard check" "$skill_file" || ok=false
+    if [ "$ok" = true ]; then
+        pass "Update skill contains key content markers"
+    else
+        fail "Update skill should reference WebFetch, CHANGELOG, selective updates, and sdlc-wizard check"
+    fi
+}
+
+# Test 26: Step registry includes step-update-wizard
+test_step_registry_update_wizard() {
+    if grep -q "step-update-wizard" "$WIZARD"; then
+        pass "Step registry contains step-update-wizard"
+    else
+        fail "Step registry should contain step-update-wizard entry"
+    fi
+}
+
 # Run all tests
 test_changelog_url
 test_wizard_url
@@ -319,6 +377,11 @@ test_skill_cross_model_review
 test_wizard_skill_cross_model_review
 test_skill_cross_model_review_instructions
 test_wizard_skill_cross_model_review_instructions
+test_update_skill_exists
+test_update_skill_template_exists
+test_update_skill_parity
+test_update_skill_content
+test_step_registry_update_wizard
 
 echo ""
 echo "=== Results ==="

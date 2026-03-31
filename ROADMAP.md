@@ -49,8 +49,8 @@
 | # | Item | Description |
 |---|------|-------------|
 | 34 | ~~Reviewer Severity Prompt Fix~~ DONE | Added P0/P1/P2 severity rubric to pr-review.yml prompt (aligned with AGENTS.md). P0 explicitly lists silent failure patterns (|| true masking, continue-on-error, 2>/dev/null, no-op code paths). Escalation rule: "will someone notice?" Updated output format to 3-tier. Updated ci-self-heal.yml parser for new format. 4 tests |
-| 40 | Cross-Model Review Dialogue | Evolve cross-model review from one-way gate to negotiation loop. Reviewer says what's wrong AND what it would take to certify. Claude fixes valid issues, justifies disagreements. Reviewer accepts reasoning or pushes back. Converge to shared agreement. Builds on #27 experiment data and #32 N-Reviewer pipeline |
-| 33 | `/update-wizard` Skill | Smart update system — shows what changed between versions, lets users selectively adopt changes, preserves customizations. Currently users update with `init --force` (blunt overwrite) or `check` (drift detection). This adds a guided upgrade path |
+| 40 | ~~Cross-Model Review Dialogue~~ DONE | Evolved cross-model review from one-way gate to negotiation loop. FIXED/DISPUTED/ACCEPTED per finding. Targeted rechecks. Max 3 rounds convergence. 6 new tests |
+| 33 | ~~`/update-wizard` Skill~~ DONE | Smart update system — shows changelog diff, per-file comparison, selective adoption. 10-step guided checklist. CLI distributes skill (8 managed files). 5 new tests, version bump to 1.18.0 |
 
 ## Next Release (ordered)
 

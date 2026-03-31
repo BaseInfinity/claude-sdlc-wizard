@@ -2204,7 +2204,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.15.0 -->
+<!-- SDLC Wizard Version: 1.18.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -2889,10 +2889,13 @@ If Claude repeatedly struggles in a codebase area:
 
 ### How to Update
 
-Ask Claude any of these:
+Use the `/update-wizard` skill for a guided, selective update experience:
+> `/update-wizard` — full guided update (shows changelog, per-file diff, selective adoption)
+> `/update-wizard check-only` — just show what changed, don't apply anything
+> `/update-wizard force-all` — apply all updates without per-file approval
+
+Or ask Claude directly:
 > "Check for SDLC wizard updates"
-> "Run me through the SDLC wizard"
-> "What am I missing from the latest wizard?"
 > "Update my SDLC setup"
 
 **All of these do the same thing:** Claude checks what's new, shows you, and walks you through only what's missing.
@@ -2971,7 +2974,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.15.0 -->
+<!-- SDLC Wizard Version: 1.18.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
@@ -3009,6 +3012,7 @@ Every wizard step has a unique ID for tracking:
 | `question-git-workflow` | Git workflow preference | 1.2.0 |
 | `step-update-notify` | Optional: CI update notification | 1.13.0 |
 | `step-cross-model-review` | Optional: Cross-model review loop | 1.16.0 |
+| `step-update-wizard` | /update-wizard smart update skill | 1.18.0 |
 
 When checking for updates, Claude compares user's completed steps against this registry.
 
