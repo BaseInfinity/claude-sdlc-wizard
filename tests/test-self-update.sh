@@ -948,6 +948,72 @@ test_ci_analyzer_template_parity
 test_ci_analyzer_covers_roadmap_categories
 test_wizard_ci_analyzer_reference
 
+# --- Cross-Model Release Review Tests (#49) ---
+echo ""
+echo "--- Cross-Model Release Review (#49) ---"
+
+# Wizard "When to use this" includes releases/publishes
+test_wizard_release_review_trigger() {
+    if grep -A 8 "When to use this:" "$WIZARD" | grep -qi "release.*publish"; then
+        pass "Wizard lists releases/publishes as cross-model review trigger"
+    else
+        fail "Wizard 'When to use this' should include releases/publishes"
+    fi
+}
+
+# Wizard has Release Review Checklist subsection
+test_wizard_release_review_checklist() {
+    if grep -q "#### Release Review Checklist" "$WIZARD"; then
+        pass "Wizard has Release Review Checklist subsection"
+    else
+        fail "Wizard should have a 'Release Review Checklist' subsection"
+    fi
+}
+
+# Wizard references v1.20.0 as evidence for release review
+test_wizard_release_review_evidence() {
+    if grep -A 30 "Release Review Checklist" "$WIZARD" | grep -q "v1.20.0"; then
+        pass "Wizard Release Review references v1.20.0 evidence"
+    else
+        fail "Wizard Release Review Checklist should reference v1.20.0 as evidence"
+    fi
+}
+
+# SKILL.md "When to run" includes releases
+test_skill_release_review_trigger() {
+    if grep "When to run" "$SKILL" | grep -qi "release.*publish"; then
+        pass "SKILL.md 'When to run' includes releases/publishes"
+    else
+        fail "SKILL.md 'When to run' should include releases/publishes"
+    fi
+}
+
+# SKILL.md has Release Review Focus subsection
+test_skill_release_review_section() {
+    if grep -q "### Release Review Focus" "$SKILL"; then
+        pass "SKILL.md has Release Review Focus subsection"
+    else
+        fail "SKILL.md should have '### Release Review Focus' subsection"
+    fi
+}
+
+# Embedded SKILL "When to run" includes releases
+test_wizard_embedded_skill_release_trigger() {
+    # The embedded SKILL is inside a ```` code fence after "## Step 6: Create SDLC Skill"
+    if sed -n '/## Step 6: Create SDLC Skill/,/^````$/p' "$WIZARD" | grep "When to run" | grep -qi "release\|publish"; then
+        pass "Wizard embedded SKILL 'When to run' includes releases/publishes"
+    else
+        fail "Wizard embedded SKILL 'When to run' should include releases/publishes"
+    fi
+}
+
+test_wizard_release_review_trigger
+test_wizard_release_review_checklist
+test_wizard_release_review_evidence
+test_skill_release_review_trigger
+test_skill_release_review_section
+test_wizard_embedded_skill_release_trigger
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
