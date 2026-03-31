@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
 
 jobs:
   deep-research:
@@ -469,6 +470,7 @@ jobs:
           fi
 
       - name: Create PR with results
+        id: create-research-pr
         if: steps.verdict.outputs.verdict == 'IMPROVED' || steps.verdict.outputs.verdict == 'STABLE'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -503,3 +505,11 @@ jobs:
             monthly-research
             e2e-tested
             ${{ steps.verdict.outputs.verdict }}
+
+      - name: Trigger CI on research PR
+        if: steps.create-research-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Dispatching CI for research PR #${{ steps.create-research-pr.outputs.pull-request-number }}..."
+          gh workflow run ci.yml --ref research-update/${{ needs.deep-research.outputs.current_month }} || true
