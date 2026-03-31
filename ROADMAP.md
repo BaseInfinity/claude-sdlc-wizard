@@ -62,7 +62,7 @@
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 48 | CI Shepherd Opt-In + Workflow Analyzer | Setup wizard detects CI but doesn't offer shepherd loop as explicit choice. Add: (1) opt-in question during setup for shepherd role, (2) agent/skill that reads existing CI workflows and recommends integration points (linting gaps, review hooks, E2E suggestions). Ties into `/claude-automation-recommender` |
-| 2 | 49 | Cross-Model Release Review Recommendation | v1.20.0 release review caught 2 real issues (CHANGELOG inconsistency, stale wizard example) that self-review and tests missed. Add guidance to wizard/SKILL recommending cross-model review before npm publish. Evidence: PR for v1.20.0. Also triage monthly research #84 recommendations |
+| 2 | 49 | ~~Cross-Model Release Review Recommendation~~ DONE | Added "releases/publishes" as explicit cross-model review trigger in wizard + SKILL. Release Review Checklist subsection (CHANGELOG consistency, version parity, stale examples, docs accuracy, template parity) with v1.20.0 evidence. Triaged monthly research #84: 4 already done, 2 absorbed into existing items, 1 new unprioritized (#54), 2 skipped. 6 new tests |
 | 3 | 50 | Skill Deduplication Audit | During setup, scan existing `.claude/skills/` for overlap with wizard-provided skills. Flag redundant skills, suggest merges, show comparison ("your `/testing` does X, wizard's `/sdlc` already covers X+Y+Z"). Ties into #48 workflow analyzer — same "audit what you already have" philosophy |
 | 4 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
 | 5 | 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected |
@@ -76,6 +76,7 @@
 | 51 | Global Install Mode | Support `npm install -g` with a global template that auto-seeds new repos. Currently per-repo only (`npx agentic-sdlc-wizard init` in each repo). Research whether users want a global default config that gets applied automatically |
 | 52 | Smart Setup Questions (Confidence-Based) | Setup wizard should auto-answer high-confidence questions from scan results and only ask the user about low-confidence or preference-based ones. Use confidence factor: HIGH = auto-fill and present for confirmation in batch, MEDIUM = ask individually, LOW = must ask. Proven viable in snowcone install where wizard correctly inferred 15/16 answers when told to be smarter |
 | 53 | Plan Auto-Approval Gate | If confidence >= 95% AND complexity is low/medium, skip plan approval step and go straight to TDD. Reduces friction for established patterns. Could be a setup wizard question or SDLC.md setting. Consider: what defines "low/medium complexity"? File count? New patterns? |
+| 54 | Prototype/Vibe Coding Mode | Guidance for relaxed SDLC during rapid prototyping. Skip full TDD, reduce planning overhead, focus on speed. Clear boundary: "when you're done prototyping, run full SDLC on the result." From monthly research #84 recommendation |
 
 ## Review Pipeline
 
@@ -130,3 +131,19 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 - Chaos/Resilience Testing (needs research — beyond mutation testing, think chaos monkey for repos. Inject faults, break things intentionally, see if SDLC catches them. Could be important for AI agent validation or general resilience. Research before committing)
 - Agent-agnostic SDLC (generalize wizard beyond Claude Code — Codex CLI, other AI agents. Auto-detect domain from repo contents, generate domain-appropriate hooks/skills. Reference impl: anticheat repo Content SDLC with GRADE labels, multi-source consensus, 219 tests. NOT immediate — needs #28 consolidation first)
 - Subagent Model Compliance Audit (transcript audit proved Explore agent uses Haiku 4.5 39% of the time despite CLAUDE_CODE_SUBAGENT_MODEL override. Fix: ANTHROPIC_DEFAULT_*_MODEL env vars. Verify fix next session. Consider: `sdlc-wizard audit` subcommand checking config health + model compliance. Research if users care before shipping)
+
+## Monthly Research #84 Triage (March 2026)
+
+| # | Recommendation | Verdict | Notes |
+|---|---------------|---------|-------|
+| 1 | Extended thinking for planning | Skip | Already covered: Recommended Effort Level section + `effort: high` frontmatter |
+| 2 | Sub-agent TDD hooks | Absorb into #45 | `/agents` Subagent Exploration already covers this research |
+| 3 | CLAUDE.md best practices | Done | #43 + #25 + setup wizard Step 8 CLAUDE.md generation |
+| 4 | Onboarding realism | Done | #31 (blank repo) + #22 (setup wizard) + #25 (docs audit) |
+| 5 | Adversarial review framing | Done | Cross-model review protocol IS adversarial framing |
+| 6 | Vibe coding positioning | New #54 | Prototype mode — relaxed SDLC for rapid iteration |
+| 7 | Prompt injection resistance | Skip | Out of scope — wizard is a dev process tool, not runtime security |
+| 8 | Multi-agent SDLC docs | Absorb into #45 + Back Burner | Already tracked in agent-agnostic SDLC |
+| 9 | Competitive audit updates | Done | #8 + weekly auto-scan covers this |
+
+**Result:** 4 already done, 2 absorbed into existing items, 1 new unprioritized (#54), 2 skipped.
