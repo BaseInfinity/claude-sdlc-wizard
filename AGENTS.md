@@ -7,7 +7,7 @@ Meta-repository — SDLC Wizard documentation, automation, and a zero-dep Node.j
 - `CLAUDE_CODE_SDLC_WIZARD.md` — The main wizard document
 - `.github/workflows/` — CI, PR review, self-heal, weekly/monthly automation
 - `.claude/hooks/` — SDLC enforcement hooks (fire every interaction, ~100 tokens each)
-- `.claude/skills/` — Detailed guidance invoked by Claude (sdlc, testing, setup)
+- `.claude/skills/` — Detailed guidance invoked by Claude (sdlc, setup)
 - `tests/` — Bash test scripts (Layer 1 logic + Layer 5 E2E)
 - `cli/` — npx distribution CLI (zero-dep Node.js)
 

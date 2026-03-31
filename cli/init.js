@@ -20,7 +20,6 @@ const FILES = [
   { src: 'hooks/tdd-pretool-check.sh', dest: '.claude/hooks/tdd-pretool-check.sh', executable: true },
   { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true },
   { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md' },
-  { src: 'skills/testing/SKILL.md', dest: '.claude/skills/testing/SKILL.md' },
   { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md' },
 ];
 

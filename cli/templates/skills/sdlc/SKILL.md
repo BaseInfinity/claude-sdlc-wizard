@@ -375,6 +375,13 @@ CI passes -> Read review suggestions
 
 **THE RULE:** Delete old code first. If it breaks, fix it properly.
 
+## After Session (Capture Learnings)
+
+If this session revealed insights, update the right place:
+- **Testing patterns, gotchas** → `TESTING.md`
+- **Feature-specific quirks** → Feature docs (`*_PLAN.md`)
+- **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
+
 ---
 
 **Full reference:** SDLC.md

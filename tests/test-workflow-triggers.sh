@@ -2931,21 +2931,12 @@ else:
     fi
 }
 
-# Test 130: testing SKILL.md does not recommend `act` for workflow testing
-# TESTING.md says workflows can't be tested locally with act
-test_skill_no_act_for_workflows() {
-    local SKILL="$REPO_ROOT/.claude/skills/testing/SKILL.md"
-    if [ ! -f "$SKILL" ]; then
-        fail "testing SKILL.md not found"
-        return
-    fi
-
-    # Should NOT recommend using act to test workflows (TESTING.md says it doesn't work)
-    # Match the specific recommendation pattern, not negations like "can't run with act"
-    if grep -qi 'Use.*act.*to test\|Use `act`' "$SKILL"; then
-        fail "testing SKILL.md still recommends 'act' for workflows (contradicts TESTING.md)"
+# Test 130: /testing skill consolidated into /sdlc (#28)
+test_no_testing_skill() {
+    if [ -d "$REPO_ROOT/.claude/skills/testing" ]; then
+        fail "/testing skill directory still exists — should be consolidated into /sdlc"
     else
-        pass "testing SKILL.md does not recommend 'act' for workflow testing"
+        pass "/testing skill consolidated into /sdlc (#28)"
     fi
 }
 
@@ -2955,7 +2946,7 @@ test_ci_head_ref_not_in_run_blocks
 test_trivial_pr_excludes_critical_paths
 test_ci_wait_includes_e2e
 test_contributing_matches_ci_scripts
-test_skill_no_act_for_workflows
+test_no_testing_skill
 
 # --- Round 2: Codex cross-model review findings (2026-03-27) ---
 

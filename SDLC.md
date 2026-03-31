@@ -43,7 +43,6 @@ This repository uses the SDLC Wizard to enforce:
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
 | SDLC | `/sdlc` | Full SDLC workflow guidance |
-| Testing | `/testing` | TDD and testing strategy |
 
 ## Compliance Verification
 
@@ -72,6 +71,5 @@ When Claude Code releases new features:
 │   ├── tdd-pretool-check.sh      # TDD reminder
 │   └── instructions-loaded-check.sh  # Session start validation
 └── skills/
-    ├── sdlc/SKILL.md             # SDLC workflow
-    └── testing/SKILL.md          # Testing strategy
+    └── sdlc/SKILL.md             # SDLC workflow
 ```

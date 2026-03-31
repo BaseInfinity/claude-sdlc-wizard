@@ -250,7 +250,7 @@ $ARGUMENTS
 
 **Usage examples**:
 - `/sdlc fix the login validation bug` → `$ARGUMENTS` = "fix the login validation bug"
-- `/testing unit UserService` → `$ARGUMENTS` = "unit UserService"
+- `/sdlc write tests for UserService` → `$ARGUMENTS` = "write tests for UserService"
 
 **Note**: Skills still auto-invoke via hooks. This is optional polish for manual invocation.
 
@@ -276,7 +276,7 @@ New built-in commands available to use alongside the wizard:
 
 ### Skill Effort Frontmatter (v2.1.80+)
 
-Skills can now set an `effort` level in frontmatter. The wizard's `/sdlc` and `/testing` skills use `effort: high` to ensure Claude gives full attention to SDLC tasks.
+Skills can now set an `effort` level in frontmatter. The wizard's `/sdlc` skill uses `effort: high` to ensure Claude gives full attention to SDLC tasks.
 
 ### InstructionsLoaded Hook (v2.1.69+)
 
@@ -1376,7 +1376,7 @@ Your answers map to these files:
 | Q4-Q8 (commands) | `CLAUDE.md` - Commands section |
 | Q9-Q10 (infra) | `CLAUDE.md` - Architecture section, `TESTING.md` - mock decisions |
 | Q11 (test duration) | `SDLC skill` - wait time note |
-| Q12 (E2E) | `testing skill` - testing diamond top |
+| Q12 (E2E) | `TESTING.md` - testing diamond top |
 
 ---
 
@@ -1387,7 +1387,6 @@ Create these directories in your project root:
 ```bash
 mkdir -p .claude/hooks
 mkdir -p .claude/skills/sdlc
-mkdir -p .claude/skills/testing
 ```
 
 **Commit to Git:** Yes! These files should be committed so your whole team gets the same SDLC enforcement. When teammates pull, they get the hooks and skills automatically.
@@ -1506,9 +1505,8 @@ The `allowedTools` array is auto-generated based on your stack detected in Step 
 The light hook outputs text that **instructs Claude** to invoke skills:
 
 ```
-AUTO-INVOKE SKILLS (Claude MUST do this FIRST):
-- implement/fix/refactor/feature/bug/build → Invoke: Skill tool, skill="sdlc"
-- test/TDD/write test (standalone) → Invoke: Skill tool, skill="testing"
+AUTO-INVOKE SKILL (Claude MUST do this FIRST):
+- implement/fix/refactor/feature/bug/build/test/TDD → Invoke: Skill tool, skill="sdlc"
 ```
 
 **This is text-based, not programmatic.** Claude reads this instruction and follows it. When Claude sees your message is an implementation task, it invokes the sdlc skill using the Skill tool. This loads the full SDLC guidance into context.
@@ -1530,7 +1528,7 @@ Create `.claude/hooks/sdlc-prompt-check.sh`:
 ```bash
 #!/bin/bash
 # Light SDLC hook - baseline reminder every prompt (~100 tokens)
-# Full guidance in skills: .claude/skills/sdlc/ and .claude/skills/testing/
+# Full guidance in skill: .claude/skills/sdlc/
 
 cat << 'EOF'
 SDLC BASELINE:
@@ -1540,10 +1538,8 @@ SDLC BASELINE:
 4. FAILED 2x? STOP and ASK USER
 5. 🛑 ALL TESTS MUST PASS BEFORE COMMIT - NO EXCEPTIONS
 
-AUTO-INVOKE SKILLS (Claude MUST do this FIRST):
-- implement/fix/refactor/feature/bug/build → Invoke: Skill tool, skill="sdlc"
-- test/TDD/write test (standalone) → Invoke: Skill tool, skill="testing"
-- If BOTH match (e.g., "fix the test") → sdlc takes precedence (includes TDD)
+AUTO-INVOKE SKILL (Claude MUST do this FIRST):
+- implement/fix/refactor/feature/bug/build/test/TDD → Invoke: Skill tool, skill="sdlc"
 - DON'T invoke for: questions, explanations, reading/exploring code, simple queries
 - DON'T wait for user to type /sdlc - AUTO-INVOKE based on task type
 
@@ -1937,111 +1933,6 @@ CI passes -> Read review suggestions
 
 ---
 
-## Step 7: Create Testing Skill
-
-Create `.claude/skills/testing/SKILL.md`:
-
-````markdown
----
-name: testing
-description: TDD and testing philosophy for writing tests, test-driven development, integration tests, and unit tests. Use this skill when writing tests, doing TDD, or debugging test issues.
-argument-hint: [test type] [target]
----
-# Testing Skill - TDD & Testing Philosophy
-
-## Task
-$ARGUMENTS
-
-## Testing Diamond (CRITICAL)
-
-```
-    /\         ← Few E2E (automated or manual sign-off at end)
-   /  \
-  /    \
- /------\
-|        |     ← MANY Integration (real DB, real cache - BEST BANG FOR BUCK)
-|        |
- \------/
-  \    /
-   \  /
-    \/         ← Few Unit (pure logic only)
-```
-
-**Why Integration Tests are Best Bang for Buck:**
-- **Speed**: Fast enough to run on every change
-- **Stability**: Touch real code, not mocks that lie
-- **Confidence**: If they pass, production usually works
-- **Real bugs**: Integration tests with real DB catch real bugs
-- Unit tests with mocks can "pass" while production fails
-
-## Minimal Mocking Philosophy
-
-| What | Mock? | Why |
-|------|-------|-----|
-| Database | ❌ NEVER | Use test DB or in-memory |
-| Cache | ❌ NEVER | Use isolated test instance |
-| External APIs | ✅ YES | Real calls = flaky + expensive |
-| Time/Date | ✅ YES | Determinism |
-
-**Mocks MUST come from REAL captured data:**
-- Capture real API response
-- Save to your fixtures directory (Claude will discover where yours is, e.g., `tests/fixtures/`, `test-data/`, etc.)
-- Import in tests
-- Never guess mock shapes!
-
-## TDD Tests Must PROVE
-
-| Phase | What It Proves |
-|-------|----------------|
-| RED | Test FAILS → Bug exists or feature missing |
-| GREEN | Test PASSES → Fix works or feature implemented |
-| Forever | Regression protection |
-
-**WRONG approach:**
-```
-// ❌ Writing test that passes with current (buggy) code
-assert currentBuggyBehavior == currentBuggyBehavior  // pseudocode
-```
-
-**CORRECT approach:**
-```
-// ✅ Writing test that FAILS with buggy code, PASSES with fix
-assert result.status == 'success'   // pseudocode - adapt to your framework
-assert result.data != null
-```
-
-## Unit Tests = Pure Logic ONLY
-
-A function qualifies for unit testing ONLY if:
-- ✅ No database calls
-- ✅ No external API calls
-- ✅ No file system access
-- ✅ No cache calls
-- ✅ Input → Output transformation only
-
-Everything else needs integration tests.
-
-## When Stuck on Tests
-
-1. Add console.logs → Check output
-2. Run single test in isolation
-3. Check fixtures match real API
-4. **STILL stuck?** ASK USER
-
-## After Session (Capture Learnings)
-
-If this session revealed testing insights, update the right place:
-- **Testing patterns, gotchas** → `TESTING.md`
-- **Feature-specific test quirks** → Feature docs (`*_PLAN.md`)
-- **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
-
----
-
-**Full reference:** TESTING.md
-````
-
----
-
 ### Visual Regression Testing (Experimental - Niche Use Cases Only)
 
 **Most apps don't need this.** Standard E2E testing (Playwright, Cypress) covers 99% of UI testing needs.
@@ -2298,7 +2189,7 @@ See `.claude/skills/sdlc/SKILL.md` for the enforced checklist.
 ```markdown
 # Testing Guidelines
 
-See `.claude/skills/testing/SKILL.md` for TDD philosophy.
+See `TESTING.md` for TDD philosophy.
 
 ## Test Commands
 
@@ -2394,7 +2285,6 @@ Verification Results:
 ├── .claude/hooks/tdd-pretool-check.sh    ✓ executable
 ├── .claude/settings.json                  ✓ valid JSON
 ├── .claude/skills/sdlc/SKILL.md          ✓ frontmatter OK
-├── .claude/skills/testing/SKILL.md       ✓ frontmatter OK
 ├── CLAUDE.md                              ✓ exists
 ├── SDLC.md                                ✓ exists
 └── TESTING.md                             ✓ exists
@@ -2422,14 +2312,14 @@ All checks passed! Setup complete.
 |------|-----------------|
 | "What files handle auth?" | Answers without invoking skills |
 | "Add a logout button" | Auto-invokes sdlc skill, uses TodoWrite |
-| "Write tests for login" | Auto-invokes testing skill |
+| "Write tests for login" | Auto-invokes sdlc skill |
 
 **What happens automatically:**
 
 | You Do | System Does |
 |--------|-------------|
 | Ask to implement something | SDLC skill auto-invokes, TodoWrite starts |
-| Ask to write tests | Testing skill auto-invokes |
+| Ask to write tests | SDLC skill auto-invokes |
 | Claude tries to edit code | TDD reminder fires |
 | Task completes | Compliance check runs |
 
@@ -2494,7 +2384,7 @@ All checks passed! Setup complete.
 |--------|---------|
 | Free context after planning | `/compact` |
 | Enter planning mode | Claude suggests or `/plan` |
-| Run specific skill | `/sdlc` or `/testing` |
+| Run specific skill | `/sdlc` |
 
 ---
 
@@ -2525,7 +2415,7 @@ You've successfully set up the system when:
 
 - [ ] Light hook fires every prompt (you see SDLC BASELINE in responses)
 - [ ] Claude auto-invokes sdlc skill for implementation tasks
-- [ ] Claude auto-invokes testing skill for test tasks
+- [ ] Claude auto-invokes sdlc skill for all tasks
 - [ ] Claude uses TodoWrite to track progress
 - [ ] Claude states confidence levels
 - [ ] Claude asks for clarification when LOW confidence
@@ -3067,7 +2957,6 @@ Every wizard step has a unique ID for tracking:
 | `step-4` | Light hook | 1.0.0 |
 | `step-5` | TDD hook | 1.0.0 |
 | `step-6` | SDLC skill | 1.0.0 |
-| `step-7` | Testing skill | 1.0.0 |
 | `step-8` | CLAUDE.md | 1.0.0 |
 | `step-9` | SDLC/TESTING/ARCH docs | 1.0.0 |
 | `question-git-workflow` | Git workflow preference | 1.2.0 |

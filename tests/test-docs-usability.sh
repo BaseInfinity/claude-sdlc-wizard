@@ -246,6 +246,39 @@ test_setup_skill_reads_wizard_doc() {
 }
 
 # ---------------------------------------------------------------------------
+# Skill consolidation — /testing merged into /sdlc (#28)
+# ---------------------------------------------------------------------------
+
+# Test: Hook routes ALL tasks to /sdlc (no separate /testing route)
+test_hook_no_testing_route() {
+    local HOOK="$REPO_ROOT/cli/templates/hooks/sdlc-prompt-check.sh"
+    if grep -q 'skill="testing"' "$HOOK"; then
+        fail "Hook still routes to skill=\"testing\" — should route all tasks to /sdlc"
+    else
+        pass "Hook routes all tasks to /sdlc (no /testing route)"
+    fi
+}
+
+# Test: /testing skill template does NOT exist (consolidated into /sdlc)
+test_no_testing_skill_template() {
+    if [ -f "$REPO_ROOT/cli/templates/skills/testing/SKILL.md" ]; then
+        fail "Template /testing skill still exists — should be consolidated into /sdlc"
+    else
+        pass "Template /testing skill removed (consolidated into /sdlc)"
+    fi
+}
+
+# Test: /sdlc skill has "After Session" content (migrated from /testing)
+test_sdlc_has_after_session() {
+    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    if grep -qi 'after session\|capture learnings' "$SDLC_SKILL"; then
+        pass "/sdlc skill has After Session / capture learnings content"
+    else
+        fail "/sdlc skill missing After Session content — was this migrated from /testing?"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -261,6 +294,12 @@ test_readme_install_mentions_auto
 echo ""
 echo "--- Setup skill ---"
 test_setup_skill_reads_wizard_doc
+
+echo ""
+echo "--- Skill consolidation (#28) ---"
+test_hook_no_testing_route
+test_no_testing_skill_template
+test_sdlc_has_after_session
 
 echo ""
 echo "--- All docs structural health ---"

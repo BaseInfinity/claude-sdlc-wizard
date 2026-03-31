@@ -67,7 +67,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 8 expected files
+# Test 4: init creates all 7 expected files
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -78,13 +78,12 @@ test_creates_all_files() {
     [ -f "$d/.claude/hooks/tdd-pretool-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/instructions-loaded-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
-    [ -f "$d/.claude/skills/testing/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 8 ]; then
-        pass "init creates all 8 expected files"
+    if [ "$count" -eq 7 ]; then
+        pass "init creates all 7 expected files"
     else
-        fail "init should create 8 files, found $count"
+        fail "init should create 7 files, found $count"
     fi
     rm -rf "$d"
 }
@@ -154,12 +153,11 @@ test_dir_structure() {
     local ok=true
     [ -d "$d/.claude/hooks" ] || ok=false
     [ -d "$d/.claude/skills/sdlc" ] || ok=false
-    [ -d "$d/.claude/skills/testing" ] || ok=false
     [ -d "$d/.claude/skills/setup" ] || ok=false
     if [ "$ok" = true ]; then
         pass "init creates correct directory structure"
     else
-        fail "init should create .claude/hooks, .claude/skills/sdlc, .claude/skills/testing, .claude/skills/setup"
+        fail "init should create .claude/hooks, .claude/skills/sdlc, .claude/skills/setup"
     fi
     rm -rf "$d"
 }
@@ -256,8 +254,6 @@ test_skill_frontmatter() {
     local ok=true
     grep -q "^name: sdlc$" "$d/.claude/skills/sdlc/SKILL.md" || ok=false
     grep -q "^effort: high$" "$d/.claude/skills/sdlc/SKILL.md" || ok=false
-    grep -q "^name: testing$" "$d/.claude/skills/testing/SKILL.md" || ok=false
-    grep -q "^effort: high$" "$d/.claude/skills/testing/SKILL.md" || ok=false
     if [ "$ok" = true ]; then
         pass "Template skills have correct frontmatter (name + effort)"
     else

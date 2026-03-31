@@ -57,7 +57,6 @@ These are the wizard's custom features. If a new Claude Code release ships a nat
 | TDD pretool check | `.claude/hooks/tdd-pretool-check.sh` | `PreToolUse` |
 | Instructions loaded check | `.claude/hooks/instructions-loaded-check.sh` | `InstructionsLoaded` |
 | SDLC skill | `.claude/skills/sdlc/SKILL.md` | N/A (skill) |
-| Testing skill | `.claude/skills/testing/SKILL.md` | N/A (skill) |
 
 **Important:** Only use the exact file paths from the table above in `replaces_custom`. Paths not in this table will be rejected by the validation allowlist.
 
