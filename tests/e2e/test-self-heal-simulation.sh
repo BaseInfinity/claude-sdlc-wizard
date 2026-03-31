@@ -799,6 +799,128 @@ test_error_summary_fallback_no_match
 test_workflow_error_summary_fallback
 
 echo ""
+echo "--- SHA-Based Suppression (Shepherd Deconfliction) ---"
+
+# Test 29: Bot skips when branch SHA differs from trigger SHA
+test_sha_suppression_branch_advanced() {
+    TRIGGER_SHA="abc1234def5678"
+    CURRENT_SHA="fff9999aaa0000"
+
+    SKIP=false
+    if [ "$CURRENT_SHA" != "$TRIGGER_SHA" ]; then
+        SKIP=true
+    fi
+
+    if [ "$SKIP" = true ]; then
+        pass "Bot skips when branch advanced past trigger SHA"
+    else
+        fail "Bot should skip when current SHA differs from trigger SHA"
+    fi
+}
+
+# Test 30: Bot proceeds when branch SHA matches trigger SHA
+test_sha_suppression_same_sha() {
+    TRIGGER_SHA="abc1234def5678"
+    CURRENT_SHA="abc1234def5678"
+
+    SKIP=false
+    if [ "$CURRENT_SHA" != "$TRIGGER_SHA" ]; then
+        SKIP=true
+    fi
+
+    if [ "$SKIP" = false ]; then
+        pass "Bot proceeds when branch SHA matches trigger SHA"
+    else
+        fail "Bot should proceed when SHAs match"
+    fi
+}
+
+# Test 31: SHA suppression with real git repo (shepherd pushed after failure)
+test_sha_suppression_real_git() {
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    git init -q
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+    git commit --allow-empty -m "initial commit" -q
+    git commit --allow-empty -m "feat: original change" -q
+
+    # This was the SHA when CI failed
+    TRIGGER_SHA=$(git rev-parse HEAD)
+
+    # Shepherd pushes a fix
+    git commit --allow-empty -m "fix: shepherd local fix" -q
+    CURRENT_SHA=$(git rev-parse HEAD)
+
+    cd "$REPO_ROOT"
+    rm -rf "$TEMP_DIR"
+
+    SKIP=false
+    if [ "$CURRENT_SHA" != "$TRIGGER_SHA" ]; then
+        SKIP=true
+    fi
+
+    if [ "$SKIP" = true ]; then
+        pass "Real git: bot detects shepherd push and skips"
+    else
+        fail "Real git: bot should detect shepherd push (trigger=$TRIGGER_SHA current=$CURRENT_SHA)"
+    fi
+}
+
+# Test 32: Verify ci-self-heal.yml has SHA check step
+test_workflow_has_sha_check() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    if grep -q "sha-check" "$WORKFLOW" && grep -q "shepherd" "$WORKFLOW"; then
+        pass "ci-self-heal.yml has SHA-check step for shepherd suppression"
+    else
+        fail "ci-self-heal.yml should have SHA-check step with shepherd reference"
+    fi
+}
+
+# Test 33: Every step with pr.outputs.skip also checks sha-check.outputs.skip
+test_sha_check_completeness() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
+
+    # Find all steps that check pr.outputs.skip (excluding the sha-check step itself
+    # and the checkout step that must run before sha-check)
+    # Every other step should also check sha-check.outputs.skip
+    MISSING=0
+    while IFS= read -r line_num; do
+        # Look at surrounding context to determine which step this belongs to
+        STEP_CONTEXT=$(sed -n "$((line_num > 5 ? line_num - 5 : 1)),${line_num}p" "$WORKFLOW")
+
+        # Skip the sha-check step itself (id: sha-check)
+        if echo "$STEP_CONTEXT" | grep -q "id: sha-check\|Check if branch has advanced"; then
+            continue
+        fi
+
+        # Skip the checkout step (id: retries) — must run before sha-check
+        if echo "$STEP_CONTEXT" | grep -q "id: retries\|Check retry count"; then
+            continue
+        fi
+
+        # For all other steps, check that sha-check.outputs.skip is referenced nearby
+        FORWARD_CONTEXT=$(sed -n "${line_num},$((line_num + 5))p" "$WORKFLOW")
+        if ! echo "$FORWARD_CONTEXT" | grep -q "sha-check"; then
+            MISSING=$((MISSING + 1))
+        fi
+    done < <(grep -n "pr\.outputs\.skip" "$WORKFLOW" | grep -v "sha-check" | cut -d: -f1)
+
+    if [ "$MISSING" -eq 0 ]; then
+        pass "All steps checking pr.outputs.skip also check sha-check.outputs.skip"
+    else
+        fail "$MISSING step(s) check pr.outputs.skip but NOT sha-check.outputs.skip"
+    fi
+}
+
+test_sha_suppression_branch_advanced
+test_sha_suppression_same_sha
+test_sha_suppression_real_git
+test_workflow_has_sha_check
+test_sha_check_completeness
+
+echo ""
 echo "--- Workflow YAML Validation ---"
 test_workflow_yaml_valid
 test_prompt_forbids_self_modification

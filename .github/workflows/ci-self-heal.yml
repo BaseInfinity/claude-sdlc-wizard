@@ -75,8 +75,27 @@ jobs:
           ref: ${{ steps.source.outputs.head_branch }}
           fetch-depth: 0
 
-      - name: Count previous autofix attempts
+      - name: Check if branch has advanced (shepherd suppression)
         if: steps.pr.outputs.skip != 'true'
+        id: sha-check
+        run: |
+          CURRENT_SHA=$(git rev-parse HEAD)
+          TRIGGER_SHA="${{ steps.source.outputs.head_sha }}"
+          echo "current_sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
+          echo "trigger_sha=$TRIGGER_SHA" >> $GITHUB_OUTPUT
+
+          if [ "$CURRENT_SHA" != "$TRIGGER_SHA" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Branch advanced: trigger=$TRIGGER_SHA current=$CURRENT_SHA — skipping (shepherd or user already pushed)"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Branch unchanged since failure — bot proceeding"
+          fi
+
+      - name: Count previous autofix attempts
+        if: |
+          steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true'
         id: count
         run: |
           AUTOFIX_COUNT=$(git log origin/main..HEAD --oneline --grep='^\[autofix [0-9]' | wc -l | tr -d ' ')
@@ -96,6 +115,7 @@ jobs:
       - name: Post max retries comment
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded == 'true'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -122,6 +142,7 @@ jobs:
       - name: Download CI failure logs
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true' &&
           steps.source.outputs.mode == 'ci-failure'
         id: ci-logs
@@ -146,6 +167,7 @@ jobs:
       - name: Fetch review findings
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true' &&
           steps.source.outputs.mode == 'review-findings'
         id: review
@@ -232,6 +254,7 @@ jobs:
       - name: Run Claude to fix issues
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true' &&
           (
             steps.source.outputs.mode == 'ci-failure' ||
@@ -276,6 +299,7 @@ jobs:
       - name: Detect token approach
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true' &&
           (
             steps.source.outputs.mode == 'ci-failure' ||
@@ -295,6 +319,7 @@ jobs:
         if: |
           steps.token.outputs.approach == 'app' &&
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true'
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -306,6 +331,7 @@ jobs:
         id: commit
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true' &&
           (
             steps.source.outputs.mode == 'ci-failure' ||
@@ -350,6 +376,7 @@ jobs:
           steps.commit.outputs.committed == 'true' &&
           steps.token.outputs.approach == 'pat' &&
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -363,7 +390,9 @@ jobs:
 
       # === REGRESSION TEST SIGNAL ===
       - name: Add needs-regression-test label
-        if: steps.commit.outputs.committed == 'true'
+        if: |
+          steps.commit.outputs.committed == 'true' &&
+          steps.sha-check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
@@ -378,6 +407,7 @@ jobs:
       - name: Build autofix status comment
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true'
         id: comment
         env:
@@ -437,6 +467,7 @@ jobs:
       - name: Post autofix status comment
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -447,6 +478,7 @@ jobs:
       - name: Create friction-signal issue
         if: |
           steps.pr.outputs.skip != 'true' &&
+          steps.sha-check.outputs.skip != 'true' &&
           steps.count.outputs.exceeded != 'true' &&
           (
             steps.source.outputs.mode == 'ci-failure' ||
