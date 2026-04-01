@@ -348,6 +348,68 @@ test_skill_has_post_deploy() {
 }
 
 # ---------------------------------------------------------------------------
+# Release accuracy — docs must match shipped surface area
+# ---------------------------------------------------------------------------
+
+# Test: README skills count matches actual distributed skills
+test_readme_skills_count_accurate() {
+    # Count actual skill directories in CLI templates
+    local actual_count
+    actual_count=$(find "$REPO_ROOT/cli/templates/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+    if grep -qE "Skills.*\| $actual_count " "$README"; then
+        pass "README skills count matches actual ($actual_count)"
+    else
+        fail "README skills count doesn't match actual distributed skills ($actual_count)"
+    fi
+}
+
+# Test: README doesn't reference deleted ci-self-heal workflow
+test_readme_no_self_heal_reference() {
+    if grep -qi "self-heal\|ci-self-heal\|ci-autofix" "$README"; then
+        fail "README still references deleted self-heal/autofix workflow"
+    else
+        pass "README has no stale self-heal/autofix references"
+    fi
+}
+
+# Test: ARCHITECTURE.md lists all distributed skills
+test_architecture_lists_all_skills() {
+    local arch="$REPO_ROOT/ARCHITECTURE.md"
+    local missing=""
+    for skill_dir in "$REPO_ROOT"/cli/templates/skills/*/; do
+        local skill_name
+        skill_name=$(basename "$skill_dir")
+        if ! grep -qi "/$skill_name\b" "$arch"; then
+            missing="$missing $skill_name"
+        fi
+    done
+    if [ -z "$missing" ]; then
+        pass "ARCHITECTURE.md lists all distributed skills"
+    else
+        fail "ARCHITECTURE.md missing skills:$missing"
+    fi
+}
+
+# Test: Update skill doesn't have stale hardcoded version examples
+test_update_skill_no_stale_version_examples() {
+    local update_skill="$REPO_ROOT/cli/templates/skills/update/SKILL.md"
+    local current_version
+    current_version=$(node -p "require('$REPO_ROOT/package.json').version" 2>/dev/null || echo "")
+    if [ -z "$current_version" ]; then
+        fail "Could not read current version from package.json"
+        return
+    fi
+    # The update skill's example should show the current version as "Latest"
+    if grep -q "Latest:.*$current_version" "$update_skill"; then
+        pass "Update skill example shows current version ($current_version)"
+    else
+        local stale_version
+        stale_version=$(grep -oE 'Latest: +[0-9]+\.[0-9]+\.[0-9]+' "$update_skill" | head -1 || echo "none found")
+        fail "Update skill has stale version example ($stale_version, should be $current_version)"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -389,6 +451,13 @@ echo ""
 echo "--- User-facing docs ---"
 test_user_facing_docs_have_structure
 test_contributing_has_quick_start
+
+echo ""
+echo "--- Release accuracy (v1.21.0 Codex findings) ---"
+test_readme_skills_count_accurate
+test_readme_no_self_heal_reference
+test_architecture_lists_all_skills
+test_update_skill_no_stale_version_examples
 
 # ---------------------------------------------------------------------------
 # Summary

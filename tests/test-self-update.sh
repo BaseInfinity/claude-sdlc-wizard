@@ -862,13 +862,13 @@ test_setup_skill_confidence_driven() {
     fi
 }
 
-# Setup wizard skill has confidence threshold
-test_setup_skill_confidence_threshold() {
+# Setup wizard skill uses resolved/unresolved state model (not numeric threshold)
+test_setup_skill_resolved_state_model() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
-    if grep -q "95%" "$skill_file"; then
-        pass "Setup wizard has 95% confidence threshold"
+    if grep -qi "UNRESOLVED\|RESOLVED" "$skill_file" && ! grep -q "95%" "$skill_file"; then
+        pass "Setup wizard uses resolved/unresolved state model (no vague numeric threshold)"
     else
-        fail "Setup wizard should have 95% confidence threshold for when to stop asking"
+        fail "Setup wizard should use RESOLVED/UNRESOLVED states, not a numeric confidence threshold"
     fi
 }
 
@@ -1025,7 +1025,7 @@ test_skill_no_stale_references() {
 test_wizard_shepherd_optin_question
 test_wizard_shepherd_gates_sub_questions
 test_setup_skill_confidence_driven
-test_setup_skill_confidence_threshold
+test_setup_skill_resolved_state_model
 test_setup_skill_scan_then_ask
 test_setup_skill_no_fixed_question_count
 test_setup_skill_data_points
