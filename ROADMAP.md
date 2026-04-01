@@ -44,7 +44,7 @@
 | 39 | SDLC Enforcement Gap Audit | DONE — Audited all documented SDLC sections vs TodoWrite/hook/E2E enforcement. Fixed 5 gaps: capture learnings, scope guard, deploy tasks, new pattern approval, legacy delete check. Enforcement coverage 7/12 → 12/12. 6 new tests. Future: add E2E scoring criteria for scope_guard, after_session, deploy |
 | 41 | ~~Auto-Update PR CI Trigger~~ DONE | PR #119. Added `gh workflow run ci.yml` dispatch after all 3 `peter-evans/create-pull-request` calls. Added `actions: write` to weekly-update + monthly-research. 4 tests |
 
-## Previous Release (v1.19.0)
+## Previous Release (v1.20.0)
 
 | # | Item | Description |
 |---|------|-------------|
@@ -54,18 +54,19 @@
 | 42 | ~~Token Efficiency Auditing~~ DONE | Added Token Efficiency section to wizard: /cost monitoring, reduction techniques (compact/clear/subagents/effort), CI cost control (--max-budget-usd, --max-turns), OpenTelemetry for org-wide tracking. Updated CI_CD.md token tracking section. 4 new tests. PR #127 |
 | 31 | ~~`/init` for Blank Repos~~ DONE | Verified wizard installs cleanly on blank repos. Added blank-repo fixture, 10 new E2E tests (68 total setup-path). Added guidance: no need for `/init` first, setup wizard generates all docs. PR #128 |
 | 43 | ~~Feature Documentation Enforcement~~ DONE | Added ADR pattern guidance (`docs/decisions/`), `claude-md-improver` recommendation for CLAUDE.md health, "Documentation Sync" section in SDLC skill (enforce doc updates when code contradicts/extends documented behavior), docs-in-sync detection guidance. Strengthened transition step and After Session routing. 6 new tests. PR #129 |
+| 46 | ~~CC Version-Pinned Update Gate~~ DONE | `weekly-update.yml` version-test now passes `path_to_claude_code_executable` to all 3 `claude-code-action` calls, ensuring E2E actually tests the specific new CC version. Added `id: install-cc` + `which claude` path capture. CI_CD.md verdict table, wizard "How We Apply This" updated. 4 new tests (60 total in test-self-update). PR #131 |
+| 47 | ~~Tier 1 E2E Flakiness Fix~~ DONE | Regression threshold 1.5→3.0, absorbs ±2-3 point LLM variance (rare extremes ±4 caught by Tier 2). Flaky test prevention guidance + external reference in wizard, SKILL.md. 2 new release consistency tests (64 total in test-self-update). PR #132 |
 
 ## This Release (ordered)
 
 | # | Item | Description |
 |---|------|-------------|
-| 46 | ~~CC Version-Pinned Update Gate~~ DONE | `weekly-update.yml` version-test now passes `path_to_claude_code_executable` to all 3 `claude-code-action` calls, ensuring E2E actually tests the specific new CC version. Added `id: install-cc` + `which claude` path capture. CI_CD.md verdict table, wizard "How We Apply This" updated. 4 new tests (60 total in test-self-update). PR #131 |
-| 47 | Tier 1 E2E Flakiness Fix | Single-trial Tier 1 with 1.5 threshold causes false regressions (observed: baseline 8 vs candidate 4 on identical wizard content). Options: raise threshold to 3.0+, run 2 trials and take best, or make Tier 1 non-blocking (informational) with Tier 2 as real gate |
 | 48 | CI Shepherd Opt-In + Workflow Analyzer | Setup wizard detects CI but doesn't offer shepherd loop as explicit choice. Add: (1) opt-in question during setup for shepherd role, (2) agent/skill that reads existing CI workflows and recommends integration points (linting gaps, review hooks, E2E suggestions). Ties into `/claude-automation-recommender` |
 | 32 | N-Reviewer CI Pipeline | Support N parallel code reviewers (Claude, Codex, etc.) commenting on PRs. Agent responds like a dev to each reviewer, iterates until all approve. Depends on Codex experiment (#27) providing data first |
 | 37 | Lesson Contribution Hook | Auto-detect key SDLC lessons during sessions. Offer to create GH issue on user's repo. Optionally contribute back to wizard repo. Hook into "After Session" step — if learnings captured, prompt for issue creation |
 | 44 | BRANDING.md Detection & Guidance | Research: should the wizard detect/suggest a BRANDING.md (brand voice, tone, naming conventions, visual identity guidelines)? Options: always create, detect from existing assets (logos, style guides, design system), suggest only when UI/content work detected |
 | 45 | `/agents` Subagent Exploration | Research: explore Claude Code's `/agents` (custom subagents in `.claude/agents/`). Can an `sdlc-reviewer` or `ci-debug` agent add value beyond hooks+skills? Testing story for agent behavior |
+| 49 | Cross-Model Release Review Recommendation | v1.20.0 release review caught 2 real issues (CHANGELOG inconsistency, stale wizard example) that self-review and tests missed. Add guidance to wizard/SKILL recommending cross-model review before npm publish. Evidence: PR for v1.20.0. Also triage monthly research #84 recommendations |
 
 ## Unprioritized
 

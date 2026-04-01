@@ -4,6 +4,14 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.20.0] - 2026-03-31
+
+### Added
+- CC version-pinned update gate — E2E tests run actual new CC version, not bundled binary (#46)
+- Tier 1 E2E flakiness fix — regression threshold 1.5→3.0, absorbs ±2-3 point LLM variance (#47)
+- Flaky test prevention guidance with external reference in wizard, SKILL.md
+- 2 release consistency tests (package.json ↔ CHANGELOG ↔ SDLC.md version parity)
+
 ## [1.19.0] - 2026-03-31
 
 ### Added
