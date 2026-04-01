@@ -76,7 +76,7 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 64 | Update Notification Hook | `instructions-loaded-check.sh` checks for newer wizard version on npm each session. One-liner notification, non-blocking, <1s |
+| 1 | 64 | Update Notification Hook | DONE — `instructions-loaded-check.sh` checks npm each session. 6 quality tests (fake npm, version comparison, failure modes). Non-blocking, graceful on network failure |
 | 2 | 59 | Research: CC Architecture (Public Sources) | Deep research CC's public architecture — hook execution, skill loading, plugin system, upcoming features. Are we aligned or fighting it? Cross-model review findings |
 | 3 | 57 | Research: Context Position Audit ("Lost in the Middle") | Audit whether critical instructions are buried in middle of wizard doc / SDLC skill. Restructure if so. Validate with before/after E2E scores |
 | 4 | 56 | Research: Adversarial Review Prompting | Test "find at least N problems" forcing technique. Does it improve self-review and cross-model review quality? A/B validate on real PRs |
@@ -95,6 +95,7 @@
 | 61 | Research: Parity Audit Skill for Migrations | Evaluate subsystem gap analysis with coverage ratios as a potential `/migration` skill (pattern seen in multiple harness projects). Would users doing rewrites benefit from automated parity tracking? Is this a real gap or a theoretical nice-to-have? Prove It Gate applies |
 | 62 | Research: Bidirectional Plugin Ecosystem Loop | Two-way contribution with Anthropic's `knowledge-work-plugins` ecosystem. Inbound: scan official plugins for patterns that outperform our approach (legal, engineering, etc.), adopt or recommend as complementary. Outbound: contribute our proven patterns (TDD enforcement, Prove It Gate, cross-model review) upstream. `/feedback` skill could route contributions both ways — to our repo AND to official plugin repos. Validate: does the `.claude-plugin` + `skills/` structure they use align with ours? What MCP connectors do they use that we don't? Cross-model review |
 | 63 | Evaluate: Batched Codex Release Review | Currently cross-model review runs per-PR. Evaluate whether a batched release-level Codex review (all changes since last release) catches different issues than per-PR reviews. May not be needed — per-PR + release review checklist already covers it. Low priority until evidence suggests a gap |
+| 65 | Testing Diamond Boundary Clarification | Wizard's diamond section says E2E = "Playwright/Cypress" and integration = "real DB/cache" but doesn't draw the explicit line: **E2E = tests through the user's actual UI/browser, Integration = tests real systems via API without UI**. Evidence: contract-review-kit install classified Copilot Chat API tests as E2E instead of integration because the boundary wasn't explicit. Small wording fix in wizard doc + SDLC skill |
 | 64 | Update Notification Hook | `instructions-loaded-check.sh` runs every session but doesn't check for updates. Add a quick `npm view agentic-sdlc-wizard version` check vs installed version in SDLC.md. One-liner: "SDLC Wizard update available: 1.21.0 → 1.22.0 (run /update-wizard)". Non-blocking, <1s overhead |
 
 ## Review Pipeline

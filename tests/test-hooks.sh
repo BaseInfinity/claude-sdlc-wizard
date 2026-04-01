@@ -617,6 +617,132 @@ test_wizard_confidence_effort_max
 test_skill_confidence_effort_max
 
 echo ""
+echo "--- Update notification tests ---"
+
+# Test 35: Shows update notification when newer version available
+test_update_notification_newer_available() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.20.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    # Create fake npm that returns a newer version
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "update available" && echo "$output" | grep -q "1.20.0" && echo "$output" | grep -q "1.22.0"; then
+        pass "Shows update notification when newer version available"
+    else
+        fail "Should show update notification with both versions, got: $output"
+    fi
+}
+
+# Test 36: No notification when versions match
+test_update_notification_same_version() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.22.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "update available"; then
+        fail "Should NOT show update notification when versions match, got: $output"
+    else
+        pass "No update notification when versions match"
+    fi
+}
+
+# Test 37: No notification when npm is not available
+test_update_notification_npm_unavailable() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.20.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    # Empty bin dir — npm not in PATH
+    mkdir -p "$tmpdir/bin"
+    local output
+    output=$(PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    local exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -q "update available"; then
+        pass "No notification and exit 0 when npm unavailable"
+    else
+        fail "Should silently skip when npm unavailable, exit=$exit_code, got: $output"
+    fi
+}
+
+# Test 38: No notification when npm fails (e.g., network error)
+test_update_notification_npm_fails() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.20.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    local exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -q "update available"; then
+        pass "No notification and exit 0 when npm fails"
+    else
+        fail "Should silently skip when npm fails, exit=$exit_code, got: $output"
+    fi
+}
+
+# Test 39: No notification when SDLC.md lacks version metadata
+test_update_notification_no_version_metadata() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo "# SDLC Config" > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "update available"; then
+        fail "Should NOT show notification when SDLC.md has no version metadata, got: $output"
+    else
+        pass "No notification when SDLC.md lacks version metadata"
+    fi
+}
+
+# Test 40: Update notification mentions /update-wizard
+test_update_notification_mentions_update_wizard() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.20.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "/update-wizard"; then
+        pass "Update notification mentions /update-wizard"
+    else
+        fail "Update notification should mention /update-wizard, got: $output"
+    fi
+}
+
+test_update_notification_newer_available
+test_update_notification_same_version
+test_update_notification_npm_unavailable
+test_update_notification_npm_fails
+test_update_notification_no_version_metadata
+test_update_notification_mentions_update_wizard
+
+echo ""
 echo "--- SDLC enforcement gap audit ---"
 test_todowrite_has_capture_learnings
 test_todowrite_has_scope_guard
