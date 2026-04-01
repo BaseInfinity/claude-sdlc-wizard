@@ -1790,7 +1790,7 @@ PLANNING → DOCS → TDD RED → TDD GREEN → Tests Pass → Self-Review
 
 ## Cross-Model Review (If Configured)
 
-**When to run:** High-stakes changes (auth, payments, data handling), complex refactors, research-heavy work.
+**When to run:** High-stakes changes (auth, payments, data handling), releases/publishes (version bumps, CHANGELOG, npm publish), complex refactors, research-heavy work.
 **When to skip:** Trivial changes (typo fixes, config tweaks), time-sensitive hotfixes, risk < review cost.
 
 **Prerequisites:** Codex CLI installed (`npm i -g @openai/codex`), OpenAI API key set.
@@ -1894,6 +1894,17 @@ Self-review passes → handoff.json (round 1, PENDING_REVIEW)
 **Tool-agnostic:** The value is adversarial diversity (different model, different blind spots), not the specific tool. Any competing AI reviewer works.
 
 **Full protocol:** See the "Cross-Model Review Loop (Optional)" section below for key flags and reasoning effort guidance.
+
+### Release Review Focus
+
+Before any release/publish, add these to `review_instructions`:
+- **CHANGELOG consistency** — all sections present, no lost entries during consolidation
+- **Version parity** — package.json, SDLC.md, CHANGELOG, wizard metadata all match
+- **Stale examples** — hardcoded version strings in docs match current release
+- **Docs accuracy** — README, ARCHITECTURE.md reflect current feature set
+- **CLI-distributed file parity** — live skills, hooks, settings match CLI templates
+
+Evidence: v1.20.0 cross-model review caught CHANGELOG section loss and stale wizard version examples that passed all tests and self-review.
 
 ## Test Review (Harder Than Implementation)
 
@@ -3119,6 +3130,7 @@ Claude writes code → self-review passes → handoff.json (round 1)
 
 **When to use this:**
 - High-stakes changes (auth, payments, data handling)
+- **Releases and publishes** (version bumps, CHANGELOG, npm publish) — see Release Review Checklist below
 - Research-heavy work where accuracy matters more than speed
 - Complex refactors touching many files
 - Any time you want higher confidence before merging
@@ -3127,6 +3139,30 @@ Claude writes code → self-review passes → handoff.json (round 1)
 - Trivial changes (typo fixes, config tweaks)
 - Time-sensitive hotfixes
 - Changes where the review cost exceeds the risk
+
+#### Release Review Checklist
+
+Before any release or npm publish, add these focus areas to the cross-model `review_instructions`:
+
+**Why:** Self-review and automated tests regularly miss release-specific inconsistencies. Evidence: v1.20.0 cross-model review caught 2 real issues (CHANGELOG section lost during consolidation, stale hardcoded version examples) that passed all tests and self-review.
+
+| Check | What to Look For | Example Failure |
+|-------|-------------------|-----------------|
+| CHANGELOG consistency | All sections present, no lost entries during consolidation | v1.19.0 section dropped when merging into v1.20.0 |
+| Version parity | package.json, SDLC.md, CHANGELOG, wizard metadata all match | SDLC.md says 1.19.0 but package.json says 1.20.0 |
+| Stale examples | Hardcoded version strings in docs/wizard match current release | Wizard examples showing v1.15.0 when publishing v1.20.0 |
+| Docs accuracy | README, ARCHITECTURE.md reflect current feature set | "8 workflows" when there are actually 7 |
+| CLI-distributed file parity | Live skills, hooks, settings match CLI templates | SKILL.md edited but cli/templates/ not updated |
+
+**Example `review_instructions` for releases:**
+```
+Review for release consistency: CHANGELOG completeness (no lost sections),
+version parity across package.json/SDLC.md/CHANGELOG/wizard metadata,
+stale hardcoded versions in examples, docs accuracy vs actual features,
+CLI-distributed file parity (skills, hooks, settings).
+```
+
+**This complements automated tests, not replaces them.** Tests catch exact version mismatches (e.g., `test_package_version_matches_changelog`). Cross-model review catches semantic issues tests cannot — a section silently dropped, examples using outdated but syntactically valid versions, docs describing features that no longer exist.
 
 ---
 
