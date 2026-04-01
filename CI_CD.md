@@ -86,7 +86,7 @@ When two outputs have close pointwise scores (|scoreA - scoreB| <= 1.0), a pairw
 | **Tier 1 (Quick)** | 1x each | Low (directional, -3.0 threshold) | Every PR commit |
 | **Tier 2 (Full)** | 5x each | High (95% CI) | `merge-ready` label |
 
-**Tier 1 regression threshold:** Delta must be worse than -3.0 to fail. Single-trial LLM scoring has 6/10 criteria LLM-judged (binary), so a single run can swing ±3-4 points. Deltas within that range are noise, not regressions. Tier 2 is the real statistical gate.
+**Tier 1 regression threshold:** Delta must be worse than -3.0 to fail. Single-trial LLM scoring has 6/10 criteria LLM-judged (binary), so a single run typically swings ±2-3 points (rare extremes reach ±4, caught by Tier 2). Deltas within ±3 are noise, not regressions.
 
 ### SDP (Model Degradation Tracking)
 
