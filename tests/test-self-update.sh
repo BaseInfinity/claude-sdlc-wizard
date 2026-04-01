@@ -877,55 +877,107 @@ test_setup_skill_template_parity_questions() {
     fi
 }
 
-# ci-analyzer skill exists with required frontmatter
-test_ci_analyzer_skill_exists() {
-    local skill_file="$SCRIPT_DIR/../.claude/skills/ci-analyzer/SKILL.md"
-    if [ -f "$skill_file" ] && grep -q "^name:" "$skill_file" && grep -q "^description:" "$skill_file"; then
-        pass "ci-analyzer skill exists with required frontmatter"
+# ci-analyzer was deleted (unvalidated addition — violated Prove It philosophy)
+test_ci_analyzer_deleted() {
+    if [ -d "$SCRIPT_DIR/../.claude/skills/ci-analyzer" ]; then
+        fail "ci-analyzer skill directory must NOT exist (deleted — unvalidated addition)"
     else
-        fail "ci-analyzer skill should exist at .claude/skills/ci-analyzer/SKILL.md with name and description frontmatter"
+        pass "ci-analyzer skill directory does not exist (correctly deleted)"
     fi
 }
 
-# ci-analyzer skill template parity
-test_ci_analyzer_template_parity() {
-    local live="$SCRIPT_DIR/../.claude/skills/ci-analyzer/SKILL.md"
-    local template="$SCRIPT_DIR/../cli/templates/skills/ci-analyzer/SKILL.md"
-    if [ -f "$live" ] && [ -f "$template" ]; then
-        if diff -q "$live" "$template" > /dev/null 2>&1; then
-            pass "ci-analyzer skill matches CLI template"
-        else
-            fail "ci-analyzer live skill should match CLI template"
+# ci-analyzer template was also deleted
+test_ci_analyzer_template_deleted() {
+    if [ -d "$SCRIPT_DIR/../cli/templates/skills/ci-analyzer" ]; then
+        fail "ci-analyzer CLI template directory must NOT exist (deleted)"
+    else
+        pass "ci-analyzer CLI template directory does not exist (correctly deleted)"
+    fi
+}
+
+# Wizard doc should NOT reference /ci-analyzer as a skill to run
+test_wizard_no_ci_analyzer_skill() {
+    if grep -q "/ci-analyzer" "$WIZARD"; then
+        fail "Wizard should NOT reference /ci-analyzer (skill was deleted)"
+    else
+        pass "Wizard does not reference /ci-analyzer skill"
+    fi
+}
+
+# CLI init.js should NOT distribute ci-analyzer in FILES array
+test_no_stale_ci_analyzer_distribution() {
+    local init_js="$SCRIPT_DIR/../cli/init.js"
+    # Check specifically for ci-analyzer in the FILES distribution array (src/dest lines)
+    if grep -q "src:.*ci-analyzer\|dest:.*ci-analyzer" "$init_js"; then
+        fail "cli/init.js should NOT distribute ci-analyzer in FILES array (skill was deleted)"
+    else
+        pass "cli/init.js does not distribute ci-analyzer in FILES array"
+    fi
+}
+
+# SDLC skill must have Prove It Gate section
+test_skill_prove_it_gate() {
+    if grep -q "Prove It Gate" "$SKILL"; then
+        pass "SDLC skill has Prove It Gate section"
+    else
+        fail "SDLC skill should have 'Prove It Gate' section to prevent unvalidated additions"
+    fi
+}
+
+# SDLC skill TodoWrite checklist must include prove-it step (not just section heading)
+test_skill_prove_it_gate_in_checklist() {
+    # Check specifically for the TodoWrite entry, not the section heading
+    if grep -q 'content:.*Prove It Gate.*adding new component' "$SKILL"; then
+        pass "SDLC skill TodoWrite includes prove-it gate checklist entry"
+    else
+        fail "SDLC skill TodoWrite checklist should include a 'Prove It Gate: adding new component?' entry"
+    fi
+}
+
+# Wizard "Prove It" section must mention own additions (not just native vs custom)
+test_wizard_prove_it_own_additions() {
+    if grep -A 20 "Prove It" "$WIZARD" | grep -qi "your own additions\|own additions too"; then
+        pass "Wizard Prove It section covers own additions"
+    else
+        fail "Wizard Prove It section should mention own additions (not just native vs custom)"
+    fi
+}
+
+# Wizard should reference ci-analyzer deletion as evidence
+test_wizard_prove_it_evidence() {
+    if grep -qi "ci-analyzer.*deleted\|ci-analyzer.*existence-only" "$WIZARD"; then
+        pass "Wizard references ci-analyzer as Prove It evidence"
+    else
+        fail "Wizard should reference ci-analyzer deletion as evidence for Prove It enforcement"
+    fi
+}
+
+# No skill should reference deleted features (internal consistency)
+test_skill_no_stale_references() {
+    local stale_found=false
+    local stale_details=""
+    for skill_dir in "$SCRIPT_DIR"/../.claude/skills/*/; do
+        local skill_file="$skill_dir/SKILL.md"
+        if [ -f "$skill_file" ]; then
+            local skill_name
+            skill_name=$(basename "$skill_dir")
+            # Check for references to deleted features
+            if grep -qi "ci-self-heal\|ci-autofix\|autofix\.yml\|bot fallback\|auto-fix bot\|auto-fix loop" "$skill_file"; then
+                stale_found=true
+                stale_details="$skill_name references deleted self-heal/autofix features"
+                break
+            fi
+            if grep -qi "/ci-analyzer" "$skill_file"; then
+                stale_found=true
+                stale_details="$skill_name references deleted /ci-analyzer skill"
+                break
+            fi
         fi
+    done
+    if [ "$stale_found" = true ]; then
+        fail "Stale reference found: $stale_details"
     else
-        fail "ci-analyzer skill should exist at both live and template paths"
-    fi
-}
-
-# ci-analyzer covers roadmap categories: linting gaps, review hooks, E2E suggestions
-test_ci_analyzer_covers_roadmap_categories() {
-    local skill_file="$SCRIPT_DIR/../.claude/skills/ci-analyzer/SKILL.md"
-    if [ -f "$skill_file" ]; then
-        local count=0
-        grep -qi "lint" "$skill_file" && count=$((count + 1))
-        grep -qi "review" "$skill_file" && count=$((count + 1))
-        grep -qi "E2E\|end.to.end" "$skill_file" && count=$((count + 1))
-        if [ "$count" -eq 3 ]; then
-            pass "ci-analyzer covers all 3 roadmap categories (linting, review, E2E)"
-        else
-            fail "ci-analyzer should cover linting, review hooks, and E2E suggestions ($count/3 found)"
-        fi
-    else
-        fail "ci-analyzer skill file not found"
-    fi
-}
-
-# Wizard Step 0.3 references ci-analyzer alongside automation-recommender
-test_wizard_ci_analyzer_reference() {
-    if grep -q "ci-analyzer" "$WIZARD"; then
-        pass "Wizard references ci-analyzer skill"
-    else
-        fail "Wizard should reference ci-analyzer skill (in Step 0.3 or complementary tools)"
+        pass "No skills reference deleted features (internal consistency check)"
     fi
 }
 
@@ -933,10 +985,15 @@ test_wizard_shepherd_optin_question
 test_wizard_shepherd_gates_sub_questions
 test_setup_skill_question_count
 test_setup_skill_template_parity_questions
-test_ci_analyzer_skill_exists
-test_ci_analyzer_template_parity
-test_ci_analyzer_covers_roadmap_categories
-test_wizard_ci_analyzer_reference
+test_ci_analyzer_deleted
+test_ci_analyzer_template_deleted
+test_wizard_no_ci_analyzer_skill
+test_no_stale_ci_analyzer_distribution
+test_skill_prove_it_gate
+test_skill_prove_it_gate_in_checklist
+test_wizard_prove_it_own_additions
+test_wizard_prove_it_evidence
+test_skill_no_stale_references
 
 # --- Cross-Model Release Review Tests (#49) ---
 echo ""

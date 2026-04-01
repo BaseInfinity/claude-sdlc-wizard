@@ -356,6 +356,14 @@ This applies to everything: native Claude Code commands vs custom skills, framew
 
 **For the wizard's CI/CD:** When the weekly-update workflow detects a new Claude Code feature that overlaps with a wizard feature, the CI should automatically run E2E with both versions and recommend KEEP CUSTOM / SWITCH TO NATIVE / TIE.
 
+**This applies to YOUR OWN additions too — not just native vs custom:**
+- Adding a new skill? Prove it fills a gap nothing else covers. Write quality tests.
+- Adding a new hook? Prove it improves scores or catches real issues.
+- Adding a new workflow? Prove the automation ROI exceeds maintenance cost.
+- Existence tests ("file exists", "has frontmatter") are NOT proof. They prove the file was created, not that it works.
+
+**Evidence:** ci-analyzer skill was added in v1.20.0 with 4 existence-only tests, zero quality validation, and overlap with the third-party `/claude-automation-recommender`. Deleted in next release. This gap led to the Prove It Gate enforcement in the SDLC skill.
+
 ---
 
 ## What You're Setting Up
@@ -951,18 +959,17 @@ After SDLC setup is complete, run `/claude-automation-recommender` for stack-spe
 
 **The wizard is an enforcement engine** — it installs working hooks, skills, and process guardrails that run automatically. **The recommender is a suggestion engine** — it analyzes your codebase and suggests additional automations you might want. They're complementary:
 
-| Category | Wizard Ships | Recommender Suggests | `/ci-analyzer` |
-|----------|-------------|---------------------|----------------|
-| SDLC process (TDD, planning, review) | Enforced via hooks + skills | Not covered | Not covered |
-| CI workflows (PR review) | Templates + docs | Not covered | Analyzes existing workflows for gaps |
-| CI linting/review/E2E gaps | Not covered | Not covered | Specific recommendations per workflow |
-| MCP servers (context7, Playwright, DB) | Not covered | Per-stack suggestions | Not covered |
-| Auto-formatting hooks (Prettier, ESLint) | Not covered | Per-stack suggestions | Not covered |
-| Type-checking hooks (tsc, mypy) | Not covered | Per-stack suggestions | Not covered |
-| Subagent templates (code-reviewer, etc.) | Cross-model review only | 8 templates | Not covered |
-| Plugin recommendations (LSPs, etc.) | Not covered | Per-stack suggestions | Not covered |
+| Category | Wizard Ships | Recommender Suggests |
+|----------|-------------|---------------------|
+| SDLC process (TDD, planning, review) | Enforced via hooks + skills | Not covered |
+| CI workflows (PR review) | Templates + docs | Not covered |
+| MCP servers (context7, Playwright, DB) | Not covered | Per-stack suggestions |
+| Auto-formatting hooks (Prettier, ESLint) | Not covered | Per-stack suggestions |
+| Type-checking hooks (tsc, mypy) | Not covered | Per-stack suggestions |
+| Subagent templates (code-reviewer, etc.) | Cross-model review only | 8 templates |
+| Plugin recommendations (LSPs, etc.) | Not covered | Per-stack suggestions |
 
-The recommender's suggestions are additive — they don't replace the wizard's TDD hooks or SDLC enforcement. `/ci-analyzer` focuses specifically on CI workflow gaps (linting, review hooks, E2E coverage) within your existing GitHub Actions workflows.
+The recommender's suggestions are additive — they don't replace the wizard's TDD hooks or SDLC enforcement.
 
 ### Git Workflow Preference
 
@@ -1037,7 +1044,7 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 1. **CI fix loop:** After pushing, Claude watches CI via `gh pr checks`, reads failure logs, diagnoses and fixes, pushes again (max 2 attempts)
 2. **Review feedback loop:** After CI passes, Claude reads automated review comments, implements valid suggestions, pushes and re-reviews (max 3 iterations)
 
-**Recommendation:** Yes if you have CI configured. The shepherd closes the loop between "local tests pass" and "PR is actually ready to merge." Run `/ci-analyzer` to see specific integration points for your workflows.
+**Recommendation:** Yes if you have CI configured. The shepherd closes the loop between "local tests pass" and "PR is actually ready to merge."
 
 **Requirements:**
 - `gh` CLI installed and authenticated
@@ -1695,6 +1702,7 @@ TodoWrite([
   { content: "Find and read relevant documentation", status: "in_progress", activeForm: "Reading docs" },
   { content: "Assess doc health - flag issues (ask before cleaning)", status: "pending", activeForm: "Checking doc health" },
   { content: "DRY scan: What patterns exist to reuse?", status: "pending", activeForm: "Scanning for reusable patterns" },
+  { content: "Prove It Gate: adding new component? Research alternatives, prove quality with tests", status: "pending", activeForm: "Checking prove-it gate" },
   { content: "Blast radius: What depends on code I'm changing?", status: "pending", activeForm: "Checking dependencies" },
   { content: "Restate task in own words - verify understanding", status: "pending", activeForm: "Verifying understanding" },
   { content: "Scrutinize test design - right things tested? Follow TESTING.md?", status: "pending", activeForm: "Reviewing test approach" },
@@ -1735,6 +1743,22 @@ TodoWrite([
 - Are we testing the right things?
 - Does test approach follow TESTING.md philosophies?
 - If introducing new test patterns, same scrutiny as code patterns
+
+## Prove It Gate (REQUIRED for New Additions)
+
+**Adding a new skill, hook, workflow, or component? PROVE IT FIRST:**
+
+1. **Research:** Does something equivalent already exist (native CC, third-party plugin, existing skill)?
+2. **If YES:** Why is yours better? Show evidence (A/B test, quality comparison, gap analysis)
+3. **If NO:** What gap does this fill? Is the gap real or theoretical?
+4. **Quality tests:** New additions MUST have tests that prove OUTPUT QUALITY, not just existence
+5. **Less is more:** Every addition is maintenance burden. Default answer is NO unless proven YES
+
+**Existence tests are NOT quality tests:**
+- BAD: "ci-analyzer skill file exists" — proves nothing about quality
+- GOOD: "ci-analyzer recommends lint-first when test-before-lint detected" — proves behavior
+
+**If you can't write a quality test for it, you can't prove it works, so don't add it.**
 
 ## Plan Mode Integration
 
@@ -2714,7 +2738,7 @@ Add project-specific guidance to skills:
 
 ### Complementary Tools
 
-The wizard handles SDLC process enforcement. For stack-specific tooling, run `/claude-automation-recommender` — it suggests MCP servers, formatting hooks, type-checking hooks, subagent templates, and plugins based on your detected tech stack. For CI-specific gap analysis, run `/ci-analyzer` — it reads your GitHub Actions workflows and recommends linting steps, review hooks, and E2E coverage improvements. See [Step 0.3](#step-03-additional-recommendations-optional) for the full comparison.
+The wizard handles SDLC process enforcement. For stack-specific tooling, run `/claude-automation-recommender` — it suggests MCP servers, formatting hooks, type-checking hooks, subagent templates, and plugins based on your detected tech stack. See [Step 0.3](#step-03-additional-recommendations-optional) for the full comparison.
 
 ---
 

@@ -1,15 +1,21 @@
 {
-  "review_id": "cross-model-dialogue-040",
+  "review_id": "prove-it-gate-050",
   "status": "PENDING_RECHECK",
   "round": 3,
   "files_changed": [
     ".claude/skills/sdlc/SKILL.md",
+    ".claude/skills/setup/SKILL.md",
     "cli/templates/skills/sdlc/SKILL.md",
+    "cli/templates/skills/setup/SKILL.md",
+    "cli/init.js",
     "CLAUDE_CODE_SDLC_WIZARD.md",
-    "tests/test-self-update.sh"
+    "ROADMAP.md",
+    "tests/test-self-update.sh",
+    "tests/test-cli.sh",
+    "tests/test-setup-path.sh"
   ],
-  "review_instructions": "Targeted recheck of findings from round 2",
-  "artifact_path": ".reviews/cross-model-dialogue-040/",
+  "review_instructions": "Targeted recheck of P0 finding from round 2 — removed ci-analyzer from OBSOLETE_PATHS entirely",
+  "artifact_path": ".reviews/prove-it-gate-050/",
   "response_path": ".reviews/response.json",
   "previous_review": ".reviews/latest-review.md"
 }

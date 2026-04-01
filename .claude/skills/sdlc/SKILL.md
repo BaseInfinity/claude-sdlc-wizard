@@ -19,6 +19,7 @@ TodoWrite([
   { content: "Find and read relevant documentation", status: "in_progress", activeForm: "Reading docs" },
   { content: "Assess doc health - flag issues (ask before cleaning)", status: "pending", activeForm: "Checking doc health" },
   { content: "DRY scan: What patterns exist to reuse? New pattern = get approval", status: "pending", activeForm: "Scanning for reusable patterns" },
+  { content: "Prove It Gate: adding new component? Research alternatives, prove quality with tests", status: "pending", activeForm: "Checking prove-it gate" },
   { content: "Blast radius: What depends on code I'm changing?", status: "pending", activeForm: "Checking dependencies" },
   { content: "Design system check (if UI change)", status: "pending", activeForm: "Checking design system" },
   { content: "Restate task in own words - verify understanding", status: "pending", activeForm: "Verifying understanding" },
@@ -83,6 +84,22 @@ Critical miss on `tdd_red` or `self_review` = process failure regardless of tota
 - Are we testing the right things?
 - Does test approach follow TESTING.md philosophies?
 - If introducing new test patterns, same scrutiny as code patterns
+
+## Prove It Gate (REQUIRED for New Additions)
+
+**Adding a new skill, hook, workflow, or component? PROVE IT FIRST:**
+
+1. **Research:** Does something equivalent already exist (native CC, third-party plugin, existing skill)?
+2. **If YES:** Why is yours better? Show evidence (A/B test, quality comparison, gap analysis)
+3. **If NO:** What gap does this fill? Is the gap real or theoretical?
+4. **Quality tests:** New additions MUST have tests that prove OUTPUT QUALITY, not just existence
+5. **Less is more:** Every addition is maintenance burden. Default answer is NO unless proven YES
+
+**Existence tests are NOT quality tests:**
+- BAD: "ci-analyzer skill file exists" — proves nothing about quality
+- GOOD: "ci-analyzer recommends lint-first when test-before-lint detected" — proves behavior
+
+**If you can't write a quality test for it, you can't prove it works, so don't add it.**
 
 ## Plan Mode Integration
 
