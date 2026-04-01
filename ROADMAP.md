@@ -57,7 +57,7 @@
 | 46 | ~~CC Version-Pinned Update Gate~~ DONE | `weekly-update.yml` version-test now passes `path_to_claude_code_executable` to all 3 `claude-code-action` calls, ensuring E2E actually tests the specific new CC version. Added `id: install-cc` + `which claude` path capture. CI_CD.md verdict table, wizard "How We Apply This" updated. 4 new tests (60 total in test-self-update). PR #131 |
 | 47 | ~~Tier 1 E2E Flakiness Fix~~ DONE | Regression threshold 1.5→3.0, absorbs ±2-3 point LLM variance (rare extremes ±4 caught by Tier 2). Flaky test prevention guidance + external reference in wizard, SKILL.md. 2 new release consistency tests (64 total in test-self-update). PR #132 |
 
-## This Release (ordered)
+## Previous Release (v1.22.0)
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
@@ -72,12 +72,21 @@
 | 9 | 32 | ~~N-Reviewer CI Pipeline~~ DONE | Added Multiple Reviewers section to SDLC skill + wizard doc. Per-reviewer response pattern, conflict resolution (pick stronger argument), max 3 iterations per reviewer, escalate to user |
 | 10 | 45 | ~~`/agents` Subagent Exploration~~ DONE | Documented `.claude/agents/` pattern in SDLC skill + wizard doc. Example agents: sdlc-reviewer, ci-debug, test-writer. Skills vs agents comparison. Agents for parallel work and fresh context windows |
 
+## This Release (ordered)
+
+| Priority | # | Item | Description |
+|----------|---|------|-------------|
+| 1 | 64 | Update Notification Hook | `instructions-loaded-check.sh` checks for newer wizard version on npm each session. One-liner notification, non-blocking, <1s |
+| 2 | 59 | Research: CC Architecture (Public Sources) | Deep research CC's public architecture — hook execution, skill loading, plugin system, upcoming features. Are we aligned or fighting it? Cross-model review findings |
+| 3 | 57 | Research: Context Position Audit ("Lost in the Middle") | Audit whether critical instructions are buried in middle of wizard doc / SDLC skill. Restructure if so. Validate with before/after E2E scores |
+| 4 | 56 | Research: Adversarial Review Prompting | Test "find at least N problems" forcing technique. Does it improve self-review and cross-model review quality? A/B validate on real PRs |
+
 ## Unprioritized
 
 | # | Item | Description |
 |---|------|-------------|
 | 51 | Global Install Mode | Support `npm install -g` with a global template that auto-seeds new repos. Currently per-repo only (`npx agentic-sdlc-wizard init` in each repo). Research whether users want a global default config that gets applied automatically |
-| 54 | Prototype/Vibe Coding Mode | Guidance for relaxed SDLC during rapid prototyping. Skip full TDD, reduce planning overhead, focus on speed. Clear boundary: "when you're done prototyping, run full SDLC on the result." From monthly research #84 recommendation |
+| 54 | ~~Prototype/Vibe Coding Mode~~ KILLED | Effort levels (`high`/`max`) already cover this. Monthly research bot suggested it (#84) but it's unnecessary — just use lower effort or skip the wizard entirely for throwaway code. Deleted |
 | 56 | Research: Adversarial Review Prompting | Deep-dive the "rubber-stamp review" problem (MAST FM-3.1). Research "find at least N problems" forcing technique from r/ClaudeAI 17-papers thread. Test whether adversarial framing improves our self-review and cross-model review quality. Validate with A/B comparison on real PRs. Cross-model review the findings |
 | 57 | Research: Context Position Audit ("Lost in the Middle") | Liu et al. 2024 found >30% accuracy drop for info in middle of long context. Audit our CLAUDE.md, wizard doc, SDLC skill, and hook prompts — are critical instructions buried in the middle? Restructure if so. Validate with before/after E2E scores. Cross-model review |
 | 58 | Research: OmO/OmX Harness Patterns | ~~Was: claw-code deep-dive. Redirected after research — claw-code is built from leaked CC source, IP contamination risk, avoid.~~ Instead study the legitimate adjacent tools: **oh-my-openagent (OmO, 46K stars)** — multi-model orchestration, provider-agnostic harness, anti-lock-in philosophy. **oh-my-codex (OmX, 8K stars)** — `$team` mode (parallel agent review, relevant to our N-reviewer pipeline), `$ralph` mode (persistent execution loops with architect verification, relevant to our CI shepherd). Also: LogicKor (Korean LLM benchmark) for evaluation methodology. Focus on patterns we can validate and adopt, not code we'd copy. Cross-model review findings |
