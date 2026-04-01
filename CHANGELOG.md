@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.21.0] - 2026-03-31
+
+### Added
+- Confidence-driven setup wizard — kills the fixed 18 questions. Scans repo, builds confidence per data point, only asks what it can't infer. Dynamic question count (0-2 for well-configured projects, 10+ for bare repos). 95% aggregate confidence threshold (#52)
+- CI Shepherd opt-in question in setup wizard (#48 partial)
+- Cross-model release review recommendation — releases/publishes as explicit trigger, Release Review Checklist with v1.20.0 evidence (#49)
+- Prove It Gate enforcement in SDLC skill — prevents unvalidated additions with quality test requirements (#50)
+- 6 confidence-driven setup tests, 10 prove-it-gate tests, 6 release review tests
+
+### Removed
+- ci-analyzer skill — violated Prove It philosophy (existence-only tests, no quality validation, overlap with `/claude-automation-recommender`) (#50)
+- ci-self-heal.yml deprecated — local shepherd is the primary CI fix mechanism
+
+### Changed
+- Wizard doc: Q-numbered questions → data point descriptions with detection hints
+- Setup skill: 12 steps (was 11) with new "Build Confidence Map" step
+- CLI distributes 8 template files (was 9, removed ci-analyzer)
+
 ## [1.20.0] - 2026-03-31
 
 ### Added
