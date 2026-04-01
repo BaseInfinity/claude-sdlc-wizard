@@ -20,4 +20,16 @@ if [ -n "$MISSING" ]; then
     echo "Invoke Skill tool, skill=\"setup-wizard\" to generate them."
 fi
 
+# Version update check (non-blocking, best-effort)
+SDLC_MD="$PROJECT_DIR/SDLC.md"
+if [ -f "$SDLC_MD" ]; then
+    INSTALLED_VERSION=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$SDLC_MD" | head -1 | sed 's/SDLC Wizard Version: //')
+    if [ -n "$INSTALLED_VERSION" ] && command -v npm > /dev/null 2>&1; then
+        LATEST_VERSION=$(npm view agentic-sdlc-wizard version 2>/dev/null) || true
+        if [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ]; then
+            echo "SDLC Wizard update available: ${INSTALLED_VERSION} → ${LATEST_VERSION} (run /update-wizard)"
+        fi
+    fi
+fi
+
 exit 0

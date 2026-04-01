@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.23.0] - 2026-04-01
+
+### Added
+- Update notification hook — `instructions-loaded-check.sh` checks npm for newer wizard version each session. Non-blocking, graceful on network failure. One-liner: "SDLC Wizard update available: X → Y (run /update-wizard)" (#64)
+- 6 quality tests for update notification (fake npm in PATH, version comparison, failure modes)
+
 ## [1.22.0] - 2026-04-01
 
 ### Added
