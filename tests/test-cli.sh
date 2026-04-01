@@ -67,7 +67,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 8 expected files
+# Test 4: init creates all 9 expected files
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -80,11 +80,12 @@ test_creates_all_files() {
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/update/SKILL.md" ] && count=$((count + 1))
+    [ -f "$d/.claude/skills/ci-analyzer/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 8 ]; then
-        pass "init creates all 8 expected files"
+    if [ "$count" -eq 9 ]; then
+        pass "init creates all 9 expected files"
     else
-        fail "init should create 8 files, found $count"
+        fail "init should create 9 files, found $count"
     fi
     rm -rf "$d"
 }

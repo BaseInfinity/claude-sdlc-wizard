@@ -835,6 +835,119 @@ test_package_version_matches_sdlc() {
 test_package_version_matches_changelog
 test_package_version_matches_sdlc
 
+# --- CI Shepherd Opt-In + Workflow Analyzer Tests (#48) ---
+echo ""
+echo "--- CI Shepherd Opt-In + Workflow Analyzer (#48) ---"
+
+# Wizard has shepherd opt-in as explicit top-level CI question
+test_wizard_shepherd_optin_question() {
+    if grep -q "CI shepherd" "$WIZARD" && grep -q "opt-in\|Enable.*shepherd" "$WIZARD"; then
+        pass "Wizard has shepherd opt-in as explicit CI question"
+    else
+        fail "Wizard should have shepherd opt-in as an explicit top-level CI question"
+    fi
+}
+
+# Wizard gates CI sub-questions behind shepherd opt-in
+test_wizard_shepherd_gates_sub_questions() {
+    # The shepherd question should appear BEFORE the CI monitoring detail questions
+    local shepherd_line
+    shepherd_line=$(grep -n "CI shepherd" "$WIZARD" | head -1 | cut -d: -f1)
+    local monitoring_line
+    monitoring_line=$(grep -n "monitor CI checks" "$WIZARD" | head -1 | cut -d: -f1)
+    if [ -n "$shepherd_line" ] && [ -n "$monitoring_line" ] && [ "$shepherd_line" -lt "$monitoring_line" ]; then
+        pass "Wizard gates CI sub-questions behind shepherd opt-in"
+    else
+        fail "Wizard shepherd opt-in (line $shepherd_line) should appear before CI monitoring detail (line $monitoring_line)"
+    fi
+}
+
+# Setup wizard SKILL.md mentions 18 questions (was 17)
+test_setup_skill_question_count() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    if grep -q "18" "$skill_file" && grep -qi "question" "$skill_file"; then
+        pass "Setup wizard SKILL.md mentions 18 questions"
+    else
+        fail "Setup wizard SKILL.md should mention 18 questions (added CI shepherd opt-in)"
+    fi
+}
+
+# Setup wizard SKILL.md template parity for question count
+test_setup_skill_template_parity_questions() {
+    local live="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    local template="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    local live_count
+    live_count=$(grep -c "Q[0-9]" "$live" || true)
+    local template_count
+    template_count=$(grep -c "Q[0-9]" "$template" || true)
+    if [ "$live_count" -eq "$template_count" ] && [ "$live_count" -gt 0 ]; then
+        pass "Setup wizard SKILL.md question count matches template ($live_count)"
+    else
+        fail "Setup wizard SKILL.md question count ($live_count) should match template ($template_count)"
+    fi
+}
+
+# ci-analyzer skill exists with required frontmatter
+test_ci_analyzer_skill_exists() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/ci-analyzer/SKILL.md"
+    if [ -f "$skill_file" ] && grep -q "^name:" "$skill_file" && grep -q "^description:" "$skill_file"; then
+        pass "ci-analyzer skill exists with required frontmatter"
+    else
+        fail "ci-analyzer skill should exist at .claude/skills/ci-analyzer/SKILL.md with name and description frontmatter"
+    fi
+}
+
+# ci-analyzer skill template parity
+test_ci_analyzer_template_parity() {
+    local live="$SCRIPT_DIR/../.claude/skills/ci-analyzer/SKILL.md"
+    local template="$SCRIPT_DIR/../cli/templates/skills/ci-analyzer/SKILL.md"
+    if [ -f "$live" ] && [ -f "$template" ]; then
+        if diff -q "$live" "$template" > /dev/null 2>&1; then
+            pass "ci-analyzer skill matches CLI template"
+        else
+            fail "ci-analyzer live skill should match CLI template"
+        fi
+    else
+        fail "ci-analyzer skill should exist at both live and template paths"
+    fi
+}
+
+# ci-analyzer covers roadmap categories: linting gaps, review hooks, E2E suggestions
+test_ci_analyzer_covers_roadmap_categories() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/ci-analyzer/SKILL.md"
+    if [ -f "$skill_file" ]; then
+        local count=0
+        grep -qi "lint" "$skill_file" && count=$((count + 1))
+        grep -qi "review" "$skill_file" && count=$((count + 1))
+        grep -qi "E2E\|end.to.end" "$skill_file" && count=$((count + 1))
+        if [ "$count" -eq 3 ]; then
+            pass "ci-analyzer covers all 3 roadmap categories (linting, review, E2E)"
+        else
+            fail "ci-analyzer should cover linting, review hooks, and E2E suggestions ($count/3 found)"
+        fi
+    else
+        fail "ci-analyzer skill file not found"
+    fi
+}
+
+# Wizard Step 0.3 references ci-analyzer alongside automation-recommender
+test_wizard_ci_analyzer_reference() {
+    if grep -q "ci-analyzer" "$WIZARD"; then
+        pass "Wizard references ci-analyzer skill"
+    else
+        fail "Wizard should reference ci-analyzer skill (in Step 0.3 or complementary tools)"
+    fi
+}
+
+test_wizard_shepherd_optin_question
+test_wizard_shepherd_gates_sub_questions
+test_setup_skill_question_count
+test_setup_skill_template_parity_questions
+test_ci_analyzer_skill_exists
+test_ci_analyzer_template_parity
+test_ci_analyzer_covers_roadmap_categories
+test_wizard_ci_analyzer_reference
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
