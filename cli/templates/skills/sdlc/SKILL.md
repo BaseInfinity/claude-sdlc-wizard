@@ -26,7 +26,7 @@ TodoWrite([
   { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
   { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
   // TRANSITION PHASE (After plan mode)
-  { content: "Update feature docs with discovered gotchas", status: "pending", activeForm: "Updating feature docs" },
+  { content: "Doc sync: update feature docs if code change contradicts or extends documented behavior", status: "pending", activeForm: "Syncing feature docs" },
   // IMPLEMENTATION PHASE
   { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
   { content: "TDD GREEN: Implement, verify test passes", status: "pending", activeForm: "Implementing feature" },
@@ -490,11 +490,25 @@ CI passes -> Read review suggestions
 
 **THE RULE:** Delete old code first. If it breaks, fix it properly.
 
+## Documentation Sync (During Planning)
+
+When a code change affects a documented feature, update the doc in the same PR:
+
+1. **During planning**, read feature docs for the area being changed (`*_PLAN.md`, `*_DOCS.md`, `docs/features/`, `docs/decisions/`)
+2. If your code change contradicts what the doc says → update the doc
+3. If your code change extends behavior the doc describes → add to the doc
+4. If no feature doc exists and the change is substantial → note it in the summary (don't create one unprompted)
+
+**Doc staleness signals:** Low confidence in an area often means the docs are stale, missing, or misleading. If you struggle during planning, check whether the docs match the actual code.
+
+**CLAUDE.md health:** `/claude-md-improver` audits CLAUDE.md structure and completeness. Run it periodically. It does NOT cover feature docs — the SDLC workflow handles those.
+
 ## After Session (Capture Learnings)
 
 If this session revealed insights, update the right place:
 - **Testing patterns, gotchas** → `TESTING.md`
-- **Feature-specific quirks** → Feature docs (`*_PLAN.md`)
+- **Feature-specific quirks** → Feature docs (`*_PLAN.md`, `*_DOCS.md`)
+- **Architecture decisions** → `docs/decisions/` (ADR format) or `ARCHITECTURE.md`
 - **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
 
 ---
