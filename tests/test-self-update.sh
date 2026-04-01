@@ -807,18 +807,22 @@ test_package_version_matches_changelog() {
     fi
 }
 
-# package.json version matches SDLC.md version table
+# package.json version matches SDLC.md visible version table (not just metadata comment)
 test_package_version_matches_sdlc() {
     local pkg="$SCRIPT_DIR/../package.json"
     local sdlc="$SCRIPT_DIR/../SDLC.md"
     local pkg_version
     pkg_version=$(node -e "console.log(require('$pkg').version)")
-    local sdlc_version
-    sdlc_version=$(grep 'Wizard Version' "$sdlc" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
-    if [ "$pkg_version" = "$sdlc_version" ]; then
-        pass "package.json ($pkg_version) matches SDLC.md ($sdlc_version)"
+    # Check visible table row (| Wizard Version | X.X.X |), not metadata comment
+    local sdlc_table_version
+    sdlc_table_version=$(grep '^| Wizard Version' "$sdlc" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+    # Also check metadata comment for consistency
+    local sdlc_meta_version
+    sdlc_meta_version=$(grep '<!-- SDLC Wizard Version:' "$sdlc" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+    if [ "$pkg_version" = "$sdlc_table_version" ] && [ "$pkg_version" = "$sdlc_meta_version" ]; then
+        pass "package.json ($pkg_version) matches SDLC.md table ($sdlc_table_version) and metadata ($sdlc_meta_version)"
     else
-        fail "package.json ($pkg_version) should match SDLC.md Wizard Version ($sdlc_version)"
+        fail "package.json ($pkg_version) vs SDLC.md table ($sdlc_table_version) vs metadata ($sdlc_meta_version) — should all match"
     fi
 }
 
