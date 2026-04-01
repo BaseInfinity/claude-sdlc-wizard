@@ -31,7 +31,7 @@ check_task_tracking() {
 # Returns: "1" if found, "0" if not
 check_confidence() {
     local output="$1"
-    if grep -qE '\bHIGH\b|\bMEDIUM\b|\bLOW\b' <<< "$output"; then
+    if grep -qE '(^|[^a-zA-Z])(HIGH|MEDIUM|LOW)([^a-zA-Z]|$)' <<< "$output"; then
         # Verify it's in a confidence context, not random text
         # Look for the word near "confidence" or as a standalone statement
         # For now, uppercase-only match is selective enough
@@ -129,7 +129,7 @@ run_deterministic_checks() {
     local confidence_evidence="Not found"
     if [ "$confidence_score" = "1" ]; then
         local level
-        level=$(grep -oE '\b(HIGH|MEDIUM|LOW)\b' <<< "$output" | head -1)
+        level=$(grep -oE '(HIGH|MEDIUM|LOW)' <<< "$output" | head -1)
         confidence_evidence="Stated $level confidence"
     fi
 
