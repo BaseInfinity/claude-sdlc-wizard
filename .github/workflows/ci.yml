@@ -105,9 +105,6 @@ jobs:
       - name: Run prove-it tests
         run: ./tests/test-prove-it.sh
 
-      - name: Run self-heal simulation tests
-        run: ./tests/e2e/test-self-heal-simulation.sh
-
       - name: Run hooks tests
         run: ./tests/test-hooks.sh
 
@@ -146,8 +143,6 @@ jobs:
 
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
-  # ci-self-heal.yml uses 'gh workflow run ci.yml' which triggers workflow_dispatch —
-  # if this job skips, branch protection sees "skipped" and blocks merge (PR #75 bug).
   cleanup-old-comments:
     runs-on: ubuntu-latest
     permissions:
@@ -196,8 +191,6 @@ jobs:
         id: check-baseline
         run: |
           # On workflow_dispatch, skip all simulations — job runs for branch protection only.
-          # ci-self-heal.yml uses 'gh workflow run' which triggers dispatch. If this job
-          # skips entirely, branch protection blocks auto-merge (PR #75 bug).
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "has_baseline=false" >> $GITHUB_OUTPUT
             echo "should_simulate=false" >> $GITHUB_OUTPUT

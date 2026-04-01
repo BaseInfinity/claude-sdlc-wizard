@@ -48,7 +48,7 @@
 
 | # | Item | Description |
 |---|------|-------------|
-| 36 | ~~CI Local Shepherd Model~~ DONE | Formalized two-tier CI fix model: shepherd (primary, in-session) + bot (fallback, unattended). SHA-based suppression in ci-self-heal.yml prevents redundant bot runs when shepherd already pushed. Documented comparison table in wizard + CI_CD.md. 9 new tests. PR #124 |
+| 36 | ~~CI Local Shepherd Model~~ DONE | Formalized local shepherd CI fix model (in-session). Bot fallback (`ci-self-heal.yml`) was later deprecated — local shepherd provides higher quality fixes at lower cost. PR #124 |
 | 35 | ~~Gap Analysis vs `/claude-automation-recommender`~~ DONE | Wizard = enforcement engine, recommender = suggestion engine. Complementary, not competitive. Updated Step 0.3 with comparison table, added Complementary Tools section, setup skill recommends post-setup. 4 new tests. PR #125 |
 | 38 | ~~`/clear` vs `/compact` Guidance~~ DONE | Added Context Management section to wizard: comparison table, rules (/compact for continuing, /clear between tasks, /clear after 2+ failures). Documented auto-compact (~95% capacity). Updated SKILL.md with context management section. 4 new tests. PR #126 |
 | 42 | ~~Token Efficiency Auditing~~ DONE | Added Token Efficiency section to wizard: /cost monitoring, reduction techniques (compact/clear/subagents/effort), CI cost control (--max-budget-usd, --max-turns), OpenTelemetry for org-wide tracking. Updated CI_CD.md token tracking section. 4 new tests. PR #127 |
@@ -83,7 +83,7 @@
 ### Now
 
 - Keep local review loop as the default quality bar: Claude self-review first, then local Codex `xhigh` for independent cross-model review on substantial changes.
-- Keep GitHub PR automation on the existing Claude review pipeline so SDLC checks and `ci-self-heal.yml` continue to work.
+- Keep GitHub PR automation on the existing Claude review pipeline so SDLC checks continue to work.
 - Pin the GitHub PR reviewer to `claude-opus-4-6` for maximum current Claude review quality.
 - Enable Codex GitHub review manually and use it on high-risk PRs first rather than every PR.
 
@@ -109,7 +109,7 @@
 ### Future Work
 
 - Add a dedicated PR label such as `cross-review` or `epic-review` for elevated review requirements.
-- Make the PR review layer provider-swappable instead of coupling `ci-self-heal.yml` to a Claude-specific markdown format.
+- Make the PR review layer provider-swappable instead of coupling to a Claude-specific markdown format.
 - Move toward a normalized review artifact or check-run parser so Claude and Codex can plug into the same automation.
 - Revisit whether default review should be single-provider, dual-provider for labeled PRs, or manual Codex-only cross-review.
 
@@ -122,7 +122,7 @@ Every CI workflow/job must succeed at least once post-changes before distributio
 | `e2e-full-evaluation` (merge-ready label) | Mar 28 (PR #102) | Bug found: missing `git remote add origin` in Tier 2 init | VERIFIED — fix merged, 5-trial Tier 2 passed in 9m5s |
 | `weekly-update.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger untested since label fix | VERIFIED — dispatch passed Mar 27 |
 | `monthly-research.yml` schedule trigger | Mar 27 (manual dispatch) | Schedule trigger passed Mar 27 | VERIFIED — dispatch passed Mar 27 |
-| Stale `ci-autofix.yml` (ID 232420762) | Never (dead workflow) | Orphaned after rename to ci-self-heal.yml | DONE — disabled via `gh workflow disable` on Mar 28 |
+| Stale `ci-autofix.yml` (ID 232420762) | Never (dead workflow) | Orphaned after rename to ci-self-heal.yml | DONE — disabled Mar 28, ci-self-heal.yml deleted Mar 31 |
 | Node.js 20 deprecation | N/A | `actions/checkout@v4` + `oven-sh/setup-bun` will be forced to Node 24 on June 2, 2026 | Back burner (revisit May 2026) |
 
 ## Back Burner
