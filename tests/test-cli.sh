@@ -634,6 +634,29 @@ test_merge_force_updates_hooks
 test_upgrade_removes_obsolete_testing
 test_upgrade_removes_testing_on_skip_path
 
+# Test 32: init output shows clear restart instructions with --continue
+test_install_restart_messaging() {
+    local d
+    d=$(make_temp)
+    local output
+    output=$(cd "$d" && node "$CLI" init 2>&1)
+    local ok=true
+    # Must mention both restart options clearly
+    echo "$output" | grep -q '\-\-continue' || ok=false
+    # Must mention that --continue keeps conversation history
+    echo "$output" | grep -qi 'keep.*conversation\|conversation.*history' || ok=false
+    # Must mention fresh start as alternative
+    echo "$output" | grep -qi 'fresh' || ok=false
+    if [ "$ok" = true ]; then
+        pass "init output shows clear restart instructions with --continue"
+    else
+        fail "init output should clearly show --continue and fresh start options"
+    fi
+    rm -rf "$d"
+}
+
+test_install_restart_messaging
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
