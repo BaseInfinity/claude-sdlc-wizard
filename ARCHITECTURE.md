@@ -59,6 +59,7 @@ The main wizard document (installed by `npx agentic-sdlc-wizard init` or copied 
 | `/sdlc` | User invokes | Full SDLC workflow guidance |
 | `/setup` | User invokes or auto-invoked | Confidence-driven project setup wizard |
 | `/update` | User invokes | Smart update with drift detection |
+| `/feedback` | User invokes | Privacy-first community feedback and bug reports |
 
 ### 4. Auto-Update System
 
@@ -196,7 +197,8 @@ sdlc-wizard/
 │   └── skills/
 │       ├── sdlc/SKILL.md          # SDLC workflow skill
 │       ├── setup/SKILL.md         # Confidence-driven setup wizard
-│       └── update/SKILL.md        # Smart update with drift detection
+│       ├── update/SKILL.md        # Smart update with drift detection
+│       └── feedback/SKILL.md      # Privacy-first community feedback
 │
 ├── .github/
 │   ├── workflows/

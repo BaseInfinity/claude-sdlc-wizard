@@ -45,13 +45,13 @@ Extract the latest version from the first `## [X.X.X]` line.
 Parse all CHANGELOG entries between the user's installed version and the latest. Present a clear summary:
 
 ```
-Installed: 1.19.0
-Latest:    1.21.0
+Installed: 1.20.0
+Latest:    1.22.0
 
 What changed:
+- [1.22.0] Plan auto-approval, debugging workflow, /feedback skill, BRANDING.md detection, ...
 - [1.21.0] Confidence-driven setup, prove-it gate, cross-model release review, ...
 - [1.20.0] Version-pinned CC update gate, Tier 1 flakiness fix, flaky test guidance, ...
-- [1.19.0] CI shepherd model, token efficiency, feature doc enforcement, ...
 ```
 
 **If versions match:** Say "You're up to date! (version X.X.X)" and stop.

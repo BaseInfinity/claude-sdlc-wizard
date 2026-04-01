@@ -1152,6 +1152,259 @@ test_wizard_release_review_instructions_example() {
 test_release_review_focus_area_parity
 test_wizard_release_review_instructions_example
 
+# -------------------------------------------------------------------
+# #53 Plan Auto-Approval Gate
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #53 Plan Auto-Approval Gate ---"
+
+# Test: SDLC skill has auto-approval guidance
+test_skill_auto_approval_gate() {
+    if grep -qi 'auto.?approv\|skip.*plan.*approval\|skip.*approval.*step' "$SKILL"; then
+        pass "SDLC skill has plan auto-approval guidance"
+    else
+        fail "SDLC skill missing plan auto-approval guidance"
+    fi
+}
+
+# Test: Auto-approval requires HIGH confidence (95%+)
+test_skill_auto_approval_requires_high_confidence() {
+    if grep -qiE '95.*confidence|confidence.*95|HIGH.*skip|HIGH.*auto' "$SKILL"; then
+        pass "Auto-approval requires 95%+ confidence"
+    else
+        fail "Auto-approval should require 95%+ confidence"
+    fi
+}
+
+# Test: Auto-approval requires low complexity
+test_skill_auto_approval_requires_low_complexity() {
+    if grep -qi 'single.?file\|trivial\|low.*complex\|small.*change' "$SKILL"; then
+        pass "Auto-approval has complexity guard"
+    else
+        fail "Auto-approval should have complexity guard (single-file, trivial)"
+    fi
+}
+
+# Test: Wizard doc has auto-approval section
+test_wizard_auto_approval() {
+    if grep -qi 'auto.?approv\|skip.*plan.*approval' "$WIZARD"; then
+        pass "Wizard doc has plan auto-approval guidance"
+    else
+        fail "Wizard doc missing plan auto-approval guidance"
+    fi
+}
+
+test_skill_auto_approval_gate
+test_skill_auto_approval_requires_high_confidence
+test_skill_auto_approval_requires_low_complexity
+test_wizard_auto_approval
+
+# -------------------------------------------------------------------
+# #55 Debugging Methodology
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #55 Debugging Methodology ---"
+
+# Test: SDLC skill has debugging methodology section
+test_skill_debugging_methodology() {
+    if grep -qi 'debug.*methodol\|systematic.*debug\|debugging.*workflow' "$SKILL"; then
+        pass "SDLC skill has debugging methodology"
+    else
+        fail "SDLC skill missing debugging methodology section"
+    fi
+}
+
+# Test: Debugging section has reproduce→isolate→root cause flow
+test_skill_debugging_flow() {
+    if grep -qi 'reproduce' "$SKILL" && grep -qi 'isolate\|narrow' "$SKILL" && grep -qiE 'root.?cause' "$SKILL"; then
+        pass "Debugging section has reproduce→isolate→root cause flow"
+    else
+        fail "Debugging section should have reproduce→isolate→root cause flow"
+    fi
+}
+
+# Test: Debugging section mentions git bisect
+test_skill_debugging_bisect() {
+    if grep -q 'git bisect' "$SKILL"; then
+        pass "Debugging section mentions git bisect"
+    else
+        fail "Debugging section should mention git bisect for regressions"
+    fi
+}
+
+# Test: Wizard doc has debugging methodology
+test_wizard_debugging_methodology() {
+    if grep -qi 'debug.*methodol\|systematic.*debug\|debugging.*workflow' "$WIZARD"; then
+        pass "Wizard doc has debugging methodology"
+    else
+        fail "Wizard doc missing debugging methodology"
+    fi
+}
+
+test_skill_debugging_methodology
+test_skill_debugging_flow
+test_skill_debugging_bisect
+test_wizard_debugging_methodology
+
+# -------------------------------------------------------------------
+# #37 /feedback Community Loop
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #37 /feedback Community Loop ---"
+
+# Test: /feedback skill exists in templates
+test_feedback_skill_exists() {
+    if [ -f "$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md" ]; then
+        pass "/feedback skill template exists"
+    else
+        fail "/feedback skill template not found"
+    fi
+}
+
+# Test: /feedback skill has correct frontmatter
+test_feedback_skill_frontmatter() {
+    local skill="$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md"
+    if [ -f "$skill" ] && grep -q '^name: feedback$' "$skill" && grep -q '^effort:' "$skill"; then
+        pass "/feedback skill has correct frontmatter"
+    else
+        fail "/feedback skill missing correct frontmatter (name: feedback + effort)"
+    fi
+}
+
+# Test: /feedback skill mentions privacy/permission
+test_feedback_skill_privacy() {
+    local skill="$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md"
+    if [ -f "$skill" ] && grep -qi 'privacy\|permission\|consent\|opt.?in' "$skill"; then
+        pass "/feedback skill addresses privacy"
+    else
+        fail "/feedback skill should address privacy/permission before scanning"
+    fi
+}
+
+# Test: /feedback skill creates GH issue
+test_feedback_skill_gh_issue() {
+    local skill="$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md"
+    if [ -f "$skill" ] && grep -qi 'gh issue\|github issue\|create.*issue' "$skill"; then
+        pass "/feedback skill creates GH issues"
+    else
+        fail "/feedback skill should create GH issues for contributions"
+    fi
+}
+
+test_feedback_skill_exists
+test_feedback_skill_frontmatter
+test_feedback_skill_privacy
+test_feedback_skill_gh_issue
+
+# -------------------------------------------------------------------
+# #44 BRANDING.md Detection
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #44 BRANDING.md Detection ---"
+
+# Test: Setup wizard detects branding-related files
+test_setup_detects_branding() {
+    local setup="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    if grep -qi 'brand\|BRANDING' "$setup"; then
+        pass "Setup wizard detects branding files"
+    else
+        fail "Setup wizard should detect branding-related files"
+    fi
+}
+
+# Test: Wizard doc has BRANDING.md template or guidance
+test_wizard_branding_template() {
+    if grep -qi 'BRANDING.md' "$WIZARD"; then
+        pass "Wizard doc has BRANDING.md guidance"
+    else
+        fail "Wizard doc missing BRANDING.md guidance"
+    fi
+}
+
+# Test: BRANDING.md generation is conditional (only when UI/content detected)
+test_branding_conditional() {
+    local setup="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    if grep -qi 'brand.*detect\|detect.*brand\|if.*brand\|brand.*found\|UI.*brand\|content.*brand' "$setup"; then
+        pass "BRANDING.md generation is conditional on detection"
+    else
+        fail "BRANDING.md should only be generated when branding assets detected"
+    fi
+}
+
+test_setup_detects_branding
+test_wizard_branding_template
+test_branding_conditional
+
+# -------------------------------------------------------------------
+# #32 N-Reviewer CI Pipeline
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #32 N-Reviewer CI Pipeline ---"
+
+# Test: Wizard has multi-reviewer guidance
+test_wizard_multi_reviewer() {
+    if grep -qi 'multi.?review\|N.?review\|parallel.*review\|multiple.*review' "$WIZARD"; then
+        pass "Wizard has multi-reviewer guidance"
+    else
+        fail "Wizard missing multi-reviewer CI guidance"
+    fi
+}
+
+# Test: SDLC skill has multi-reviewer section
+test_skill_multi_reviewer() {
+    if grep -qi 'multi.?review\|N.?review\|parallel.*review\|multiple.*review' "$SKILL"; then
+        pass "SDLC skill has multi-reviewer guidance"
+    else
+        fail "SDLC skill missing multi-reviewer guidance"
+    fi
+}
+
+# Test: Multi-reviewer guidance mentions per-reviewer response
+test_multi_reviewer_response_pattern() {
+    if grep -qi 'per.?review\|each.*review\|respond.*each\|address.*each' "$SKILL"; then
+        pass "Multi-reviewer guidance has per-reviewer response pattern"
+    else
+        fail "Multi-reviewer should describe responding to each reviewer independently"
+    fi
+}
+
+test_wizard_multi_reviewer
+test_skill_multi_reviewer
+test_multi_reviewer_response_pattern
+
+# -------------------------------------------------------------------
+# #45 /agents Subagent Exploration
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #45 /agents Subagent Exploration ---"
+
+# Test: Wizard has agents/subagent guidance
+test_wizard_agents_guidance() {
+    if grep -qi '\.claude/agents\|custom.*subagent\|agents.*directory' "$WIZARD"; then
+        pass "Wizard has .claude/agents/ guidance"
+    else
+        fail "Wizard missing .claude/agents/ guidance"
+    fi
+}
+
+# Test: SDLC skill mentions agents as optional enhancement
+test_skill_agents_mention() {
+    if grep -qi '\.claude/agents\|subagent\|custom.*agent' "$SKILL"; then
+        pass "SDLC skill mentions agents"
+    else
+        fail "SDLC skill missing agents mention"
+    fi
+}
+
+test_wizard_agents_guidance
+test_skill_agents_mention
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

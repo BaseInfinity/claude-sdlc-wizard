@@ -22,6 +22,7 @@ const FILES = [
   { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md' },
   { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md' },
   { src: 'skills/update/SKILL.md', dest: '.claude/skills/update/SKILL.md' },
+  { src: 'skills/feedback/SKILL.md', dest: '.claude/skills/feedback/SKILL.md' },
 ];
 
 const WIZARD_HOOK_MARKERS = FILES
