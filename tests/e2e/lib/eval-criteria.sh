@@ -29,7 +29,7 @@
 # Returns: "standard" or "ui"
 detect_scenario_type() {
     local content="$1"
-    if echo "$content" | grep -qiE '\bUI\b|styling|CSS|\bcomponent\b|\bcolor\b|\bfont\b|\bvisual\b'; then
+    if echo "$content" | grep -qiE '(^|[^a-zA-Z])UI([^a-zA-Z]|$)|styling|CSS|(^|[^a-zA-Z])component([^a-zA-Z]|$)|(^|[^a-zA-Z])color([^a-zA-Z]|$)|(^|[^a-zA-Z])font([^a-zA-Z]|$)|(^|[^a-zA-Z])visual([^a-zA-Z]|$)'; then
         echo "ui"
     else
         echo "standard"
