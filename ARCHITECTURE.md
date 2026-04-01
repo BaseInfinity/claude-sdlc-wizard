@@ -57,6 +57,8 @@ The main wizard document (installed by `npx agentic-sdlc-wizard init` or copied 
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
 | `/sdlc` | User invokes | Full SDLC workflow guidance |
+| `/setup` | User invokes or auto-invoked | Confidence-driven project setup wizard |
+| `/update` | User invokes | Smart update with drift detection |
 
 ### 4. Auto-Update System
 
@@ -192,7 +194,9 @@ sdlc-wizard/
 │   │   ├── tdd-pretool-check.sh   # TDD enforcement hook
 │   │   └── instructions-loaded-check.sh  # Session start validation
 │   └── skills/
-│       └── sdlc/SKILL.md          # SDLC workflow skill
+│       ├── sdlc/SKILL.md          # SDLC workflow skill
+│       ├── setup/SKILL.md         # Confidence-driven setup wizard
+│       └── update/SKILL.md        # Smart update with drift detection
 │
 ├── .github/
 │   ├── workflows/

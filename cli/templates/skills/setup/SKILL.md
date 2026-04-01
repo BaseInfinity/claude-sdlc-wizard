@@ -11,7 +11,7 @@ $ARGUMENTS
 
 ## Purpose
 
-You are a confidence-driven setup wizard. Your job is to scan the project, infer as much as possible, and only ask the user about what you can't figure out. The number of questions is DYNAMIC — it depends on how much you can detect. Stop asking when you reach 95% aggregate confidence across all configuration data points.
+You are a confidence-driven setup wizard. Your job is to scan the project, infer as much as possible, and only ask the user about what you can't figure out. The number of questions is DYNAMIC — it depends on how much you can detect. Stop asking when all configuration data points are resolved (detected, confirmed, or answered).
 
 **DO NOT ask a fixed list of questions. DO NOT ask what you already know.**
 
@@ -62,33 +62,33 @@ For each configuration data point, assign a confidence level based on scan resul
 | Infra | Database(s) | prisma/, .env DB vars, docker-compose services |
 | Infra | Caching layer | .env REDIS vars, docker-compose redis service |
 | Infra | Test duration | Count test files, check CI run times if available |
-| Preferences | Response detail level | Cannot detect — always ask if not found |
-| Testing | Testing approach | Existing test patterns (test-first files, coverage config) |
+| Preferences | Response detail level | Cannot detect — ALWAYS ASK |
+| Preferences | Testing approach | Cannot detect intent from existing code — ALWAYS ASK |
+| Preferences | Mocking philosophy | Cannot detect intent from existing code — ALWAYS ASK |
 | Testing | Test types | What test files exist (*.test.*, *.spec.*, e2e/, integration/) |
-| Testing | Mocking philosophy | Scan for jest.mock, unittest.mock usage patterns |
 | Coverage | Coverage config | nyc, c8, coverage.py config, CI coverage steps |
-| CI | CI shepherd opt-in | Only if CI detected — ask user preference |
+| CI | CI shepherd opt-in | Only if CI detected — ALWAYS ASK |
 
-**Confidence levels per data point:**
-- **HIGH (90%+):** Found concrete evidence (config file, script, directory exists)
-- **MEDIUM (60-89%):** Found indirect evidence (naming patterns, related config)
-- **LOW (<60%):** No evidence found — must ask user
+**Each data point has one of three states:**
+- **RESOLVED (detected):** Found concrete evidence — config file, script, directory exists. No question needed, just confirm.
+- **RESOLVED (inferred):** Found indirect evidence — naming patterns, related config. Present inference, let user confirm or correct.
+- **UNRESOLVED:** No evidence found — must ask user directly.
+
+**Preference data points** (response detail, testing approach, mocking philosophy, CI shepherd) are ALWAYS UNRESOLVED regardless of what code patterns exist. Current code patterns show what IS, not what the user WANTS going forward.
 
 ### Step 3: Present Findings and Fill Gaps
 
-Present ALL detected values with their confidence levels to the user.
+Present ALL detected values organized by state to the user.
 
-**For HIGH confidence items:** Show what was detected, let user confirm with a single "Looks good" or override specific items.
+**For RESOLVED (detected) items:** Show what was found, let user bulk-confirm with a single "Looks good" or override specific items.
 
-**For MEDIUM confidence items:** Show what was inferred, ask user to confirm or correct.
+**For RESOLVED (inferred) items:** Show what was inferred with reasoning, ask user to confirm or correct.
 
-**For LOW confidence items:** Ask the user directly — these are your questions.
+**For UNRESOLVED items:** Ask the user directly — these are your questions.
 
-**The 95% rule:** Calculate aggregate confidence across all data points. If aggregate >= 95%, you have enough to generate files. Present your findings and ask for a single confirmation. If aggregate < 95%, ask about the LOW confidence items until you reach 95%.
+**The ready rule:** You are ready to generate files when ALL data points are resolved (detected, inferred+confirmed, or answered by user). The number of questions you ask depends entirely on how many data points remain unresolved after scanning. A well-configured project might need 3-4 questions (just preferences). A bare repo might need 10+. There is no fixed count.
 
-**The number of questions you ask depends entirely on what the scan reveals.** A well-configured project with clear conventions might need 0-2 questions. A bare repo might need 10+. There is no fixed count.
-
-DO NOT proceed to file generation until aggregate confidence >= 95% (or all gaps are filled).
+DO NOT proceed to file generation until all data points are resolved.
 
 ### Step 4: Generate CLAUDE.md
 
@@ -114,7 +114,7 @@ Include metadata comments:
 ```
 <!-- SDLC Wizard Version: [version from CLAUDE_CODE_SDLC_WIZARD.md] -->
 <!-- Setup Date: [today's date] -->
-<!-- Completed Steps: 0.4, 1-10 -->
+<!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 ```
 
 Reference: See "Step 4" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
@@ -193,6 +193,6 @@ Tell the user:
 - NEVER use a fixed question count. The number of questions is dynamic based on scan results.
 - ALWAYS show detected values with confidence levels and let the user confirm or override.
 - ALWAYS generate metadata comments in SDLC.md (version, date, steps).
-- If aggregate confidence >= 95% after scanning, present findings for bulk confirmation — don't force individual questions.
+- If most data points are resolved after scanning, present findings for bulk confirmation — don't force individual questions.
 - If the user passes `regenerate` as an argument, skip Q&A and regenerate files from existing SDLC.md metadata.
 - If the user passes `verify-only` as an argument, skip to Step 11 (verify) only.

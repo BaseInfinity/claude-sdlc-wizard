@@ -83,7 +83,7 @@ Layer 1: PHILOSOPHY
 | **SDP normalization** | Separates "the model had a bad day" from "our SDLC broke" by cross-referencing external benchmarks |
 | **CUSUM drift detection** | Catches gradual quality decay over time — borrowed from manufacturing quality control |
 | **Pre-tool TDD hooks** | Before source edits, a hook reminds Claude to write tests first. CI scoring checks whether it actually followed TDD |
-| **Self-evolving loop** | Weekly/monthly external research + CI friction signals from self-heal — you approve, the system gets better |
+| **Self-evolving loop** | Weekly/monthly external research + local CI shepherd loop — you approve, the system gets better |
 
 ## How It Works
 
@@ -186,7 +186,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 |--------|------------|----------------------|-------------|
 | **Focus** | SDLC enforcement + measurement | Agent performance optimization | Plugin marketplace |
 | **Hooks** | 3 (SDLC, TDD, instructions) | 12+ (dev blocker, prettier, etc.) | Webhook watcher |
-| **Skills** | 2 (/sdlc, /setup) | 80+ domain-specific | 13 slash commands |
+| **Skills** | 3 (/sdlc, /setup, /update) | 80+ domain-specific | 13 slash commands |
 | **Evaluation** | 95% CI, CUSUM, SDP, Tier 1/2 | Configuration testing | skilltest framework |
 | **CI Shepherd** | Local CI fix loop | No | No |
 | **Auto-updates** | Weekly CC + community scan | No | No |
