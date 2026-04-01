@@ -25,7 +25,6 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/e2e/test-pairwise-compare.sh && \
    ./tests/e2e/test-json-extraction.sh && \
    ./tests/e2e/test-eval-validation.sh && \
-   ./tests/e2e/test-self-heal-simulation.sh && \
    ./tests/e2e/test-multi-call-eval.sh && \
    ./tests/e2e/test-eval-prompt-regression.sh
    ```
@@ -160,7 +159,6 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/e2e/test-pairwise-compare.sh
 ./tests/e2e/test-json-extraction.sh
 ./tests/e2e/test-eval-validation.sh
-./tests/e2e/test-self-heal-simulation.sh
 ./tests/e2e/test-multi-call-eval.sh
 ./tests/e2e/test-eval-prompt-regression.sh
 

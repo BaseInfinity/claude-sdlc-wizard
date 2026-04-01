@@ -188,12 +188,12 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | **Hooks** | 3 (SDLC, TDD, instructions) | 12+ (dev blocker, prettier, etc.) | Webhook watcher |
 | **Skills** | 2 (/sdlc, /setup) | 80+ domain-specific | 13 slash commands |
 | **Evaluation** | 95% CI, CUSUM, SDP, Tier 1/2 | Configuration testing | skilltest framework |
-| **Self-healing** | CI auto-fix + re-trigger | No | No |
+| **CI Shepherd** | Local CI fix loop | No | No |
 | **Auto-updates** | Weekly CC + community scan | No | No |
 | **Install** | `npx agentic-sdlc-wizard init` | npm install | npm install |
 | **Philosophy** | Lightweight, prove-it-or-delete | Scale and optimization | Documentation-first |
 
-**Our unique strengths:** Statistical rigor (CUSUM + 95% CI), SDP scoring (model quality vs SDLC compliance), self-healing CI, Prove-It A/B pipeline, comprehensive automated test suite, dogfooding enforcement.
+**Our unique strengths:** Statistical rigor (CUSUM + 95% CI), SDP scoring (model quality vs SDLC compliance), CI shepherd loop, Prove-It A/B pipeline, comprehensive automated test suite, dogfooding enforcement.
 
 **Where others are stronger:** everything-claude-code has broader language/framework coverage. claude-sdlc has webhook-driven automation. Both have npm distribution.
 
@@ -204,7 +204,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | Document | What It Covers |
 |----------|---------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, 5-layer diagram, data flows, file structure |
-| [CI_CD.md](CI_CD.md) | All 5 workflows, E2E scoring, tier system, SDP, integrity checks |
+| [CI_CD.md](CI_CD.md) | All 4 workflows, E2E scoring, tier system, SDP, integrity checks |
 | [SDLC.md](SDLC.md) | Version tracking, enforcement rules, SDLC configuration |
 | [TESTING.md](TESTING.md) | Testing philosophy, test diamond, TDD approach |
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |

@@ -56,10 +56,8 @@ Check each workflow against these categories:
 - No test matrix (single OS/version)? → Note if project targets multiple platforms
 
 #### Shepherd Integration Points
-- Has CI but no self-heal/autofix workflow? → Recommend ci-self-heal pattern
 - Has PR review but no feedback loop? → Recommend shepherd CI review loop
 - No `workflow_dispatch` on CI workflow? → Recommend adding for re-trigger support
-- No SHA-based deconfliction? → Recommend if both shepherd and bot are desired
 
 ### Step 3: Present Recommendations
 

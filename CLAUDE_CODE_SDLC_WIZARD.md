@@ -37,7 +37,7 @@ As Claude Code improves, the wizard absorbs those improvements and removes its o
 **But here's the key:** This isn't a one-size-fits-all answer. It's a starting point that helps you find YOUR answer. Every project is different. The self-evaluating loop (plan → build → test → review → improve) needs to be tuned to your codebase, your team, your standards. The wizard gives you the framework — you shape it into something bespoke.
 
 **The living system:**
-- CI self-heal captures friction signals as GitHub issues for pattern analysis
+- The local shepherd captures friction signals during active sessions
 - You approve changes to the process
 - Both sides learn over time
 - The system improves the system (recursive improvement)
@@ -954,7 +954,7 @@ After SDLC setup is complete, run `/claude-automation-recommender` for stack-spe
 | Category | Wizard Ships | Recommender Suggests | `/ci-analyzer` |
 |----------|-------------|---------------------|----------------|
 | SDLC process (TDD, planning, review) | Enforced via hooks + skills | Not covered | Not covered |
-| CI workflows (self-heal, PR review) | Templates + docs | Not covered | Analyzes existing workflows for gaps |
+| CI workflows (PR review) | Templates + docs | Not covered | Analyzes existing workflows for gaps |
 | CI linting/review/E2E gaps | Not covered | Not covered | Specific recommendations per workflow |
 | MCP servers (context7, Playwright, DB) | Not covered | Per-stack suggestions | Not covered |
 | Auto-formatting hooks (Prettier, ESLint) | Not covered | Per-stack suggestions | Not covered |
@@ -1028,15 +1028,14 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 **Back-and-forth:** User questions live in PR comments. Bot's response is always the latest sticky comment. Clean and organized.
 
 **CI shepherd opt-in (only if CI detected during auto-scan):**
-> "Enable CI shepherd role? Claude will actively watch CI, auto-fix failures, iterate on review feedback, and optionally run an unattended bot fallback. (y/n)"
+> "Enable CI shepherd role? Claude will actively watch CI, auto-fix failures, and iterate on review feedback. (y/n)"
 
-- **Yes** → Enable full shepherd loop: CI fix loop + review feedback loop + bot fallback option. Ask detail questions below
+- **Yes** → Enable full shepherd loop: CI fix loop + review feedback loop. Ask detail questions below
 - **No** → Skip CI shepherd entirely (Claude still runs local tests, just doesn't interact with CI after pushing)
 
 **What the CI shepherd does:**
 1. **CI fix loop:** After pushing, Claude watches CI via `gh pr checks`, reads failure logs, diagnoses and fixes, pushes again (max 2 attempts)
 2. **Review feedback loop:** After CI passes, Claude reads automated review comments, implements valid suggestions, pushes and re-reviews (max 3 iterations)
-3. **Bot fallback (optional):** An unattended `ci-self-heal.yml` workflow for PRs where no one is watching (dependabot, overnight runs). SHA-based deconfliction prevents conflicts with the local shepherd
 
 **Recommendation:** Yes if you have CI configured. The shepherd closes the loop between "local tests pass" and "PR is actually ready to merge." Run `/ci-analyzer` to see specific integration points for your workflows.
 
@@ -1061,15 +1060,11 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 **CI review feedback question (only if CI monitoring is enabled):**
 > "What level of automated review response do you want?"
 
-| Level | Name | What autofix handles | Est. API cost |
-|-------|------|---------------------|---------------|
-| **L1** | `ci-only` | CI failures only (broken tests, lint) | ~$0.50/fix |
-| **L2** | `criticals` (default) | + Critical review findings (must-fix) | ~$1/fix |
-| **L3** | `all-findings` | + Every suggestion the reviewer flags | ~$2/fix |
-
-> **Cost note:** Higher levels mean more autofix iterations (each ~$0.50).
-> L3 typically adds 1-2 extra iterations per PR but produces cleaner code.
-> You can change this anytime by editing `AUTOFIX_LEVEL` in your ci-autofix workflow.
+| Level | Name | What the shepherd handles |
+|-------|------|--------------------------|
+| **L1** | `ci-only` | CI failures only (broken tests, lint) |
+| **L2** | `criticals` (default) | + Critical review findings (must-fix) |
+| **L3** | `all-findings` | + Every suggestion the reviewer flags |
 
 **What this does:**
 1. After CI passes, Claude reads the automated code review comments
@@ -1985,7 +1980,7 @@ Sometimes the flakiness is genuinely in CI infrastructure (runner environment, G
 
 ## CI Feedback Loop — Local Shepherd (After Commit)
 
-**This is the "local shepherd" — the primary CI fix mechanism.** It runs in your active session with full context. The optional CI Auto-Fix bot (`.github/workflows/ci-autofix.yml`) is a fallback for unattended PRs only. When both are active, the bot detects your local pushes via SHA comparison and skips automatically.
+**This is the "local shepherd" — your CI fix mechanism.** It runs in your active session with full context.
 
 **The SDLC doesn't end at local tests.** CI must pass too.
 
@@ -2062,25 +2057,6 @@ CI passes -> Read review suggestions
 - **Auto-implement** (default): Implement valid suggestions autonomously, skip opinions
 - **Ask first**: Present suggestions to user, let them decide which to implement
 - **Skip review feedback**: Ignore CI review suggestions, only fix CI failures
-
-## Shepherd vs. Bot: Two-Tier CI Fix Model
-
-| Aspect | Local Shepherd | CI Auto-Fix Bot |
-|--------|---------------|-----------------|
-| **When** | Active session (you're working) | Unattended (pushed and walked away) |
-| **Context** | Full: codebase, conversation, intent | Minimal: `--bare`, 200-line truncated logs |
-| **Cost** | Session tokens (marginal cost ~$0) | Separate API calls ($0.50-$2.00 per fix) |
-| **Noise** | 0 extra commits | 1+ `[autofix N/M]` commits per attempt |
-| **Quality** | High: full diagnosis, targeted fix | Lower: stateless, may repeat same approach |
-| **Speed** | Immediate: fix locally, push once | Delayed: workflow_run trigger + runner queue |
-| **Deconfliction** | N/A (is the primary) | SHA check: skips if branch advanced since failure |
-
-**The shepherd is the default.** It runs as part of the SDLC checklist above whenever you push from an active session. The bot is optional and only adds value for:
-- Dependabot/Renovate PRs (no human session)
-- PRs where you push and walk away
-- Overnight CI runs
-
-If you set up the bot, the SHA-based suppression ensures they never conflict.
 
 ## DRY Principle
 
@@ -2314,7 +2290,7 @@ If deployment fails or post-deploy verification catches issues:
 
 | Environment | Rollback Command | Notes |
 |-------------|------------------|-------|
-| Preview | [auto-expires or redeploy] | Usually self-heals |
+| Preview | [auto-expires or redeploy] | Ephemeral — redeploy to fix |
 | Staging | `[your rollback command]` | [notes] |
 | Production | `[your rollback command]` | [critical - document clearly] |
 
@@ -2910,87 +2886,6 @@ Claude: [fetches via gh api, discusses with you interactively]
 ```
 
 This is optional - skip if you prefer fresh reviews only.
-
-### CI Auto-Fix Loop (Optional — Bot Fallback)
-
-> **Two-tier model:** The SDLC skill's CI loops (above) are the "local shepherd" — they handle CI fixes during active sessions. This bot is the second tier: an unattended fallback for when no one is watching. The bot includes SHA-based suppression — if you push a fix locally before the bot runs, it skips automatically.
-
-Automatically fix CI failures and PR review findings. Claude reads the error context, fixes the code, commits, and re-triggers CI. Loops until CI passes AND review has no findings at your chosen level, or max retries hit.
-
-**The Loop:**
-```
-Push to PR
-    |
-    v
-CI runs ──► FAIL ──► ci-autofix: Claude reads logs, fixes, commits [autofix 1/3] ──► re-trigger
-    |
-    └── PASS ──► PR Review ──► has findings at your level? ──► ci-autofix: fixes all ──► re-trigger
-                      |
-                      └── APPROVE, no findings ──► DONE
-```
-
-**Safety measures:**
-- Never runs on main branch
-- Max retries (default 3, configurable via `MAX_AUTOFIX_RETRIES`)
-- `AUTOFIX_LEVEL` controls what findings to act on (`ci-only`, `criticals`, `all-findings`)
-- Restricted Claude tools (no git, no npm)
-- Self-modification ban (can't edit its own workflow file)
-- `[autofix N/M]` commit tags for audit trail
-- Sticky PR comments show status
-
-**Setup:**
-1. Create `.github/workflows/ci-autofix.yml`:
-
-```yaml
-name: CI Auto-Fix
-
-on:
-  workflow_run:
-    workflows: ["CI", "PR Code Review"]
-    types: [completed]
-
-permissions:
-  contents: write
-  pull-requests: write
-
-env:
-  MAX_AUTOFIX_RETRIES: 3
-  AUTOFIX_LEVEL: criticals  # ci-only | criticals | all-findings
-
-jobs:
-  autofix:
-    runs-on: ubuntu-latest
-    if: |
-      github.event.workflow_run.head_branch != 'main' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      (
-        (github.event.workflow_run.name == 'CI' && github.event.workflow_run.conclusion == 'failure') ||
-        (github.event.workflow_run.name == 'PR Code Review' && github.event.workflow_run.conclusion == 'success')
-      )
-    steps:
-      # Count previous [autofix] commits to enforce max retries
-      # Download CI failure logs or fetch review comment
-      # Check findings at your AUTOFIX_LEVEL (criticals + suggestions)
-      # Run Claude to fix ALL findings with restricted tools
-      # Commit [autofix N/M], push, re-trigger CI
-      # Post sticky PR comment with status
-```
-
-2. Add `workflow_dispatch:` trigger to your CI workflow (so autofix can re-trigger it)
-3. Optionally configure a GitHub App for token generation (avoids `workflow_run` default-branch constraint)
-
-**Token approaches:**
-
-| Approach | When | Pros |
-|----------|------|------|
-| GITHUB_TOKEN + `gh workflow run` | Default | No extra setup |
-| GitHub App token | `CI_AUTOFIX_APP_ID` secret exists | Push triggers `synchronize` naturally |
-
-**Note:** `workflow_run` only fires for workflows on the default branch. The ci-autofix workflow is dormant until first merged to main.
-
-> **Template vs. this repo:** The template above uses `ci-autofix.yml` with `criticals` as a safe default for new projects. The wizard's own repo has evolved this into `ci-self-heal.yml` with `all-findings` — a more aggressive configuration we dogfood internally. Both naming conventions work; the behavior is identical.
-
----
 
 ### Cross-Model Review Loop (Optional)
 

@@ -482,31 +482,22 @@ test_wizard_recheck_prompt_parity
 
 # --- CI Shepherd Model Tests (#36) ---
 
-# Wizard documents two-tier CI fix model
-test_wizard_two_tier_model() {
-    if grep -q "Two-Tier CI Fix" "$WIZARD" || grep -q "Shepherd vs. Bot" "$WIZARD"; then
-        pass "Wizard documents two-tier CI fix model"
+# Wizard documents local shepherd CI fix model
+test_wizard_shepherd_model() {
+    if grep -q "local shepherd" "$WIZARD" || grep -q "Local Shepherd" "$WIZARD"; then
+        pass "Wizard documents local shepherd CI fix model"
     else
-        fail "Wizard should document the two-tier (shepherd vs bot) CI fix model"
+        fail "Wizard should document the local shepherd CI fix model"
     fi
 }
 
-# Wizard contains shepherd vs bot comparison
-test_wizard_shepherd_comparison() {
-    if grep -q "Local Shepherd" "$WIZARD" && grep -q "CI Auto-Fix Bot" "$WIZARD"; then
-        pass "Wizard contains shepherd vs bot comparison"
-    else
-        fail "Wizard should contain comparison between Local Shepherd and CI Auto-Fix Bot"
-    fi
-}
-
-# CI_CD.md documents shepherd tier
+# CI_CD.md documents shepherd
 test_cicd_shepherd_section() {
     local cicd="$SCRIPT_DIR/../CI_CD.md"
     if grep -q "Local Shepherd" "$cicd"; then
-        pass "CI_CD.md documents the local shepherd tier"
+        pass "CI_CD.md documents the local shepherd"
     else
-        fail "CI_CD.md should document the local shepherd tier"
+        fail "CI_CD.md should document the local shepherd"
     fi
 }
 
@@ -520,8 +511,7 @@ test_skill_shepherd_label() {
     fi
 }
 
-test_wizard_two_tier_model
-test_wizard_shepherd_comparison
+test_wizard_shepherd_model
 test_cicd_shepherd_section
 test_skill_shepherd_label
 
