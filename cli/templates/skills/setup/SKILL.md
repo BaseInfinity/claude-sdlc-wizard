@@ -1,6 +1,6 @@
 ---
 name: setup-wizard
-description: Interactive project setup wizard that scans the codebase, asks all 16 configuration questions, generates SDLC files (CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md), and verifies the installation. Use this skill when setting up the SDLC wizard for the first time or re-running setup.
+description: Setup wizard — scans codebase, asks 16 config questions, generates SDLC files (CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md), verifies installation. Use for first-time setup or re-running setup.
 argument-hint: [optional: regenerate | verify-only]
 effort: high
 ---
