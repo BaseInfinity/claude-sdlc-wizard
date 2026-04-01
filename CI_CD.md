@@ -161,6 +161,14 @@ CI-level token tracking was removed in PR #33 — `claude-code-action@v1` does n
 
 Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 
+**Version-Pinned Gate:** The version-test job installs the specific new CC version and passes the binary path to all `claude-code-action` calls via `path_to_claude_code_executable`. This ensures simulations run the actual new version, not the action's bundled binary.
+
+| Verdict | Action |
+|---------|--------|
+| STABLE/IMPROVED | Safe to merge — upgrade to new version |
+| REGRESSION | Do not merge — stay on current version until investigated |
+| PHASE_A_FAILED | New version breaks SDLC enforcement — do not upgrade |
+
 ### Runs On
 - Weekly schedule: 9 AM UTC Mondays (`cron: '0 9 * * 1'`)
 - Manual trigger also available (workflow_dispatch)

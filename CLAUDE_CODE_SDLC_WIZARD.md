@@ -93,8 +93,10 @@ This prevents both false positives (crying wolf) and false negatives (missing re
 
 **How We Apply This:**
 - Weekly workflow tests new Claude Code versions before recommending upgrade
+- Version-pinned gate: installs the specific CC version and passes it via `path_to_claude_code_executable` so E2E actually runs the new binary
 - Phase A: Does new CC version break SDLC enforcement?
 - Phase B: Do changelog-suggested improvements actually help?
+- Green CI = safe to upgrade. Red = stay on current version until fixed
 - Results shown in PR with statistical confidence
 
 ---
