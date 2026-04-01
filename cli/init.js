@@ -224,12 +224,12 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   console.log(`
 ${GREEN}SDLC Wizard installed successfully!${RESET}
 
-${YELLOW}Important:${RESET} Hooks and settings load at session start.
-  If Claude Code is already running, type ${CYAN}/exit${RESET} then ${CYAN}claude${RESET} to restart.
-  (Or ${CYAN}claude --continue${RESET} to keep your conversation history.)
+${YELLOW}Restart Claude Code${RESET} to load new hooks and skills:
+  ${CYAN}/exit${RESET} then ${CYAN}claude --continue${RESET}  (keeps conversation history)
+  ${CYAN}/exit${RESET} then ${CYAN}claude${RESET}              (fresh start)
 
 Next steps:
-  1. Start Claude Code in this directory (or restart if already running)
+  1. Restart Claude Code (see above)
   2. Tell Claude anything — setup auto-invokes when SDLC files are missing
   3. Claude reads the wizard doc and creates CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md
 
