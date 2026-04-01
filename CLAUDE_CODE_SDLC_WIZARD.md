@@ -1246,9 +1246,11 @@ Recommendation: Your current tests rely heavily on mocks.
 
 ---
 
-## Step 1: Confirm or Customize
+## Step 1: Build Confidence Map and Fill Gaps
 
-Claude presents what it found. You confirm or override:
+Claude assigns a confidence level to each configuration data point based on scan results. HIGH confidence items are presented for bulk confirmation. MEDIUM items are presented with inferred values for the user to verify. LOW items become questions. **The number of questions is dynamic — it depends on how much the scan resolves.** Stop asking when aggregate confidence >= 95%.
+
+Claude presents what it found, organized by confidence:
 
 ### Project Structure (Auto-Detected)
 
@@ -1257,13 +1259,13 @@ Claude presents what it found. You confirm or override:
 Override? (leave blank to accept): _______________
 ```
 
-**Q2: Where do your tests live?**
+**Test directory** (detect from tests/, __tests__/, spec/, test file patterns)
 ```
 Examples: tests/, __tests__/, src/**/*.test.ts, spec/
 Your answer: _______________
 ```
 
-**Q3: What's your test framework?**
+**Test framework** (detect from jest.config, vitest.config, pytest.ini, etc.)
 ```
 Options: Jest, Vitest, Playwright, Cypress, pytest, Go testing, other
 Your answer: _______________
@@ -1271,31 +1273,31 @@ Your answer: _______________
 
 ### Commands
 
-**Q4: What runs your linter?**
+**Lint command** (detect from package.json scripts, Makefile, config files)
 ```
 Examples: npm run lint, pnpm lint, eslint ., biome check
 Your answer: _______________
 ```
 
-**Q5: What runs type checking?**
+**Type-check command** (detect from tsconfig.json, mypy.ini, etc.)
 ```
 Examples: npm run typecheck, tsc --noEmit, mypy, none
 Your answer: _______________
 ```
 
-**Q6: What runs all tests?**
+**Run all tests command** (detect from package.json "test" script, Makefile)
 ```
 Examples: npm run test, pnpm test, pytest, go test ./...
 Your answer: _______________
 ```
 
-**Q7: What runs a specific test file?**
+**Run single test file command** (infer from framework: jest → jest path, pytest → pytest path)
 ```
 Examples: npm run test -- path/to/test.ts, pytest path/to/test.py
 Your answer: _______________
 ```
 
-**Q8: What builds for production?**
+**Production build command** (detect from package.json "build" script, Makefile)
 ```
 Examples: npm run build, pnpm build, go build, cargo build
 Your answer: _______________
@@ -1303,7 +1305,7 @@ Your answer: _______________
 
 ### Deployment
 
-**Q8.5: How do you deploy? (auto-detected, confirm or override)**
+**Deployment setup** (auto-detected from Dockerfile, vercel.json, fly.toml, deploy scripts)
 ```
 Detected: [e.g., Vercel, GitHub Actions, Docker, none]
 
@@ -1326,19 +1328,19 @@ Your answer: _______________
 
 ### Infrastructure
 
-**Q9: What database(s) do you use?**
+**Database(s)** (detect from prisma/, .env DB vars, docker-compose services)
 ```
 Examples: PostgreSQL, MySQL, SQLite, MongoDB, none
 Your answer: _______________
 ```
 
-**Q10: Do you use caching (Redis, etc.)?**
+**Caching layer** (detect from .env REDIS vars, docker-compose redis service)
 ```
 Examples: Redis, Memcached, none
 Your answer: _______________
 ```
 
-**Q11: How long do your tests take?**
+**Test duration** (estimate from test file count, CI run times if available)
 ```
 Examples: <1 minute, 1-5 minutes, 5+ minutes
 Your answer: _______________
@@ -1346,7 +1348,7 @@ Your answer: _______________
 
 ### Output Preferences
 
-**Q12: How much detail in Claude's responses?**
+**Response detail level** (cannot detect — always ask if no preference found)
 ```
 Options:
 - Small   - Minimal output, just essentials (experienced users)
@@ -1364,7 +1366,7 @@ Stored in `.claude/settings.json` as `"verbosity": "small|medium|large"`.
 
 ### Testing Philosophy
 
-**Q13: What's your testing approach?**
+**Testing approach** (infer from existing test patterns — test-first files, coverage config)
 ```
 Options:
 - Strict TDD (test first always)
@@ -1375,7 +1377,7 @@ Options:
 Your answer: _______________
 ```
 
-**Q14: What types of tests do you want?**
+**Test types** (detect from existing test file patterns: *.test.*, *.spec.*, e2e/, integration/)
 ```
 (Check all that apply)
 [ ] Unit tests (pure logic, isolated)
@@ -1385,7 +1387,7 @@ Your answer: _______________
 [ ] Other: _______________
 ```
 
-**Q15: Your mocking philosophy?**
+**Mocking philosophy** (detect from jest.mock, unittest.mock usage patterns)
 ```
 Options:
 - Minimal mocking (real DB, mock external APIs only)
@@ -1400,7 +1402,7 @@ Your answer: _______________
 **If test framework detected (Jest, pytest, Go, etc.):**
 
 ```
-Q16: Code Coverage (Optional)
+Code Coverage (Optional)
 
 Detected: [test framework] with coverage configuration
 
@@ -1421,7 +1423,7 @@ Your answer: _______________
 **If no test framework detected (docs/AI-heavy project):**
 
 ```
-Q16: Code Coverage (Optional)
+Code Coverage (Optional)
 
 No test framework detected (documentation/AI-heavy project).
 
@@ -1441,19 +1443,19 @@ Your answer: _______________
 
 ---
 
-### Using Your Answers
+### How Configuration Data Points Map to Files
 
-Your answers map to these files:
+Each resolved data point (whether detected or confirmed by the user) maps to generated files:
 
-| Question | Used In |
-|----------|---------|
-| Q1 (source dir) | `tdd-pretool-check.sh` - pattern match |
-| Q2 (test dir) | `TESTING.md` - documentation |
-| Q3 (test framework) | `TESTING.md` - documentation |
-| Q4-Q8 (commands) | `CLAUDE.md` - Commands section |
-| Q9-Q10 (infra) | `CLAUDE.md` - Architecture section, `TESTING.md` - mock decisions |
-| Q11 (test duration) | `SDLC skill` - wait time note |
-| Q12 (E2E) | `TESTING.md` - testing diamond top |
+| Data Point | Used In |
+|-----------|---------|
+| Source directory | `tdd-pretool-check.sh` - pattern match |
+| Test directory | `TESTING.md` - documentation |
+| Test framework | `TESTING.md` - documentation |
+| Commands (lint, typecheck, test, build) | `CLAUDE.md` - Commands section |
+| Infrastructure (DB, cache) | `CLAUDE.md` - Architecture section, `TESTING.md` - mock decisions |
+| Test duration | `SDLC skill` - wait time note |
+| Test types (E2E) | `TESTING.md` - testing diamond top |
 
 ---
 
@@ -2180,7 +2182,7 @@ Create `CLAUDE.md` in your project root. This is your project-specific configura
 
 ## Commands
 
-<!-- CUSTOMIZE: Replace with your actual commands from Q4-Q8 -->
+<!-- CUSTOMIZE: Replace with your actual detected/confirmed commands -->
 
 - Build: `[your build command]`
 - Run dev: `[your dev command]`
@@ -2267,7 +2269,7 @@ These are your full reference docs. Start with stubs and expand over time:
 
 ## Environments
 
-<!-- Claude auto-populates this from Q8.5 deployment detection -->
+<!-- Claude auto-populates this from deployment detection -->
 
 | Environment | URL | Deploy Command | Trigger |
 |-------------|-----|----------------|---------|
