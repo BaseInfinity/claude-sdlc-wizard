@@ -709,8 +709,8 @@ jobs:
           else
             # Check if regression is significant (> 3.0 points)
             # Tier 1 = single trial. 6/10 criteria are LLM-judged (binary), so a
-            # single run can swing ±3-4 points. Threshold absorbs this noise.
-            # Tier 2 (5x + CI overlap) is the real statistical gate.
+            # single run typically swings ±2-3 points (rare extremes reach ±4).
+            # 3.0 absorbs typical noise; Tier 2 (5x + 95% CI) catches the rest.
             if [ "$(echo "$DELTA < -3.0" | bc -l)" -eq 1 ]; then
               STATUS="REGRESSION"
               EMOJI=":x:"
