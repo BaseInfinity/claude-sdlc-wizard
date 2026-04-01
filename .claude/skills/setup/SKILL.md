@@ -191,7 +191,7 @@ Tell the user:
 
 - NEVER ask what you already know from scanning. If you found it, confirm it — don't ask it.
 - NEVER use a fixed question count. The number of questions is dynamic based on scan results.
-- ALWAYS show detected values with confidence levels and let the user confirm or override.
+- ALWAYS show detected values organized by resolution state and let the user confirm or override.
 - ALWAYS generate metadata comments in SDLC.md (version, date, steps).
 - If most data points are resolved after scanning, present findings for bulk confirmation — don't force individual questions.
 - If the user passes `regenerate` as an argument, skip Q&A and regenerate files from existing SDLC.md metadata.

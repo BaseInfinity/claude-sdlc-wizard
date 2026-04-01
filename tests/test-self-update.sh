@@ -918,6 +918,18 @@ test_setup_skill_template_parity() {
     fi
 }
 
+# Setup wizard terminology consistency (no stale "confidence levels" in resolved/unresolved model)
+test_setup_skill_no_stale_confidence_terminology() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    # The Rules section should use "resolution state" not "confidence levels"
+    # (confidence-driven is fine as a high-level name, but data point states are resolved/unresolved)
+    if grep -q "with confidence levels" "$skill_file"; then
+        fail "Setup wizard Rules still uses stale 'with confidence levels' (should be 'resolution state')"
+    else
+        pass "Setup wizard terminology consistent (no stale 'with confidence levels')"
+    fi
+}
+
 # ci-analyzer was deleted (unvalidated addition — violated Prove It philosophy)
 test_ci_analyzer_deleted() {
     if [ -d "$SCRIPT_DIR/../.claude/skills/ci-analyzer" ]; then
@@ -1030,6 +1042,7 @@ test_setup_skill_scan_then_ask
 test_setup_skill_no_fixed_question_count
 test_setup_skill_data_points
 test_setup_skill_template_parity
+test_setup_skill_no_stale_confidence_terminology
 test_ci_analyzer_deleted
 test_ci_analyzer_template_deleted
 test_wizard_no_ci_analyzer_skill

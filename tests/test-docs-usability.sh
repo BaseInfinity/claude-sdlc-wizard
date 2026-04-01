@@ -379,7 +379,7 @@ test_architecture_lists_all_skills() {
     for skill_dir in "$REPO_ROOT"/cli/templates/skills/*/; do
         local skill_name
         skill_name=$(basename "$skill_dir")
-        if ! grep -qi "/$skill_name\b" "$arch"; then
+        if ! grep -qiE "/$skill_name([^a-z]|$)" "$arch"; then
             missing="$missing $skill_name"
         fi
     done
