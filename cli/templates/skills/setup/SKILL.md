@@ -73,7 +73,7 @@ Ask every question. Pre-fill detected values but let the user confirm or overrid
 17. Code coverage preferences (enforce threshold, report only, AI suggestions, skip)
 
 **CI Shepherd (only if CI detected in Step 1):**
-18. CI shepherd opt-in — enable full CI shepherd role? (yes/no). If yes, ask sub-questions: CI monitoring detail, review feedback level (L1/L2/L3), bot fallback. Store choice in SDLC.md metadata as `<!-- CI Shepherd: enabled/disabled -->`. If no CI detected, skip and note in SDLC.md as `<!-- CI Shepherd: not applicable -->`.
+18. CI shepherd opt-in — enable full CI shepherd role? (yes/no). If yes, ask sub-questions: CI monitoring detail, review feedback level (L1/L2/L3). Store choice in SDLC.md metadata as `<!-- CI Shepherd: enabled/disabled -->`. If no CI detected, skip and note in SDLC.md as `<!-- CI Shepherd: not applicable -->`.
 
 DO NOT proceed to file generation until ALL 18 questions have answers (or questions are marked N/A).
 
@@ -169,11 +169,10 @@ Tell the user:
 > **Exit Claude Code and restart it** for the new configuration to take effect.
 > On restart, the SDLC hook will fire and you'll see the checklist in every response.
 >
-> **Optional next steps:**
-> - Run `/ci-analyzer` to analyze your CI workflows for linting gaps, review hooks, and E2E coverage improvements (GitHub Actions)
+> **Optional next step:**
 > - Run `/claude-automation-recommender` for stack-specific tooling suggestions (MCP servers, formatting hooks, type-checking hooks, plugins)
 >
-> Both are complementary to the SDLC wizard — they add tooling and CI recommendations, not process enforcement.
+> The recommender is complementary to the SDLC wizard — it adds tooling recommendations, not process enforcement.
 
 ## Rules
 
