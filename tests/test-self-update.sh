@@ -1035,7 +1035,17 @@ test_release_review_focus_area_parity() {
     fi
 }
 
+# Wizard has release review_instructions example
+test_wizard_release_review_instructions_example() {
+    if grep -q "review_instructions.*for releases" "$WIZARD" && grep -q "CHANGELOG completeness" "$WIZARD"; then
+        pass "Wizard has release review_instructions example"
+    else
+        fail "Wizard should have example review_instructions for releases"
+    fi
+}
+
 test_release_review_focus_area_parity
+test_wizard_release_review_instructions_example
 
 echo ""
 echo "=== Results ==="
