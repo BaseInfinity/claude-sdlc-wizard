@@ -197,7 +197,6 @@ sdlc-wizard/
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml                 # Validation & tests
-│   │   ├── ci-self-heal.yml        # Auto-fix loop (CI + review)
 │   │   ├── weekly-update.yml      # Version check + community scan
 │   │   ├── monthly-research.yml   # Deep research & trends
 │   │   └── pr-review.yml          # AI code review

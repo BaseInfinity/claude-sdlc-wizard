@@ -402,135 +402,6 @@ test_ci_allowed_tools_task_tracking() {
     fi
 }
 
-# ============================================
-# CI Auto-Fix Workflow Tests
-# ============================================
-# These tests ensure the ci-self-heal.yml workflow
-# is properly configured for the automated fix loop.
-
-# Test 22: ci-self-heal.yml file exists
-test_ci_autofix_exists() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ -f "$WORKFLOW" ]; then
-        pass "ci-self-heal.yml file exists"
-    else
-        fail "ci-self-heal.yml file not found"
-    fi
-}
-
-# Test 23: ci-autofix triggers on workflow_run
-test_ci_autofix_workflow_run_trigger() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for trigger test)"
-        return
-    fi
-
-    if grep -q "workflow_run:" "$WORKFLOW"; then
-        pass "ci-autofix triggers on workflow_run"
-    else
-        fail "ci-autofix missing workflow_run trigger"
-    fi
-}
-
-# Test 24: ci-autofix watches both CI and PR Code Review workflows
-test_ci_autofix_watches_both_workflows() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for workflows test)"
-        return
-    fi
-
-    if grep -q '"CI"' "$WORKFLOW" && grep -q '"PR Code Review"' "$WORKFLOW"; then
-        pass "ci-autofix watches both CI and PR Code Review workflows"
-    else
-        fail "ci-autofix not watching both CI and PR Code Review workflows"
-    fi
-}
-
-# Test 25: ci-autofix has MAX_AUTOFIX_RETRIES config
-test_ci_autofix_max_retries() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for retries test)"
-        return
-    fi
-
-    if grep -q "MAX_AUTOFIX_RETRIES" "$WORKFLOW"; then
-        pass "ci-autofix has MAX_AUTOFIX_RETRIES config"
-    else
-        fail "ci-autofix missing MAX_AUTOFIX_RETRIES config"
-    fi
-}
-
-# Test 26: ci-autofix excludes main branch
-test_ci_autofix_excludes_main() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for branch exclusion test)"
-        return
-    fi
-
-    if grep -q "main" "$WORKFLOW" && grep -q "head_branch" "$WORKFLOW"; then
-        pass "ci-autofix excludes main branch"
-    else
-        fail "ci-autofix missing main branch exclusion"
-    fi
-}
-
-# Test 27: ci-autofix uses claude-code-action
-test_ci_autofix_uses_claude() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for claude action test)"
-        return
-    fi
-
-    if grep -q "claude-code-action" "$WORKFLOW"; then
-        pass "ci-autofix uses claude-code-action"
-    else
-        fail "ci-autofix missing claude-code-action"
-    fi
-}
-
-# Test 28: ci-autofix uses [autofix] commit tag pattern
-test_ci_autofix_commit_tag() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for commit tag test)"
-        return
-    fi
-
-    if grep -q '\[autofix' "$WORKFLOW"; then
-        pass "ci-autofix uses [autofix] commit tag pattern"
-    else
-        fail "ci-autofix missing [autofix] commit tag pattern"
-    fi
-}
-
-# Test 29: ci-autofix posts sticky PR comment
-test_ci_autofix_sticky_comment() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for sticky comment test)"
-        return
-    fi
-
-    if grep -q "sticky-pull-request-comment" "$WORKFLOW" && grep -q "ci-autofix" "$WORKFLOW"; then
-        pass "ci-autofix posts sticky PR comment"
-    else
-        fail "ci-autofix missing sticky PR comment"
-    fi
-}
-
 # Test 30: ci.yml has workflow_dispatch trigger
 test_ci_workflow_dispatch() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
@@ -544,61 +415,6 @@ test_ci_workflow_dispatch() {
         pass "ci.yml has workflow_dispatch trigger"
     else
         fail "ci.yml missing workflow_dispatch trigger"
-    fi
-}
-
-# Test 31: ci-autofix reads review comment for findings
-test_ci_autofix_reads_review() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for review reading test)"
-        return
-    fi
-
-    if grep -q "claude-review" "$WORKFLOW"; then
-        pass "ci-autofix reads review comment (claude-review header)"
-    else
-        fail "ci-autofix missing review comment reading (claude-review)"
-    fi
-}
-
-# ============================================
-# CI Autofix Prompt & E2E Turns Tests
-# ============================================
-# These tests ensure the ci-autofix prompt passes
-# context via file paths (not broken step outputs)
-# and that simulations have enough turns.
-
-# Test 32: ci-autofix prompt references /tmp/ci-failure-context.txt
-test_ci_autofix_prompt_failure_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for prompt file test)"
-        return
-    fi
-
-    if grep -q "/tmp/ci-failure-context.txt" "$WORKFLOW"; then
-        pass "ci-autofix prompt references /tmp/ci-failure-context.txt"
-    else
-        fail "ci-autofix prompt missing /tmp/ci-failure-context.txt reference (Claude gets empty context)"
-    fi
-}
-
-# Test 33: ci-autofix prompt references /tmp/review-findings.md
-test_ci_autofix_prompt_review_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for prompt file test)"
-        return
-    fi
-
-    if grep -q "/tmp/review-findings.md" "$WORKFLOW"; then
-        pass "ci-autofix prompt references /tmp/review-findings.md"
-    else
-        fail "ci-autofix prompt missing /tmp/review-findings.md reference (Claude gets empty context)"
     fi
 }
 
@@ -651,125 +467,8 @@ test_pr_review_synchronize_trigger
 test_pr_review_synchronize_condition
 test_ci_allowed_tools_no_plan_mode
 test_ci_allowed_tools_task_tracking
-test_ci_autofix_exists
-test_ci_autofix_workflow_run_trigger
-test_ci_autofix_watches_both_workflows
-test_ci_autofix_max_retries
-test_ci_autofix_excludes_main
-test_ci_autofix_uses_claude
-test_ci_autofix_commit_tag
-test_ci_autofix_sticky_comment
 test_ci_workflow_dispatch
-test_ci_autofix_reads_review
-test_ci_autofix_prompt_failure_file
-test_ci_autofix_prompt_review_file
 test_ci_max_turns_sufficient
-
-# ============================================
-# CI Autofix Suggestion Handling Tests
-# ============================================
-# These tests ensure ci-autofix addresses ALL review
-# findings (both criticals and suggestions), not just criticals.
-
-# Test 37: ci-autofix checks for suggestions (not just criticals)
-test_ci_autofix_checks_suggestions() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for suggestions test)"
-        return
-    fi
-
-    if grep -q "Suggestions (nice to have)" "$WORKFLOW"; then
-        pass "ci-autofix checks for suggestions (not just criticals)"
-    else
-        fail "ci-autofix only checks for criticals, ignores suggestions"
-    fi
-}
-
-# Test 38: ci-autofix prompt addresses all findings
-test_ci_autofix_prompt_all_findings() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for prompt test)"
-        return
-    fi
-
-    if grep -q "suggestions" "$WORKFLOW" && grep -q "critical" "$WORKFLOW"; then
-        pass "ci-autofix prompt addresses both criticals and suggestions"
-    else
-        fail "ci-autofix prompt only addresses criticals"
-    fi
-}
-
-# Test 39: ci-autofix prompt tells Claude to use Read tool (not Bash) for context files
-test_ci_autofix_prompt_read_tool() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for Read tool test)"
-        return
-    fi
-
-    if grep -q "Use the Read tool" "$WORKFLOW" && grep -q "NOT Bash" "$WORKFLOW"; then
-        pass "ci-autofix prompt steers Claude to Read tool (prevents wasted Bash denials)"
-    else
-        fail "ci-autofix prompt missing Read tool guidance (Claude will waste turns on denied Bash calls)"
-    fi
-}
-
-test_ci_autofix_checks_suggestions
-test_ci_autofix_prompt_all_findings
-test_ci_autofix_prompt_read_tool
-
-# ============================================
-# CI Autofix Max-Turns & Prompt Hygiene Tests
-# ============================================
-
-# Test 40: ci-autofix --max-turns >= 30
-test_ci_autofix_max_turns() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for max-turns test)"
-        return
-    fi
-
-    # Extract --max-turns value from ci-self-heal.yml
-    TURNS=$(grep -oE '\-\-max-turns [0-9]+' "$WORKFLOW" | grep -oE '[0-9]+')
-
-    if [ -z "$TURNS" ]; then
-        fail "ci-self-heal.yml missing --max-turns flag"
-        return
-    fi
-
-    if [ "$TURNS" -ge 30 ]; then
-        pass "ci-autofix --max-turns is >= 30 ($TURNS)"
-    else
-        fail "ci-autofix --max-turns is $TURNS (need >= 30 for complex fixes)"
-    fi
-}
-
-# Test 41: ci-autofix prompt has no literal \n ternary pattern
-test_ci_autofix_no_ternary_newlines() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml file not found (needed for ternary test)"
-        return
-    fi
-
-    # Check for the problematic pattern: ${{ expr && 'text\n' || '' }}
-    if grep -q "&&.*\\\\n.*||" "$WORKFLOW"; then
-        fail "ci-autofix prompt uses ternary with literal \\n (renders as literal backslash-n, not newline)"
-    else
-        pass "ci-autofix prompt has no ternary \\n pattern"
-    fi
-}
-
-test_ci_autofix_max_turns
-test_ci_autofix_no_ternary_newlines
 
 # ============================================
 # CI Cosmetic Step Resilience Tests
@@ -1567,22 +1266,6 @@ test_ci_score_history_uploaded_as_artifact() {
     fi
 }
 
-# Test 69: ci-autofix has no show_full_output input
-test_ci_autofix_no_show_full_output() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml not found"
-        return
-    fi
-
-    if grep -q 'show_full_output' "$WORKFLOW"; then
-        fail "ci-self-heal.yml still has invalid 'show_full_output' input"
-    else
-        pass "ci-self-heal.yml has no invalid 'show_full_output' input"
-    fi
-}
-
 # Test 70: weekly-update community-e2e-test gates on external findings only
 test_weekly_e2e_triggers_on_findings() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
@@ -1788,26 +1471,6 @@ test_ci_score_upload_artifact_both_tiers() {
     fi
 }
 
-# Test 73: ci-self-heal.yml must NOT have 'workflows: write' permission (invalid scope, breaks GitHub parser)
-test_ci_autofix_no_workflows_permission() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-autofix workflow file not found"
-        return
-    fi
-
-    # 'workflows' is NOT a valid YAML permission scope (actionlint confirms).
-    # Having it causes GitHub's parser to silently fail, registering the workflow
-    # as 'on: push' instead of 'on: workflow_run'. This killed the self-healing loop.
-    # Pushing workflow files requires a PAT with 'workflow' scope or a GitHub App, not YAML permissions.
-    if grep -q 'workflows: write' "$WORKFLOW"; then
-        fail "ci-self-heal.yml has invalid 'workflows: write' permission (breaks GitHub's YAML parser)"
-    else
-        pass "ci-self-heal.yml does not have invalid 'workflows' permission scope"
-    fi
-}
-
 # Test 74: ci.yml initializes git in workspace root before claude-code-action
 test_ci_workspace_git_init() {
     WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
@@ -1902,81 +1565,13 @@ test_monthly_has_pr_write_permission() {
     fi
 }
 
-# Test 78: ci-self-heal.yml has name: field (required for workflow_run registry)
-test_ci_autofix_has_name_field() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml not found"
-        return
-    fi
-
-    # GitHub's workflow registry uses the name: field to match workflow_run triggers.
-    # If the name: field is missing or doesn't match what other workflows reference,
-    # workflow_run events silently stop firing.
-    YAML_NAME=$(python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-print(wf.get('name', ''))
-")
-
-    if [ "$YAML_NAME" = "CI Auto-Fix" ]; then
-        pass "ci-self-heal.yml has correct name: field ('CI Auto-Fix')"
-    elif [ -n "$YAML_NAME" ]; then
-        fail "ci-self-heal.yml name: field is '$YAML_NAME' (expected 'CI Auto-Fix')"
-    else
-        fail "ci-self-heal.yml missing name: field (workflow_run registry will use file path instead)"
-    fi
-}
-
-# Test 79: ci-self-heal.yml has actions: write permission (needed for gh workflow run dispatch)
-test_ci_autofix_has_actions_write() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml not found"
-        return
-    fi
-
-    # GITHUB_TOKEN pushes don't trigger workflow events (anti-loop protection).
-    # The workaround is `gh workflow run ci.yml` to re-trigger CI after fixing.
-    # This requires `actions: write` permission, otherwise: HTTP 403.
-    if grep -q 'actions: write' "$WORKFLOW"; then
-        pass "ci-self-heal.yml has actions: write permission (needed for CI re-trigger)"
-    else
-        fail "ci-self-heal.yml missing actions: write permission (gh workflow run returns 403)"
-    fi
-}
-
-# Test 80: ci-self-heal.yml comment includes collapsible <details> section
-test_ci_autofix_comment_has_details() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "ci-self-heal.yml not found (needed for comment format test)"
-        return
-    fi
-
-    if grep -q '<details>' "$WORKFLOW" && grep -q '</details>' "$WORKFLOW"; then
-        pass "ci-self-heal.yml comment includes collapsible <details> section"
-    else
-        fail "ci-self-heal.yml comment missing <details> section (flat format is not scannable)"
-    fi
-}
-
-test_ci_autofix_comment_has_details
-test_ci_autofix_has_name_field
 test_monthly_has_pr_write_permission
-test_ci_autofix_has_actions_write
 test_tier1_regression_threshold
 test_ci_no_dead_token_extraction
 test_ci_score_history_uploaded_as_artifact
-test_ci_autofix_no_show_full_output
 test_weekly_e2e_triggers_on_findings
 test_monthly_e2e_triggers_on_notable
 test_ci_score_upload_artifact_both_tiers
-test_ci_autofix_no_workflows_permission
 test_ci_workspace_git_init
 test_ci_max_turns_sufficient
 
@@ -2469,55 +2064,6 @@ test_analyze_release_handles_multi() {
 test_weekly_update_multi_release_fetch
 test_analyze_release_handles_multi
 
-# Test 103: ci-self-heal adds needs-regression-test label after autofix
-test_ci_autofix_regression_label() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if grep -q 'needs-regression-test' "$WORKFLOW"; then
-        pass "ci-self-heal.yml adds needs-regression-test label after autofix"
-    else
-        fail "ci-self-heal.yml should add needs-regression-test label when autofix commits"
-    fi
-}
-
-# Test 104: ci-self-heal has issues: write permission (needed for label management)
-test_ci_autofix_has_issues_permission() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if grep -q 'issues: write' "$WORKFLOW"; then
-        pass "ci-self-heal.yml has issues: write permission"
-    else
-        fail "ci-self-heal.yml needs issues: write permission for label management"
-    fi
-}
-
-# Test 105: ci-self-heal sticky comment mentions regression test when fix is committed
-test_ci_autofix_comment_regression_note() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if grep -qi 'regression.*test\|regression-test' "$WORKFLOW"; then
-        pass "ci-self-heal.yml mentions regression test in autofix flow"
-    else
-        fail "ci-self-heal.yml should mention regression test needed after autofix"
-    fi
-}
-
-# Test 106: ci-self-heal ensures label exists before adding it (gh label create --force)
-test_ci_autofix_ensures_label_exists() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if grep -q 'gh label create.*needs-regression-test.*--force' "$WORKFLOW"; then
-        pass "ci-self-heal.yml ensures needs-regression-test label exists before adding"
-    else
-        fail "ci-self-heal.yml should use 'gh label create --force' to ensure label exists"
-    fi
-}
-
-test_ci_autofix_regression_label
-test_ci_autofix_has_issues_permission
-test_ci_autofix_comment_regression_note
-test_ci_autofix_ensures_label_exists
-
 # --- --bare flag tests (non-E2E steps should use --bare, E2E simulations should NOT) ---
 
 # Test 107: pr-review.yml uses --bare in claude_args
@@ -2528,17 +2074,6 @@ test_bare_pr_review() {
         pass "pr-review.yml uses --bare in claude_args"
     else
         fail "pr-review.yml should use --bare (non-E2E analysis step)"
-    fi
-}
-
-# Test 108: ci-self-heal.yml uses --bare in claude_args
-test_bare_ci_self_heal() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-
-    if grep -A3 'claude_args:' "$WORKFLOW" | grep -q '\-\-bare'; then
-        pass "ci-self-heal.yml uses --bare in claude_args"
-    else
-        fail "ci-self-heal.yml should use --bare (non-E2E fix step)"
     fi
 }
 
@@ -2622,7 +2157,6 @@ test_pr_review_opus_model() {
 }
 
 test_bare_pr_review
-test_bare_ci_self_heal
 test_bare_weekly_update_analysis
 test_bare_monthly_research
 test_no_bare_ci_simulations
@@ -2995,22 +2529,6 @@ test_no_stale_daily_cadence() {
     fi
 }
 
-# Test 133: Wizard explicitly distinguishes template defaults vs repo config
-test_wizard_autofix_template_distinction() {
-    local WIZARD="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
-    if [ ! -f "$WIZARD" ]; then
-        fail "CLAUDE_CODE_SDLC_WIZARD.md not found"
-        return
-    fi
-
-    # Must have a callout explaining template vs this repo's config
-    if grep -qi 'template.*vs.*this repo\|template.*repo.*distinction\|template.*safe default' "$WIZARD"; then
-        pass "Wizard distinguishes template defaults vs repo config"
-    else
-        fail "Wizard does not explain template vs repo distinction for autofix"
-    fi
-}
-
 # Test 134: Wizard does not recommend `act` for workflow testing
 # TESTING.md and CI_CD.md say act doesn't work with claude-code-action@v1
 test_wizard_no_act_recommendation() {
@@ -3064,7 +2582,6 @@ test_auto_self_update_no_daily() {
 
 test_readme_raw_url_matches_remote
 test_no_stale_daily_cadence
-test_wizard_autofix_template_distinction
 test_wizard_no_act_recommendation
 test_competitive_audit_no_stale_counts
 test_auto_self_update_no_daily
@@ -3125,19 +2642,6 @@ test_action_pinning_tradeoff_documented() {
     fi
 }
 
-# Test 141: ci-self-heal dispatch gates on committed
-test_self_heal_dispatch_gates_on_committed() {
-    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
-
-    # The "Re-trigger CI" step's if condition must include a committed check
-    if grep -A 5 'Re-trigger CI via workflow dispatch' "$WF" | grep -q 'committed'; then
-        pass "ci-self-heal.yml dispatch gates on committed output"
-    else
-        fail "ci-self-heal.yml dispatch does not check committed — wastes CI runs on no-op"
-    fi
-}
-
 # Test 142: README does not contain brittle exact test counts
 test_readme_no_brittle_test_count() {
     local README="$REPO_ROOT/README.md"
@@ -3155,7 +2659,6 @@ test_pr_review_extraction_uses_array_detection
 test_no_hook_recommends_act
 test_no_unused_id_token_permission
 test_action_pinning_tradeoff_documented
-test_self_heal_dispatch_gates_on_committed
 test_readme_no_brittle_test_count
 
 # --- Round 4: Codex pass-2 audit findings (2026-03-27) ---
@@ -3313,43 +2816,6 @@ test_cicd_permissions_no_id_token() {
     fi
 }
 
-# Test 154: ci-self-heal.yml creates a friction-signal GitHub issue
-test_selfheal_creates_friction_issue() {
-    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
-
-    if grep -q 'gh issue create' "$WF" && grep -q 'friction-signal' "$WF"; then
-        pass "ci-self-heal.yml creates friction-signal issue"
-    else
-        fail "ci-self-heal.yml missing friction-signal issue creation"
-    fi
-}
-
-# Test 155: Friction issue step uses --body-file (not inline body)
-test_selfheal_friction_uses_bodyfile() {
-    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
-
-    if grep -q '\-\-body-file' "$WF"; then
-        pass "Friction issue step uses --body-file"
-    else
-        fail "Friction issue step missing --body-file"
-    fi
-}
-
-# Test 156: Friction issue step is gated on skip != true
-test_selfheal_friction_gated_on_skip() {
-    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
-
-    # The friction step's if condition must check skip
-    if grep -A5 'friction' "$WF" | grep -q "skip != 'true'"; then
-        pass "Friction issue step gated on skip"
-    else
-        fail "Friction issue step not gated on skip"
-    fi
-}
-
 # Test 157: README setup claim references roadmap for cross-stack
 test_readme_setup_mentions_roadmap() {
     local README="$REPO_ROOT/README.md"
@@ -3362,30 +2828,6 @@ test_readme_setup_mentions_roadmap() {
     fi
 }
 
-# Test 158: README friction row mentions self-heal or CI friction
-test_readme_friction_mentions_selfheal() {
-    local README="$REPO_ROOT/README.md"
-    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
-
-    if grep -i 'self-evolving' "$README" | grep -qiE 'self-heal|ci friction|friction signal'; then
-        pass "README friction row mentions self-heal/CI friction"
-    else
-        fail "README friction row does not mention self-heal or CI friction signals"
-    fi
-}
-
-# Test 159: CI_CD.md ci-self-heal section documents friction-signal
-test_cicd_documents_friction_signal() {
-    local CICD="$REPO_ROOT/CI_CD.md"
-    if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
-
-    if grep -qi 'friction.signal' "$CICD"; then
-        pass "CI_CD.md documents friction-signal"
-    else
-        fail "CI_CD.md does not document friction-signal"
-    fi
-}
-
 # Test 160: ROADMAP.md has setup-path E2E item
 test_roadmap_has_setup_path_e2e() {
     local ROADMAP="$REPO_ROOT/ROADMAP.md"
@@ -3395,33 +2837,6 @@ test_roadmap_has_setup_path_e2e() {
         pass "ROADMAP.md has setup-path E2E item"
     else
         fail "ROADMAP.md missing setup-path E2E item"
-    fi
-}
-
-# Test 161: Friction issue step gates on has_findings for review-findings mode
-test_selfheal_friction_gated_on_has_findings() {
-    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
-
-    # The friction step's if condition must check has_findings == 'true' for review-findings mode
-    if grep -A10 'Create friction-signal issue' "$WF" | grep -q "has_findings == 'true'"; then
-        pass "Friction issue step gated on has_findings for review-findings mode"
-    else
-        fail "Friction issue step not gated on has_findings"
-    fi
-}
-
-# Test 162: Friction defaults set as bash assignments before template (envsubst can't handle ${VAR:-default})
-test_selfheal_friction_defaults_before_template() {
-    local WF="$REPO_ROOT/.github/workflows/ci-self-heal.yml"
-    if [ ! -f "$WF" ]; then fail "ci-self-heal.yml not found"; return; fi
-
-    # envsubst only does $VAR/${VAR} — it does NOT evaluate ${VAR:-default}
-    # Defaults must be bash assignments before the heredoc
-    if grep -q 'ERROR_SUMMARY="${ERROR_SUMMARY:-' "$WF" && grep -q 'DIFF_STAT="${DIFF_STAT:-' "$WF"; then
-        pass "Friction defaults set as bash assignments (envsubst-compatible)"
-    else
-        fail "Friction defaults not set as bash assignments before template"
     fi
 }
 
@@ -3505,15 +2920,8 @@ test_ci_validate_read_only_permissions
 test_cicd_no_token_metrics_in_tier1
 test_cicd_push_main_validation_only
 test_cicd_permissions_no_id_token
-test_selfheal_creates_friction_issue
-test_selfheal_friction_uses_bodyfile
-test_selfheal_friction_gated_on_skip
 test_readme_setup_mentions_roadmap
-test_readme_friction_mentions_selfheal
-test_cicd_documents_friction_signal
 test_roadmap_has_setup_path_e2e
-test_selfheal_friction_gated_on_has_findings
-test_selfheal_friction_defaults_before_template
 test_readme_setup_not_proven
 test_weekly_fetches_friction_issues
 test_readme_setup_scopes_generated_assets
@@ -3756,6 +3164,75 @@ test_review_prompt_has_severity_rubric
 test_review_prompt_has_silent_failure_escalation
 test_review_output_format_three_tier
 test_review_severity_matches_agents
+
+# ============================================
+# CI Self-Heal Deprecation Tests
+# ============================================
+# ci-self-heal.yml was removed — local shepherd is sufficient.
+# These tests ensure it stays deleted and references are cleaned up.
+
+# Test: ci-self-heal.yml must NOT exist (deprecated)
+test_ci_self_heal_deleted() {
+    if [ -f "$REPO_ROOT/.github/workflows/ci-self-heal.yml" ]; then
+        fail "ci-self-heal.yml still exists (deprecated — local shepherd replaces it)"
+    else
+        pass "ci-self-heal.yml does not exist (deprecated)"
+    fi
+}
+
+# Test: ci.yml does not run self-heal simulation tests
+test_ci_no_self_heal_simulation_step() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if grep -q 'test-self-heal-simulation' "$CI_FILE"; then
+        fail "ci.yml still runs self-heal simulation tests (workflow deleted)"
+    else
+        pass "ci.yml has no self-heal simulation test step"
+    fi
+}
+
+# Test: self-heal simulation test file must NOT exist
+test_self_heal_simulation_deleted() {
+    if [ -f "$REPO_ROOT/tests/e2e/test-self-heal-simulation.sh" ]; then
+        fail "test-self-heal-simulation.sh still exists (deprecated)"
+    else
+        pass "test-self-heal-simulation.sh does not exist (deprecated)"
+    fi
+}
+
+# Test: ARCHITECTURE.md does not list ci-self-heal.yml
+test_architecture_no_self_heal() {
+    if grep -q 'ci-self-heal' "$REPO_ROOT/ARCHITECTURE.md"; then
+        fail "ARCHITECTURE.md still references ci-self-heal.yml"
+    else
+        pass "ARCHITECTURE.md has no ci-self-heal reference"
+    fi
+}
+
+# Test: CI_CD.md does not document Tier 2 auto-fix bot
+test_cicd_no_tier2_autofix() {
+    if grep -q 'ci-self-heal' "$REPO_ROOT/CI_CD.md"; then
+        fail "CI_CD.md still references ci-self-heal.yml"
+    else
+        pass "CI_CD.md has no ci-self-heal reference"
+    fi
+}
+
+# Test: SKILL.md CI Feedback Loop does not mention auto-fix bot
+test_skill_no_autofix_bot() {
+    local SKILL="$REPO_ROOT/.claude/skills/sdlc/SKILL.md"
+    if grep -qi 'auto-fix bot\|ci-autofix' "$SKILL"; then
+        fail "SKILL.md still references CI auto-fix bot"
+    else
+        pass "SKILL.md has no auto-fix bot reference"
+    fi
+}
+
+test_ci_self_heal_deleted
+test_ci_no_self_heal_simulation_step
+test_self_heal_simulation_deleted
+test_architecture_no_self_heal
+test_cicd_no_tier2_autofix
+test_skill_no_autofix_bot
 
 echo ""
 echo "=== Results ==="

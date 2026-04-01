@@ -8,7 +8,6 @@
 | `ci.yml` | Push to main | Validation only |
 | `weekly-update.yml` | Weekly (Mondays 9 AM UTC) + manual | Check for Claude Code updates + community scan |
 | `monthly-research.yml` | Monthly (1st, 11 AM UTC) + manual | Deep research and trends |
-| `ci-self-heal.yml` | CI fail / review findings | Auto-fix loop |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
 
 ## CI Workflow (`ci.yml`)
@@ -198,93 +197,13 @@ No separate marketplace registry exists for Claude Code — the LLM-driven relea
 - Monthly schedule: 11 AM UTC on the 1st (`cron: '0 11 1 * *'`)
 - Manual trigger also available (workflow_dispatch)
 
-## Two-Tier CI Fix Model
-
-The repo uses two complementary mechanisms for fixing CI failures:
-
-### Tier 1: Local Shepherd (Primary)
+## CI Fix Model — Local Shepherd
 
 The SDLC skill's CI feedback loops (`.claude/skills/sdlc/SKILL.md`) run during active development sessions. Claude watches CI via `gh pr checks --watch`, reads failure logs via `gh run view <RUN_ID> --log-failed`, fixes locally, and pushes — all within one session with full context.
 
 **Advantages:** Full codebase context, zero extra commits, immediate iteration, no API cost beyond the session.
 
-**Limits:** Only active when a developer is working with Claude. Does not cover unattended PRs.
-
-### Tier 2: CI Auto-Fix Bot (Fallback)
-
-The `ci-self-heal.yml` workflow triggers on CI failure via `workflow_run`. It's the safety net for unattended PRs (dependabot, overnight runs, push-and-walk-away).
-
-**SHA-based suppression:** Before running, the bot compares the current branch HEAD against the SHA that triggered the failure. If different (someone already pushed a fix), the bot skips. This prevents redundant bot runs when the shepherd has already acted.
-
-## CI Auto-Fix Workflow (`ci-self-heal.yml`) — Tier 2
-
-### What It Does
-
-Automated fix loop that responds to CI failures and PR review findings.
-
-**Review architecture:**
-```
-Solo:   Code → /code-review → Fix locally → Push → CI tests → Done
-Team:   Code → /code-review → Push → CI tests → CI PR Review → Team discusses
-        (optional: CI autofix addresses findings automatically)
-```
-
-**How it works:**
-
-1. **CI failure mode**: Downloads failure logs, Claude reads them, fixes code, commits, re-triggers CI
-2. **Review findings mode**: Fetches `claude-review` sticky comment, checks for findings (criticals + suggestions) based on `AUTOFIX_LEVEL`, Claude fixes them
-
-### Loop Architecture
-
-```
-Push to PR
-    |
-    v
-CI runs ──► FAIL ──► ci-self-heal ──► Claude fixes ──► commit [autofix N/M] ──► re-trigger CI
-    |                                                                                 |
-    |   <─────────────────────────────────────────────────────────────────────────────┘
-    |
-    └── PASS ──► PR Review ──► APPROVE, no findings at level ──► DONE
-                      |
-                      └── has findings ──► ci-self-heal ──► Claude fixes all ──► loop back
-```
-
-### Safety Measures
-
-| Measure | Purpose |
-|---------|---------|
-| `head_branch != 'main'` | Never auto-fix production |
-| `MAX_AUTOFIX_RETRIES: 3` | Prevent infinite loops (configurable) |
-| `AUTOFIX_LEVEL` | Controls what findings to act on (`ci-only`, `criticals`, `all-findings` (current)) |
-| Restricted Claude tools | No git, no npm - only read/edit/write/test |
-| `--max-turns 30` | Limit Claude execution |
-| `[autofix N/M]` commits | Audit trail in git history |
-| Sticky PR comments | User always sees status |
-| Self-modification ban | Prompt forbids editing ci-self-heal.yml |
-
-### Friction Signal Capture
-
-Every self-heal event creates a `friction-signal` GitHub issue with structured data:
-- Trigger mode (CI failure vs review findings)
-- PR context and attempt count
-- Whether a fix was applied and what changed
-- Error summary
-
-Open friction-signal issues are fed into the weekly community scan prompt alongside external findings. Claude uses them to inform recommended actions. Full downstream automation (digest creation, E2E from friction-only weeks) is a follow-up improvement.
-
-### Token Approaches
-
-| Approach | When | How |
-|----------|------|-----|
-| **GITHUB_TOKEN** (default) | No app secrets | Commit + `gh workflow run ci.yml` to re-trigger (needs `actions: write`) |
-| **GitHub App** | `CI_AUTOFIX_APP_ID` secret exists | `actions/create-github-app-token` → push triggers `synchronize` |
-
-**Why `gh workflow run`?** GITHUB_TOKEN pushes do NOT trigger workflow events (GitHub's anti-infinite-loop protection). The explicit dispatch is the workaround.
-
-### Runs On
-- `workflow_run` completion of CI (on failure)
-- `workflow_run` completion of PR Code Review (on success, to check findings)
-- Only on PR branches (never main)
+> **Note:** A CI auto-fix bot was previously used as a fallback for unattended PRs. It was deprecated in March 2026 because the local shepherd provides higher-quality fixes with full context, at lower cost.
 
 ## PR Review Workflow (`pr-review.yml`)
 
@@ -332,10 +251,8 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 
 | Secret | Used By | Purpose |
 |--------|---------|---------|
-| `ANTHROPIC_API_KEY` | weekly-update, monthly-research, ci, pr-review, ci-self-heal | Claude API access |
+| `ANTHROPIC_API_KEY` | weekly-update, monthly-research, ci, pr-review | Claude API access |
 | `GITHUB_TOKEN` | All workflows | Auto-provided by GitHub |
-| `CI_AUTOFIX_APP_ID` | ci-self-heal (optional) | GitHub App ID for token generation |
-| `CI_AUTOFIX_PRIVATE_KEY` | ci-self-heal (optional) | GitHub App private key |
 
 ## Workflow Permissions
 
@@ -359,12 +276,6 @@ permissions:
 permissions:
   contents: write      # For commits
   pull-requests: write # For PR creation/comments
-```
-
-**ci-self-heal.yml** additionally needs:
-
-```yaml
-  actions: write       # For gh workflow run (CI re-trigger)
 ```
 
 ## Troubleshooting
