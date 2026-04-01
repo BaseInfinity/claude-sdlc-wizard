@@ -1250,7 +1250,7 @@ Recommendation: Your current tests rely heavily on mocks.
 
 Claude assigns a state to each configuration data point based on scan results. **RESOLVED (detected)** items are presented for bulk confirmation. **RESOLVED (inferred)** items are presented with inferred values for the user to verify. **UNRESOLVED** items become questions. **The number of questions is dynamic — it depends on how much the scan resolves.** Stop asking when ALL data points are resolved (detected, inferred+confirmed, or answered by user).
 
-Claude presents what it found, organized by confidence:
+Claude presents what it found, organized by resolution state:
 
 ### Project Structure (Auto-Detected)
 
