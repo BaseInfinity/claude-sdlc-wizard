@@ -1,17 +1,19 @@
 ---
 name: setup-wizard
-description: Setup wizard — scans codebase, asks 18 config questions (including CI shepherd opt-in), generates SDLC files (CLAUDE.md, SDLC.md, TESTING.md, ARCHITECTURE.md), verifies installation. Use for first-time setup or re-running setup.
+description: Setup wizard — scans codebase, builds confidence per data point, only asks what it can't figure out, generates SDLC files. Use for first-time setup or re-running setup.
 argument-hint: [optional: regenerate | verify-only]
 effort: high
 ---
-# Setup Wizard - Interactive Project Configuration
+# Setup Wizard - Confidence-Driven Project Configuration
 
 ## Task
 $ARGUMENTS
 
 ## Purpose
 
-You are an interactive setup wizard. Your job is to scan the project, ask the user ALL configuration questions, and generate the SDLC files. DO NOT skip questions. DO NOT make assumptions. The user's answers drive the output.
+You are a confidence-driven setup wizard. Your job is to scan the project, infer as much as possible, and only ask the user about what you can't figure out. The number of questions is DYNAMIC — it depends on how much you can detect. Stop asking when you reach 95% aggregate confidence across all configuration data points.
+
+**DO NOT ask a fixed list of questions. DO NOT ask what you already know.**
 
 ## MANDATORY FIRST ACTION: Read the Wizard Doc
 
@@ -36,59 +38,70 @@ Scan the project root for:
 - Deployment: Dockerfile, vercel.json, fly.toml, netlify.toml, Procfile, k8s/
 - Design system: tailwind.config.*, .storybook/, theme files, CSS custom properties
 - Existing docs: README.md, CLAUDE.md, ARCHITECTURE.md
+- Scripts in package.json (lint, test, build, typecheck, etc.)
+- Database config files (prisma/, drizzle.config.*, knexfile.*, .env with DB_*)
+- Cache config (redis.conf, .env with REDIS_*)
 
-Present findings to the user in a clear summary with detected values.
+### Step 2: Build Confidence Map
 
-### Step 2: Ask ALL 18 Questions
+For each configuration data point, assign a confidence level based on scan results:
 
-Ask every question. Pre-fill detected values but let the user confirm or override.
+**Configuration Data Points:**
 
-**Project Structure:**
-1. Source directory (detected or ask)
-2. Test directory (detected or ask)
-3. Test framework (detected or ask)
+| Category | Data Point | How to Detect |
+|----------|-----------|---------------|
+| Structure | Source directory | Look for src/, app/, lib/, etc. |
+| Structure | Test directory | Look for tests/, __tests__/, spec/ |
+| Structure | Test framework | Config files (jest.config, vitest.config, pytest.ini) |
+| Commands | Lint command | package.json scripts, Makefile, config files |
+| Commands | Type-check command | tsconfig.json → tsc, mypy.ini → mypy |
+| Commands | Run all tests | package.json "test" script, Makefile |
+| Commands | Run single test file | Infer from framework (jest → jest path, pytest → pytest path) |
+| Commands | Production build | package.json "build" script, Makefile |
+| Commands | Deployment setup | Dockerfile, vercel.json, fly.toml, deploy scripts |
+| Infra | Database(s) | prisma/, .env DB vars, docker-compose services |
+| Infra | Caching layer | .env REDIS vars, docker-compose redis service |
+| Infra | Test duration | Count test files, check CI run times if available |
+| Preferences | Response detail level | Cannot detect — always ask if not found |
+| Testing | Testing approach | Existing test patterns (test-first files, coverage config) |
+| Testing | Test types | What test files exist (*.test.*, *.spec.*, e2e/, integration/) |
+| Testing | Mocking philosophy | Scan for jest.mock, unittest.mock usage patterns |
+| Coverage | Coverage config | nyc, c8, coverage.py config, CI coverage steps |
+| CI | CI shepherd opt-in | Only if CI detected — ask user preference |
 
-**Commands:**
-4. Lint command
-5. Type-check command
-6. Run all tests command
-7. Run single test file command
-8. Production build command
-9. Deployment setup (detected environments, confirm or customize)
+**Confidence levels per data point:**
+- **HIGH (90%+):** Found concrete evidence (config file, script, directory exists)
+- **MEDIUM (60-89%):** Found indirect evidence (naming patterns, related config)
+- **LOW (<60%):** No evidence found — must ask user
 
-**Infrastructure:**
-10. Database(s) used
-11. Caching layer (Redis, etc.)
-12. Test duration (<1 min, 1-5 min, 5+ min)
+### Step 3: Present Findings and Fill Gaps
 
-**Output Preferences:**
-13. Response detail level (small/medium/large)
+Present ALL detected values with their confidence levels to the user.
 
-**Testing Philosophy:**
-14. Testing approach (strict TDD, test-after, mixed, minimal, none yet)
-15. Test types wanted (unit, integration, E2E, API)
-16. Mocking philosophy (minimal, heavy, no mocking)
+**For HIGH confidence items:** Show what was detected, let user confirm with a single "Looks good" or override specific items.
 
-**Coverage:**
-17. Code coverage preferences (enforce threshold, report only, AI suggestions, skip)
+**For MEDIUM confidence items:** Show what was inferred, ask user to confirm or correct.
 
-**CI Shepherd (only if CI detected in Step 1):**
-18. CI shepherd opt-in — enable full CI shepherd role? (yes/no). If yes, ask sub-questions: CI monitoring detail, review feedback level (L1/L2/L3). Store choice in SDLC.md metadata as `<!-- CI Shepherd: enabled/disabled -->`. If no CI detected, skip and note in SDLC.md as `<!-- CI Shepherd: not applicable -->`.
+**For LOW confidence items:** Ask the user directly — these are your questions.
 
-DO NOT proceed to file generation until ALL 18 questions have answers (or questions are marked N/A).
+**The 95% rule:** Calculate aggregate confidence across all data points. If aggregate >= 95%, you have enough to generate files. Present your findings and ask for a single confirmation. If aggregate < 95%, ask about the LOW confidence items until you reach 95%.
 
-### Step 3: Generate CLAUDE.md
+**The number of questions you ask depends entirely on what the scan reveals.** A well-configured project with clear conventions might need 0-2 questions. A bare repo might need 10+. There is no fixed count.
 
-Using the user's answers, generate `CLAUDE.md` with:
+DO NOT proceed to file generation until aggregate confidence >= 95% (or all gaps are filled).
+
+### Step 4: Generate CLAUDE.md
+
+Using detected + confirmed values, generate `CLAUDE.md` with:
 - Project overview (from scan results)
-- Commands table (Q4-Q8 answers)
+- Commands table (detected/confirmed commands)
 - Code style section (from detected linters/formatters)
 - Architecture summary (from scan)
-- Special notes (from Q9-Q11)
+- Special notes (infra, deployment)
 
 Reference: See "Step 3" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
-### Step 4: Generate SDLC.md
+### Step 5: Generate SDLC.md
 
 Generate `SDLC.md` with the full SDLC checklist customized to the project:
 - Plan mode guidance
@@ -106,30 +119,30 @@ Include metadata comments:
 
 Reference: See "Step 4" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
-### Step 5: Generate TESTING.md
+### Step 6: Generate TESTING.md
 
-Generate `TESTING.md` based on Q13-Q16 answers:
+Generate `TESTING.md` based on detected/confirmed testing data:
 - Testing Diamond visualization
 - Test types and their purposes
-- Mocking rules (from Q15)
-- Test file organization (from Q2, Q3)
-- Coverage config (from Q16)
+- Mocking rules (from detected patterns or user input)
+- Test file organization (from detected structure)
+- Coverage config (from detected config or user input)
 - Framework-specific patterns
 
 Reference: See "Step 5" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
-### Step 6: Generate ARCHITECTURE.md
+### Step 7: Generate ARCHITECTURE.md
 
 Generate `ARCHITECTURE.md` with:
 - System overview diagram (from scan)
 - Component descriptions
-- Environments table (from Q8.5)
+- Environments table (from detected deployment config)
 - Deployment checklist
 - Key technical decisions
 
 Reference: See "Step 6" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
-### Step 7: Generate DESIGN_SYSTEM.md (If UI Detected)
+### Step 8: Generate DESIGN_SYSTEM.md (If UI Detected)
 
 Only if design system artifacts were found in Step 1:
 - Extract colors, fonts, spacing from config
@@ -138,7 +151,7 @@ Only if design system artifacts were found in Step 1:
 
 Skip this step if no UI/design system detected.
 
-### Step 8: Configure Tool Permissions
+### Step 9: Configure Tool Permissions
 
 Based on detected stack, suggest `allowedTools` entries for `.claude/settings.json`:
 - Package manager commands (npm, pnpm, yarn, cargo, go, pip, etc.)
@@ -147,11 +160,11 @@ Based on detected stack, suggest `allowedTools` entries for `.claude/settings.js
 
 Present suggestions and let the user confirm.
 
-### Step 9: Customize Hooks
+### Step 10: Customize Hooks
 
-Update `tdd-pretool-check.sh` with the actual source directory from Q1 (replace generic `/src/` pattern).
+Update `tdd-pretool-check.sh` with the actual source directory (replace generic `/src/` pattern).
 
-### Step 10: Verify Setup
+### Step 11: Verify Setup
 
 Run verification checks:
 1. All generated files exist and are non-empty
@@ -162,7 +175,7 @@ Run verification checks:
 
 Report any issues found.
 
-### Step 11: Instruct Restart and Next Steps
+### Step 12: Instruct Restart and Next Steps
 
 Tell the user:
 > Setup complete. Hooks and settings load at session start.
@@ -176,9 +189,10 @@ Tell the user:
 
 ## Rules
 
-- NEVER skip a question. If the user says "I don't know", record that and move on.
-- NEVER assume answers. If auto-scan can't detect something, ASK.
-- ALWAYS show detected values and let the user confirm or override.
+- NEVER ask what you already know from scanning. If you found it, confirm it — don't ask it.
+- NEVER use a fixed question count. The number of questions is dynamic based on scan results.
+- ALWAYS show detected values with confidence levels and let the user confirm or override.
 - ALWAYS generate metadata comments in SDLC.md (version, date, steps).
+- If aggregate confidence >= 95% after scanning, present findings for bulk confirmation — don't force individual questions.
 - If the user passes `regenerate` as an argument, skip Q&A and regenerate files from existing SDLC.md metadata.
-- If the user passes `verify-only` as an argument, skip to Step 10 (verify) only.
+- If the user passes `verify-only` as an argument, skip to Step 11 (verify) only.

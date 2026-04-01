@@ -852,28 +852,69 @@ test_wizard_shepherd_gates_sub_questions() {
     fi
 }
 
-# Setup wizard SKILL.md mentions 18 questions (was 17)
-test_setup_skill_question_count() {
+# Setup wizard uses confidence-driven approach (no fixed question count)
+test_setup_skill_confidence_driven() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
-    if grep -q "18" "$skill_file" && grep -qi "question" "$skill_file"; then
-        pass "Setup wizard SKILL.md mentions 18 questions"
+    if grep -qi "confidence" "$skill_file" && ! grep -q "Ask ALL 18" "$skill_file"; then
+        pass "Setup wizard uses confidence-driven approach (no fixed 18 questions)"
     else
-        fail "Setup wizard SKILL.md should mention 18 questions (added CI shepherd opt-in)"
+        fail "Setup wizard should use confidence-driven approach, not fixed 18 questions"
     fi
 }
 
-# Setup wizard SKILL.md template parity for question count
-test_setup_skill_template_parity_questions() {
+# Setup wizard skill has confidence threshold
+test_setup_skill_confidence_threshold() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    if grep -q "95%" "$skill_file"; then
+        pass "Setup wizard has 95% confidence threshold"
+    else
+        fail "Setup wizard should have 95% confidence threshold for when to stop asking"
+    fi
+}
+
+# Setup wizard skill scans FIRST, asks SECOND (step ordering)
+test_setup_skill_scan_then_ask() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    local scan_line
+    scan_line=$(grep -n "### Step 1: Auto-Scan" "$skill_file" | head -1 | cut -d: -f1)
+    local confidence_line
+    confidence_line=$(grep -n "### Step 2: Build Confidence\|### Step 3: Present Findings and Fill Gaps" "$skill_file" | head -1 | cut -d: -f1)
+    if [ -n "$scan_line" ] && [ -n "$confidence_line" ] && [ "$scan_line" -lt "$confidence_line" ]; then
+        pass "Setup wizard scans before asking (Step 1 scan=$scan_line < Step 2/3 confidence=$confidence_line)"
+    else
+        fail "Setup wizard should scan FIRST (Step 1) then build confidence and ask (Step 2/3) (scan=$scan_line, confidence=$confidence_line)"
+    fi
+}
+
+# Setup wizard does NOT hardcode a fixed number of questions
+test_setup_skill_no_fixed_question_count() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    # Check for prescriptive fixed counts like "Ask ALL 18 Questions" or "asks 18 config questions"
+    if grep -qE "Ask ALL [0-9]+ Questions|asks [0-9]+ .* questions" "$skill_file"; then
+        fail "Setup wizard should NOT hardcode a fixed number of questions"
+    else
+        pass "Setup wizard does not hardcode a fixed question count"
+    fi
+}
+
+# Setup wizard skill describes data points not numbered questions
+test_setup_skill_data_points() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
+    if grep -qi "data point\|configuration data" "$skill_file"; then
+        pass "Setup wizard describes configuration as data points to resolve"
+    else
+        fail "Setup wizard should describe configuration as data points, not numbered questions"
+    fi
+}
+
+# Setup wizard template parity (live matches CLI template)
+test_setup_skill_template_parity() {
     local live="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
     local template="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
-    local live_count
-    live_count=$(grep -c "Q[0-9]" "$live" || true)
-    local template_count
-    template_count=$(grep -c "Q[0-9]" "$template" || true)
-    if [ "$live_count" -eq "$template_count" ] && [ "$live_count" -gt 0 ]; then
-        pass "Setup wizard SKILL.md question count matches template ($live_count)"
+    if diff -q "$live" "$template" > /dev/null 2>&1; then
+        pass "Setup wizard live skill matches CLI template"
     else
-        fail "Setup wizard SKILL.md question count ($live_count) should match template ($template_count)"
+        fail "Setup wizard live skill does NOT match CLI template"
     fi
 }
 
@@ -983,8 +1024,12 @@ test_skill_no_stale_references() {
 
 test_wizard_shepherd_optin_question
 test_wizard_shepherd_gates_sub_questions
-test_setup_skill_question_count
-test_setup_skill_template_parity_questions
+test_setup_skill_confidence_driven
+test_setup_skill_confidence_threshold
+test_setup_skill_scan_then_ask
+test_setup_skill_no_fixed_question_count
+test_setup_skill_data_points
+test_setup_skill_template_parity
 test_ci_analyzer_deleted
 test_ci_analyzer_template_deleted
 test_wizard_no_ci_analyzer_skill
