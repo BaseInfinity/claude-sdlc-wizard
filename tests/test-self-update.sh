@@ -798,6 +798,43 @@ test_version_gate_cc_path_capture
 test_version_gate_path_passed
 test_cicd_version_pinned_gate
 
+# --- Release Consistency Tests ---
+echo ""
+echo "--- Release Consistency ---"
+
+# package.json version matches CHANGELOG latest entry
+test_package_version_matches_changelog() {
+    local pkg="$SCRIPT_DIR/../package.json"
+    local changelog="$SCRIPT_DIR/../CHANGELOG.md"
+    local pkg_version
+    pkg_version=$(node -e "console.log(require('$pkg').version)")
+    local changelog_version
+    changelog_version=$(grep -m1 '## \[' "$changelog" | sed 's/.*\[\(.*\)\].*/\1/')
+    if [ "$pkg_version" = "$changelog_version" ]; then
+        pass "package.json ($pkg_version) matches CHANGELOG ($changelog_version)"
+    else
+        fail "package.json ($pkg_version) should match CHANGELOG latest ($changelog_version)"
+    fi
+}
+
+# package.json version matches SDLC.md version table
+test_package_version_matches_sdlc() {
+    local pkg="$SCRIPT_DIR/../package.json"
+    local sdlc="$SCRIPT_DIR/../SDLC.md"
+    local pkg_version
+    pkg_version=$(node -e "console.log(require('$pkg').version)")
+    local sdlc_version
+    sdlc_version=$(grep 'Wizard Version' "$sdlc" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+    if [ "$pkg_version" = "$sdlc_version" ]; then
+        pass "package.json ($pkg_version) matches SDLC.md ($sdlc_version)"
+    else
+        fail "package.json ($pkg_version) should match SDLC.md Wizard Version ($sdlc_version)"
+    fi
+}
+
+test_package_version_matches_changelog
+test_package_version_matches_sdlc
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
