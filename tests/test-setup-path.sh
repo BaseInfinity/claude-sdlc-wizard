@@ -53,7 +53,7 @@ for fixture in $FIXTURE_NAMES; do
         fail "[$fixture] init should exit 0"
     fi
 
-    # Test: all 9 wizard files created
+    # Test: all 8 wizard files created
     count=0
     [ -f "$d/.claude/settings.json" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/sdlc-prompt-check.sh" ] && count=$((count + 1))
@@ -62,12 +62,11 @@ for fixture in $FIXTURE_NAMES; do
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/update/SKILL.md" ] && count=$((count + 1))
-    [ -f "$d/.claude/skills/ci-analyzer/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 9 ]; then
-        pass "[$fixture] all 9 wizard files created"
+    if [ "$count" -eq 8 ]; then
+        pass "[$fixture] all 8 wizard files created"
     else
-        fail "[$fixture] expected 9 wizard files, found $count"
+        fail "[$fixture] expected 8 wizard files, found $count"
     fi
 
     # Test: hooks are executable
