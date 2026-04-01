@@ -123,9 +123,16 @@ Every simulation has automated integrity checks:
 
 ### Token / Resource Metrics
 
-Token and cost tracking was removed in PR #33. `claude-code-action@v1` does not expose usage data in its execution output file. All extracted values were N/A.
+CI-level token tracking was removed in PR #33 — `claude-code-action@v1` does not expose usage data in its execution output file.
 
-Token tracking can be re-enabled when the action starts exposing usage fields (`duration`, `input_tokens`, `output_tokens`, etc.).
+**Available cost controls:**
+- `--max-budget-usd` and `--max-turns` via `claude_args` (hard caps per CI invocation)
+- `--effort low|medium|high` controls thinking token consumption
+
+**Available tracking (outside CI):**
+- `/cost` command shows session totals (USD, API time, code changes)
+- Status line JSON provides real-time `cost.total_cost_usd` and per-request token counts
+- OpenTelemetry export (`CLAUDE_CODE_ENABLE_TELEMETRY=1`) sends per-request `cost_usd`, `input_tokens`, `output_tokens` to any OTLP backend
 
 ### Runs On
 - Every pull request (Tier 1)

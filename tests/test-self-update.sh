@@ -613,6 +613,50 @@ test_wizard_clear_guidance
 test_wizard_auto_compact
 test_skill_clear_reference
 
+# --- Token Efficiency Tests (#42) ---
+
+# Wizard documents token efficiency techniques
+test_wizard_token_efficiency() {
+    if grep -q "Token Efficiency" "$WIZARD"; then
+        pass "Wizard documents token efficiency techniques"
+    else
+        fail "Wizard should document token efficiency techniques"
+    fi
+}
+
+# Wizard documents --max-budget-usd for CI cost control
+test_wizard_max_budget() {
+    if grep -q "max-budget-usd" "$WIZARD"; then
+        pass "Wizard documents --max-budget-usd for CI cost control"
+    else
+        fail "Wizard should document --max-budget-usd as a CI cost safety net"
+    fi
+}
+
+# CI_CD.md documents token tracking capabilities
+test_cicd_token_tracking() {
+    local cicd="$SCRIPT_DIR/../CI_CD.md"
+    if grep -qi "OpenTelemetry\|otel\|cost.*track\|token.*track" "$cicd"; then
+        pass "CI_CD.md documents token tracking capabilities"
+    else
+        fail "CI_CD.md should document available token tracking capabilities"
+    fi
+}
+
+# Wizard documents /cost command for session monitoring
+test_wizard_cost_command() {
+    if grep -q "/cost" "$WIZARD"; then
+        pass "Wizard documents /cost command"
+    else
+        fail "Wizard should document /cost command for session monitoring"
+    fi
+}
+
+test_wizard_token_efficiency
+test_wizard_max_budget
+test_cicd_token_tracking
+test_wizard_cost_command
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
