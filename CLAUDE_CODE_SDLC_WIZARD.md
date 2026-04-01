@@ -1248,7 +1248,7 @@ Recommendation: Your current tests rely heavily on mocks.
 
 ## Step 1: Build Confidence Map and Fill Gaps
 
-Claude assigns a confidence level to each configuration data point based on scan results. HIGH confidence items are presented for bulk confirmation. MEDIUM items are presented with inferred values for the user to verify. LOW items become questions. **The number of questions is dynamic — it depends on how much the scan resolves.** Stop asking when aggregate confidence >= 95%.
+Claude assigns a state to each configuration data point based on scan results. **RESOLVED (detected)** items are presented for bulk confirmation. **RESOLVED (inferred)** items are presented with inferred values for the user to verify. **UNRESOLVED** items become questions. **The number of questions is dynamic — it depends on how much the scan resolves.** Stop asking when ALL data points are resolved (detected, inferred+confirmed, or answered by user).
 
 Claude presents what it found, organized by confidence:
 
