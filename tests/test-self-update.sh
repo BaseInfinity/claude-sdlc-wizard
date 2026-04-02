@@ -1409,6 +1409,271 @@ test_skill_agents_mention() {
 test_wizard_agents_guidance
 test_skill_agents_mention
 
+# -------------------------------------------------------------------
+# #57 Context Position Audit — critical content in first 30%
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #57 Context Position Audit ---"
+
+# Test: "ALL TESTS MUST PASS" appears in first 40% of SKILL.md
+test_tests_must_pass_position() {
+    local total_lines
+    total_lines=$(wc -l < "$SKILL")
+    local threshold=$((total_lines * 40 / 100))
+    local match_line
+    match_line=$(grep -n "ALL TESTS MUST PASS" "$SKILL" | head -1 | cut -d: -f1)
+    if [ -n "$match_line" ] && [ "$match_line" -le "$threshold" ]; then
+        pass "ALL TESTS MUST PASS in first 40% of SKILL.md (line $match_line of $total_lines, threshold $threshold)"
+    else
+        fail "ALL TESTS MUST PASS should be in first 40% of SKILL.md (line ${match_line:-missing} of $total_lines, threshold $threshold)"
+    fi
+}
+
+# Test: Scoring Rubric appears BEFORE Test Failure Recovery
+test_rubric_before_test_failure() {
+    local rubric_line test_failure_line
+    rubric_line=$(grep -n "Scoring Rubric" "$SKILL" | head -1 | cut -d: -f1)
+    test_failure_line=$(grep -n "Test Failure Recovery" "$SKILL" | head -1 | cut -d: -f1)
+    if [ -n "$rubric_line" ] && [ -n "$test_failure_line" ] && [ "$rubric_line" -lt "$test_failure_line" ]; then
+        pass "Scoring Rubric (line $rubric_line) before Test Failure Recovery (line $test_failure_line)"
+    else
+        fail "Scoring Rubric should appear before Test Failure Recovery"
+    fi
+}
+
+# Test: Self-Review Loop appears BEFORE CI Feedback Loop
+test_self_review_before_ci() {
+    local self_review_line ci_line
+    self_review_line=$(grep -n "Self-Review Loop" "$SKILL" | head -1 | cut -d: -f1)
+    ci_line=$(grep -n "CI Feedback Loop" "$SKILL" | head -1 | cut -d: -f1)
+    if [ -n "$self_review_line" ] && [ -n "$ci_line" ] && [ "$self_review_line" -lt "$ci_line" ]; then
+        pass "Self-Review Loop (line $self_review_line) before CI Feedback Loop (line $ci_line)"
+    else
+        fail "Self-Review Loop should appear before CI Feedback Loop"
+    fi
+}
+
+test_tests_must_pass_position
+test_rubric_before_test_failure
+test_self_review_before_ci
+
+# -------------------------------------------------------------------
+# #72+#56 Cross-Model Review Standardization + Adversarial Prompting
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #72+#56 Cross-Model Review Standardization ---"
+
+# Test: Handoff schema has mission/success/failure fields
+test_handoff_mission_fields() {
+    local has_mission has_success has_failure
+    has_mission=$(grep -c '"mission"' "$SKILL") || true
+    has_success=$(grep -c '"success"' "$SKILL") || true
+    has_failure=$(grep -c '"failure"' "$SKILL") || true
+    if [ "$has_mission" -gt 0 ] && [ "$has_success" -gt 0 ] && [ "$has_failure" -gt 0 ]; then
+        pass "Handoff schema has mission/success/failure fields"
+    else
+        fail "Handoff schema should have mission, success, and failure fields (found: mission=$has_mission, success=$has_success, failure=$has_failure)"
+    fi
+}
+
+# Test: Review prompt does NOT contain "find at least N" anti-pattern
+test_no_find_n_problems() {
+    if grep -qi "find at least [0-9]" "$SKILL"; then
+        fail "Review prompt should NOT use 'find at least N' pattern (incentivizes false positives)"
+    else
+        pass "Review prompt does not use 'find at least N' anti-pattern"
+    fi
+}
+
+# Test: Preflight self-review doc is mentioned
+test_preflight_doc_mentioned() {
+    if grep -qi "preflight" "$SKILL"; then
+        pass "SKILL.md mentions preflight self-review doc"
+    else
+        fail "SKILL.md should mention preflight self-review doc (proven to reduce findings to 0-1/round)"
+    fi
+}
+
+# Test: Review prompt includes verification checklist pattern
+test_verification_checklist() {
+    if grep -qi "verification checklist\|VERIFICATION CHECKLIST\|specific.*verification\|verify.*checklist" "$SKILL"; then
+        pass "Review prompt includes verification checklist pattern"
+    else
+        fail "Review prompt should include verification checklist pattern (not generic 'review this')"
+    fi
+}
+
+# Test: Domain template guidance exists (code is default, others possible)
+test_domain_template_guidance() {
+    if grep -qi "domain.*template\|domain.*specific\|non-code.*domain\|code.*default" "$SKILL"; then
+        pass "SKILL.md has domain template guidance"
+    else
+        fail "SKILL.md should note code review as default domain with guidance for other domains"
+    fi
+}
+
+# Test: Wizard doc cross-model section has mission-first handoff
+test_wizard_mission_first() {
+    if grep -qi "mission.*success.*failure\|THE MISSION\|mission-first" "$WIZARD"; then
+        pass "Wizard doc has mission-first handoff pattern"
+    else
+        fail "Wizard doc should have mission-first handoff pattern in cross-model review section"
+    fi
+}
+
+test_handoff_mission_fields
+test_no_find_n_problems
+test_preflight_doc_mentioned
+test_verification_checklist
+test_domain_template_guidance
+test_wizard_mission_first
+
+# -------------------------------------------------------------------
+# #73 Release Planning Gate (section in SDLC skill)
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #73 Release Planning Gate ---"
+
+# Test: SKILL.md has Release Planning section
+test_release_planning_section() {
+    if grep -qi "Release Planning" "$SKILL"; then
+        pass "SKILL.md has Release Planning section"
+    else
+        fail "SKILL.md should have Release Planning section"
+    fi
+}
+
+# Test: Release planning mentions 95% confidence for all items
+test_release_planning_confidence() {
+    # Use multiline approach: check that both concepts exist in the file
+    local has_release has_confidence
+    has_release=$(grep -ci "release.*plan\|plan.*release" "$SKILL") || true
+    has_confidence=$(grep -c "95%" "$SKILL") || true
+    if [ "$has_release" -gt 0 ] && [ "$has_confidence" -gt 0 ]; then
+        pass "Release planning references 95% confidence threshold"
+    else
+        fail "Release planning should reference 95% confidence for all items"
+    fi
+}
+
+# Test: Prove It Gate includes skill absorption check
+test_prove_it_absorption() {
+    if grep -qi "absorb\|existing skill\|existing.*component" "$SKILL" | grep -qi "prove it\|new.*skill\|new.*addition" "$SKILL"; then
+        pass "Prove It Gate includes absorption check"
+    else
+        # More flexible check
+        if grep -qi "absorb" "$SKILL" && grep -qi "Prove It" "$SKILL"; then
+            pass "Prove It Gate includes absorption check"
+        else
+            fail "Prove It Gate should check if new addition can be absorbed into existing skill"
+        fi
+    fi
+}
+
+test_release_planning_section
+test_release_planning_confidence
+test_prove_it_absorption
+
+# -------------------------------------------------------------------
+# #65 Testing Diamond Boundary Clarification
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #65 Testing Diamond Boundary ---"
+
+# Test: Wizard doc draws explicit E2E vs Integration boundary
+test_diamond_boundary_wizard() {
+    if grep -qi "E2E.*UI\|E2E.*browser\|through.*UI\|through.*browser" "$WIZARD" && grep -qi "Integration.*API\|Integration.*without.*UI\|without.*UI" "$WIZARD"; then
+        pass "Wizard doc draws explicit E2E (UI/browser) vs Integration (API/no UI) boundary"
+    else
+        fail "Wizard doc should explicitly define: E2E = through UI/browser, Integration = real systems via API without UI"
+    fi
+}
+
+# Test: SKILL.md mentions the boundary
+test_diamond_boundary_skill() {
+    if grep -qi "E2E.*UI\|E2E.*browser\|through.*UI" "$SKILL" && grep -qi "Integration.*API\|without.*UI" "$SKILL"; then
+        pass "SKILL.md draws E2E vs Integration boundary"
+    else
+        fail "SKILL.md should draw explicit E2E vs Integration boundary"
+    fi
+}
+
+test_diamond_boundary_wizard
+test_diamond_boundary_skill
+
+# -------------------------------------------------------------------
+# #69 Skill Frontmatter Improvements
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #69 Skill Frontmatter ---"
+
+# Test: Wizard doc documents skill frontmatter fields (paths, context, effort)
+test_frontmatter_docs() {
+    local has_paths has_context has_effort
+    has_paths=$(grep -c "paths:" "$WIZARD") || true
+    has_context=$(grep -c "context:.*fork\|context: fork" "$WIZARD") || true
+    has_effort=$(grep -c "effort:" "$WIZARD") || true
+    if [ "$has_paths" -gt 0 ] && [ "$has_context" -gt 0 ] && [ "$has_effort" -gt 0 ]; then
+        pass "Wizard doc documents skill frontmatter (paths, context, effort)"
+    else
+        fail "Wizard doc should document skill frontmatter fields: paths ($has_paths), context:fork ($has_context), effort ($has_effort)"
+    fi
+}
+
+# Test: All distributed skills have effort: high in frontmatter
+test_skills_have_effort() {
+    local missing=""
+    for skill_dir in cli/templates/skills/*/; do
+        local skill_file="$skill_dir/SKILL.md"
+        if [ -f "$skill_file" ]; then
+            if ! grep -q "^effort:" "$skill_file"; then
+                missing="${missing:+${missing}, }$(basename "$skill_dir")"
+            fi
+        fi
+    done
+    if [ -z "$missing" ]; then
+        pass "All distributed skills have effort: frontmatter"
+    else
+        fail "Skills missing effort: frontmatter: $missing"
+    fi
+}
+
+test_frontmatter_docs
+test_skills_have_effort
+
+# -------------------------------------------------------------------
+# #70 --bare Incompatibility Documentation
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- #70 --bare Docs ---"
+
+# Test: Wizard doc mentions --bare bypass
+test_bare_docs_wizard() {
+    if grep -q "\-\-bare" "$WIZARD"; then
+        pass "Wizard doc documents --bare mode"
+    else
+        fail "Wizard doc should document that --bare bypasses all hooks/skills/plugins"
+    fi
+}
+
+# Test: SKILL.md mentions --bare
+test_bare_docs_skill() {
+    if grep -q "\-\-bare" "$SKILL"; then
+        pass "SKILL.md mentions --bare"
+    else
+        fail "SKILL.md should mention --bare as a complete wizard bypass"
+    fi
+}
+
+test_bare_docs_wizard
+test_bare_docs_skill
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
