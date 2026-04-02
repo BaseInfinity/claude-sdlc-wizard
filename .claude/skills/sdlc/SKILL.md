@@ -504,25 +504,25 @@ Local tests pass -> Commit -> Push -> Watch CI
                                                    STOP and ASK USER
 ```
 
-**How to watch CI:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  NEVER AUTO-MERGE. NO EXCEPTIONS.                                   │
+│                                                                     │
+│  Do NOT run `gh pr merge --auto`. Ever.                            │
+│  Auto-merge fires before you can read review feedback.             │
+│  The shepherd loop IS the process. Skipping it = shipping bugs.    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**The full shepherd sequence — every step is mandatory:**
 1. Push changes to remote
-2. Check CI status:
-   ```bash
-   # Watch checks in real-time (blocks until complete)
-   gh pr checks --watch
+2. Watch CI: `gh pr checks --watch`
+3. If CI fails → read logs (`gh run view <RUN_ID> --log-failed`), fix, push again (max 2 attempts)
+4. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
+5. Fix valid suggestions, push, iterate until clean
+6. Only then: explicit merge with `gh pr merge --squash`
 
-   # Or check status without blocking
-   gh pr checks
-
-   # View specific failed run logs
-   gh run view <RUN_ID> --log-failed
-   ```
-3. If CI fails:
-   - Read failure logs: `gh run view <RUN_ID> --log-failed`
-   - Diagnose root cause (same philosophy as local test failures)
-   - Fix and push again
-4. Max 2 fix attempts - if still failing, ASK USER
-5. If CI passes - proceed to present final summary
+**Why this is non-negotiable:** PR #145 auto-merged a release before review feedback was read. CI reviewer found a P1 dead-code bug that shipped to main. The fix required a follow-up commit. Auto-merge cost more time than the shepherd loop would have taken.
 
 **Context GC (compact during idle):** While waiting for CI (typically 3-5 min), suggest `/compact` if the conversation is long. Think of it like a time-based garbage collector — idle time + high memory pressure = good time to collect. Don't suggest on short conversations.
 
@@ -678,6 +678,25 @@ If this session revealed insights, update the right place:
 - **Feature-specific quirks** → Feature docs (`*_PLAN.md`, `*_DOCS.md`)
 - **Architecture decisions** → `docs/decisions/` (ADR format) or `ARCHITECTURE.md`
 - **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
+
+## Post-Mortem: When Process Fails, Feed It Back
+
+**Every process failure becomes an enforcement rule.** When you skip a step and it causes a problem, don't just fix the symptom — add a gate so it can't happen again.
+
+```
+Incident → Root Cause → New Rule → Test That Proves the Rule → Ship
+```
+
+**How to post-mortem a process failure:**
+1. **What happened?** — Describe the incident (what went wrong, what was the impact)
+2. **Root cause** — Not "I forgot" — what structurally allowed the skip? Was it guidance (easy to ignore) instead of a gate (impossible to skip)?
+3. **New rule** — Turn the failure into an enforcement rule in the SDLC skill
+4. **Test** — Write a test that proves the rule exists (TDD — the rule is code too)
+5. **Evidence** — Reference the incident so future readers understand WHY the rule exists
+
+**Example (real incident):** PR #145 auto-merged before CI review was read. Root cause: auto-merge was enabled by default, no enforcement gate existed. New rule: "NEVER AUTO-MERGE" block added to CI Shepherd section with the same weight as "ALL TESTS MUST PASS." Test: `test_never_auto_merge_gate` verifies the block exists.
+
+**Industry pattern:** "Every mistake becomes a rule" — the best SDLC systems are built from accumulated incident learnings, not theoretical best practices.
 
 ---
 
