@@ -518,7 +518,7 @@ Local tests pass -> Commit -> Push -> Watch CI
 1. Push changes to remote
 2. Watch CI: `gh pr checks --watch`
 3. If CI fails → read logs (`gh run view <RUN_ID> --log-failed`), fix, push again (max 2 attempts)
-4. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/issues/PR/comments`
+4. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
 5. Fix valid suggestions, push, iterate until clean
 6. Only then: explicit merge with `gh pr merge --squash`
 
