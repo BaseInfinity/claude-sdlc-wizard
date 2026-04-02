@@ -2813,6 +2813,7 @@ Docs drift when code changes but docs don't. The SDLC skill's planning phase det
 - During planning, Claude reads feature docs for the area being changed
 - If the code change contradicts what the doc says, Claude updates the doc
 - The "After Session" step routes learnings to the right doc
+- Plan files get closed out — if the session's work came from a plan, it gets deleted or marked complete so future sessions aren't misled
 - Stale docs cause low confidence — if Claude struggles, the doc may need updating
 
 **CLAUDE.md health:** Run `/claude-md-improver` periodically (quarterly or after major changes). It audits CLAUDE.md specifically — structure, clarity, completeness (6 criteria, 100-point rubric). It does NOT cover feature docs, TESTING.md, or ADRs — the SDLC workflow handles those.
