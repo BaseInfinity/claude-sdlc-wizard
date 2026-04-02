@@ -1561,15 +1561,10 @@ test_release_planning_confidence() {
 
 # Test: Prove It Gate includes skill absorption check
 test_prove_it_absorption() {
-    if grep -qi "absorb\|existing skill\|existing.*component" "$SKILL" | grep -qi "prove it\|new.*skill\|new.*addition" "$SKILL"; then
+    if grep -qi "absorb\|existing skill\|existing.*component" "$SKILL" && grep -qi "prove it\|new.*skill\|new.*addition" "$SKILL"; then
         pass "Prove It Gate includes absorption check"
     else
-        # More flexible check
-        if grep -qi "absorb" "$SKILL" && grep -qi "Prove It" "$SKILL"; then
-            pass "Prove It Gate includes absorption check"
-        else
-            fail "Prove It Gate should check if new addition can be absorbed into existing skill"
-        fi
+        fail "Prove It Gate should check if new addition can be absorbed into existing skill"
     fi
 }
 
@@ -1673,6 +1668,62 @@ test_bare_docs_skill() {
 
 test_bare_docs_wizard
 test_bare_docs_skill
+
+# -------------------------------------------------------------------
+# CI Shepherd Enforcement Gate
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- CI Shepherd Enforcement ---"
+
+# Test: SKILL.md has a hard NEVER AUTO-MERGE enforcement block
+test_never_auto_merge_gate() {
+    if grep -qi "NEVER AUTO-MERGE\|NEVER.*auto.merge\|auto.merge.*NEVER" "$SKILL"; then
+        pass "SKILL.md has NEVER AUTO-MERGE enforcement gate"
+    else
+        fail "SKILL.md should have a hard NEVER AUTO-MERGE enforcement block in CI Shepherd section"
+    fi
+}
+
+# Test: CI shepherd section requires reading review comments before merge
+test_shepherd_requires_review_read() {
+    if grep -qi "read.*review.*comment\|read.*CI.*review\|gh api.*pulls.*comments" "$SKILL" && grep -qi "merge.*explicit\|explicit.*merge\|gh pr merge --squash" "$SKILL"; then
+        pass "CI shepherd requires reading review + explicit merge"
+    else
+        fail "CI shepherd should require reading review comments and explicit merge (no auto-merge)"
+    fi
+}
+
+test_never_auto_merge_gate
+test_shepherd_requires_review_read
+
+# -------------------------------------------------------------------
+# Post-Mortem Pattern
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- Post-Mortem Pattern ---"
+
+# Test: SKILL.md has a post-mortem section
+test_postmortem_section() {
+    if grep -qi "post.mortem\|Post-Mortem" "$SKILL"; then
+        pass "SKILL.md has post-mortem pattern"
+    else
+        fail "SKILL.md should have a post-mortem section for feeding process failures back into the process"
+    fi
+}
+
+# Test: Post-mortem feeds back into process (every mistake becomes a rule)
+test_postmortem_feedback_loop() {
+    if grep -qi "mistake.*rule\|failure.*enforcement\|incident.*add.*gate\|feed.*back.*process" "$SKILL"; then
+        pass "Post-mortem feeds failures back into process enforcement"
+    else
+        fail "Post-mortem should describe how process failures become enforcement rules"
+    fi
+}
+
+test_postmortem_section
+test_postmortem_feedback_loop
 
 echo ""
 echo "=== Results ==="
