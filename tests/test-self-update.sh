@@ -1725,6 +1725,29 @@ test_postmortem_feedback_loop() {
 test_postmortem_section
 test_postmortem_feedback_loop
 
+# -------------------------------------------------------------------
+# Plan Lifecycle Cleanup
+# -------------------------------------------------------------------
+
+test_plan_cleanup_in_checklist() {
+    if grep -qi "close.*plan\|plan.*complete\|plan.*delete" "$SKILL"; then
+        pass "SKILL.md checklist has plan file cleanup step"
+    else
+        fail "SKILL.md should have a plan cleanup step — stale plans mislead future sessions"
+    fi
+}
+
+test_plan_cleanup_in_wizard() {
+    if grep -qi "plan.*closed\|plan.*deleted\|plan.*complete\|plan.*misled" "$WIZARD"; then
+        pass "Wizard doc mentions plan file cleanup in staleness prevention"
+    else
+        fail "Wizard doc should mention plan file cleanup alongside doc staleness prevention"
+    fi
+}
+
+test_plan_cleanup_in_checklist
+test_plan_cleanup_in_wizard
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
