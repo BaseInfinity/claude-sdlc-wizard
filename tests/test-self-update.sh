@@ -1748,6 +1748,22 @@ test_plan_cleanup_in_wizard() {
 test_plan_cleanup_in_checklist
 test_plan_cleanup_in_wizard
 
+# -------------------------------------------------------------------
+# Hook Auto-Invoke Triggers
+# -------------------------------------------------------------------
+
+HOOK=".claude/hooks/sdlc-prompt-check.sh"
+
+test_hook_triggers_on_release() {
+    if grep -qi "release.*publish\|publish.*deploy\|release/publish/deploy" "$HOOK"; then
+        pass "Hook auto-invokes SDLC for release/publish/deploy tasks"
+    else
+        fail "Hook should trigger SDLC for release/publish/deploy — missed release review on v1.23.0 publish"
+    fi
+}
+
+test_hook_triggers_on_release
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
