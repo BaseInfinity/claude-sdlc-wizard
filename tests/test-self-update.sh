@@ -1849,6 +1849,177 @@ test_cc_version_check_nonblocking
 test_cc_version_shows_update
 test_cc_version_no_notification_when_current
 
+# -------------------------------------------------------------------
+# Cross-Model Review Staleness Check
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- Cross-model review staleness check ---"
+
+# Test: Hook source contains review staleness check logic
+test_hook_has_review_staleness_check() {
+    if grep -q "reviews.*stale\|latest-review\|cross-model.*review\|REVIEW_MTIME\|review.*staleness" "$INSTRUCTIONS_HOOK"; then
+        pass "instructions-loaded-check.sh has cross-model review staleness check"
+    else
+        fail "instructions-loaded-check.sh should check for stale cross-model reviews — v1.23.0 shipped without review and nobody was warned"
+    fi
+}
+
+# Test: Warns when many commits since last review
+test_review_staleness_warns_when_stale() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    # Create .reviews/ with an old latest-review.md
+    mkdir -p "$tmpdir/.reviews"
+    echo "CERTIFIED" > "$tmpdir/.reviews/latest-review.md"
+    # Touch the file to be 5 days old (432000 seconds)
+    touch -t "$(date -v-5d '+%Y%m%d%H%M.%S' 2>/dev/null || date -d '5 days ago' '+%Y%m%d%H%M.%S' 2>/dev/null)" "$tmpdir/.reviews/latest-review.md" 2>/dev/null || true
+    # Create a fake git repo with commits after the review
+    git -C "$tmpdir" init -q 2>/dev/null
+    git -C "$tmpdir" config user.email "test@test.com" 2>/dev/null
+    git -C "$tmpdir" config user.name "Test" 2>/dev/null
+    git -C "$tmpdir" add -A 2>/dev/null
+    git -C "$tmpdir" commit -q -m "initial" 2>/dev/null
+    for i in 1 2 3 4 5 6; do
+        echo "change $i" >> "$tmpdir/SDLC.md"
+        git -C "$tmpdir" add -A 2>/dev/null
+        git -C "$tmpdir" commit -q -m "commit $i" 2>/dev/null
+    done
+    # Fake npm and claude so other checks don't interfere
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif echo "$@" | grep -q "claude-code"; then echo "2.1.90"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "review\|stale\|cross-model"; then
+        pass "Warns when cross-model reviews are stale (many commits since last review)"
+    else
+        fail "Should warn about stale cross-model reviews, got: $output"
+    fi
+}
+
+# Test: Silent when review is recent
+test_review_staleness_silent_when_recent() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.reviews"
+    echo "CERTIFIED" > "$tmpdir/.reviews/latest-review.md"
+    # Recent review — touch to now
+    touch "$tmpdir/.reviews/latest-review.md"
+    # Create git repo with only 1 commit after review
+    git -C "$tmpdir" init -q 2>/dev/null
+    git -C "$tmpdir" config user.email "test@test.com" 2>/dev/null
+    git -C "$tmpdir" config user.name "Test" 2>/dev/null
+    git -C "$tmpdir" add -A 2>/dev/null
+    git -C "$tmpdir" commit -q -m "initial" 2>/dev/null
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif echo "$@" | grep -q "claude-code"; then echo "2.1.90"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "review\|stale\|cross-model"; then
+        fail "Should NOT warn when cross-model review is recent, got: $output"
+    else
+        pass "Silent when cross-model review is recent"
+    fi
+}
+
+# Test: Silent when no .reviews/ directory (reviews not configured)
+test_review_staleness_silent_no_reviews_dir() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    # No .reviews/ directory
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif echo "$@" | grep -q "claude-code"; then echo "2.1.90"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "review\|stale\|cross-model"; then
+        fail "Should NOT warn when .reviews/ doesn't exist (not configured), got: $output"
+    else
+        pass "Silent when .reviews/ directory doesn't exist"
+    fi
+}
+
+# Test: Silent when codex not installed
+test_review_staleness_silent_no_codex() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.reviews"
+    echo "CERTIFIED" > "$tmpdir/.reviews/latest-review.md"
+    touch -t "$(date -v-10d '+%Y%m%d%H%M.%S' 2>/dev/null || date -d '10 days ago' '+%Y%m%d%H%M.%S' 2>/dev/null)" "$tmpdir/.reviews/latest-review.md" 2>/dev/null || true
+    # Empty bin — no codex, no npm, no claude
+    mkdir -p "$tmpdir/bin"
+    local output
+    output=$(PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    local exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -qi "review\|stale\|cross-model"; then
+        pass "Silent and exit 0 when codex not installed (even with stale reviews)"
+    else
+        fail "Should be silent when codex not installed, exit=$exit_code, got: $output"
+    fi
+}
+
+# Test: Staleness check is non-blocking (exit 0)
+test_review_staleness_nonblocking() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.reviews"
+    echo "CERTIFIED" > "$tmpdir/.reviews/latest-review.md"
+    touch -t "$(date -v-10d '+%Y%m%d%H%M.%S' 2>/dev/null || date -d '10 days ago' '+%Y%m%d%H%M.%S' 2>/dev/null)" "$tmpdir/.reviews/latest-review.md" 2>/dev/null || true
+    git -C "$tmpdir" init -q 2>/dev/null
+    git -C "$tmpdir" config user.email "test@test.com" 2>/dev/null
+    git -C "$tmpdir" config user.name "Test" 2>/dev/null
+    git -C "$tmpdir" add -A 2>/dev/null
+    git -C "$tmpdir" commit -q -m "initial" 2>/dev/null
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        echo "change $i" >> "$tmpdir/SDLC.md"
+        git -C "$tmpdir" add -A 2>/dev/null
+        git -C "$tmpdir" commit -q -m "commit $i" 2>/dev/null
+    done
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif echo "$@" | grep -q "claude-code"; then echo "2.1.90"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    local exit_code
+    PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" > /dev/null 2>&1
+    exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ]; then
+        pass "Review staleness check is non-blocking (exit 0)"
+    else
+        fail "Review staleness check should not block session start, got exit code: $exit_code"
+    fi
+}
+
+test_hook_has_review_staleness_check
+test_review_staleness_warns_when_stale
+test_review_staleness_silent_when_recent
+test_review_staleness_silent_no_reviews_dir
+test_review_staleness_silent_no_codex
+test_review_staleness_nonblocking
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
