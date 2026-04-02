@@ -16,6 +16,12 @@ All notable changes to the SDLC Wizard.
 - Skill frontmatter docs — expanded to full table covering `paths:`, `context: fork`, `effort:`, `disable-model-invocation:`, `argument-hint:` (#69)
 - `--bare` mode documentation in SKILL.md — complete wizard bypass warning for scripted headless calls (#70)
 - 6 quality tests for #65/#69/#70
+- "NEVER AUTO-MERGE" enforcement gate in CI Shepherd section — same weight as "ALL TESTS MUST PASS." Full shepherd sequence documented as mandatory (post-mortem from PR #145 incident)
+- Post-Mortem pattern — when process fails, feed it back: Incident → Root Cause → New Rule → Test → Ship. "Every mistake becomes a rule"
+- 4 quality tests for enforcement gate + post-mortem
+
+### Fixed
+- Dead-code pipe in `test_prove_it_absorption()` — `grep -qi | grep -qi` was a no-op (P1 from PR #145 CI review)
 
 ### Changed
 - Moved "ALL TESTS MUST PASS" from 61% depth to 11% depth in SDLC skill (Lost in the Middle fix) (#57)
