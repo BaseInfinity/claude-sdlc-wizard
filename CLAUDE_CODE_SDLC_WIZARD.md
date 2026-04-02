@@ -307,9 +307,24 @@ New built-in commands available to use alongside the wizard:
 
 **Tip**: `/simplify` pairs well with the self-review phase. Run it after implementation as an additional quality check.
 
-### Skill Effort Frontmatter (v2.1.80+)
+### Skill Frontmatter Fields (v2.1.80+)
 
-Skills can now set an `effort` level in frontmatter. The wizard's `/sdlc` skill uses `effort: high` to ensure Claude gives full attention to SDLC tasks.
+Skills support these frontmatter fields:
+
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `name` | Skill name (matches `/command`) | `name: sdlc` |
+| `description` | Trigger description for auto-invocation | `description: Full SDLC workflow...` |
+| `effort` | Set reasoning effort level | `effort: high` |
+| `paths` | Restrict skill to specific file patterns | `paths: ["src/**/*.ts", "tests/**"]` |
+| `context` | Context mode (`fork` = isolated subagent) | `context: fork` |
+| `argument-hint` | Hint for `$ARGUMENTS` placeholder | `argument-hint: [task description]` |
+| `disable-model-invocation` | Prevent skill from being auto-invoked by model | `disable-model-invocation: true` |
+
+**Key fields explained:**
+- **`effort: high`** — The wizard's `/sdlc` skill uses this to ensure Claude gives full attention. `max` is available but costs significantly more tokens.
+- **`paths:`** — Limits when a skill activates based on files being worked on. Useful for language-specific or directory-specific skills.
+- **`context: fork`** — Runs the skill in an isolated subagent context. The subagent gets its own context window, so it won't pollute the main conversation. Useful for review skills or analysis that should run independently.
 
 ### InstructionsLoaded Hook (v2.1.69+)
 
@@ -475,10 +490,11 @@ Here's the "Testing Diamond" approach (recommended for AI agents):
 - **Confidence**: If integration tests pass, production usually works
 - **AI-friendly**: Give Claude concrete pass/fail feedback on real behavior
 
-**E2E vs Manual Testing:**
-- **E2E (automated)**: Playwright, Cypress - runs without human
-- **Manual testing**: Human sign-off at the very end
-- **Goal**: Zero manual testing. Only for final verification when 100% confident.
+**E2E vs Integration — The Critical Boundary:**
+- **E2E**: Tests that go through the user's actual UI/browser (Playwright, Cypress). ~5% of suite.
+- **Integration**: Tests that hit real systems via API without UI — real DB, real cache, real services. ~90% of suite.
+- **Unit**: Pure logic only — no DB, no API, no filesystem. ~5% of suite.
+- **The rule**: If your test doesn't open a browser or render a UI, it's not E2E — it's integration. Mislabeling leads to overinvestment in slow browser tests.
 
 **But your team decides:**
 
@@ -3014,7 +3030,7 @@ Use an independent AI model from a different company as a code reviewer. The aut
 **The Protocol:**
 
 1. Create a `.reviews/` directory in your project
-2. After Claude completes its SDLC loop (self-review passes), write a handoff file:
+2. After Claude completes its SDLC loop (self-review passes), write a preflight doc (what you already checked) then a mission-first handoff file:
 
 ```jsonc
 // .reviews/handoff.json
@@ -3022,11 +3038,21 @@ Use an independent AI model from a different company as a code reviewer. The aut
   "review_id": "feature-xyz-001",
   "status": "PENDING_REVIEW",
   "round": 1,
+  "mission": "What changed and why — context for the reviewer",
+  "success": "What 'correctly reviewed' looks like",
+  "failure": "What gets missed if the reviewer is superficial",
   "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
-  "review_instructions": "Review for security, edge cases, and correctness",
+  "verification_checklist": [
+    "(a) Verify input validation at auth.ts:45",
+    "(b) Verify test covers null-token edge case"
+  ],
+  "review_instructions": "Focus on security and edge cases. Assume bugs may be present until proven otherwise.",
+  "preflight_path": ".reviews/preflight-feature-xyz-001.md",
   "artifact_path": ".reviews/feature-xyz-001/"
 }
 ```
+
+The `mission/success/failure` fields give the reviewer context. Without them, you get generic "looks good" feedback. With them, reviewers dig into source files and verify specific claims. The `verification_checklist` tells the reviewer exactly what to verify — not "review this" but specific items with file:line references.
 
 3. Run the independent reviewer (Round 1 — full review). These commands use your Codex default model — configure it to the latest, most capable model available:
 

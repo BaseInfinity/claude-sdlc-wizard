@@ -72,6 +72,42 @@ Your work is scored on these criteria. **Critical** criteria are must-pass.
 
 Critical miss on `tdd_red` or `self_review` = process failure regardless of total score.
 
+## Test Failure Recovery (SDET Philosophy)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ALL TESTS MUST PASS. NO EXCEPTIONS.                                │
+│                                                                     │
+│  This is not negotiable. This is not flexible. This is absolute.   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Not acceptable:**
+- "Those were already failing" → Fix them first
+- "Not related to my changes" → Doesn't matter, fix it
+- "It's flaky" → Flaky = bug, investigate
+
+**Treat test code like app code.** Test failures are bugs. Investigate them the way a 15-year SDET would - with thought and care, not by brushing them aside.
+
+If tests fail:
+1. Identify which test(s) failed
+2. Diagnose WHY - this is the important part:
+   - Your code broke it? Fix your code (regression)
+   - Test is for deleted code? Delete the test
+   - Test has wrong assertions? Fix the test
+   - Test is "flaky"? Investigate - flakiness is just another word for bug
+3. Fix appropriately (fix code, fix test, or delete dead test)
+4. Run specific test individually first
+5. Then run ALL tests
+6. Still failing? ASK USER - don't spin your wheels
+
+**Flaky tests are bugs, not mysteries:**
+- Sometimes the bug is in app code (race condition, timing issue)
+- Sometimes the bug is in test code (shared state, not parallel-safe)
+- Sometimes the bug is in test environment (cleanup not proper)
+
+Debug it. Find root cause. Fix it properly. Tests ARE code.
+
 ## New Pattern & Test Design Scrutiny (PLANNING)
 
 **New design patterns require human approval:**
@@ -89,11 +125,12 @@ Critical miss on `tdd_red` or `self_review` = process failure regardless of tota
 
 **Adding a new skill, hook, workflow, or component? PROVE IT FIRST:**
 
-1. **Research:** Does something equivalent already exist (native CC, third-party plugin, existing skill)?
-2. **If YES:** Why is yours better? Show evidence (A/B test, quality comparison, gap analysis)
-3. **If NO:** What gap does this fill? Is the gap real or theoretical?
-4. **Quality tests:** New additions MUST have tests that prove OUTPUT QUALITY, not just existence
-5. **Less is more:** Every addition is maintenance burden. Default answer is NO unless proven YES
+1. **Absorption check:** Can this be added as a section in an existing skill instead of a new component? Default is YES — new skills/hooks need strong justification. Releasing is SDLC, not a separate skill. Debugging is SDLC, not a separate skill. Keep it lean
+2. **Research:** Does something equivalent already exist (native CC, third-party plugin, existing skill)?
+3. **If YES:** Why is yours better? Show evidence (A/B test, quality comparison, gap analysis)
+4. **If NO:** What gap does this fill? Is the gap real or theoretical?
+5. **Quality tests:** New additions MUST have tests that prove OUTPUT QUALITY, not just existence
+6. **Less is more:** Every addition is maintenance burden. Default answer is NO unless proven YES
 
 **Existence tests are NOT quality tests:**
 - BAD: "ci-analyzer skill file exists" — proves nothing about quality
@@ -131,9 +168,9 @@ Before presenting approach, STATE your confidence:
 |-------|---------|--------|--------|
 | HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval | `high` (default) |
 | MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties | `high` (default) |
-| LOW (<60%) | Not sure | ASK USER before proceeding | Consider `/effort max` |
-| FAILED 2x | Something's wrong | STOP. ASK USER immediately | Try `/effort max` |
-| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help | Try `/effort max` |
+| LOW (<60%) | Not sure | Do more research or try cross-model research (Codex) to get to 95%. If still LOW after research, ASK USER | Consider `/effort max` |
+| FAILED 2x | Something's wrong | Try cross-model research (Codex) for a fresh perspective. If still stuck, STOP and ASK USER | Try `/effort max` |
+| CONFUSED | Can't diagnose why something is failing | Try cross-model research (Codex). If still confused, STOP. Describe what you tried, ask for help | Try `/effort max` |
 
 ## Self-Review Loop (CRITICAL)
 
@@ -166,36 +203,76 @@ PLANNING -> DOCS -> TDD RED -> TDD GREEN -> Tests Pass -> Self-Review
 
 **Prerequisites:** Codex CLI installed (`npm i -g @openai/codex`), OpenAI API key set.
 
-### Round 1: Initial Review
+**The core insight:** The review PROTOCOL is universal across domains. Only the review INSTRUCTIONS change. Code review is the default template below. For non-code domains (research, persuasion, medical content), adapt the `review_instructions` and `verification_checklist` fields while keeping the same handoff/dialogue/convergence loop.
 
-1. After self-review passes, write `.reviews/handoff.json`:
-   ```jsonc
-   {
-     "review_id": "feature-xyz-001",
-     "status": "PENDING_REVIEW",
-     "round": 1,
-     "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
-     "review_instructions": "Review for security, edge cases, and correctness",
-     "artifact_path": ".reviews/feature-xyz-001/"
-   }
-   ```
-2. Run the independent reviewer:
-   ```bash
-   codex exec \
-     -c 'model_reasoning_effort="xhigh"' \
-     -s danger-full-access \
-     -o .reviews/latest-review.md \
-     "You are an independent code reviewer. Read .reviews/handoff.json, \
-      review the listed files. Output each finding with: an ID (1, 2, ...), \
-      severity (P0/P1/P2), description, and a 'certify condition' stating \
-      what specific change would resolve it. \
-      End with CERTIFIED or NOT CERTIFIED."
-   ```
-3. If CERTIFIED → proceed to CI. If NOT CERTIFIED → go to Round 2.
+### Step 0: Write Preflight Self-Review Doc
 
-### Round 2+: Dialogue Loop
+Before submitting to an external reviewer, document what YOU already checked. This is proven to reduce reviewer findings to 0-1 per round (evidence: anticheat repo preflight discipline).
 
-When the reviewer finds issues, respond per-finding instead of silently fixing everything:
+Write `.reviews/preflight-{review_id}.md`:
+```markdown
+## Preflight Self-Review: {feature}
+- [ ] Self-review via /code-review passed
+- [ ] All tests passing
+- [ ] Checked for: [specific concerns for this change]
+- [ ] Verified: [what you manually confirmed]
+- [ ] Known limitations: [what you couldn't verify]
+```
+
+### Step 1: Write Mission-First Handoff
+
+After self-review and preflight pass, write `.reviews/handoff.json`:
+```jsonc
+{
+  "review_id": "feature-xyz-001",
+  "status": "PENDING_REVIEW",
+  "round": 1,
+  "mission": "What changed and why — 2-3 sentences of context",
+  "success": "What 'correctly reviewed' looks like — the reviewer's goal",
+  "failure": "What gets missed if the reviewer is superficial",
+  "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
+  "fixes_applied": [],
+  "previous_score": null,
+  "verification_checklist": [
+    "(a) Verify input validation at auth.ts:45 handles empty strings",
+    "(b) Verify test covers the null-token edge case",
+    "(c) Check no hardcoded secrets in diff"
+  ],
+  "review_instructions": "Focus on security and edge cases. Be strict — assume bugs may be present until proven otherwise.",
+  "preflight_path": ".reviews/preflight-feature-xyz-001.md",
+  "artifact_path": ".reviews/feature-xyz-001/"
+}
+```
+
+**Key fields explained:**
+- `mission/success/failure` — Gives the reviewer context. Without this, you get generic "looks good" feedback. With it, reviewers read raw source files and verify specific claims (proven across 4 repos)
+- `verification_checklist` — Specific things to verify with file:line references. NOT "review for correctness" — that's too vague. Each item is independently verifiable
+- `preflight_path` — Shows the reviewer what you already checked, so they focus on what you might have missed
+
+### Step 2: Run the Independent Reviewer
+
+```bash
+codex exec \
+  -c 'model_reasoning_effort="xhigh"' \
+  -s danger-full-access \
+  -o .reviews/latest-review.md \
+  "You are an independent code reviewer performing a certification audit. \
+   Read .reviews/handoff.json for full context — mission, success/failure \
+   conditions, and verification checklist. \
+   Verify each checklist item with evidence (file:line, grep results, test output). \
+   Output each finding with: ID (1, 2, ...), severity (P0/P1/P2), evidence, \
+   and a 'certify condition' (what specific change resolves it). \
+   Re-verify any prior-round passes still hold. \
+   End with: score (1-10), CERTIFIED or NOT CERTIFIED."
+```
+
+**Always use `xhigh` reasoning effort.** Lower settings miss subtle errors (wrong-generation references, stale pricing, cross-file inconsistencies).
+
+If CERTIFIED → proceed to CI. If NOT CERTIFIED → go to dialogue loop.
+
+### Step 3: Dialogue Loop
+
+Respond per-finding — don't silently fix everything:
 
 1. Write `.reviews/response.json`:
    ```jsonc
@@ -205,16 +282,16 @@ When the reviewer finds issues, respond per-finding instead of silently fixing e
      "responding_to": ".reviews/latest-review.md",
      "responses": [
        { "finding": "1", "action": "FIXED", "summary": "Added missing validation" },
-       { "finding": "2", "action": "DISPUTED", "justification": "This is intentional — see CODE_REVIEW_EXCEPTIONS.md" },
+       { "finding": "2", "action": "DISPUTED", "justification": "Intentional — see CODE_REVIEW_EXCEPTIONS.md" },
        { "finding": "3", "action": "ACCEPTED", "summary": "Will add test coverage" }
      ]
    }
    ```
-   - **FIXED**: "I fixed this. Here is what changed." Reviewer verifies.
-   - **DISPUTED**: "This is intentional/incorrect. Here is why." Reviewer accepts or rejects.
-   - **ACCEPTED**: "You are right. Fixing now." (Same as FIXED, batched.)
+   - **FIXED**: "I fixed this. Here's what changed." Reviewer verifies against certify condition.
+   - **DISPUTED**: "This is intentional/incorrect. Here's why." Reviewer accepts or rejects with reasoning.
+   - **ACCEPTED**: "You're right. Fixing now." (Same as FIXED, batched.)
 
-2. Update `handoff.json` with `"status": "PENDING_RECHECK"`, increment `round`, add `"response_path"` and `"previous_review"` fields.
+2. Update `handoff.json`: increment `round`, set `"status": "PENDING_RECHECK"`, add `fixes_applied` list with numbered items and file:line references, update `previous_score`.
 
 3. Run targeted recheck (NOT a full re-review):
    ```bash
@@ -222,60 +299,56 @@ When the reviewer finds issues, respond per-finding instead of silently fixing e
      -c 'model_reasoning_effort="xhigh"' \
      -s danger-full-access \
      -o .reviews/latest-review.md \
-     "You are doing a TARGETED RECHECK. First read .reviews/handoff.json \
-      to find the previous_review path — read that file for the original \
-      findings and certify conditions. Then read .reviews/response.json \
-      for the author's responses. For each: \
-      FIXED → verify the fix against the original certify condition. \
-      DISPUTED → evaluate the justification (ACCEPT if sound, REJECT if not). \
+     "TARGETED RECHECK — not a full re-review. Read .reviews/handoff.json \
+      for previous_review path and response.json for the author's responses. \
+      For each finding: FIXED → verify against original certify condition. \
+      DISPUTED → evaluate justification (ACCEPT if sound, REJECT with reasoning). \
       ACCEPTED → verify it was applied. \
       Do NOT raise new findings unless P0 (critical/security). \
       New observations go in 'Notes for next review' (non-blocking). \
-      End with CERTIFIED or NOT CERTIFIED."
+      Re-verify all prior passes still hold. \
+      End with: score (1-10), CERTIFIED or NOT CERTIFIED."
    ```
-
-4. If CERTIFIED → done. If NOT CERTIFIED (rejected disputes or failed fixes) → fix rejected items and repeat.
 
 ### Convergence
 
-Max 3 recheck rounds (4 total including initial review). If still NOT CERTIFIED after round 4, escalate to the user with a summary of open findings. Don't spin indefinitely.
+**2 rounds is the sweet spot. 3 max.** Research across 14 repos and 7 papers confirms additional rounds beyond 3 produce <5% position shift.
+
+Max 2 recheck rounds (3 total including initial review). If still NOT CERTIFIED after round 3, escalate to the user with a summary of open findings.
 
 ```
-Self-review passes → handoff.json (round 1, PENDING_REVIEW)
-                            |
-                   Reviewer: FULL REVIEW (structured findings)
-                            |
-                   CERTIFIED? → YES → CI feedback loop
-                            |
-                            NO (findings with IDs + certify conditions)
-                            |
-                   Claude writes response.json:
-                     FIXED / DISPUTED / ACCEPTED per finding
-                            |
-                   handoff.json (round 2+, PENDING_RECHECK)
-                            |
-                   Reviewer: TARGETED RECHECK (previous findings only)
-                            |
-                   All resolved? → YES → CERTIFIED
-                            |
-                            NO → fix rejected items, repeat
-                            (max 3 rechecks, then escalate to user)
+Preflight → handoff.json (round 1) → FULL REVIEW
+                                          |
+                               CERTIFIED? → YES → CI
+                                          |
+                                          NO (scored findings)
+                                          |
+                               response.json (FIXED/DISPUTED/ACCEPTED)
+                                          |
+                               handoff.json (round 2+) → TARGETED RECHECK
+                                          |
+                               CERTIFIED? → YES → CI
+                                          |
+                                          NO → one more round, then escalate
 ```
 
 **Tool-agnostic:** The value is adversarial diversity (different model, different blind spots), not the specific tool. Any competing AI reviewer works.
 
-**Full protocol:** See the wizard's "Cross-Model Review Loop (Optional)" section for key flags and reasoning effort guidance.
+### Anti-Patterns to Avoid
+
+- **"Find at least N problems"** — Incentivizes false positives. Use adversarial framing ("assume bugs may be present") instead
+- **"Review this"** — Too vague, gets generic feedback. Use mission + verification checklist
+- **Numeric 1-10 scales without criteria** — Unreliable. Decompose into specific checklist items
+- **Letting reviewer see author's reasoning** — Causes anchoring bias. Let them form independent opinion from code
 
 ### Release Review Focus
 
-Before any release/publish, add these to `review_instructions`:
+Before any release/publish, add these to `verification_checklist`:
 - **CHANGELOG consistency** — all sections present, no lost entries during consolidation
 - **Version parity** — package.json, SDLC.md, CHANGELOG, wizard metadata all match
 - **Stale examples** — hardcoded version strings in docs match current release
 - **Docs accuracy** — README, ARCHITECTURE.md reflect current feature set
 - **CLI-distributed file parity** — live skills, hooks, settings match CLI templates
-
-Evidence: v1.20.0 cross-model review caught CHANGELOG section loss and stale wizard version examples that passed all tests and self-review. Tests catch version mismatches; cross-model review catches semantic issues tests cannot.
 
 ### Multiple Reviewers (N-Reviewer Pipeline)
 
@@ -283,25 +356,31 @@ When multiple reviewers comment on a PR (Claude PR review, Codex, human reviewer
 
 1. **Read all reviews** — `gh api repos/OWNER/REPO/pulls/PR/comments` to get every reviewer's feedback
 2. **Respond per-reviewer** — Each reviewer has different blind spots and priorities. Address each one's findings separately
-3. **Resolve conflicts** — If reviewers disagree, use your judgment: pick the stronger argument, note why you chose it
-4. **Iterate until all approve** — Don't merge until every active reviewer is satisfied or their concerns are explicitly addressed
-5. **Max 3 iterations per reviewer** — If a reviewer keeps finding new things after 3 rounds, escalate to the user
+3. **Resolve conflicts** — If reviewers disagree, pick the stronger argument, note why
+4. **Iterate until all approve** — Don't merge until every active reviewer is satisfied
+5. **Max 3 iterations per reviewer** — If a reviewer keeps finding new things, escalate to the user
 
-**The value of multiple reviewers:** Different models/humans catch different issues. Claude excels at SDLC/process compliance. Codex catches logic bugs. Humans catch "does this make sense for the product?" None alone is sufficient for high-stakes changes.
+### Adapting for Non-Code Domains
+
+The handoff format and dialogue loop work for ANY domain. Only `review_instructions` and `verification_checklist` change:
+
+| Domain | Instructions Focus | Checklist Example |
+|--------|-------------------|-------------------|
+| **Code (default)** | Security, logic bugs, test coverage | "Verify input validation at file:line" |
+| **Research/Docs** | Factual accuracy, source verification, overclaims | "Verify $736-$804 appears in both docs, no stale $695-$723 remains" |
+| **Persuasion** | Audience psychology, tone, trust | "If you were [audience], what's the moment you'd stop reading?" |
+
+For non-code: add `"audience"` and `"stakes"` fields to handoff.json. For code, these are implied (audience = other developers, stakes = production impact).
 
 ### Custom Subagents (`.claude/agents/`)
 
-Claude Code supports custom subagents in `.claude/agents/`. These are specialized agents you can invoke for focused tasks:
+Claude Code supports custom subagents in `.claude/agents/`:
 
-- **`sdlc-reviewer`** — An agent focused purely on SDLC compliance review (planning, TDD, self-review checks)
-- **`ci-debug`** — An agent specialized in diagnosing CI failures (reads logs, identifies root cause, suggests fix)
-- **`test-writer`** — An agent focused on writing quality tests following TESTING.md philosophies
+- **`sdlc-reviewer`** — SDLC compliance review (planning, TDD, self-review checks)
+- **`ci-debug`** — CI failure diagnosis (reads logs, identifies root cause, suggests fix)
+- **`test-writer`** — Quality tests following TESTING.md philosophies
 
-**When to use agents vs skills:**
-- **Skills** (`.claude/skills/`) — Prompts that guide Claude's behavior for a task type. Claude reads and follows them
-- **Agents** (`.claude/agents/`) — Independent subprocesses that run autonomously on a focused task and return results
-
-Agents are useful when you want parallel work (e.g., run `sdlc-reviewer` while you continue implementing) or when a task benefits from a fresh context window focused on one thing.
+**Skills** guide Claude's behavior. **Agents** run autonomously and return results. Use agents for parallel work or fresh context windows.
 
 ## Test Review (Harder Than Implementation)
 
@@ -314,6 +393,16 @@ During self-review, critique tests HARDER than app code:
    - Real fixtures from captured data?
 
 **Tests are the foundation.** Bad tests = false confidence = production bugs.
+
+### Testing Diamond — Know Your Layers
+
+| Layer | What It Tests | % of Suite | Key Trait |
+|-------|--------------|------------|-----------|
+| **E2E** | Full user flow through UI/browser (Playwright, Cypress) | ~5% | Slow, brittle, but proves the real thing works |
+| **Integration** | Real systems via API without UI — real DB, real cache, real services | ~90% | **Best bang for buck.** Fast, stable, high confidence |
+| **Unit** | Pure logic only — no DB, no API, no filesystem | ~5% | Fast but limited scope |
+
+**The critical boundary:** E2E tests go through the user's actual UI/browser. Integration tests hit real systems via API but without UI. If your test doesn't open a browser or render a UI, it's not E2E — it's integration. This distinction matters because mislabeling integration tests as E2E leads to overinvestment in slow browser tests when fast API-level tests would suffice.
 
 ### Minimal Mocking Philosophy
 
@@ -365,42 +454,6 @@ If you notice something else that should be fixed:
 - DON'T fix it unless asked
 
 **Why this matters:** AI agents can drift into "helpful" changes that weren't requested. This creates unexpected diffs, breaks unrelated things, and makes code review harder.
-
-## Test Failure Recovery (SDET Philosophy)
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  ALL TESTS MUST PASS. NO EXCEPTIONS.                                │
-│                                                                     │
-│  This is not negotiable. This is not flexible. This is absolute.   │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**Not acceptable:**
-- "Those were already failing" → Fix them first
-- "Not related to my changes" → Doesn't matter, fix it
-- "It's flaky" → Flaky = bug, investigate
-
-**Treat test code like app code.** Test failures are bugs. Investigate them the way a 15-year SDET would - with thought and care, not by brushing them aside.
-
-If tests fail:
-1. Identify which test(s) failed
-2. Diagnose WHY - this is the important part:
-   - Your code broke it? Fix your code (regression)
-   - Test is for deleted code? Delete the test
-   - Test has wrong assertions? Fix the test
-   - Test is "flaky"? Investigate - flakiness is just another word for bug
-3. Fix appropriately (fix code, fix test, or delete dead test)
-4. Run specific test individually first
-5. Then run ALL tests
-6. Still failing? ASK USER - don't spin your wheels
-
-**Flaky tests are bugs, not mysteries:**
-- Sometimes the bug is in app code (race condition, timing issue)
-- Sometimes the bug is in test code (shared state, not parallel-safe)
-- Sometimes the bug is in test environment (cleanup not proper)
-
-Debug it. Find root cause. Fix it properly. Tests ARE code.
 
 ## Debugging Workflow (Systematic Investigation)
 
@@ -519,6 +572,8 @@ CI passes -> Read review suggestions
 - Auto-compact fires at ~95% capacity — no manual management needed
 - After committing a PR, `/clear` before starting the next feature
 
+**`--bare` mode (v2.1.81+):** `claude -p "prompt" --bare` skips ALL hooks, skills, LSP, and plugins. This is a complete wizard bypass — no SDLC enforcement, no TDD checks, no planning hooks. Use only for scripted headless calls (CI pipelines, automation) where you explicitly don't want wizard enforcement. Never use `--bare` for normal development work.
+
 ## DRY Principle
 
 **Before coding:** "What patterns exist I can reuse?"
@@ -542,6 +597,21 @@ CI passes -> Read review suggestions
 4. Do new components follow existing patterns?
 
 **If no DESIGN_SYSTEM.md exists:** Skip these checks (project has no documented design system).
+
+## Release Planning (If Task Involves a Release)
+
+**When to check:** Task mentions "release", "publish", "version bump", "npm publish", or multiple items being shipped together.
+**When to skip:** Single feature implementation, bug fix, or anything that isn't a release.
+
+Before implementing any release items:
+
+1. **List all items** — Read ROADMAP.md (or equivalent), identify every item planned for this release
+2. **Plan each at 95% confidence** — For each item: what files change, what tests prove it works, what's the blast radius. If confidence < 95% on any item, flag it
+3. **Identify blocks** — Which items depend on others? What must go first?
+4. **Present all plans together** — User reviews the complete batch, not one at a time. This catches conflicts, sequencing issues, and scope creep before any code is written
+5. **User approves, then implement** — Full SDLC per item (TDD RED → GREEN → self-review), in the prioritized order
+
+**Why batch planning works:** Ad-hoc one-at-a-time implementation leads to unvalidated additions and scope creep. Batch planning catches problems early — if you can't plan it at 95%, you're not ready to ship it.
 
 ## Deployment Tasks (If Task Involves Deploy)
 

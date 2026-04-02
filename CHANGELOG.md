@@ -8,7 +8,20 @@ All notable changes to the SDLC Wizard.
 
 ### Added
 - Update notification hook — `instructions-loaded-check.sh` checks npm for newer wizard version each session. Non-blocking, graceful on network failure. One-liner: "SDLC Wizard update available: X → Y (run /update-wizard)" (#64)
+- Cross-model review standardization — mission-first handoff (mission/success/failure fields), preflight self-review doc, verification checklist, adversarial framing, domain template guidance, convergence reduced to 2-3 rounds. Audited 4 repos + 14 external repos + 7 papers (#72, #56)
+- Release Planning Gate — section in SDLC skill. Before implementing release items: list all, plan each at 95% confidence, identify blocks, present plans as batch. Prove It Gate strengthened with absorption check (#73)
 - 6 quality tests for update notification (fake npm in PATH, version comparison, failure modes)
+- 12 quality tests for cross-model review, context position, release planning
+- Testing Diamond boundary table — explicit E2E (UI/browser ~5%) vs Integration (API/no UI ~90%) vs Unit (pure logic ~5%) in SKILL.md and wizard doc (#65)
+- Skill frontmatter docs — expanded to full table covering `paths:`, `context: fork`, `effort:`, `disable-model-invocation:`, `argument-hint:` (#69)
+- `--bare` mode documentation in SKILL.md — complete wizard bypass warning for scripted headless calls (#70)
+- 6 quality tests for #65/#69/#70
+
+### Changed
+- Moved "ALL TESTS MUST PASS" from 61% depth to 11% depth in SDLC skill (Lost in the Middle fix) (#57)
+- Prove It Gate now requires absorption check — "can this be a section in an existing skill?" — before proposing new skills/components
+- Wizard "E2E vs Manual Testing" section replaced with "E2E vs Integration — The Critical Boundary" (#65)
+- Wizard "Skill Effort Frontmatter" section expanded to "Skill Frontmatter Fields" with full field reference (#69)
 
 ## [1.22.0] - 2026-04-01
 
