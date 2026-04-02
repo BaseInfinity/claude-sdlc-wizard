@@ -24,7 +24,7 @@ SDLC BASELINE:
 5. ALL TESTS MUST PASS BEFORE COMMIT - NO EXCEPTIONS
 
 AUTO-INVOKE SKILL (Claude MUST do this FIRST):
-- implement/fix/refactor/feature/bug/build/test/TDD → Invoke: Skill tool, skill="sdlc"
+- implement/fix/refactor/feature/bug/build/test/TDD/release/publish/deploy → Invoke: Skill tool, skill="sdlc"
 - DON'T invoke for: questions, explanations, reading/exploring code, simple queries
 - DON'T wait for user to type /sdlc - AUTO-INVOKE based on task type
 
