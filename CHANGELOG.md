@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.22.0] - 2026-04-01
+
+### Added
+- Plan Auto-Approval Gate — skip plan approval when confidence >= 95% AND task is single-file/trivial. Still announces approach, just doesn't wait. "When in doubt, wait for approval" (#53)
+- Debugging Workflow section — systematic Reproduce → Isolate → Root Cause → Fix → Regression Test methodology. `git bisect` for regressions, environment-specific debugging guidance (#55)
+- `/feedback` skill — privacy-first community contribution loop. Bug reports, feature requests, pattern sharing, SDLC improvements. Never scans without explicit consent. Creates GH issues on wizard repo (#37)
+- BRANDING.md detection in setup wizard — scans for brand/, logos/, style-guide.md, brand-voice.md. Conditional generation only when branding assets found (#44)
+- N-Reviewer CI Pipeline guidance — address each reviewer independently, resolve conflicts, max 3 iterations per reviewer (#32)
+- Custom Subagents documentation — `.claude/agents/` pattern for sdlc-reviewer, ci-debug, test-writer agents. Skills vs agents comparison (#45)
+- CLI distributes `/feedback` skill (9 template files, was 8)
+- Improved CLI install restart messaging — `--continue` promoted as primary option for preserving conversation history
+- 20 new tests across all 6 roadmap items
+
+### Changed
+- SDLC skill: added Auto-Approval, Debugging Workflow, Multiple Reviewers, Custom Subagents sections
+- Setup skill: added branding asset detection (Step 1) and BRANDING.md generation (Step 8.5)
+- Wizard doc: added Plan Auto-Approval, Debugging Workflow, N-Reviewer Pipeline, Custom Subagents, BRANDING.md template
+
 ## [1.21.0] - 2026-03-31
 
 ### Added

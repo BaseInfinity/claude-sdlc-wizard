@@ -37,6 +37,7 @@ Scan the project root for:
 - Feature docs: *_PLAN.md, *_DOCS.md, *_SPEC.md, docs/
 - Deployment: Dockerfile, vercel.json, fly.toml, netlify.toml, Procfile, k8s/
 - Design system: tailwind.config.*, .storybook/, theme files, CSS custom properties
+- Branding assets: BRANDING.md, brand/, logos/, style-guide.md, brand-voice.md, tone-of-voice.*
 - Existing docs: README.md, CLAUDE.md, ARCHITECTURE.md
 - Scripts in package.json (lint, test, build, typecheck, etc.)
 - Database config files (prisma/, drizzle.config.*, knexfile.*, .env with DB_*)
@@ -150,6 +151,16 @@ Only if design system artifacts were found in Step 1:
 - Reference design sources (Storybook, Figma, etc.)
 
 Skip this step if no UI/design system detected.
+
+### Step 8.5: Generate BRANDING.md (If Branding Detected)
+
+Only if branding-related assets were found in Step 1 (brand/, logos/, style-guide.md, brand-voice.md, existing BRANDING.md, or UI/content-heavy project detected):
+- Brand voice and tone guidelines
+- Naming conventions (product names, feature names, terminology)
+- Visual identity summary (logo usage, color palette references)
+- Content style guide (if the project has user-facing copy)
+
+Skip this step if no branding assets or UI/content patterns detected.
 
 ### Step 9: Configure Tool Permissions
 

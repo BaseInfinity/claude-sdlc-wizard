@@ -418,6 +418,8 @@ After planning, you get a free `/compact` - Claude's plan is preserved in the su
 4. You run `/compact` → frees context, plan preserved in summary
 5. Claude implements with clean context
 
+**Plan Auto-Approval:** For HIGH confidence (95%+) tasks that are single-file or trivial (config tweak, small bug fix, string change) with no new patterns — skip plan approval and go straight to TDD. Claude still announces the approach but doesn't wait for approval. When in doubt, wait.
+
 ### 2. Confidence Levels Prevent Disasters
 
 Claude MUST state confidence before implementing:
@@ -1773,6 +1775,19 @@ TodoWrite([
 
 **Before TDD, MUST ask:** "Docs updated. Run `/compact` before implementation?"
 
+### Auto-Approval: Skip Plan Approval Step
+
+If ALL of these are true, skip plan approval and go straight to TDD:
+- Confidence is **HIGH (95%+)** — you know exactly what to do
+- Task is **single-file or trivial** (config tweak, small bug fix, string change)
+- No new patterns introduced
+- No architectural decisions
+
+When auto-approving, still announce your approach — just don't wait for approval:
+> "Confidence HIGH (95%). Single-file change. Proceeding directly to TDD."
+
+**When in doubt, wait for approval.** Auto-approval is for clear-cut cases only.
+
 ## Confidence Check (REQUIRED)
 
 Before presenting approach, STATE your confidence:
@@ -1927,6 +1942,28 @@ Before any release/publish, add these to `review_instructions`:
 
 Evidence: v1.20.0 cross-model review caught CHANGELOG section loss and stale wizard version examples that passed all tests and self-review.
 
+### Multiple Reviewers (N-Reviewer Pipeline)
+
+When multiple reviewers comment on a PR (Claude, Codex, human reviewers), address each reviewer independently:
+
+1. **Read all reviews** — collect feedback from every active reviewer
+2. **Respond per-reviewer** — each reviewer has different blind spots. Address each one's findings separately
+3. **Resolve conflicts** — if reviewers disagree, pick the stronger argument, note why
+4. **Iterate until all approve** — don't merge until every active reviewer is satisfied
+5. **Max 3 iterations per reviewer** — escalate to user if a reviewer keeps finding new things
+
+The value of multiple reviewers: different models/humans catch different issues. No single reviewer is sufficient for high-stakes changes.
+
+### Custom Subagents (`.claude/agents/`)
+
+Claude Code supports custom subagents in `.claude/agents/`. These run as independent subprocesses focused on a single task:
+
+- **`sdlc-reviewer`** — SDLC compliance review (planning, TDD, self-review checks)
+- **`ci-debug`** — CI failure diagnosis (reads logs, identifies root cause)
+- **`test-writer`** — Quality test writing following TESTING.md philosophies
+
+**Skills vs agents:** Skills guide Claude's behavior for a task type. Agents are independent subprocesses that run autonomously and return results. Use agents when you want parallel work or a fresh context window.
+
 ## Test Review (Harder Than Implementation)
 
 During self-review, critique tests HARDER than app code:
@@ -2003,6 +2040,24 @@ Sometimes the flakiness is genuinely in CI infrastructure (runner environment, G
 - **Make cosmetic steps non-blocking** — PR comments, notifications, and reports should use `continue-on-error: true`
 - **Keep quality gates strict** — the actual pass/fail decision must NOT have `continue-on-error`
 - **Separate "fail the build" from "nice to have"** — a missing PR comment is not a regression
+
+## Debugging Workflow (Systematic Investigation)
+
+When something breaks and the cause isn't obvious, follow this systematic debugging workflow:
+
+```
+Reproduce → Isolate → Root Cause → Fix → Regression Test
+```
+
+1. **Reproduce** — Can you make it fail consistently? If intermittent, stress-test (run N times). If you can't reproduce it, you can't fix it
+2. **Isolate** — Narrow the scope. Which file? Which function? Which input? Use binary search: comment out half the code, does it still fail?
+3. **Root cause** — Don't fix symptoms. Ask "why?" until you hit the actual cause. "It crashes on line 42" is a symptom. "Null pointer because the API returns undefined when rate-limited" is a root cause
+4. **Fix** — Fix the root cause, not the symptom
+5. **Regression test** — Write a test that fails without your fix and passes with it (TDD GREEN)
+
+**For regressions** (it worked before, now it doesn't): Use `git bisect` to find the exact breaking commit. `git bisect start`, `git bisect bad` (current), `git bisect good <known-good-commit>`. Narrows to the breaking commit in O(log n) steps.
+
+**Environment-specific bugs** (works locally, fails in CI/staging/prod): Check environment differences (env vars, OS version, dependency versions, file permissions). Reproduce the environment locally if possible. Add logging at the failure point — don't guess, observe.
 
 ## CI Feedback Loop — Local Shepherd (After Commit)
 
@@ -2346,7 +2401,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.21.0 -->
+<!-- SDLC Wizard Version: 1.22.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -2454,6 +2509,36 @@ Reference: `components/ui/` or Storybook
 - Extracted from your actual config (tailwind.config.js, CSS vars) - not guessed
 
 **If you have external design system:** Point to Storybook/Figma URL instead of duplicating.
+
+### BRANDING.md (If Branding Assets Detected)
+
+**Only generated if branding-related files are found:** BRANDING.md, brand/, logos/, style-guide.md, brand-voice.md, tone-of-voice.*, or UI/content-heavy project patterns.
+
+```markdown
+# Brand Guidelines
+
+## Brand Voice & Tone
+- [Detected from brand-voice.md or style guide, or ask user]
+- Formal/casual/technical/friendly
+- Target audience description
+
+## Naming Conventions
+- Product name: [official name, capitalization]
+- Feature names: [naming pattern]
+- Technical terminology: [glossary of project-specific terms]
+
+## Visual Identity
+- Logo usage: [reference to logo files or guidelines]
+- Color palette: [reference to DESIGN_SYSTEM.md if exists]
+- Typography: [font choices and usage]
+
+## Content Style
+- [Any content writing guidelines]
+- [Error message tone]
+- [User-facing copy standards]
+```
+
+**Why BRANDING.md?** Claude writing user-facing copy, error messages, or documentation needs to know the brand voice. Without this, output tone is inconsistent. Skip for backend-only or internal-tool projects.
 
 ---
 
@@ -3217,7 +3302,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.21.0 -->
+<!-- SDLC Wizard Version: 1.22.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

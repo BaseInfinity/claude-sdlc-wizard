@@ -1,4 +1,4 @@
-<!-- SDLC Wizard Version: 1.21.0 -->
+<!-- SDLC Wizard Version: 1.22.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 # SDLC Configuration
@@ -7,8 +7,8 @@
 
 | Property | Value |
 |----------|-------|
-| Wizard Version | 1.21.0 |
-| Last Updated | 2026-03-31 |
+| Wizard Version | 1.22.0 |
+| Last Updated | 2026-04-01 |
 | Claude Code Baseline | v2.1.85+ |
 
 ## SDLC Enforcement
@@ -43,6 +43,9 @@ This repository uses the SDLC Wizard to enforce:
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
 | SDLC | `/sdlc` | Full SDLC workflow guidance |
+| Setup | `/setup` | Confidence-driven project setup wizard |
+| Update | `/update` | Smart update with drift detection |
+| Feedback | `/feedback` | Privacy-first community feedback |
 
 ## Compliance Verification
 
@@ -71,5 +74,8 @@ When Claude Code releases new features:
 │   ├── tdd-pretool-check.sh      # TDD reminder
 │   └── instructions-loaded-check.sh  # Session start validation
 └── skills/
-    └── sdlc/SKILL.md             # SDLC workflow
+    ├── sdlc/SKILL.md             # SDLC workflow
+    ├── setup/SKILL.md            # Setup wizard
+    ├── update/SKILL.md           # Update wizard
+    └── feedback/SKILL.md         # Community feedback
 ```

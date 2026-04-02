@@ -1,21 +1,13 @@
 {
-  "review_id": "release-v1.21.0",
+  "review_id": "release-v1.22.0",
   "status": "PENDING_RECHECK",
   "round": 2,
   "files_changed": [
-    "CHANGELOG.md",
-    "package.json",
     "SDLC.md",
-    "CLAUDE_CODE_SDLC_WIZARD.md",
-    ".claude/skills/setup/SKILL.md",
-    "cli/templates/skills/setup/SKILL.md",
-    ".claude/skills/sdlc/SKILL.md",
-    "cli/templates/skills/sdlc/SKILL.md",
-    "tests/test-self-update.sh",
-    "ROADMAP.md"
+    "tests/test-self-update.sh"
   ],
-  "review_instructions": "TARGETED RECHECK for v1.21.0. Previous review found 4 findings. Author fixed 3, disputed 1. Verify fixes against original certify conditions.",
+  "review_instructions": "TARGETED RECHECK for v1.22.0. Previous review found 2 findings. Author fixed both. Verify fixes against original certify conditions.",
   "previous_review": ".reviews/latest-review.md",
   "response_path": ".reviews/response.json",
-  "artifact_path": ".reviews/release-v1.21.0/"
+  "artifact_path": ".reviews/release-v1.22.0/"
 }

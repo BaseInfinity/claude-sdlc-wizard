@@ -186,7 +186,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 |--------|------------|----------------------|-------------|
 | **Focus** | SDLC enforcement + measurement | Agent performance optimization | Plugin marketplace |
 | **Hooks** | 3 (SDLC, TDD, instructions) | 12+ (dev blocker, prettier, etc.) | Webhook watcher |
-| **Skills** | 3 (/sdlc, /setup, /update) | 80+ domain-specific | 13 slash commands |
+| **Skills** | 4 (/sdlc, /setup, /update, /feedback) | 80+ domain-specific | 13 slash commands |
 | **Evaluation** | 95% CI, CUSUM, SDP, Tier 1/2 | Configuration testing | skilltest framework |
 | **CI Shepherd** | Local CI fix loop | No | No |
 | **Auto-updates** | Weekly CC + community scan | No | No |

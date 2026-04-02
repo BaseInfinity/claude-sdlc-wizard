@@ -110,6 +110,19 @@ Critical miss on `tdd_red` or `self_review` = process failure regardless of tota
 2. **Transition** (after approval): Update feature docs
 3. **Implementation**: TDD RED -> GREEN -> PASS
 
+### Auto-Approval: Skip Plan Approval Step
+
+If ALL of these are true, skip plan approval and go straight to TDD:
+- Confidence is **HIGH (95%+)** — you know exactly what to do
+- Task is **single-file or trivial** (config tweak, small bug fix, string change)
+- No new patterns introduced
+- No architectural decisions
+
+When auto-approving, still announce your approach — just don't wait for approval:
+> "Confidence HIGH (95%). Single-file change. Proceeding directly to TDD."
+
+**When in doubt, wait for approval.** Auto-approval is for clear-cut cases only.
+
 ## Confidence Check (REQUIRED)
 
 Before presenting approach, STATE your confidence:
@@ -264,6 +277,32 @@ Before any release/publish, add these to `review_instructions`:
 
 Evidence: v1.20.0 cross-model review caught CHANGELOG section loss and stale wizard version examples that passed all tests and self-review. Tests catch version mismatches; cross-model review catches semantic issues tests cannot.
 
+### Multiple Reviewers (N-Reviewer Pipeline)
+
+When multiple reviewers comment on a PR (Claude PR review, Codex, human reviewers), address each reviewer independently:
+
+1. **Read all reviews** — `gh api repos/OWNER/REPO/pulls/PR/comments` to get every reviewer's feedback
+2. **Respond per-reviewer** — Each reviewer has different blind spots and priorities. Address each one's findings separately
+3. **Resolve conflicts** — If reviewers disagree, use your judgment: pick the stronger argument, note why you chose it
+4. **Iterate until all approve** — Don't merge until every active reviewer is satisfied or their concerns are explicitly addressed
+5. **Max 3 iterations per reviewer** — If a reviewer keeps finding new things after 3 rounds, escalate to the user
+
+**The value of multiple reviewers:** Different models/humans catch different issues. Claude excels at SDLC/process compliance. Codex catches logic bugs. Humans catch "does this make sense for the product?" None alone is sufficient for high-stakes changes.
+
+### Custom Subagents (`.claude/agents/`)
+
+Claude Code supports custom subagents in `.claude/agents/`. These are specialized agents you can invoke for focused tasks:
+
+- **`sdlc-reviewer`** — An agent focused purely on SDLC compliance review (planning, TDD, self-review checks)
+- **`ci-debug`** — An agent specialized in diagnosing CI failures (reads logs, identifies root cause, suggests fix)
+- **`test-writer`** — An agent focused on writing quality tests following TESTING.md philosophies
+
+**When to use agents vs skills:**
+- **Skills** (`.claude/skills/`) — Prompts that guide Claude's behavior for a task type. Claude reads and follows them
+- **Agents** (`.claude/agents/`) — Independent subprocesses that run autonomously on a focused task and return results
+
+Agents are useful when you want parallel work (e.g., run `sdlc-reviewer` while you continue implementing) or when a task benefits from a fresh context window focused on one thing.
+
 ## Test Review (Harder Than Implementation)
 
 During self-review, critique tests HARDER than app code:
@@ -362,6 +401,35 @@ If tests fail:
 - Sometimes the bug is in test environment (cleanup not proper)
 
 Debug it. Find root cause. Fix it properly. Tests ARE code.
+
+## Debugging Workflow (Systematic Investigation)
+
+When something breaks and the cause isn't obvious, follow this systematic debugging workflow:
+
+```
+Reproduce → Isolate → Root Cause → Fix → Regression Test
+```
+
+1. **Reproduce** — Can you make it fail consistently? If intermittent, stress-test (run N times). If you can't reproduce it, you can't fix it
+2. **Isolate** — Narrow the scope. Which file? Which function? Which input? Use binary search: comment out half the code, does it still fail?
+3. **Root cause** — Don't fix symptoms. Ask "why?" until you hit the actual cause. "It crashes on line 42" is a symptom. "Null pointer because the API returns undefined when rate-limited" is a root cause
+4. **Fix** — Fix the root cause, not the symptom. Write the fix
+5. **Regression test** — Write a test that fails without your fix and passes with it (TDD GREEN)
+
+**For regressions** (it worked before, now it doesn't):
+- Use `git bisect` to find the exact commit that broke it
+- `git bisect start`, `git bisect bad` (current), `git bisect good <known-good-commit>`
+- Bisect narrows to the breaking commit in O(log n) steps
+
+**Environment-specific bugs** (works locally, fails in CI/staging/prod):
+- Check environment differences: env vars, OS version, dependency versions, file permissions
+- Reproduce the environment locally if possible (Docker, env vars)
+- Add logging at the failure point — don't guess, observe
+
+**When to stop and ask:**
+- After 2 failed fix attempts → STOP and ASK USER
+- If the bug is in code you don't understand → read first, then fix
+- If reproducing requires access you don't have → ASK USER
 
 ## CI Feedback Loop — Local Shepherd (After Commit)
 
