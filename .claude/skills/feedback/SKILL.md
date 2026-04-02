@@ -63,7 +63,6 @@ Use `gh issue create` on the wizard repo:
 gh issue create \
   --repo BaseInfinity/agentic-ai-sdlc-wizard \
   --title "[feedback-type]: Brief description" \
-  --label "community" \
   --body "$(cat <<'EOF'
 ## Feedback Type
 bug / feature / pattern / improvement
