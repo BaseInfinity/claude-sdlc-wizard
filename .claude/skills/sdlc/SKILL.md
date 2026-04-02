@@ -48,7 +48,8 @@ TodoWrite([
   { content: "Post-deploy verification (if deploy task — see Deployment Tasks)", status: "pending", activeForm: "Verifying deployment" },
   // FINAL
   { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" },
-  { content: "Capture learnings (if any — update TESTING.md, CLAUDE.md, or feature docs)", status: "pending", activeForm: "Capturing session learnings" }
+  { content: "Capture learnings (if any — update TESTING.md, CLAUDE.md, or feature docs)", status: "pending", activeForm: "Capturing session learnings" },
+  { content: "Close out plan files: if task came from a plan, mark complete or delete", status: "pending", activeForm: "Closing plan artifacts" }
 ])
 ```
 
@@ -678,6 +679,7 @@ If this session revealed insights, update the right place:
 - **Feature-specific quirks** → Feature docs (`*_PLAN.md`, `*_DOCS.md`)
 - **Architecture decisions** → `docs/decisions/` (ADR format) or `ARCHITECTURE.md`
 - **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
+- **Plan files** → If this session's work came from a plan file, delete it or mark it complete. Stale plans mislead future sessions into thinking work is still pending
 
 ## Post-Mortem: When Process Fails, Feed It Back
 
