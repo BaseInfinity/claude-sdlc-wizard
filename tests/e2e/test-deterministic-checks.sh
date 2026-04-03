@@ -514,6 +514,21 @@ test_tdd_red_fixture_files_not_tests() {
     fi
 }
 
+test_tdd_red_contest_substring_not_test() {
+    # "contest" contains "test" as a substring — must NOT match as a test directory
+    # Anchored to path segment boundaries to prevent false positives
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/contest/app.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: src/contest/app.js is NOT a test file (scores 0)"
+    else
+        fail "TDD RED: contest/ substring should not match test/ pattern, got $result"
+    fi
+}
+
 test_tdd_red_content_as_string() {
     # Real execution output may have string content (text) mixed with array content (tool_use)
     local tmpfile
@@ -561,6 +576,7 @@ test_tdd_red_nonexistent_file
 test_tdd_red_test_only_no_impl
 test_tdd_red_impl_only_no_test
 test_tdd_red_fixture_files_not_tests
+test_tdd_red_contest_substring_not_test
 test_tdd_red_object_format_test_first
 test_tdd_red_object_format_impl_first
 test_tdd_red_content_as_string
