@@ -27,7 +27,7 @@ TodoWrite([
   { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
   { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
   // TRANSITION PHASE (After plan mode)
-  { content: "Doc sync: update feature docs if code change contradicts or extends documented behavior", status: "pending", activeForm: "Syncing feature docs" },
+  { content: "Doc sync: update or create feature docs — MUST be current before commit", status: "pending", activeForm: "Syncing feature docs" },
   // IMPLEMENTATION PHASE
   { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
   { content: "TDD GREEN: Implement, verify test passes", status: "pending", activeForm: "Implementing feature" },
@@ -661,14 +661,26 @@ Before implementing any release items:
 
 **THE RULE:** Delete old code first. If it breaks, fix it properly.
 
-## Documentation Sync (During Planning)
+## Documentation Sync (REQUIRED — During Planning)
 
-When a code change affects a documented feature, update the doc in the same PR:
+Feature docs MUST be current before commit. Docs are code — stale docs mislead future sessions, waste tokens, and cause wrong implementations.
 
-1. **During planning**, read feature docs for the area being changed (`*_PLAN.md`, `*_DOCS.md`, `docs/features/`, `docs/decisions/`)
-2. If your code change contradicts what the doc says → update the doc
-3. If your code change extends behavior the doc describes → add to the doc
-4. If no feature doc exists and the change is substantial → note it in the summary (don't create one unprompted)
+**Standard pattern:** `*_DOCS.md` — living documents that grow with the feature (e.g., `AUTH_DOCS.md`, `PAYMENTS_DOCS.md`, `SEARCH_DOCS.md`). Same philosophy as `TESTING.md` and `ARCHITECTURE.md` — one source of truth per topic, kept current.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  DOCS MUST BE CURRENT BEFORE COMMIT.                                │
+│                                                                     │
+│  Stale docs = wrong implementations = wasted sessions.             │
+│  If you changed the feature, update its doc. No exceptions.        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+1. **During planning**, read feature docs for the area being changed (`*_DOCS.md`, `docs/features/`, `docs/decisions/`)
+2. If your code change contradicts what the doc says → MUST update the doc
+3. If your code change extends behavior the doc describes → MUST add to the doc
+4. If no `*_DOCS.md` exists and the feature touches 3+ files → create one. Keep it simple: what the feature does, key decisions, gotchas. Same structure as TESTING.md (topic-focused, not exhaustive)
+5. If the project has a `ROADMAP.md` → update it (mark items done, add new items). ROADMAP feeds CHANGELOG — keeping it current means releases write themselves
 
 **Doc staleness signals:** Low confidence in an area often means the docs are stale, missing, or misleading. If you struggle during planning, check whether the docs match the actual code.
 
@@ -678,7 +690,7 @@ When a code change affects a documented feature, update the doc in the same PR:
 
 If this session revealed insights, update the right place:
 - **Testing patterns, gotchas** → `TESTING.md`
-- **Feature-specific quirks** → Feature docs (`*_PLAN.md`, `*_DOCS.md`)
+- **Feature-specific quirks** → Feature docs (`*_DOCS.md`, e.g., `AUTH_DOCS.md`)
 - **Architecture decisions** → `docs/decisions/` (ADR format) or `ARCHITECTURE.md`
 - **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
 - **Plan files** → If this session's work came from a plan file, delete it or mark it complete. Stale plans mislead future sessions into thinking work is still pending
