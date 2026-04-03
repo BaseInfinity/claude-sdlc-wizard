@@ -737,6 +737,71 @@ test_wizard_docs_in_sync
 test_skill_doc_enforcement_template_parity
 test_wizard_feature_doc_structure
 
+# --- Feature Doc Enforcement Teeth ---
+echo ""
+echo "--- Feature Doc Enforcement Teeth ---"
+
+# SKILL.md recommends _DOCS.md as primary pattern (not _PLAN.md)
+test_skill_docs_md_primary() {
+    if grep -q '_DOCS.md' "$SKILL" && grep -q 'AUTH_DOCS.md\|LOGIN_DOCS.md\|PAYMENTS_DOCS.md' "$SKILL"; then
+        pass "SKILL.md uses _DOCS.md as primary feature doc pattern"
+    else
+        fail "SKILL.md should recommend _DOCS.md as primary feature doc pattern (living docs, not plans)"
+    fi
+}
+
+# SKILL.md has feature doc creation gate (not just update)
+test_skill_doc_creation_gate() {
+    if grep -q 'create.*feature doc\|no.*_DOCS.md.*exists.*create' "$SKILL"; then
+        pass "SKILL.md enforces feature doc creation for major features"
+    else
+        fail "SKILL.md should enforce creating feature docs for major features, not just updating existing ones"
+    fi
+}
+
+# SKILL.md doc sync section has ROADMAP feeds CHANGELOG enforcement
+test_skill_roadmap_enforcement() {
+    if grep -q 'ROADMAP.*feeds CHANGELOG\|ROADMAP feeds CHANGELOG' "$SKILL"; then
+        pass "SKILL.md enforces ROADMAP feeds CHANGELOG in doc sync section"
+    else
+        fail "SKILL.md doc sync section should enforce ROADMAP feeds CHANGELOG"
+    fi
+}
+
+# Wizard Feature Documentation section recommends _DOCS.md as living docs
+test_wizard_docs_md_primary() {
+    if grep -A5 '### Feature Documentation' "$WIZARD" | grep -q 'living doc'; then
+        pass "Wizard Feature Documentation section recommends _DOCS.md as living docs"
+    else
+        fail "Wizard Feature Documentation section should recommend _DOCS.md as living documentation"
+    fi
+}
+
+# Doc sync TodoWrite step includes creation, not just update
+test_skill_todow_doc_creation() {
+    if grep -q 'update or create feature doc\|create.*feature doc.*if.*needed\|Doc sync.*create' "$SKILL"; then
+        pass "TodoWrite doc sync step includes doc creation"
+    else
+        fail "TodoWrite doc sync step should include creating feature docs, not just updating"
+    fi
+}
+
+# SKILL.md doc section has enforcement language (MUST/REQUIRED, not just "consider")
+test_skill_doc_enforcement_teeth() {
+    if grep -q 'MUST.*update.*doc\|doc.*MUST.*current\|REQUIRED.*doc' "$SKILL"; then
+        pass "SKILL.md has enforcement language for doc sync"
+    else
+        fail "SKILL.md doc sync should use enforcement language (MUST/REQUIRED), not just suggestions"
+    fi
+}
+
+test_skill_docs_md_primary
+test_skill_doc_creation_gate
+test_skill_roadmap_enforcement
+test_wizard_docs_md_primary
+test_skill_todow_doc_creation
+test_skill_doc_enforcement_teeth
+
 # --- Version-Pinned Update Gate Tests (#46) ---
 echo ""
 echo "--- Version-Pinned Update Gate (#46) ---"

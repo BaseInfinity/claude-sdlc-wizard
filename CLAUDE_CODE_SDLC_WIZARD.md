@@ -1127,7 +1127,7 @@ Claude scans for:
 ├── Test frameworks: detected from config files and test patterns
 ├── Lint/format tools: from config files
 ├── CI/CD: .github/workflows/, .gitlab-ci.yml, etc.
-├── Feature docs: *_PLAN.md, *_DOCS.md, *_SPEC.md, docs/
+├── Feature docs: *_DOCS.md, docs/features/, docs/decisions/
 ├── README, CLAUDE.md, ARCHITECTURE.md
 │
 ├── Deployment targets (for ARCHITECTURE.md environments):
@@ -1646,7 +1646,7 @@ Workflow phases:
 3. Implementation (TDD after compact)
 4. SELF-REVIEW (/code-review) → BEFORE presenting to user
 
-Quick refs: SDLC.md | TESTING.md | *_PLAN.md for feature
+Quick refs: SDLC.md | TESTING.md | *_DOCS.md for feature
 EOF
 ```
 
@@ -1729,7 +1729,7 @@ TodoWrite([
   { content: "Present approach + STATE CONFIDENCE LEVEL", status: "pending", activeForm: "Presenting approach" },
   { content: "Signal ready - user exits plan mode", status: "pending", activeForm: "Awaiting plan approval" },
   // TRANSITION PHASE (After plan mode, before compact)
-  { content: "Doc sync: update feature docs if code change contradicts or extends documented behavior", status: "pending", activeForm: "Syncing feature docs" },
+  { content: "Doc sync: update or create feature docs — MUST be current before commit", status: "pending", activeForm: "Syncing feature docs" },
   { content: "Request /compact before TDD", status: "pending", activeForm: "Requesting compact" },
   // IMPLEMENTATION PHASE (After compact)
   { content: "TDD RED: Write failing test FIRST", status: "pending", activeForm: "Writing failing test" },
@@ -1786,7 +1786,7 @@ TodoWrite([
 
 **Workflow:**
 1. **Plan Mode** (editing blocked): Research → Write plan file → Present approach + confidence
-2. **Transition** (after approval): Doc sync (update feature docs if code contradicts/extends them) → Request /compact
+2. **Transition** (after approval): Doc sync (update or create feature docs — MUST be current before commit) → Request /compact
 3. **Implementation** (after compact): TDD RED → GREEN → PASS
 
 **Before TDD, MUST ask:** "Docs updated. Run `/compact` before implementation?"
@@ -2288,7 +2288,7 @@ Create `CLAUDE.md` in your project root. This is your project-specific configura
 
 ## Plan Docs
 
-- Before coding a feature: READ its `*_PLAN.md` file
+- Before coding a feature: READ its `*_DOCS.md` file
 - After completing work: UPDATE the plan doc
 
 ## Testing Notes
@@ -2741,7 +2741,7 @@ Want me to file these? (yes/no/not now)
 
 | Learning Type | Update Where |
 |---------------|--------------|
-| Feature-specific gotchas, decisions | Feature docs (`*_PLAN.md`, `*_DOCS.md`) |
+| Feature-specific gotchas, decisions | Feature docs (`*_DOCS.md`, e.g., `AUTH_DOCS.md`) |
 | Testing patterns, gotchas | `TESTING.md` |
 | Architecture decisions | `ARCHITECTURE.md` |
 | Commands, general project context | `CLAUDE.md` (or `/revise-claude-md`) |
@@ -2760,13 +2760,15 @@ Want me to file these? (yes/no/not now)
 
 ### Feature Documentation
 
-Keep feature docs alongside code. Three patterns, use what fits:
+Feature docs are living documents — the single source of truth for each feature, kept current just like `TESTING.md` and `ARCHITECTURE.md`. Use `*_DOCS.md` as the standard pattern:
 
 | Pattern | When to Use | Example |
 |---------|-------------|---------|
-| `*_PLAN.md` / `*_DOCS.md` | Per-feature living docs | `AUTH_DOCS.md`, `PAYMENTS_PLAN.md` |
+| `*_DOCS.md` | Per-feature living docs (primary) | `AUTH_DOCS.md`, `PAYMENTS_DOCS.md`, `SEARCH_DOCS.md` |
 | `docs/decisions/NNN-title.md` (ADR) | Architecture decisions that need rationale | `docs/decisions/001-use-postgres.md` |
 | `docs/features/name.md` | Feature docs in a `docs/` directory | `docs/features/auth.md` |
+
+**When to create a feature doc:** If a feature touches 3+ files and no `*_DOCS.md` exists, create one. Keep it simple — what the feature does, key decisions, gotchas. The doc grows with the feature over time.
 
 **Feature doc template:**
 
@@ -2806,12 +2808,14 @@ What are the trade-offs? What becomes easier/harder?
 
 Store ADRs in `docs/decisions/`. Number sequentially. Claude reads these during planning to understand why things are built the way they are.
 
-**Keeping docs in sync with code:**
+**Keeping docs in sync with code (REQUIRED):**
 
-Docs drift when code changes but docs don't. The SDLC skill's planning phase detects this:
+Docs MUST be current before commit. Stale docs mislead future sessions, waste tokens, and cause wrong implementations. The SDLC skill enforces this:
 
 - During planning, Claude reads feature docs for the area being changed
-- If the code change contradicts what the doc says, Claude updates the doc
+- If the code change contradicts what the doc says → MUST update the doc
+- If the code change extends documented behavior → MUST add to the doc
+- If a `ROADMAP.md` exists → update it (mark items done, add new items). ROADMAP feeds CHANGELOG — keeping it current means releases write themselves
 - The "After Session" step routes learnings to the right doc
 - Plan files get closed out — if the session's work came from a plan, it gets deleted or marked complete so future sessions aren't misled
 - Stale docs cause low confidence — if Claude struggles, the doc may need updating
