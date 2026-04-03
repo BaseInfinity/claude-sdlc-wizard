@@ -90,9 +90,9 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 86 | Fix: E2E tdd_red Detection | Broken since day 1 — 0% on our own critical criterion. Fix before going public. Half day |
+| 1 | 86 | ~~Fix: E2E tdd_red Detection~~ DONE | PR #150. Three bugs: test-only scored 0, golden outputs were .txt not JSON, golden-scores encoded bug. Codex review caught regex false-positive (contest/ substring) + missing JSON pairing — both fixed. 29 deterministic + 9 regression tests passing |
 | 2 | 68 | Hook `if` Conditionals | Use CC v2.1.85+ `if` field to reduce false positives. User-facing quality win. 1-2 days |
-| 3 | 88 | Autocompact Recommendation in Setup Wizard | Detect model context window, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` in generated settings.json (75% for 200K, 30% for 1M). Quick win, proven env vars. Half day |
+| 3 | 88 | Autocompact + Context Model Recommendation | Detect model context window, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` in generated settings.json (75% for 200K, 30% for 1M). **Also add 1M vs 200K guidance**: default 200K for normal SDLC cycles (50-80K tokens typical), switch to 1M for multi-feature releases / deep research. Community evidence: issue #34332 (autocompact fires at 76K on 1M = 92% wasted), no per-token premium since March 2026 but total cost scales linearly. Guidance not enforcement — let users choose |
 | 4 | 89 | Claude Code Plugin Format | Convert to `.claude-plugin/plugin.json` structure. Plugins now support hooks — this is our #1 new distribution channel. Submit to official marketplace via claude.ai. Absorbs #66 + #87. 1-2 days |
 | 5 | 90 | Distribution Channels Sprint | (a) Submit to awesome-claude-code + awesome-claude-skills + SkillsMP (1-2h), (b) curl/wget install script (1-2h), (c) Homebrew tap (2-3h), (d) GitHub CLI extension `gh-sdlc-wizard` (30min), (e) GitHub Releases automation (30min). Total: ~1 day |
 | 6 | -- | CC Version Check + Weekly-Update Audit | Audit why we were 9 CC versions behind (2.1.81 vs 2.1.90). Verify weekly-update workflow is firing correctly |
