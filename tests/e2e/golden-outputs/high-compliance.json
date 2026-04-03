@@ -1,0 +1,7 @@
+[
+  {"role": "assistant", "content": "I'll start by creating a task list to track my work."},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {"file_path": "tests/user-validation.test.js", "content": "describe('User Validation', () => { test('rejects missing email', () => {}); });"}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {"file_path": "src/validation.js", "content": "function validateEmail(email) { return email && email.includes('@'); }"}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}
+]

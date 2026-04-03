@@ -470,6 +470,66 @@ test_tdd_red_object_format_impl_first() {
     fi
 }
 
+test_tdd_red_test_only_no_impl() {
+    # Test-only scenario: only test files written, no implementation files
+    # Writing only tests IS test-first development — should score 2
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "tests/app.test.js" "Edit" "tests/app.test.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "2" ]; then
+        pass "TDD RED: test-only files (no impl) scores 2"
+    else
+        fail "TDD RED: test-only files should score 2 (test-only = test-first), got $result"
+    fi
+}
+
+test_tdd_red_impl_only_no_test() {
+    # Impl-only: no test files at all — no TDD
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/app.js" "Edit" "src/utils.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: impl-only files (no test) scores 0"
+    else
+        fail "TDD RED: impl-only files should score 0, got $result"
+    fi
+}
+
+test_tdd_red_fixture_files_not_tests() {
+    # Fixture/config files under tests/ should NOT count as test files
+    # This prevents false-positive TDD RED credit for non-test work
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "tests/fixtures/releases/v2.1.16-tasks.json" "Write" "tests/fixtures/config.json")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: fixture/config files in tests/ are NOT test files (scores 0)"
+    else
+        fail "TDD RED: fixture files in tests/ should score 0 (not real tests), got $result"
+    fi
+}
+
+test_tdd_red_contest_substring_not_test() {
+    # "contest" contains "test" as a substring — must NOT match as a test directory
+    # Anchored to path segment boundaries to prevent false positives
+    # Uses two files: with old unanchored regex, contest/ matched test/ → false TDD credit
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/contest/app.js" "Write" "src/real-impl.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: src/contest/app.js is NOT a test file (scores 0)"
+    else
+        fail "TDD RED: contest/ substring should not match test/ pattern, got $result"
+    fi
+}
+
 test_tdd_red_content_as_string() {
     # Real execution output may have string content (text) mixed with array content (tool_use)
     local tmpfile
@@ -514,6 +574,10 @@ test_tdd_red_spec_file
 test_tdd_red_empty_json
 test_tdd_red_nonexistent_file
 
+test_tdd_red_test_only_no_impl
+test_tdd_red_impl_only_no_test
+test_tdd_red_fixture_files_not_tests
+test_tdd_red_contest_substring_not_test
 test_tdd_red_object_format_test_first
 test_tdd_red_object_format_impl_first
 test_tdd_red_content_as_string
