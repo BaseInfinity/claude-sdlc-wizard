@@ -79,8 +79,10 @@ check_tdd_red() {
         line_num=$((line_num + 1))
         # Check if this is a test file
         # Matches: *.test.ext, *.spec.ext (JS/TS/Python/Ruby/Java/Go/Rust)
-        # Also matches directories: tests/, test/, spec/, __tests__/
-        if grep -qE '(test|spec)\.(js|ts|jsx|tsx|py|rb|java|go|rs)$|tests/|test/|spec/|__tests__/' <<< "$filepath"; then
+        # Also matches: code files in tests/, test/, spec/, __tests__/ directories
+        # Anchored to path segments — src/contest/app.js does NOT match
+        # Does NOT match: non-code files in test dirs (fixtures, configs, JSON data)
+        if grep -qE '(test|spec)\.(js|ts|jsx|tsx|py|rb|java|go|rs)$|(^|/)(tests|test|spec|__tests__)/.*\.(js|ts|jsx|tsx|py|rb|java|go|rs)$' <<< "$filepath"; then
             if [ -z "$first_test_line" ]; then
                 first_test_line="$line_num"
             fi
@@ -92,12 +94,21 @@ check_tdd_red() {
         fi
     done <<< "$operations"
 
-    # TDD RED: test file must appear before implementation file
+    # TDD RED scoring:
+    # - Test files before impl files → 2 (classic TDD)
+    # - Test files only, no impl files → 2 (test-only work is inherently test-first)
+    # - Impl files only, no test files → 0 (no TDD)
+    # - Impl files before test files → 0 (implementation-first)
     if [ -n "$first_test_line" ] && [ -n "$first_impl_line" ]; then
         if [ "$first_test_line" -lt "$first_impl_line" ]; then
             echo "2"
             return
         fi
+    elif [ -n "$first_test_line" ] && [ -z "$first_impl_line" ]; then
+        # Test-only: only test files written, no implementation files
+        # This is inherently test-first (e.g., expand-test-coverage scenarios)
+        echo "2"
+        return
     fi
 
     echo "0"
@@ -135,7 +146,7 @@ run_deterministic_checks() {
 
     local tdd_evidence="Not found"
     if [ "$tdd_score" = "2" ]; then
-        tdd_evidence="Test file created/edited before implementation file"
+        tdd_evidence="Test file created/edited before implementation file (or test-only task)"
     fi
 
     # Output JSON

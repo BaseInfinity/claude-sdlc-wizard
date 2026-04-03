@@ -1,0 +1,7 @@
+[
+  {"role": "assistant", "content": "Let me look at the bug and fix it."},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {"file_path": "src/app.js", "content": "function add(a, b) { return Math.round((a + b) * 100) / 100; }"}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {"file_path": "tests/add.test.js", "content": "test('decimal addition', () => { expect(add(0.1, 0.2)).toBe(0.3); });"}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}
+]

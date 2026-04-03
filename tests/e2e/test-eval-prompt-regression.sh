@@ -105,6 +105,23 @@ test_golden_scores_match_outputs() {
     fi
 }
 
+test_golden_json_files_paired() {
+    local missing=""
+    for golden_txt in "$GOLDEN_DIR"/*.txt; do
+        local name
+        name=$(basename "$golden_txt" .txt)
+        local golden_json="$GOLDEN_DIR/${name}.json"
+        if [ ! -f "$golden_json" ]; then
+            missing="$missing $name"
+        fi
+    done
+    if [ -z "$missing" ]; then
+        pass "Every golden .txt has a matching .json for tdd_red validation"
+    else
+        fail "Missing golden JSON files for:$missing (tdd_red can't be validated without JSON)"
+    fi
+}
+
 # -----------------------------------------------
 # Deterministic score validation (no API key needed)
 # -----------------------------------------------
@@ -115,6 +132,7 @@ echo "--- Deterministic score validation ---"
 test_deterministic_scores() {
     local golden_name="$1"
     local golden_file="$GOLDEN_DIR/${golden_name}.txt"
+    local golden_json="$GOLDEN_DIR/${golden_name}.json"
 
     if [ ! -f "$golden_file" ]; then
         fail "$golden_name: golden output file not found"
@@ -124,9 +142,15 @@ test_deterministic_scores() {
     local output_content
     output_content=$(cat "$golden_file")
 
-    # Run deterministic checks (pass file path for tdd_red JSON parsing)
+    # Use JSON file for tdd_red parsing (txt files can't contain tool_use blocks)
+    local tdd_red_file="$golden_file"
+    if [ -f "$golden_json" ]; then
+        tdd_red_file="$golden_json"
+    fi
+
+    # Run deterministic checks (pass JSON file path for tdd_red parsing)
     local det_result
-    det_result=$(run_deterministic_checks "$output_content" "$golden_file")
+    det_result=$(run_deterministic_checks "$output_content" "$tdd_red_file")
 
     # Get expected deterministic scores
     local expected_task expected_confidence expected_tdd
@@ -232,6 +256,7 @@ test_golden_dir_exists
 test_scores_file_exists
 test_scores_file_valid_json
 test_golden_outputs_exist
+test_golden_json_files_paired
 test_golden_scores_match_outputs
 
 # Deterministic validation for each golden output
