@@ -32,4 +32,15 @@ if [ -f "$SDLC_MD" ]; then
     fi
 fi
 
+# Claude Code version check (non-blocking, best-effort)
+if command -v claude > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
+    CC_LOCAL=$(claude --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1) || true
+    if [ -n "$CC_LOCAL" ]; then
+        CC_LATEST=$(npm view @anthropic-ai/claude-code version 2>/dev/null) || true
+        if [ -n "$CC_LATEST" ] && [ "$CC_LATEST" != "$CC_LOCAL" ]; then
+            echo "Claude Code update available: ${CC_LOCAL} → ${CC_LATEST} (run: npm install -g @anthropic-ai/claude-code)"
+        fi
+    fi
+fi
+
 exit 0
