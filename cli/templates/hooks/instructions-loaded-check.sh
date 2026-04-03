@@ -32,6 +32,26 @@ if [ -f "$SDLC_MD" ]; then
     fi
 fi
 
+# Cross-model review staleness check (non-blocking, best-effort)
+if command -v codex > /dev/null 2>&1 && [ -d "$PROJECT_DIR/.reviews" ]; then
+    REVIEW_FILE="$PROJECT_DIR/.reviews/latest-review.md"
+    if [ -f "$REVIEW_FILE" ]; then
+        # Get file modification time (macOS stat -f %m, Linux stat -c %Y)
+        if stat -f %m "$REVIEW_FILE" > /dev/null 2>&1; then
+            REVIEW_MTIME=$(stat -f %m "$REVIEW_FILE")
+        else
+            REVIEW_MTIME=$(stat -c %Y "$REVIEW_FILE" 2>/dev/null || echo "0")
+        fi
+        NOW=$(date +%s)
+        REVIEW_AGE=$(( (NOW - REVIEW_MTIME) / 86400 ))
+        # Count commits since last review
+        COMMITS_SINCE=$(git -C "$PROJECT_DIR" log --oneline --after="@${REVIEW_MTIME}" 2>/dev/null | wc -l | tr -d ' ') || true
+        if [ "$REVIEW_AGE" -gt 3 ] && [ "${COMMITS_SINCE:-0}" -gt 5 ]; then
+            echo "WARNING: ${COMMITS_SINCE} commits over ${REVIEW_AGE}d since last cross-model review — reviews may not be running. Verify: codex exec \"echo test\""
+        fi
+    fi
+fi
+
 # Claude Code version check (non-blocking, best-effort)
 if command -v claude > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
     CC_LOCAL=$(claude --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1) || true

@@ -224,8 +224,14 @@ test_instructions_hook_all_present() {
     tmpdir=$(mktemp -d)
     touch "$tmpdir/SDLC.md"
     touch "$tmpdir/TESTING.md"
+    # Mock claude + npm so CC version check doesn't produce output
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif [ "$1" = "--version" ]; then echo "2.1.90 (Claude Code)"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm" "$tmpdir/bin/codex"
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if [ -z "$output" ]; then
         pass "instructions-loaded-check.sh silent when all files present"
