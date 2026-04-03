@@ -79,8 +79,9 @@ check_tdd_red() {
         line_num=$((line_num + 1))
         # Check if this is a test file
         # Matches: *.test.ext, *.spec.ext (JS/TS/Python/Ruby/Java/Go/Rust)
-        # Also matches directories: tests/, test/, spec/, __tests__/
-        if grep -qE '(test|spec)\.(js|ts|jsx|tsx|py|rb|java|go|rs)$|tests/|test/|spec/|__tests__/' <<< "$filepath"; then
+        # Also matches: code files in tests/, test/, spec/, __tests__/ directories
+        # Does NOT match: non-code files in test dirs (fixtures, configs, JSON data)
+        if grep -qE '(test|spec)\.(js|ts|jsx|tsx|py|rb|java|go|rs)$|(tests/|test/|spec/|__tests__/).*\.(js|ts|jsx|tsx|py|rb|java|go|rs)$' <<< "$filepath"; then
             if [ -z "$first_test_line" ]; then
                 first_test_line="$line_num"
             fi
