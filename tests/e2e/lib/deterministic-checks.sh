@@ -92,12 +92,21 @@ check_tdd_red() {
         fi
     done <<< "$operations"
 
-    # TDD RED: test file must appear before implementation file
+    # TDD RED scoring:
+    # - Test files before impl files → 2 (classic TDD)
+    # - Test files only, no impl files → 2 (test-only work is inherently test-first)
+    # - Impl files only, no test files → 0 (no TDD)
+    # - Impl files before test files → 0 (implementation-first)
     if [ -n "$first_test_line" ] && [ -n "$first_impl_line" ]; then
         if [ "$first_test_line" -lt "$first_impl_line" ]; then
             echo "2"
             return
         fi
+    elif [ -n "$first_test_line" ] && [ -z "$first_impl_line" ]; then
+        # Test-only: only test files written, no implementation files
+        # This is inherently test-first (e.g., expand-test-coverage scenarios)
+        echo "2"
+        return
     fi
 
     echo "0"
@@ -135,7 +144,7 @@ run_deterministic_checks() {
 
     local tdd_evidence="Not found"
     if [ "$tdd_score" = "2" ]; then
-        tdd_evidence="Test file created/edited before implementation file"
+        tdd_evidence="Test file created/edited before implementation file (or test-only task)"
     fi
 
     # Output JSON

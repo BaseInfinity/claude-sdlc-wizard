@@ -105,6 +105,16 @@ test_golden_scores_match_outputs() {
     fi
 }
 
+test_golden_json_files_exist() {
+    local count
+    count=$(ls "$GOLDEN_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$count" -ge 3 ]; then
+        pass "Golden JSON execution files exist ($count found)"
+    else
+        fail "Expected at least 3 golden JSON execution files for tdd_red validation, found $count"
+    fi
+}
+
 # -----------------------------------------------
 # Deterministic score validation (no API key needed)
 # -----------------------------------------------
@@ -115,6 +125,7 @@ echo "--- Deterministic score validation ---"
 test_deterministic_scores() {
     local golden_name="$1"
     local golden_file="$GOLDEN_DIR/${golden_name}.txt"
+    local golden_json="$GOLDEN_DIR/${golden_name}.json"
 
     if [ ! -f "$golden_file" ]; then
         fail "$golden_name: golden output file not found"
@@ -124,9 +135,15 @@ test_deterministic_scores() {
     local output_content
     output_content=$(cat "$golden_file")
 
-    # Run deterministic checks (pass file path for tdd_red JSON parsing)
+    # Use JSON file for tdd_red parsing (txt files can't contain tool_use blocks)
+    local tdd_red_file="$golden_file"
+    if [ -f "$golden_json" ]; then
+        tdd_red_file="$golden_json"
+    fi
+
+    # Run deterministic checks (pass JSON file path for tdd_red parsing)
     local det_result
-    det_result=$(run_deterministic_checks "$output_content" "$golden_file")
+    det_result=$(run_deterministic_checks "$output_content" "$tdd_red_file")
 
     # Get expected deterministic scores
     local expected_task expected_confidence expected_tdd
@@ -232,6 +249,7 @@ test_golden_dir_exists
 test_scores_file_exists
 test_scores_file_valid_json
 test_golden_outputs_exist
+test_golden_json_files_exist
 test_golden_scores_match_outputs
 
 # Deterministic validation for each golden output

@@ -1,0 +1,5 @@
+[
+  {"role": "assistant", "content": "Let me just fix this quickly."},
+  {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {"file_path": "src/app.js", "content": "function add(a, b) { return a + b; }"}}]},
+  {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}
+]
