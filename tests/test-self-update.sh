@@ -1764,6 +1764,91 @@ test_hook_triggers_on_release() {
 
 test_hook_triggers_on_release
 
+# -------------------------------------------------------------------
+# CC Version Check in Notification Hook
+# -------------------------------------------------------------------
+
+echo ""
+echo "--- CC version check in notification hook ---"
+
+INSTRUCTIONS_HOOK=".claude/hooks/instructions-loaded-check.sh"
+
+# Test: Hook checks CC version (claude --version) not just wizard version
+test_hook_checks_cc_version() {
+    if grep -q "claude --version\|claude-code.*version\|@anthropic-ai/claude-code" "$INSTRUCTIONS_HOOK"; then
+        pass "instructions-loaded-check.sh checks Claude Code version"
+    else
+        fail "instructions-loaded-check.sh should check Claude Code version — we were 9 versions behind (2.1.81 vs 2.1.90) with no notification"
+    fi
+}
+
+# Test: CC version check is non-blocking (exits 0 even if check fails)
+test_cc_version_check_nonblocking() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    # Fake claude that reports old version
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif [ "$1" = "--version" ]; then echo "2.1.81 (Claude Code)"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm"
+    local exit_code
+    PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" > /dev/null 2>&1
+    exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ]; then
+        pass "CC version check is non-blocking (exits 0)"
+    else
+        fail "CC version check should not block session start, got exit code: $exit_code"
+    fi
+}
+
+# Test: Shows CC update notification when behind
+test_cc_version_shows_update() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif [ "$1" = "--version" ]; then echo "2.1.81 (Claude Code)"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "Claude Code update" && echo "$output" | grep -q "2.1.81" && echo "$output" | grep -q "2.1.90"; then
+        pass "Shows CC update notification with version numbers"
+    else
+        fail "Should show CC update notification with both versions, got: $output"
+    fi
+}
+
+# Test: No CC notification when versions match
+test_cc_version_no_notification_when_current() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.23.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nif [ "$1" = "--version" ]; then echo "2.1.90 (Claude Code)"; else echo "1.23.0"; fi\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm"
+    local output
+    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "Claude Code update"; then
+        fail "Should NOT show CC update notification when versions match, got: $output"
+    else
+        pass "No CC update notification when versions match"
+    fi
+}
+
+test_hook_checks_cc_version
+test_cc_version_check_nonblocking
+test_cc_version_shows_update
+test_cc_version_no_notification_when_current
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

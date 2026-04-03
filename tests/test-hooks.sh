@@ -646,8 +646,9 @@ test_update_notification_same_version() {
     echo '<!-- SDLC Wizard Version: 1.22.0 -->' > "$tmpdir/SDLC.md"
     touch "$tmpdir/TESTING.md"
     mkdir -p "$tmpdir/bin"
-    printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
-    chmod +x "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nif echo "$@" | grep -q "claude-code"; then echo "2.1.90"; else echo "1.22.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude"
     local output
     output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
@@ -704,13 +705,14 @@ test_update_notification_no_version_metadata() {
     echo "# SDLC Config" > "$tmpdir/SDLC.md"
     touch "$tmpdir/TESTING.md"
     mkdir -p "$tmpdir/bin"
-    printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
-    chmod +x "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nif echo "$@" | grep -q "claude-code"; then echo "2.1.90"; else echo "1.22.0"; fi\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude"
     local output
     output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
-    if echo "$output" | grep -q "update available"; then
-        fail "Should NOT show notification when SDLC.md has no version metadata, got: $output"
+    if echo "$output" | grep -q "Wizard.*update available"; then
+        fail "Should NOT show wizard notification when SDLC.md has no version metadata, got: $output"
     else
         pass "No notification when SDLC.md lacks version metadata"
     fi
