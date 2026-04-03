@@ -759,21 +759,21 @@ test_skill_doc_creation_gate() {
     fi
 }
 
-# SKILL.md has ROADMAP enforcement (keep updated, feeds CHANGELOG)
+# SKILL.md doc sync section has ROADMAP feeds CHANGELOG enforcement
 test_skill_roadmap_enforcement() {
-    if grep -q 'ROADMAP' "$SKILL" && grep -q 'CHANGELOG' "$SKILL"; then
-        pass "SKILL.md enforces ROADMAP/CHANGELOG sync"
+    if grep -q 'ROADMAP.*feeds CHANGELOG\|ROADMAP feeds CHANGELOG' "$SKILL"; then
+        pass "SKILL.md enforces ROADMAP feeds CHANGELOG in doc sync section"
     else
-        fail "SKILL.md should enforce keeping ROADMAP.md updated and feeding CHANGELOG.md"
+        fail "SKILL.md doc sync section should enforce ROADMAP feeds CHANGELOG"
     fi
 }
 
-# Wizard recommends _DOCS.md as primary pattern
+# Wizard Feature Documentation section recommends _DOCS.md as living docs
 test_wizard_docs_md_primary() {
-    if grep -q '_DOCS.md' "$WIZARD" && grep -q 'living doc' "$WIZARD"; then
-        pass "Wizard recommends _DOCS.md as living documentation"
+    if grep -A5 '### Feature Documentation' "$WIZARD" | grep -q 'living doc'; then
+        pass "Wizard Feature Documentation section recommends _DOCS.md as living docs"
     else
-        fail "Wizard should recommend _DOCS.md as living documentation pattern"
+        fail "Wizard Feature Documentation section should recommend _DOCS.md as living documentation"
     fi
 }
 
