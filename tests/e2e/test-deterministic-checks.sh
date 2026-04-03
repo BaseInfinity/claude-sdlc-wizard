@@ -517,8 +517,9 @@ test_tdd_red_fixture_files_not_tests() {
 test_tdd_red_contest_substring_not_test() {
     # "contest" contains "test" as a substring — must NOT match as a test directory
     # Anchored to path segment boundaries to prevent false positives
+    # Uses two files: with old unanchored regex, contest/ matched test/ → false TDD credit
     local tmpfile
-    tmpfile=$(make_execution_json "Write" "src/contest/app.js")
+    tmpfile=$(make_execution_json "Write" "src/contest/app.js" "Write" "src/real-impl.js")
     local result
     result=$(check_tdd_red "$tmpfile")
     rm -f "$tmpfile"
