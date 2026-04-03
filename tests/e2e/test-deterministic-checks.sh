@@ -470,6 +470,35 @@ test_tdd_red_object_format_impl_first() {
     fi
 }
 
+test_tdd_red_test_only_no_impl() {
+    # Test-only scenario: only test files written, no implementation files
+    # Writing only tests IS test-first development — should score 2
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "tests/app.test.js" "Edit" "tests/app.test.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "2" ]; then
+        pass "TDD RED: test-only files (no impl) scores 2"
+    else
+        fail "TDD RED: test-only files should score 2 (test-only = test-first), got $result"
+    fi
+}
+
+test_tdd_red_impl_only_no_test() {
+    # Impl-only: no test files at all — no TDD
+    local tmpfile
+    tmpfile=$(make_execution_json "Write" "src/app.js" "Edit" "src/utils.js")
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: impl-only files (no test) scores 0"
+    else
+        fail "TDD RED: impl-only files should score 0, got $result"
+    fi
+}
+
 test_tdd_red_content_as_string() {
     # Real execution output may have string content (text) mixed with array content (tool_use)
     local tmpfile
@@ -514,6 +543,8 @@ test_tdd_red_spec_file
 test_tdd_red_empty_json
 test_tdd_red_nonexistent_file
 
+test_tdd_red_test_only_no_impl
+test_tdd_red_impl_only_no_test
 test_tdd_red_object_format_test_first
 test_tdd_red_object_format_impl_first
 test_tdd_red_content_as_string
