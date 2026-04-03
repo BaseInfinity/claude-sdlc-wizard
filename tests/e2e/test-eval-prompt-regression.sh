@@ -105,13 +105,20 @@ test_golden_scores_match_outputs() {
     fi
 }
 
-test_golden_json_files_exist() {
-    local count
-    count=$(ls "$GOLDEN_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$count" -ge 3 ]; then
-        pass "Golden JSON execution files exist ($count found)"
+test_golden_json_files_paired() {
+    local missing=""
+    for golden_txt in "$GOLDEN_DIR"/*.txt; do
+        local name
+        name=$(basename "$golden_txt" .txt)
+        local golden_json="$GOLDEN_DIR/${name}.json"
+        if [ ! -f "$golden_json" ]; then
+            missing="$missing $name"
+        fi
+    done
+    if [ -z "$missing" ]; then
+        pass "Every golden .txt has a matching .json for tdd_red validation"
     else
-        fail "Expected at least 3 golden JSON execution files for tdd_red validation, found $count"
+        fail "Missing golden JSON files for:$missing (tdd_red can't be validated without JSON)"
     fi
 }
 
@@ -249,7 +256,7 @@ test_golden_dir_exists
 test_scores_file_exists
 test_scores_file_valid_json
 test_golden_outputs_exist
-test_golden_json_files_exist
+test_golden_json_files_paired
 test_golden_scores_match_outputs
 
 # Deterministic validation for each golden output
