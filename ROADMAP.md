@@ -99,7 +99,7 @@
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 89 | ~~Claude Code Plugin Format~~ DONE | PR #154. Single source of truth: `skills/` and `hooks/` at repo root serve plugin + CLI. `.claude-plugin/plugin.json` manifest, `hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}`, `.claude-plugin/marketplace.json` for self-hosted marketplace. CLI updated (`init.js` reads from root), dogfood uses symlinks. 25 plugin tests, 0 regressions across 17 suites. Absorbs #66 + #87 |
-| 2 | 90 | Distribution Channels Sprint | (a) Submit to awesome-claude-code + awesome-claude-skills + SkillsMP (1-2h), (b) curl/wget install script (1-2h), (c) Homebrew tap (2-3h), (d) GitHub CLI extension `gh-sdlc-wizard` (30min), (e) GitHub Releases automation (30min). Total: ~1 day |
+| 2 | 90 | ~~Distribution Channels Sprint~~ DONE | (a) awesome-claude-skills PR #588 submitted, awesome-claude-code needs web form (prepared). (b) `install.sh` curl script with 14 tests. (c) Homebrew tap at `BaseInfinity/homebrew-sdlc-wizard`. (d) gh CLI extension at `BaseInfinity/gh-sdlc-wizard`. (e) `.github/workflows/release.yml` tag-push automation with 10 tests. SkillsMP deferred (no evidence marketplace exists). 6 total distribution channels (npm, plugin, curl, Homebrew, gh extension, GitHub Releases) |
 | 3 | -- | CC Version Check + Weekly-Update Audit | Audit why we were 9 CC versions behind (2.1.81 vs 2.1.90). Verify weekly-update workflow is firing correctly |
 
 ## Unprioritized
