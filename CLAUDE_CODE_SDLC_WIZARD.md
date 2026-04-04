@@ -716,11 +716,65 @@ Two tools for managing context — use the right one:
 - `/clear` after 2+ failed corrections on the same issue (context is polluted with bad approaches — start fresh with a better prompt)
 - After committing a PR, `/clear` before starting the next feature
 
-**Auto-compact** fires automatically at ~95% context capacity. You don't need to manage this manually — Claude Code handles it. The SDLC skill suggests `/compact` during CI idle time as a "context GC" opportunity.
+**Auto-compact** fires automatically at ~95% context capacity. Claude Code handles this by default — but the default threshold may not be ideal for all use cases (see "Autocompact Tuning" below). The SDLC skill suggests `/compact` during CI idle time as a "context GC" opportunity.
 
 **What survives `/compact`:** Key decisions, code changes, task state (as a summary). What can be lost: detailed early-conversation instructions not in CLAUDE.md, specific file contents read long ago.
 
 **Best practice:** Put persistent instructions in CLAUDE.md (survives both `/compact` and `/clear`), not in conversation.
+
+### Autocompact Tuning
+
+Override the default auto-compact threshold with environment variables. These are community-discovered settings referenced in upstream issues ([#34332](https://github.com/anthropics/claude-code/issues/34332), [#42375](https://github.com/anthropics/claude-code/issues/42375)) — not yet officially documented by Anthropic:
+
+| Variable | What It Does | Default |
+|----------|-------------|---------|
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Trigger compaction at this % of context capacity (1-100) | ~95% |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Override context capacity in tokens (useful for 1M models) | Model default |
+
+Set these in your shell profile (`~/.bashrc`, `~/.zshrc`) or per-project `.envrc`:
+
+```bash
+# Example: compact earlier on a 200K model
+export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75
+```
+
+**Community-recommended thresholds by use case:**
+
+| Use Case | AUTOCOMPACT % | Why |
+|----------|--------------|-----|
+| General development (200K) | 75% | Leaves room for implementation after planning |
+| Complex refactors (200K) | 80% | Slightly more context before compaction |
+| CI pipelines | 60% | Short tasks, compact early to stay fast |
+| 1M context model | 30% | See "1M vs 200K" below — 95% on 1M wastes budget |
+| Short tasks | 60-70% | Less context needed, compact early |
+
+**Important:** Values above the default ~95% threshold have no effect — you can only trigger compaction *earlier*, not later. Noise (progress ticks, thinking blocks, stale reads) makes up 50-70% of session tokens, so threshold tuning matters less than noise reduction (scoped reads, subagents, `/compact` between phases).
+
+**Note:** These env vars may change as Claude Code evolves. Check [Claude Code settings docs](https://docs.anthropic.com/en/docs/claude-code/settings) for the latest supported configuration.
+
+### 1M vs 200K Context Window
+
+Claude Code supports both 200K and 1M context windows. Choose based on your task:
+
+| | 200K Context | 1M Context |
+|---|---|---|
+| **Best for** | Normal SDLC cycles (plan → TDD → review) | Multi-feature releases, deep codebase exploration |
+| **Typical usage** | 50-80K tokens per task | 200K+ tokens for complex workflows |
+| **Cost** | Lower total cost per session | ~5x more tokens consumed (cost scales linearly) |
+| **Auto-compact** | Default 95% works well | Reported to fire at ~76K ([issue #34332](https://github.com/anthropics/claude-code/issues/34332)) |
+| **Suggested override** | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` |
+
+**Default to 200K.** Normal SDLC tasks (single feature, bug fix, refactor) rarely exceed 80K tokens. The 200K window handles this with room to spare.
+
+**Switch to 1M when:**
+- Implementing multiple related features in one session
+- Deep research across a large codebase (reading 20+ files)
+- Multi-agent workflows that accumulate context
+- Complex debugging sessions that need full history
+
+**Cost awareness:** No per-token premium since March 2026, but total cost scales linearly with context consumed. A 900K-token session costs ~$4.50 in input alone. Use `/cost` to monitor.
+
+**1M autocompact workaround:** On 1M models, the default auto-compact has been reported to fire too early (~76K, per [issue #34332](https://github.com/anthropics/claude-code/issues/34332)). Community workaround: set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` to use more of the window.
 
 ---
 
