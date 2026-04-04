@@ -770,7 +770,7 @@ test_if_field_targets_workflows() {
     local settings="$SCRIPT_DIR/../.claude/settings.json"
     local if_value
     if_value=$(jq -r '.hooks.PreToolUse[0].hooks[0].if // empty' "$settings")
-    if echo "$if_value" | grep -q '.github/workflows/'; then
+    if echo "$if_value" | grep -qF '.github/workflows/'; then
         pass "if field targets .github/workflows/ files"
     else
         fail "if field should target .github/workflows/ files, got: $if_value"
