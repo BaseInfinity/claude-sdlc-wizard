@@ -17,9 +17,32 @@ Then start (or restart) Claude Code — type `/exit` then `claude` to reload hoo
 <details>
 <summary>Alternative install methods</summary>
 
-**From GitHub (no npm needed):**
+**curl (no npm install needed):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/install.sh | bash
+```
+
+**Homebrew:**
+```bash
+brew install BaseInfinity/sdlc-wizard/sdlc-wizard
+sdlc-wizard init
+```
+
+**GitHub CLI extension:**
+```bash
+gh extension install BaseInfinity/gh-sdlc-wizard
+gh sdlc-wizard init
+```
+
+**From GitHub (no npm registry needed):**
 ```bash
 npx github:BaseInfinity/agentic-ai-sdlc-wizard init
+```
+
+**Install CLI globally:**
+```bash
+npm install -g agentic-sdlc-wizard
+sdlc-wizard init
 ```
 
 **Manual:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and tell Claude `Run the SDLC wizard setup`.
@@ -206,7 +229,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | Document | What It Covers |
 |----------|---------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, 5-layer diagram, data flows, file structure |
-| [CI_CD.md](CI_CD.md) | All 4 workflows, E2E scoring, tier system, SDP, integrity checks |
+| [CI_CD.md](CI_CD.md) | All 5 workflows, E2E scoring, tier system, SDP, integrity checks |
 | [SDLC.md](SDLC.md) | Version tracking, enforcement rules, SDLC configuration |
 | [TESTING.md](TESTING.md) | Testing philosophy, test diamond, TDD approach |
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |
