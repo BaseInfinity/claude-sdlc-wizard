@@ -66,12 +66,12 @@ setup_test_repo() {
         cp "$REPO_ROOT/CLAUDE.md" .
     fi
 
-    if [ -d "$REPO_ROOT/.claude/hooks" ]; then
-        cp -r "$REPO_ROOT/.claude/hooks/"* .claude/hooks/ 2>/dev/null || true
+    if [ -d "$REPO_ROOT/hooks" ]; then
+        cp -r "$REPO_ROOT/hooks/"*.sh .claude/hooks/ 2>/dev/null || true
     fi
 
-    if [ -d "$REPO_ROOT/.claude/skills" ]; then
-        cp -r "$REPO_ROOT/.claude/skills/"* .claude/skills/ 2>/dev/null || true
+    if [ -d "$REPO_ROOT/skills" ]; then
+        cp -r "$REPO_ROOT/skills/"* .claude/skills/ 2>/dev/null || true
     fi
 
     if [ -f "$REPO_ROOT/.claude/settings.json" ]; then

@@ -7,6 +7,9 @@
   },
   "files": [
     "cli/",
+    "skills/",
+    "hooks/",
+    ".claude-plugin/",
     "CLAUDE_CODE_SDLC_WIZARD.md",
     "CHANGELOG.md"
   ],

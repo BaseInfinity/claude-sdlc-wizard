@@ -2602,8 +2602,8 @@ test_pr_review_extraction_uses_array_detection() {
 
 # Test 138: No hook recommends act for workflow testing
 test_no_hook_recommends_act() {
-    local HOOKS_DIR="$REPO_ROOT/.claude/hooks"
-    if [ ! -d "$HOOKS_DIR" ]; then fail ".claude/hooks/ directory not found"; return; fi
+    local HOOKS_DIR="$REPO_ROOT/hooks"
+    if [ ! -d "$HOOKS_DIR" ]; then fail "hooks/ directory not found"; return; fi
 
     if grep -rq 'act workflow_dispatch' "$HOOKS_DIR"/ 2>/dev/null; then
         fail "Hook(s) still recommend 'act' for workflow testing — contradicts repo policy"

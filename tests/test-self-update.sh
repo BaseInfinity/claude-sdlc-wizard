@@ -311,18 +311,18 @@ test_update_skill_exists() {
 
 # Test 23: Update skill template exists in CLI templates
 test_update_skill_template_exists() {
-    local template_file="$SCRIPT_DIR/../cli/templates/skills/update/SKILL.md"
+    local template_file="$SCRIPT_DIR/../skills/update/SKILL.md"
     if [ -f "$template_file" ]; then
-        pass "Update skill template exists at cli/templates/skills/update/SKILL.md"
+        pass "Update skill template exists at skills/update/SKILL.md"
     else
-        fail "Update skill template should exist at cli/templates/skills/update/SKILL.md"
+        fail "Update skill template should exist at skills/update/SKILL.md"
     fi
 }
 
 # Test 24: Local and template update skill files are identical
 test_update_skill_parity() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/update/SKILL.md"
-    local template_file="$SCRIPT_DIR/../cli/templates/skills/update/SKILL.md"
+    local template_file="$SCRIPT_DIR/../skills/update/SKILL.md"
     if diff -q "$skill_file" "$template_file" > /dev/null 2>&1; then
         pass "Local and template update skill files are identical"
     else
@@ -418,7 +418,7 @@ test_wizard_targeted_recheck() {
 # Test 24: SKILL.md documents the dialogue response protocol (both copies)
 test_skill_dialogue_protocol() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
-    local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+    local template_file="$SCRIPT_DIR/../skills/sdlc/SKILL.md"
     local ok=true
     for f in "$skill_file" "$template_file"; do
         local section
@@ -448,7 +448,7 @@ test_wizard_convergence_rule() {
 # Test 26: Local SKILL.md and template SKILL.md cross-model sections match
 test_skill_template_parity() {
     local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
-    local template_file="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+    local template_file="$SCRIPT_DIR/../skills/sdlc/SKILL.md"
     local skill_section template_section
     skill_section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$skill_file")
     template_section=$(sed -n '/## Cross-Model Review/,/## Test Review/p' "$template_file")
@@ -546,7 +546,7 @@ test_wizard_complementary_tools() {
 
 # Setup wizard skill mentions automation recommender post-setup
 test_setup_skill_recommender() {
-    local setup_skill="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    local setup_skill="$SCRIPT_DIR/../skills/setup/SKILL.md"
     if grep -q "claude-automation-recommender" "$setup_skill"; then
         pass "Setup wizard skill mentions /claude-automation-recommender"
     else
@@ -644,7 +644,7 @@ test_skill_autocompact_reference() {
 
 # Setup skill includes context window configuration step
 test_setup_skill_context_step() {
-    local setup_skill="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    local setup_skill="$SCRIPT_DIR/../skills/setup/SKILL.md"
     if grep -qi "autocompact\|context.*window\|AUTOCOMPACT" "$setup_skill"; then
         pass "Setup skill includes context window configuration step"
     else
@@ -729,7 +729,7 @@ test_blank_repo_fixture
 # --- Feature Documentation Enforcement Tests (#43) ---
 
 SKILL="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
-SKILL_TEMPLATE="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+SKILL_TEMPLATE="$SCRIPT_DIR/../skills/sdlc/SKILL.md"
 
 # Wizard has ADR pattern guidance
 test_wizard_adr_pattern() {
@@ -1034,7 +1034,7 @@ test_setup_skill_data_points() {
 # Setup wizard template parity (live matches CLI template)
 test_setup_skill_template_parity() {
     local live="$SCRIPT_DIR/../.claude/skills/setup/SKILL.md"
-    local template="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    local template="$SCRIPT_DIR/../skills/setup/SKILL.md"
     if diff -q "$live" "$template" > /dev/null 2>&1; then
         pass "Setup wizard live skill matches CLI template"
     else
@@ -1065,7 +1065,7 @@ test_ci_analyzer_deleted() {
 
 # ci-analyzer template was also deleted
 test_ci_analyzer_template_deleted() {
-    if [ -d "$SCRIPT_DIR/../cli/templates/skills/ci-analyzer" ]; then
+    if [ -d "$SCRIPT_DIR/../skills/ci-analyzer" ]; then
         fail "ci-analyzer CLI template directory must NOT exist (deleted)"
     else
         pass "ci-analyzer CLI template directory does not exist (correctly deleted)"
@@ -1381,7 +1381,7 @@ echo "--- #37 /feedback Community Loop ---"
 
 # Test: /feedback skill exists in templates
 test_feedback_skill_exists() {
-    if [ -f "$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md" ]; then
+    if [ -f "$SCRIPT_DIR/../skills/feedback/SKILL.md" ]; then
         pass "/feedback skill template exists"
     else
         fail "/feedback skill template not found"
@@ -1390,7 +1390,7 @@ test_feedback_skill_exists() {
 
 # Test: /feedback skill has correct frontmatter
 test_feedback_skill_frontmatter() {
-    local skill="$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md"
+    local skill="$SCRIPT_DIR/../skills/feedback/SKILL.md"
     if [ -f "$skill" ] && grep -q '^name: feedback$' "$skill" && grep -q '^effort:' "$skill"; then
         pass "/feedback skill has correct frontmatter"
     else
@@ -1400,7 +1400,7 @@ test_feedback_skill_frontmatter() {
 
 # Test: /feedback skill mentions privacy/permission
 test_feedback_skill_privacy() {
-    local skill="$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md"
+    local skill="$SCRIPT_DIR/../skills/feedback/SKILL.md"
     if [ -f "$skill" ] && grep -qi 'privacy\|permission\|consent\|opt.?in' "$skill"; then
         pass "/feedback skill addresses privacy"
     else
@@ -1410,7 +1410,7 @@ test_feedback_skill_privacy() {
 
 # Test: /feedback skill creates GH issue
 test_feedback_skill_gh_issue() {
-    local skill="$SCRIPT_DIR/../cli/templates/skills/feedback/SKILL.md"
+    local skill="$SCRIPT_DIR/../skills/feedback/SKILL.md"
     if [ -f "$skill" ] && grep -qi 'gh issue\|github issue\|create.*issue' "$skill"; then
         pass "/feedback skill creates GH issues"
     else
@@ -1432,7 +1432,7 @@ echo "--- #44 BRANDING.md Detection ---"
 
 # Test: Setup wizard detects branding-related files
 test_setup_detects_branding() {
-    local setup="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    local setup="$SCRIPT_DIR/../skills/setup/SKILL.md"
     if grep -qi 'brand\|BRANDING' "$setup"; then
         pass "Setup wizard detects branding files"
     else
@@ -1451,7 +1451,7 @@ test_wizard_branding_template() {
 
 # Test: BRANDING.md generation is conditional (only when UI/content detected)
 test_branding_conditional() {
-    local setup="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    local setup="$SCRIPT_DIR/../skills/setup/SKILL.md"
     if grep -qi 'brand.*detect\|detect.*brand\|if.*brand\|brand.*found\|UI.*brand\|content.*brand' "$setup"; then
         pass "BRANDING.md generation is conditional on detection"
     else
@@ -1743,7 +1743,7 @@ test_frontmatter_docs() {
 # Test: All distributed skills have effort: high in frontmatter
 test_skills_have_effort() {
     local missing=""
-    for skill_dir in cli/templates/skills/*/; do
+    for skill_dir in skills/*/; do
         local skill_file="$skill_dir/SKILL.md"
         if [ -f "$skill_file" ]; then
             if ! grep -q "^effort:" "$skill_file"; then
@@ -1872,7 +1872,7 @@ test_plan_cleanup_in_wizard
 # Hook Auto-Invoke Triggers
 # -------------------------------------------------------------------
 
-HOOK=".claude/hooks/sdlc-prompt-check.sh"
+HOOK="hooks/sdlc-prompt-check.sh"
 
 test_hook_triggers_on_release() {
     if grep -qi "release.*publish\|publish.*deploy\|release/publish/deploy" "$HOOK"; then
@@ -1891,7 +1891,7 @@ test_hook_triggers_on_release
 echo ""
 echo "--- CC version check in notification hook ---"
 
-INSTRUCTIONS_HOOK=".claude/hooks/instructions-loaded-check.sh"
+INSTRUCTIONS_HOOK="hooks/instructions-loaded-check.sh"
 
 # Test: Hook checks CC version (claude --version) not just wizard version
 test_hook_checks_cc_version() {

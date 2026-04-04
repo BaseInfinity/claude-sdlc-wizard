@@ -141,6 +141,9 @@ jobs:
       - name: Run docs usability tests
         run: ./tests/test-docs-usability.sh
 
+      - name: Run plugin format tests
+        run: ./tests/test-plugin.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
@@ -381,11 +384,12 @@ jobs:
       - name: Install CANDIDATE wizard (PR branch) into test fixture
         run: |
           echo "Installing PR branch wizard into test fixture..."
-          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
-          # Copy PR branch wizard files
-          cp -r pr-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
-          cp -r pr-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
-          cp pr-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude/hooks
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude/skills
+          # Copy PR branch wizard files from canonical locations
+          cp pr-branch/hooks/*.sh pr-branch/tests/e2e/fixtures/test-repo/.claude/hooks/ 2>/dev/null || true
+          cp -r pr-branch/skills/* pr-branch/tests/e2e/fixtures/test-repo/.claude/skills/ 2>/dev/null || true
+          cp pr-branch/cli/templates/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
           echo "Candidate wizard installed:"
           ls -la pr-branch/tests/e2e/fixtures/test-repo/.claude/ || echo "No .claude directory"
 
@@ -952,10 +956,11 @@ jobs:
         if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
           echo "Installing main branch wizard into test fixture..."
-          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
-          cp -r main-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
-          cp -r main-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
-          cp main-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude/hooks
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude/skills
+          cp main-branch/hooks/*.sh pr-branch/tests/e2e/fixtures/test-repo/.claude/hooks/ 2>/dev/null || true
+          cp -r main-branch/skills/* pr-branch/tests/e2e/fixtures/test-repo/.claude/skills/ 2>/dev/null || true
+          cp main-branch/cli/templates/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
 
       - name: Initialize workspace git directory (Tier 2)
         run: |
@@ -1122,10 +1127,11 @@ jobs:
 
       - name: Install CANDIDATE wizard (PR branch) into test fixture
         run: |
-          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude
-          cp -r pr-branch/.claude/hooks pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
-          cp -r pr-branch/.claude/skills pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
-          cp pr-branch/.claude/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude/hooks
+          mkdir -p pr-branch/tests/e2e/fixtures/test-repo/.claude/skills
+          cp pr-branch/hooks/*.sh pr-branch/tests/e2e/fixtures/test-repo/.claude/hooks/ 2>/dev/null || true
+          cp -r pr-branch/skills/* pr-branch/tests/e2e/fixtures/test-repo/.claude/skills/ 2>/dev/null || true
+          cp pr-branch/cli/templates/settings.json pr-branch/tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
 
       - name: Record candidate simulation start time (Tier 2)
         run: echo "CANDIDATE_START_T2=$(date +%s)" >> $GITHUB_ENV

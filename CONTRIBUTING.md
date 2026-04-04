@@ -17,7 +17,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-prove-it.sh && ./tests/test-self-update.sh && \
    ./tests/test-external-benchmark.sh && \
    ./tests/test-cli.sh && ./tests/test-setup-path.sh && \
-   ./tests/test-docs-usability.sh && \
+   ./tests/test-docs-usability.sh && ./tests/test-plugin.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \

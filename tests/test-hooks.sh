@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOOKS_DIR="$SCRIPT_DIR/../.claude/hooks"
+HOOKS_DIR="$SCRIPT_DIR/../hooks"
 PASSED=0
 FAILED=0
 
@@ -102,25 +102,25 @@ test_tdd_hook_exists() {
     fi
 }
 
-# Test 7: Workflow file edit produces TDD warning JSON
-test_tdd_hook_workflow_warning() {
-    local input='{"tool_input": {"file_path": ".github/workflows/ci.yml"}}'
+# Test 7: Source file edit produces TDD warning JSON
+test_tdd_hook_src_warning() {
+    local input='{"tool_input": {"file_path": "/project/src/app.js"}}'
     local output
     output=$(echo "$input" | "$HOOKS_DIR/tdd-pretool-check.sh" 2>/dev/null)
     if echo "$output" | grep -q "TDD CHECK"; then
-        pass "tdd-pretool-check.sh warns on workflow file edits"
+        pass "tdd-pretool-check.sh warns on src/ file edits"
     else
-        fail "Should warn when editing workflow files, got: $output"
+        fail "Should warn when editing src/ files, got: $output"
     fi
 }
 
-# Test 8: Workflow file edit produces valid JSON output
+# Test 8: Source file edit produces valid JSON output
 test_tdd_hook_valid_json() {
-    local input='{"tool_input": {"file_path": ".github/workflows/weekly-update.yml"}}'
+    local input='{"tool_input": {"file_path": "/project/src/utils/helper.ts"}}'
     local output
     output=$(echo "$input" | "$HOOKS_DIR/tdd-pretool-check.sh" 2>/dev/null)
     if echo "$output" | jq -e '.hookSpecificOutput' > /dev/null 2>&1; then
-        pass "tdd-pretool-check.sh outputs valid JSON for workflow edits"
+        pass "tdd-pretool-check.sh outputs valid JSON for src/ edits"
     else
         fail "Output should be valid JSON with hookSpecificOutput, got: $output"
     fi
@@ -427,7 +427,7 @@ test_sdlc_hook_setup_redirect_empty_stubs() {
 
 # Test 30: Template hook behaves identically to repo hook (post-install execution test)
 test_template_hook_setup_redirect() {
-    local TEMPLATE_HOOK="$SCRIPT_DIR/../cli/templates/hooks/sdlc-prompt-check.sh"
+    local TEMPLATE_HOOK="$SCRIPT_DIR/../hooks/sdlc-prompt-check.sh"
     if [ ! -f "$TEMPLATE_HOOK" ]; then fail "Template hook not found"; return; fi
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -498,7 +498,7 @@ test_skill_confidence_effort_max() {
 # Verify that documented SDLC sections have TodoWrite enforcement
 # ---------------------------------------------------------------------------
 
-SKILL_TEMPLATE="$SCRIPT_DIR/../cli/templates/skills/sdlc/SKILL.md"
+SKILL_TEMPLATE="$SCRIPT_DIR/../skills/sdlc/SKILL.md"
 
 # Test: TodoWrite checklist has "capture learnings" / "after session" task
 test_todowrite_has_capture_learnings() {
@@ -593,7 +593,7 @@ test_sdlc_hook_auto_invoke
 test_sdlc_hook_phases
 test_sdlc_hook_size
 test_tdd_hook_exists
-test_tdd_hook_workflow_warning
+test_tdd_hook_src_warning
 test_tdd_hook_valid_json
 test_tdd_hook_test_file_ok
 test_tdd_hook_other_file_ok

@@ -230,7 +230,7 @@ test_readme_install_mentions_auto() {
 # Setup skill — must force-read the wizard doc
 # ---------------------------------------------------------------------------
 
-SETUP_SKILL="$REPO_ROOT/cli/templates/skills/setup/SKILL.md"
+SETUP_SKILL="$REPO_ROOT/skills/setup/SKILL.md"
 
 # Test: Setup skill explicitly instructs Claude to Read the wizard doc
 test_setup_skill_reads_wizard_doc() {
@@ -251,7 +251,7 @@ test_setup_skill_reads_wizard_doc() {
 
 # Test: Hook routes ALL tasks to /sdlc (no separate /testing route)
 test_hook_no_testing_route() {
-    local HOOK="$REPO_ROOT/cli/templates/hooks/sdlc-prompt-check.sh"
+    local HOOK="$REPO_ROOT/hooks/sdlc-prompt-check.sh"
     if grep -q 'skill="testing"' "$HOOK"; then
         fail "Hook still routes to skill=\"testing\" — should route all tasks to /sdlc"
     else
@@ -261,7 +261,7 @@ test_hook_no_testing_route() {
 
 # Test: /testing skill template does NOT exist (consolidated into /sdlc)
 test_no_testing_skill_template() {
-    if [ -f "$REPO_ROOT/cli/templates/skills/testing/SKILL.md" ]; then
+    if [ -f "$REPO_ROOT/skills/testing/SKILL.md" ]; then
         fail "Template /testing skill still exists — should be consolidated into /sdlc"
     else
         pass "Template /testing skill removed (consolidated into /sdlc)"
@@ -270,7 +270,7 @@ test_no_testing_skill_template() {
 
 # Test: /sdlc skill has "After Session" content (migrated from /testing)
 test_sdlc_has_after_session() {
-    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    local SDLC_SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
     if grep -qi 'after session\|capture learnings' "$SDLC_SKILL"; then
         pass "/sdlc skill has After Session / capture learnings content"
     else
@@ -280,7 +280,7 @@ test_sdlc_has_after_session() {
 
 # Test: /sdlc skill has mocking table (migrated from /testing — zero content loss)
 test_sdlc_has_mocking_table() {
-    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    local SDLC_SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
     if grep -q 'Database.*NEVER' "$SDLC_SKILL" && grep -q 'External APIs.*YES' "$SDLC_SKILL"; then
         pass "/sdlc skill has mocking table (DB=NEVER, APIs=YES)"
     else
@@ -290,7 +290,7 @@ test_sdlc_has_mocking_table() {
 
 # Test: /sdlc skill has unit test qualification criteria (migrated from /testing)
 test_sdlc_has_unit_test_criteria() {
-    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    local SDLC_SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
     if grep -qi 'pure logic only\|no database calls\|input.*output.*transformation' "$SDLC_SKILL"; then
         pass "/sdlc skill has unit test qualification criteria"
     else
@@ -300,7 +300,7 @@ test_sdlc_has_unit_test_criteria() {
 
 # Test: /sdlc skill has TDD PROVE content (migrated from /testing)
 test_sdlc_has_tdd_prove() {
-    local SDLC_SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    local SDLC_SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
     if grep -qi 'RED.*FAILS\|test.*FAILS.*bug exists\|TDD.*PROVE' "$SDLC_SKILL"; then
         pass "/sdlc skill has TDD Must PROVE content"
     else
@@ -337,7 +337,7 @@ test_wizard_arch_has_health_check() {
 
 # Test: SDLC skill deployment section mentions post-deploy verification
 test_skill_has_post_deploy() {
-    local SKILL="$REPO_ROOT/cli/templates/skills/sdlc/SKILL.md"
+    local SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
     local section
     section=$(sed -n '/## Deployment Tasks/,/^## /p' "$SKILL")
     if echo "$section" | grep -qi 'post-deploy\|after deploy\|verify.*deploy\|monitor.*after'; then
@@ -355,7 +355,7 @@ test_skill_has_post_deploy() {
 test_readme_skills_count_accurate() {
     # Count actual skill directories in CLI templates
     local actual_count
-    actual_count=$(find "$REPO_ROOT/cli/templates/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+    actual_count=$(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
     if grep -qE "Skills.*\| $actual_count " "$README"; then
         pass "README skills count matches actual ($actual_count)"
     else
@@ -376,7 +376,7 @@ test_readme_no_self_heal_reference() {
 test_architecture_lists_all_skills() {
     local arch="$REPO_ROOT/ARCHITECTURE.md"
     local missing=""
-    for skill_dir in "$REPO_ROOT"/cli/templates/skills/*/; do
+    for skill_dir in "$REPO_ROOT"/skills/*/; do
         local skill_name
         skill_name=$(basename "$skill_dir")
         if ! grep -qiE "/$skill_name([^a-z]|$)" "$arch"; then
@@ -392,7 +392,7 @@ test_architecture_lists_all_skills() {
 
 # Test: Update skill doesn't have stale hardcoded version examples
 test_update_skill_no_stale_version_examples() {
-    local update_skill="$REPO_ROOT/cli/templates/skills/update/SKILL.md"
+    local update_skill="$REPO_ROOT/skills/update/SKILL.md"
     local current_version
     current_version=$(node -p "require('$REPO_ROOT/package.json').version" 2>/dev/null || echo "")
     if [ -z "$current_version" ]; then
