@@ -120,6 +120,14 @@ test_npm_provenance() {
     fi
 }
 
+test_has_id_token_permission() {
+    if grep -q 'id-token: write' "$WORKFLOW"; then
+        pass "release.yml has id-token: write permission (required for --provenance)"
+    else
+        fail "release.yml missing id-token: write permission"
+    fi
+}
+
 # --- Run tests ---
 
 test_workflow_exists
@@ -134,6 +142,7 @@ test_generates_release_notes
 test_npm_publish_step
 test_verifies_tag_on_main
 test_npm_provenance
+test_has_id_token_permission
 
 # --- Results ---
 
