@@ -2286,10 +2286,10 @@ Create `CLAUDE.md` in your project root. This is your project-specific configura
 - Follow conventional commits: `type(scope): description`
 - NEVER commit with failing tests
 
-## Plan Docs
+## Feature Docs
 
 - Before coding a feature: READ its `*_DOCS.md` file
-- After completing work: UPDATE the plan doc
+- After completing work: UPDATE the feature doc (or create one if 3+ files touched)
 
 ## Testing Notes
 
@@ -3162,7 +3162,7 @@ Claude writes code → self-review passes → handoff.json (round 1)
 - `-c 'model_reasoning_effort="xhigh"'` — Maximum reasoning depth. This is where you get the most value. Testing showed `xhigh` caught 3 findings that `high` missed on the same content.
 - `-s danger-full-access` — Full filesystem read/write so the reviewer can read your actual code.
 - `-o .reviews/latest-review.md` — Save the review output for Claude to read back.
-- **Claude Code sandbox bypass required:** Codex's Rust binary needs access to macOS system configuration APIs (`SCDynamicStore`) during initialization. Claude Code's sandbox blocks this, causing `codex exec` to crash with `panicked: Attempted to create a NULL object`. When running from within Claude Code, use `dangerouslyDisableSandbox: true` on the Bash tool call. This only bypasses CC's sandbox for the Codex process — Codex's own sandbox (`-s danger-full-access`) still applies. Known issue: [openai/codex#5914](https://github.com/openai/codex/issues/5914).
+- **Claude Code sandbox bypass required:** Codex's Rust binary needs access to macOS system configuration APIs (`SCDynamicStore`) during initialization. Claude Code's sandbox blocks this, causing `codex exec` to crash with `panicked: Attempted to create a NULL object`. When running from within Claude Code, use `dangerouslyDisableSandbox: true` on the Bash tool call. This only bypasses CC's sandbox for the Codex process — Codex's own sandbox (`-s danger-full-access`) still applies. Known issue: [openai/codex#15640](https://github.com/openai/codex/issues/5914).
 
 **Tool-agnostic principle:** The core idea is "use a different model as an independent reviewer." Codex CLI is the concrete example today, but any competing AI tool that can read files and produce structured feedback works. The value comes from the independence and different training, not the specific tool.
 

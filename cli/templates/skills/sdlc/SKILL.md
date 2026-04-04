@@ -269,7 +269,7 @@ codex exec \
 
 **Always use `xhigh` reasoning effort.** Lower settings miss subtle errors (wrong-generation references, stale pricing, cross-file inconsistencies).
 
-**Sandbox note:** Codex's Rust binary requires access to macOS system configuration APIs (`SCDynamicStore`) during sandbox initialization. Claude Code's sandbox blocks this access, causing `codex exec` to crash with `system-configuration panicked: Attempted to create a NULL object`. When running `codex exec` from within Claude Code, you MUST use `dangerouslyDisableSandbox: true` on the Bash tool call. This is safe — Codex has its own sandbox (`-s danger-full-access` is already specified), and the CC sandbox bypass only affects the Codex process. This is a known Codex issue ([#5914](https://github.com/openai/codex/issues/5914)).
+**Sandbox note:** Codex's Rust binary requires access to macOS system configuration APIs (`SCDynamicStore`) during sandbox initialization. Claude Code's sandbox blocks this access, causing `codex exec` to crash with `system-configuration panicked: Attempted to create a NULL object`. When running `codex exec` from within Claude Code, you MUST use `dangerouslyDisableSandbox: true` on the Bash tool call. This is safe — Codex has its own sandbox (`-s danger-full-access` is already specified), and the CC sandbox bypass only affects the Codex process. This is a known Codex issue ([#15640](https://github.com/openai/codex/issues/15640)).
 
 If CERTIFIED → proceed to CI. If NOT CERTIFIED → go to dialogue loop.
 
