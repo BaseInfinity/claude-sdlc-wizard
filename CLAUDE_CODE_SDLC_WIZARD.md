@@ -1136,8 +1136,10 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 - **No** → Skip CI shepherd entirely (Claude still runs local tests, just doesn't interact with CI after pushing)
 
 **What the CI shepherd does:**
-1. **CI fix loop:** After pushing, Claude watches CI via `gh pr checks`, reads failure logs, diagnoses and fixes, pushes again (max 2 attempts)
-2. **Review feedback loop:** After CI passes, Claude reads automated review comments, implements valid suggestions, pushes and re-reviews (max 3 iterations)
+1. **CI fix loop:** After pushing, Claude watches CI via `gh pr checks`, reads logs on **pass and fail** (`gh run view <RUN_ID> --log`, not just `--log-failed`), diagnoses and fixes failures, pushes again (max 2 attempts)
+2. **Log review on pass:** Passing CI can still hide warnings, skipped steps, degraded scores, or silent test exclusions. A green checkmark is necessary but not sufficient — always read the logs
+3. **Review feedback loop:** After CI passes and logs look clean, Claude reads automated review comments, implements valid suggestions, pushes and re-reviews (max 3 iterations)
+4. **Pre-release CI audit:** Before cutting any release, review CI runs across ALL PRs merged since last release. Look for warnings in passing runs, degraded scores, skipped suites. Use `gh run list` + `gh run view <ID> --log`
 
 **Recommendation:** Yes if you have CI configured. The shepherd closes the loop between "local tests pass" and "PR is actually ready to merge."
 
