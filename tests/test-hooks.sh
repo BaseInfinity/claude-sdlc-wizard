@@ -751,6 +751,89 @@ test_update_notification_no_version_metadata
 test_update_notification_mentions_update_wizard
 
 echo ""
+echo "--- Hook if-conditional tests (#68) ---"
+
+# Test: settings.json PreToolUse hook has `if` field
+test_settings_has_if_field() {
+    local settings="$SCRIPT_DIR/../.claude/settings.json"
+    local if_value
+    if_value=$(jq -r '.hooks.PreToolUse[0].hooks[0].if // empty' "$settings")
+    if [ -n "$if_value" ]; then
+        pass "settings.json PreToolUse hook has 'if' field"
+    else
+        fail "settings.json PreToolUse hook should have 'if' field for conditional filtering"
+    fi
+}
+
+# Test: if field targets workflow files (*.yml in .github/workflows/)
+test_if_field_targets_workflows() {
+    local settings="$SCRIPT_DIR/../.claude/settings.json"
+    local if_value
+    if_value=$(jq -r '.hooks.PreToolUse[0].hooks[0].if // empty' "$settings")
+    if echo "$if_value" | grep -q '.github/workflows/'; then
+        pass "if field targets .github/workflows/ files"
+    else
+        fail "if field should target .github/workflows/ files, got: $if_value"
+    fi
+}
+
+# Test: CLI template settings.json also has if field
+test_template_settings_has_if_field() {
+    local template="$SCRIPT_DIR/../cli/templates/settings.json"
+    local if_value
+    if_value=$(jq -r '.hooks.PreToolUse[0].hooks[0].if // empty' "$template")
+    if [ -n "$if_value" ]; then
+        pass "CLI template settings.json PreToolUse hook has 'if' field"
+    else
+        fail "CLI template settings.json should have 'if' field matching repo settings"
+    fi
+}
+
+# Test: Wizard doc documents the if field
+test_wizard_documents_if_field() {
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    if grep -q '"if"' "$wizard" || grep -q '`if`.*field\|`if`.*hook\|hook.*`if`' "$wizard"; then
+        pass "Wizard doc documents the if field"
+    else
+        fail "Wizard doc should document the hook if field"
+    fi
+}
+
+# Test: Wizard settings.json example includes if field
+test_wizard_settings_example_has_if() {
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    # The settings.json code block in the wizard should show the if field
+    if grep -q '"if":' "$wizard"; then
+        pass "Wizard settings.json example includes if field"
+    else
+        fail "Wizard settings.json example should include the if field"
+    fi
+}
+
+# Test: if field in repo settings matches template settings (parity)
+test_if_field_parity() {
+    local settings="$SCRIPT_DIR/../.claude/settings.json"
+    local template="$SCRIPT_DIR/../cli/templates/settings.json"
+    local repo_if template_if
+    repo_if=$(jq -r '.hooks.PreToolUse[0].hooks[0].if // empty' "$settings")
+    template_if=$(jq -r '.hooks.PreToolUse[0].hooks[0].if // empty' "$template")
+    # Template uses /src/ pattern, repo uses .github/workflows/ — both should have if field
+    # but values differ because repo is customized for this meta-project
+    if [ -n "$repo_if" ] && [ -n "$template_if" ]; then
+        pass "Both repo and template settings have if field (parity check)"
+    else
+        fail "Both repo ($repo_if) and template ($template_if) should have if field"
+    fi
+}
+
+test_settings_has_if_field
+test_if_field_targets_workflows
+test_template_settings_has_if_field
+test_wizard_documents_if_field
+test_wizard_settings_example_has_if
+test_if_field_parity
+
+echo ""
 echo "--- SDLC enforcement gap audit ---"
 test_todowrite_has_capture_learnings
 test_todowrite_has_scope_guard
