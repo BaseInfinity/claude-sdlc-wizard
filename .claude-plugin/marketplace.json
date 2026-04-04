@@ -1,0 +1,24 @@
+{
+  "name": "sdlc-wizard-marketplace",
+  "owner": {
+    "name": "Stefan Ayala",
+    "email": "stefan@baseinfinity.dev"
+  },
+  "metadata": {
+    "description": "SDLC enforcement plugins for AI-assisted development",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "sdlc-wizard",
+      "source": ".",
+      "description": "SDLC enforcement for AI agents — TDD, planning, self-review, CI shepherd",
+      "version": "1.24.0",
+      "author": {
+        "name": "Stefan Ayala"
+      },
+      "category": "productivity",
+      "tags": ["sdlc", "tdd", "code-quality", "testing"]
+    }
+  ]
+}

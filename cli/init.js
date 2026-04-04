@@ -11,18 +11,21 @@ const YELLOW = '\x1b[33m';
 const MAGENTA = '\x1b[35m';
 const CYAN = '\x1b[36m';
 
+const REPO_ROOT = path.join(__dirname, '..');
 const TEMPLATES_DIR = path.join(__dirname, 'templates');
-const WIZARD_DOC = path.join(__dirname, '..', 'CLAUDE_CODE_SDLC_WIZARD.md');
+const WIZARD_DOC = path.join(REPO_ROOT, 'CLAUDE_CODE_SDLC_WIZARD.md');
 
+// Skills and hooks live at repo root (single source of truth for both plugin and CLI)
+// Only settings.json remains in cli/templates/ (CLI-specific hook config)
 const FILES = [
-  { src: 'settings.json', dest: '.claude/settings.json' },
-  { src: 'hooks/sdlc-prompt-check.sh', dest: '.claude/hooks/sdlc-prompt-check.sh', executable: true },
-  { src: 'hooks/tdd-pretool-check.sh', dest: '.claude/hooks/tdd-pretool-check.sh', executable: true },
-  { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true },
-  { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md' },
-  { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md' },
-  { src: 'skills/update/SKILL.md', dest: '.claude/skills/update/SKILL.md' },
-  { src: 'skills/feedback/SKILL.md', dest: '.claude/skills/feedback/SKILL.md' },
+  { src: 'settings.json', dest: '.claude/settings.json', base: TEMPLATES_DIR },
+  { src: 'hooks/sdlc-prompt-check.sh', dest: '.claude/hooks/sdlc-prompt-check.sh', executable: true, base: REPO_ROOT },
+  { src: 'hooks/tdd-pretool-check.sh', dest: '.claude/hooks/tdd-pretool-check.sh', executable: true, base: REPO_ROOT },
+  { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true, base: REPO_ROOT },
+  { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md', base: REPO_ROOT },
+  { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md', base: REPO_ROOT },
+  { src: 'skills/update/SKILL.md', dest: '.claude/skills/update/SKILL.md', base: REPO_ROOT },
+  { src: 'skills/feedback/SKILL.md', dest: '.claude/skills/feedback/SKILL.md', base: REPO_ROOT },
 ];
 
 const WIZARD_HOOK_MARKERS = FILES
@@ -80,7 +83,7 @@ function planOperations(targetDir, { force }) {
 
   for (const file of FILES) {
     const destPath = path.join(targetDir, file.dest);
-    const srcPath = path.join(TEMPLATES_DIR, file.src);
+    const srcPath = path.join(file.base || TEMPLATES_DIR, file.src);
     const exists = fs.existsSync(destPath);
 
     if (exists && file.dest === '.claude/settings.json') {
@@ -245,7 +248,7 @@ function check(targetDir, { json = false } = {}) {
 
   for (const file of FILES) {
     const destPath = path.join(targetDir, file.dest);
-    const srcPath = path.join(TEMPLATES_DIR, file.src);
+    const srcPath = path.join(file.base || TEMPLATES_DIR, file.src);
     results.push(checkFile(srcPath, destPath, file.dest, file.executable || false));
   }
 
