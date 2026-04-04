@@ -2613,11 +2613,18 @@ test_no_hook_recommends_act() {
 }
 
 # Test 139: No workflow declares unused id-token: write
+# release.yml is excluded — it legitimately uses id-token for npm --provenance (SLSA)
 test_no_unused_id_token_permission() {
     local WF_DIR="$REPO_ROOT/.github/workflows"
     local ERRORS=0
 
     for wf in "$WF_DIR"/*.yml; do
+        local name
+        name=$(basename "$wf")
+        # release.yml legitimately uses id-token: write for npm provenance
+        if [ "$name" = "release.yml" ]; then
+            continue
+        fi
         if grep -q 'id-token: write' "$wf" 2>/dev/null; then
             ERRORS=$((ERRORS + 1))
         fi
