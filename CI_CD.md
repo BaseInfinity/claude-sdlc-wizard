@@ -9,6 +9,7 @@
 | `weekly-update.yml` | Weekly (Mondays 9 AM UTC) + manual | Check for Claude Code updates + community scan |
 | `monthly-research.yml` | Monthly (1st, 11 AM UTC) + manual | Deep research and trends |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
+| `release.yml` | Tag push (`v*`) | Publish to npm + create GitHub Release |
 
 ## CI Workflow (`ci.yml`)
 
