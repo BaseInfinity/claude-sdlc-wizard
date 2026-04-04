@@ -338,6 +338,29 @@ Skills can now reference companion files using `${CLAUDE_SKILL_DIR}`. Useful if 
 
 Hook events now include `agent_id` and `agent_type` fields. Hooks can behave differently for subagents vs the main agent if needed.
 
+### Hook `if` Conditionals (v2.1.85+)
+
+The `if` field on individual hook handlers filters by tool name AND arguments using permission rule syntax. The hook process only spawns when the condition matches — reducing unnecessary process spawns.
+
+```json
+{
+  "type": "command",
+  "if": "Write(src/**) Edit(src/**) MultiEdit(src/**)",
+  "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/tdd-pretool-check.sh"
+}
+```
+
+| Field | Level | Matches On | Syntax |
+|-------|-------|------------|--------|
+| `matcher` | Group (all hooks in array) | Tool name only | Regex (`Write\|Edit`) |
+| `if` | Individual handler | Tool name + arguments | Permission rule (`Edit(src/**)`) |
+
+**Pattern examples:** `Edit(*.ts)`, `Write(src/**)`, `Bash(git *)`. Same syntax as `allowedTools` in settings.json.
+
+**Only works on tool-use events:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`. Adding `if` to non-tool events prevents the hook from running.
+
+**CUSTOMIZE:** Replace `src/**` with your source directory pattern. The wizard generates this based on your project structure detected in Step 0.4.
+
 ### Security Hardening (v2.1.49-v2.1.78)
 
 Several fixes that strengthen wizard enforcement:
@@ -1544,6 +1567,7 @@ Create `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
+            "if": "Write(src/**) Edit(src/**) MultiEdit(src/**)",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/tdd-pretool-check.sh"
           }
         ]
@@ -1595,7 +1619,7 @@ The `allowedTools` array is auto-generated based on your stack detected in Step 
 | Hook | When It Fires | Purpose |
 |------|---------------|---------|
 | `UserPromptSubmit` | Every message you send | Baseline SDLC reminder, skill auto-invoke |
-| `PreToolUse` | Before Claude edits files | TDD check: "Did you write the test first?" |
+| `PreToolUse` | Before Claude edits files | TDD check: "Did you write the test first?" Uses `if` field to only fire on source files |
 
 ### How Skill Auto-Invoke Works
 
