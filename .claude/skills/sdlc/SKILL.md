@@ -574,6 +574,7 @@ CI passes -> Read review suggestions
 - `/clear` after 2+ failed corrections (context polluted — start fresh with better prompt)
 - Auto-compact fires at ~95% capacity — no manual management needed
 - After committing a PR, `/clear` before starting the next feature
+- **Autocompact tuning:** Set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to trigger compaction earlier (75% for 200K, 30% for 1M). On 1M models, the default fires at ~76K — set 30% or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` to use the full context window. See wizard doc "Autocompact Tuning" for full details
 
 **`--bare` mode (v2.1.81+):** `claude -p "prompt" --bare` skips ALL hooks, skills, LSP, and plugins. This is a complete wizard bypass — no SDLC enforcement, no TDD checks, no planning hooks. Use only for scripted headless calls (CI pipelines, automation) where you explicitly don't want wizard enforcement. Never use `--bare` for normal development work.
 

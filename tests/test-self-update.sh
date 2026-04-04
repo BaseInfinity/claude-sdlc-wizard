@@ -603,6 +603,61 @@ test_wizard_clear_guidance
 test_wizard_auto_compact
 test_skill_clear_reference
 
+# --- Autocompact + Context Model Guidance Tests (#88) ---
+
+# Wizard documents CLAUDE_AUTOCOMPACT_PCT_OVERRIDE env var
+test_wizard_autocompact_env_var() {
+    if grep -q "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE" "$WIZARD"; then
+        pass "Wizard documents CLAUDE_AUTOCOMPACT_PCT_OVERRIDE env var"
+    else
+        fail "Wizard should document CLAUDE_AUTOCOMPACT_PCT_OVERRIDE for autocompact tuning"
+    fi
+}
+
+# Wizard has recommended thresholds per use case (75% for 200K, 30% for 1M)
+test_wizard_autocompact_thresholds() {
+    if grep -q "75%" "$WIZARD" && grep -q "30%" "$WIZARD" && grep -qi "AUTOCOMPACT" "$WIZARD"; then
+        pass "Wizard has autocompact threshold recommendations"
+    else
+        fail "Wizard should have threshold recommendations (75% for 200K, 30% for 1M)"
+    fi
+}
+
+# Wizard has 1M vs 200K context model guidance
+test_wizard_1m_vs_200k_guidance() {
+    if grep -qF "1M" "$WIZARD" && grep -qF "200K" "$WIZARD" && grep -qi "context window" "$WIZARD"; then
+        pass "Wizard has 1M vs 200K context model guidance"
+    else
+        fail "Wizard should have 1M vs 200K context model guidance"
+    fi
+}
+
+# SKILL.md references autocompact tuning
+test_skill_autocompact_reference() {
+    local skill_file="$SCRIPT_DIR/../.claude/skills/sdlc/SKILL.md"
+    if grep -qi "autocompact\|AUTOCOMPACT\|context.*window.*tun" "$skill_file"; then
+        pass "SKILL.md references autocompact tuning"
+    else
+        fail "SKILL.md should reference autocompact tuning guidance"
+    fi
+}
+
+# Setup skill includes context window configuration step
+test_setup_skill_context_step() {
+    local setup_skill="$SCRIPT_DIR/../cli/templates/skills/setup/SKILL.md"
+    if grep -qi "autocompact\|context.*window\|AUTOCOMPACT" "$setup_skill"; then
+        pass "Setup skill includes context window configuration step"
+    else
+        fail "Setup skill should include context window configuration during setup"
+    fi
+}
+
+test_wizard_autocompact_env_var
+test_wizard_autocompact_thresholds
+test_wizard_1m_vs_200k_guidance
+test_skill_autocompact_reference
+test_setup_skill_context_step
+
 # --- Token Efficiency Tests (#42) ---
 
 # Wizard documents token efficiency techniques
