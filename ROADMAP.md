@@ -100,7 +100,7 @@
 |----------|---|------|-------------|
 | 1 | 67 | Add Agent Team Hooks | `TaskCreated`, `TaskCompleted`, `TeammateIdle` events — purpose-built SDLC enforcement for multi-agent workflows. Add to hooks.json, write hook scripts, tests |
 | 2 | 85 | Automated CC Feature Discovery | Extend weekly-update.yml to parse CC release notes and flag SDLC-relevant features. Post as GitHub issue tagged `feature-evaluation` |
-| 3 | 91 | Multi-Agent Adapter Layer | Create `codex-sdlc-wizard` repo. Claude plans the adapter, Codex cross-reviews the plan, Codex implements. Each agent owns its own adapter. Future: Cursor, Windsurf, Gemini CLI adapters as separate repos |
+| 3 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement |
 
 ## Previous Release (v1.25.0)
 
