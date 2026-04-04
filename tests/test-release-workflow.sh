@@ -104,6 +104,22 @@ test_npm_publish_step() {
     fi
 }
 
+test_verifies_tag_on_main() {
+    if grep -q 'merge-base --is-ancestor' "$WORKFLOW"; then
+        pass "release.yml verifies tag is on main branch"
+    else
+        fail "release.yml does not verify tag is on main branch"
+    fi
+}
+
+test_npm_provenance() {
+    if grep -q '\-\-provenance' "$WORKFLOW"; then
+        pass "release.yml uses npm publish --provenance (SLSA)"
+    else
+        fail "release.yml missing --provenance flag"
+    fi
+}
+
 # --- Run tests ---
 
 test_workflow_exists
@@ -116,6 +132,8 @@ test_uses_gh_release_action
 test_references_npm_token
 test_generates_release_notes
 test_npm_publish_step
+test_verifies_tag_on_main
+test_npm_provenance
 
 # --- Results ---
 
