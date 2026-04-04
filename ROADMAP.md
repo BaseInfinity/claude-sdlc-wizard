@@ -72,6 +72,14 @@
 | 9 | 32 | ~~N-Reviewer CI Pipeline~~ DONE | Added Multiple Reviewers section to SDLC skill + wizard doc. Per-reviewer response pattern, conflict resolution (pick stronger argument), max 3 iterations per reviewer, escalate to user |
 | 10 | 45 | ~~`/agents` Subagent Exploration~~ DONE | Documented `.claude/agents/` pattern in SDLC skill + wizard doc. Example agents: sdlc-reviewer, ci-debug, test-writer. Skills vs agents comparison. Agents for parallel work and fresh context windows |
 
+## Previous Release (v1.24.0)
+
+| Priority | # | Item | Description |
+|----------|---|------|-------------|
+| 1 | 86 | ~~Fix: E2E tdd_red Detection~~ DONE | PR #150. Three bugs: test-only scored 0, golden outputs were .txt not JSON, golden-scores encoded bug. Codex review caught regex false-positive (contest/ substring) + missing JSON pairing — both fixed. 29 deterministic + 9 regression tests passing |
+| 2 | 68 | ~~Hook `if` Conditionals~~ DONE | PR #151. Added CC v2.1.85+ `if` field to PreToolUse hook — TDD check only spawns for source files (repo: `.github/workflows/*`, template: `src/**`). Documented in wizard CC features section. 6 new tests (52 total hook tests) |
+| 3 | 88 | ~~Autocompact + Context Model Recommendation~~ DONE | PR #152. Added autocompact env var guidance (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) with community-recommended thresholds (75% for 200K, 30% for 1M). 1M vs 200K context window comparison table. Setup wizard Step 9.5 for context window configuration. Codex cross-model review caught setup skill parity miss + overclaimed env var documentation status — both fixed. 5 new tests (70 total self-update tests) |
+
 ## Previous Release (v1.23.0)
 
 | Priority | # | Item | Description |
@@ -90,12 +98,9 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 86 | ~~Fix: E2E tdd_red Detection~~ DONE | PR #150. Three bugs: test-only scored 0, golden outputs were .txt not JSON, golden-scores encoded bug. Codex review caught regex false-positive (contest/ substring) + missing JSON pairing — both fixed. 29 deterministic + 9 regression tests passing |
-| 2 | 68 | ~~Hook `if` Conditionals~~ DONE | PR #151. Added CC v2.1.85+ `if` field to PreToolUse hook — TDD check only spawns for source files (repo: `.github/workflows/*`, template: `src/**`). Documented in wizard CC features section. 6 new tests (52 total hook tests) |
-| 3 | 88 | ~~Autocompact + Context Model Recommendation~~ DONE | PR #152. Added autocompact env var guidance (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE, CLAUDE_CODE_AUTO_COMPACT_WINDOW) with community-recommended thresholds (75% for 200K, 30% for 1M). 1M vs 200K context window comparison table. Setup wizard Step 9.5 for context window configuration. Codex cross-model review caught setup skill parity miss + overclaimed env var documentation status — both fixed. 5 new tests (70 total self-update tests) |
-| 4 | 89 | Claude Code Plugin Format | Convert to `.claude-plugin/plugin.json` structure. Plugins now support hooks — this is our #1 new distribution channel. Submit to official marketplace via claude.ai. Absorbs #66 + #87. 1-2 days |
-| 5 | 90 | Distribution Channels Sprint | (a) Submit to awesome-claude-code + awesome-claude-skills + SkillsMP (1-2h), (b) curl/wget install script (1-2h), (c) Homebrew tap (2-3h), (d) GitHub CLI extension `gh-sdlc-wizard` (30min), (e) GitHub Releases automation (30min). Total: ~1 day |
-| 6 | -- | CC Version Check + Weekly-Update Audit | Audit why we were 9 CC versions behind (2.1.81 vs 2.1.90). Verify weekly-update workflow is firing correctly |
+| 1 | 89 | Claude Code Plugin Format | Convert to `.claude-plugin/plugin.json` structure. Plugins now support hooks — this is our #1 new distribution channel. Submit to official marketplace via claude.ai. Absorbs #66 + #87. 1-2 days |
+| 2 | 90 | Distribution Channels Sprint | (a) Submit to awesome-claude-code + awesome-claude-skills + SkillsMP (1-2h), (b) curl/wget install script (1-2h), (c) Homebrew tap (2-3h), (d) GitHub CLI extension `gh-sdlc-wizard` (30min), (e) GitHub Releases automation (30min). Total: ~1 day |
+| 3 | -- | CC Version Check + Weekly-Update Audit | Audit why we were 9 CC versions behind (2.1.81 vs 2.1.90). Verify weekly-update workflow is firing correctly |
 
 ## Unprioritized
 

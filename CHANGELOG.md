@@ -4,6 +4,18 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.24.0] - 2026-04-04
+
+### Added
+- Hook `if` conditionals — CC v2.1.85+ `if` field on PreToolUse hook. TDD check only spawns for source files (repo: `.github/workflows/*`, template: `src/**`). Documented in wizard CC features section with matcher-vs-if comparison table (#68)
+- Autocompact tuning guidance — `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` and `CLAUDE_CODE_AUTO_COMPACT_WINDOW` env vars with community-recommended thresholds (75% for 200K, 30% for 1M). 1M vs 200K context window comparison table. Setup wizard Step 9.5 for context window configuration (#88)
+- 6 hook tests for `if` field (52 total hook tests)
+- 5 autocompact/context tests (70 total self-update tests)
+
+### Fixed
+- E2E tdd_red detection — three bugs since inception: test-only scenarios scored 0 (missing elif branch), golden outputs were .txt not JSON, golden-scores.json encoded the bug it was meant to catch. Codex cross-model review caught regex false-positive + missing JSON pairing (#86)
+- 29 deterministic + 9 regression tests for tdd_red fix
+
 ## [1.23.0] - 2026-04-01
 
 ### Added
