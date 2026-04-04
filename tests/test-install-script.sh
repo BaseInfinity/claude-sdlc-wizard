@@ -234,6 +234,16 @@ test_piped_help_works() {
     fi
 }
 
+test_rejects_unknown_args() {
+    local output
+    output=$(bash "$INSTALL_SCRIPT" --foo 2>&1) || true
+    if echo "$output" | grep -qi 'unknown option'; then
+        pass "install.sh rejects unknown arguments"
+    else
+        fail "install.sh does not reject unknown arguments (got: '$output')"
+    fi
+}
+
 test_npx_auto_confirm() {
     # Regression: npx without -y hangs when piped from curl (stdin exhausted)
     if grep -q 'npx -y' "$INSTALL_SCRIPT"; then
@@ -272,6 +282,7 @@ test_no_hardcoded_tmp
 test_colors_conditional_on_terminal
 test_references_correct_package
 test_has_error_function
+test_rejects_unknown_args
 test_npx_auto_confirm
 test_shebang_no_escaped_bang
 

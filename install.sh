@@ -35,6 +35,11 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     exit 0
 fi
 
+# --- Unknown argument check ---
+if [ -n "${1:-}" ] && [ "${1:-}" != "--global" ]; then
+    error "Unknown option: $1 (use --help for usage)"
+fi
+
 # --- Check Node.js ---
 if ! command -v node >/dev/null 2>&1; then
     error "Node.js is required but not found. Install from https://nodejs.org"

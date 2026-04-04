@@ -128,6 +128,14 @@ test_has_id_token_permission() {
     fi
 }
 
+test_verifies_version_tag_match() {
+    if grep -q 'package.json' "$WORKFLOW" && grep -q 'GITHUB_REF' "$WORKFLOW"; then
+        pass "release.yml verifies tag matches package.json version"
+    else
+        fail "release.yml does not verify tag-version consistency"
+    fi
+}
+
 # --- Run tests ---
 
 test_workflow_exists
@@ -143,6 +151,7 @@ test_npm_publish_step
 test_verifies_tag_on_main
 test_npm_provenance
 test_has_id_token_permission
+test_verifies_version_tag_match
 
 # --- Results ---
 
