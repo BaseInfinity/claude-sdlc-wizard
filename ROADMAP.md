@@ -98,7 +98,7 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 89 | Claude Code Plugin Format | Convert to `.claude-plugin/plugin.json` structure. Plugins now support hooks — this is our #1 new distribution channel. Submit to official marketplace via claude.ai. Absorbs #66 + #87. 1-2 days |
+| 1 | 89 | ~~Claude Code Plugin Format~~ DONE | PR #154. Single source of truth: `skills/` and `hooks/` at repo root serve plugin + CLI. `.claude-plugin/plugin.json` manifest, `hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}`, `.claude-plugin/marketplace.json` for self-hosted marketplace. CLI updated (`init.js` reads from root), dogfood uses symlinks. 25 plugin tests, 0 regressions across 17 suites. Absorbs #66 + #87 |
 | 2 | 90 | Distribution Channels Sprint | (a) Submit to awesome-claude-code + awesome-claude-skills + SkillsMP (1-2h), (b) curl/wget install script (1-2h), (c) Homebrew tap (2-3h), (d) GitHub CLI extension `gh-sdlc-wizard` (30min), (e) GitHub Releases automation (30min). Total: ~1 day |
 | 3 | -- | CC Version Check + Weekly-Update Audit | Audit why we were 9 CC versions behind (2.1.81 vs 2.1.90). Verify weekly-update workflow is firing correctly |
 
