@@ -9,6 +9,7 @@
 | `weekly-update.yml` | Weekly (Mondays 9 AM UTC) + manual | Check for Claude Code updates + community scan |
 | `monthly-research.yml` | Monthly (1st, 11 AM UTC) + manual | Deep research and trends |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
+| `release.yml` | Tag push (`v*`) | Publish to npm + create GitHub Release |
 
 ## CI Workflow (`ci.yml`)
 
@@ -238,6 +239,41 @@ The SDLC skill's CI feedback loops (`.claude/skills/sdlc/SKILL.md`) run during a
 - **Waits for CI**: No point reviewing broken code
 - **Label-driven re-review**: Add `needs-review` for fresh review
 
+## Release Workflow (`release.yml`)
+
+### What It Does
+- Triggers on tag push matching `v*` (e.g., `git tag v1.25.0 && git push --tags`)
+- Verifies tagged commit is on `main` branch (prevents accidental publish from feature branches)
+- Publishes to npm with `--provenance` (SLSA supply chain security)
+- Creates GitHub Release with auto-generated release notes
+
+### Release Process
+1. Bump version in `package.json`, `SDLC.md`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`
+2. Commit, tag: `git tag v1.25.0`
+3. Push tag: `git push --tags`
+4. Workflow publishes to npm + creates GitHub Release automatically
+
+### Post-Release Distribution Verification
+After each release, verify ALL distribution channels work:
+
+| Channel | Verification Command | What to Check |
+|---------|---------------------|---------------|
+| npm | `npx agentic-sdlc-wizard --version` | Correct version |
+| curl | `curl -fsSL <url> \| bash` in temp dir | 9 files created, hooks executable |
+| Homebrew | `brew upgrade sdlc-wizard && sdlc-wizard --version` | Formula SHA-256 updated, correct version |
+| gh extension | `gh extension upgrade gh-sdlc-wizard && gh sdlc-wizard --version` | Correct version |
+| GitHub Release | Check releases page | Notes generated, tag matches |
+
+**Homebrew requires manual formula update** after npm publish:
+1. Get new tarball SHA: `curl -sL <tarball-url> | shasum -a 256`
+2. Update `Formula/sdlc-wizard.rb` in `BaseInfinity/homebrew-sdlc-wizard`
+
+### CI-Testable Distribution Checks (in `test-install-script.sh`)
+- Piped install creates all 9 files (simulates `curl | bash`)
+- Piped install sets hooks as executable
+- Piped `--help` works
+- Shebang is `#!` not `#\!` (regression from heredoc escaping)
+
 ## Testing Workflows Locally
 
 Workflows require the GitHub Actions environment (secrets, runner context, `claude-code-action@v1`). They cannot be tested locally with `act` or similar tools.
@@ -252,6 +288,7 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 | Secret | Used By | Purpose |
 |--------|---------|---------|
 | `ANTHROPIC_API_KEY` | weekly-update, monthly-research, ci, pr-review | Claude API access |
+| `NPM_TOKEN` | release | npm publish authentication |
 | `GITHUB_TOKEN` | All workflows | Auto-provided by GitHub |
 
 ## Workflow Permissions
