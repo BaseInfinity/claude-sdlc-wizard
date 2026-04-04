@@ -1,11 +1,12 @@
 {
+  "description": "SDLC Wizard enforcement hooks",
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/sdlc-prompt-check.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sdlc-prompt-check.sh"
           }
         ]
       }
@@ -16,8 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Write(.github/workflows/*) Edit(.github/workflows/*) MultiEdit(.github/workflows/*)",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/tdd-pretool-check.sh"
+            "if": "Write(src/**) Edit(src/**) MultiEdit(src/**)",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/tdd-pretool-check.sh"
           }
         ]
       }
@@ -27,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/hooks/instructions-loaded-check.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/instructions-loaded-check.sh"
           }
         ]
       }
