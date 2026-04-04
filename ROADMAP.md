@@ -98,6 +98,14 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
+| 1 | 67 | Add Agent Team Hooks | `TaskCreated`, `TaskCompleted`, `TeammateIdle` events — purpose-built SDLC enforcement for multi-agent workflows. Add to hooks.json, write hook scripts, tests |
+| 2 | 85 | Automated CC Feature Discovery | Extend weekly-update.yml to parse CC release notes and flag SDLC-relevant features. Post as GitHub issue tagged `feature-evaluation` |
+| 3 | 91 | Multi-Agent Adapter Layer | Create `codex-sdlc-wizard` repo. Claude plans the adapter, Codex cross-reviews the plan, Codex implements. Each agent owns its own adapter. Future: Cursor, Windsurf, Gemini CLI adapters as separate repos |
+
+## Previous Release (v1.25.0)
+
+| Priority | # | Item | Description |
+|----------|---|------|-------------|
 | 1 | 89 | ~~Claude Code Plugin Format~~ DONE | PR #154. Single source of truth: `skills/` and `hooks/` at repo root serve plugin + CLI. `.claude-plugin/plugin.json` manifest, `hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}`, `.claude-plugin/marketplace.json` for self-hosted marketplace. CLI updated (`init.js` reads from root), dogfood uses symlinks. 25 plugin tests, 0 regressions across 17 suites. Absorbs #66 + #87 |
 | 2 | 90 | ~~Distribution Channels Sprint~~ DONE | (a) awesome-claude-skills PR #588 submitted, awesome-claude-code needs web form (prepared). (b) `install.sh` curl script with 14 tests. (c) Homebrew tap at `BaseInfinity/homebrew-sdlc-wizard`. (d) gh CLI extension at `BaseInfinity/gh-sdlc-wizard`. (e) `.github/workflows/release.yml` tag-push automation with 10 tests. SkillsMP deferred (no evidence marketplace exists). 6 total distribution channels (npm, plugin, curl, Homebrew, gh extension, GitHub Releases) |
 | 3 | -- | ~~CC Version Check + Weekly-Update Audit~~ DONE | Audited: workflow IS working. March 30 schedule run detected v2.1.85→v2.1.87. "9 versions behind" was stale (written before March 27+30 runs). Current gap is 5 versions (v2.1.87 tracked vs v2.1.92 latest) — expected weekly cadence lag when CC releases multiple versions/week. No fix needed |
