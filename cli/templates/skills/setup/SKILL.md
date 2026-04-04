@@ -171,6 +171,16 @@ Based on detected stack, suggest `allowedTools` entries for `.claude/settings.js
 
 Present suggestions and let the user confirm.
 
+### Step 9.5: Context Window Configuration
+
+Recommend autocompact settings based on the user's context window:
+
+- **200K models (default):** Suggest `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` — leaves room for implementation after planning
+- **1M models:** Suggest `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` — the default fires at ~76K on 1M, wasting 92% of the window
+- **CI pipelines:** Suggest 60% — short tasks, compact early
+
+Tell the user to add the export to their shell profile (`~/.bashrc`, `~/.zshrc`) or project `.envrc`. This is guidance, not enforcement — the wizard doesn't write shell profiles.
+
 ### Step 10: Customize Hooks
 
 Update `tdd-pretool-check.sh` with the actual source directory (replace generic `/src/` pattern).
