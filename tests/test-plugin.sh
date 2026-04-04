@@ -72,6 +72,20 @@ test_plugin_json_version_matches_package() {
     fi
 }
 
+test_marketplace_version_matches_package() {
+    local mkt_file="$REPO_ROOT/.claude-plugin/marketplace.json"
+    local pkg_file="$REPO_ROOT/package.json"
+    [ -f "$mkt_file" ] || { fail "marketplace.json missing (can't check version)"; return; }
+    local mkt_ver pkg_ver
+    mkt_ver=$(python3 -c "import json; print(json.load(open('$mkt_file'))['plugins'][0].get('version',''))" 2>/dev/null)
+    pkg_ver=$(python3 -c "import json; print(json.load(open('$pkg_file')).get('version',''))" 2>/dev/null)
+    if [ "$mkt_ver" = "$pkg_ver" ]; then
+        pass "marketplace.json plugin version ($mkt_ver) matches package.json"
+    else
+        fail "marketplace.json plugin version ($mkt_ver) should match package.json ($pkg_ver)"
+    fi
+}
+
 test_plugin_json_required_fields() {
     local file="$REPO_ROOT/.claude-plugin/plugin.json"
     [ -f "$file" ] || { fail "plugin.json missing (can't check fields)"; return; }
@@ -382,6 +396,7 @@ test_plugin_json_exists
 test_plugin_json_valid
 test_plugin_json_name
 test_plugin_json_version_matches_package
+test_marketplace_version_matches_package
 test_plugin_json_required_fields
 test_plugin_json_kebab_case_name
 test_hooks_json_exists
