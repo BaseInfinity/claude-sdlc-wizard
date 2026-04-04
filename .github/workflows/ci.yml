@@ -144,6 +144,12 @@ jobs:
       - name: Run plugin format tests
         run: ./tests/test-plugin.sh
 
+      - name: Run install script tests
+        run: ./tests/test-install-script.sh
+
+      - name: Run release workflow tests
+        run: ./tests/test-release-workflow.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
