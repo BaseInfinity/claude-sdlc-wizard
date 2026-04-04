@@ -70,7 +70,7 @@ if [ "${1:-}" = "--global" ]; then
     fi
 else
     info "Installing SDLC Wizard to current project..."
-    npx agentic-sdlc-wizard init
+    npx -y agentic-sdlc-wizard init
 
     if [ -f ".claude/hooks/sdlc-prompt-check.sh" ]; then
         echo ""
