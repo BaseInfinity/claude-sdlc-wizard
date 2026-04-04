@@ -159,8 +159,96 @@ test_has_error_function() {
     fi
 }
 
+# --- Integration tests (live execution) ---
+
+make_temp() {
+    local d
+    d=$(mktemp -d "${TMPDIR:-/tmp}/sdlc-install-test-XXXXXX")
+    echo "$d"
+}
+
+test_piped_install_creates_files() {
+    local dir
+    dir=$(make_temp)
+
+    # Simulate curl | bash by piping file to bash
+    (cd "$dir" && cat "$INSTALL_SCRIPT" | bash) >/dev/null 2>&1
+
+    local expected_files=(
+        ".claude/settings.json"
+        ".claude/hooks/sdlc-prompt-check.sh"
+        ".claude/hooks/tdd-pretool-check.sh"
+        ".claude/hooks/instructions-loaded-check.sh"
+        ".claude/skills/sdlc/SKILL.md"
+        ".claude/skills/setup/SKILL.md"
+        ".claude/skills/update/SKILL.md"
+        ".claude/skills/feedback/SKILL.md"
+        "CLAUDE_CODE_SDLC_WIZARD.md"
+    )
+
+    local missing=0
+    for f in "${expected_files[@]}"; do
+        if [ ! -f "$dir/$f" ]; then
+            missing=$((missing + 1))
+        fi
+    done
+
+    if [ "$missing" -eq 0 ]; then
+        pass "Piped install (curl|bash) creates all 9 wizard files"
+    else
+        fail "Piped install missing $missing of 9 expected files"
+    fi
+
+    rm -rf "$dir"
+}
+
+test_piped_install_hooks_executable() {
+    local dir
+    dir=$(make_temp)
+
+    (cd "$dir" && cat "$INSTALL_SCRIPT" | bash) >/dev/null 2>&1
+
+    local all_exec=true
+    for hook in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh; do
+        if [ ! -x "$dir/.claude/hooks/$hook" ]; then
+            all_exec=false
+        fi
+    done
+
+    if [ "$all_exec" = true ]; then
+        pass "Piped install sets hooks as executable"
+    else
+        fail "Piped install did not set all hooks as executable"
+    fi
+
+    rm -rf "$dir"
+}
+
+test_piped_help_works() {
+    local output
+    output=$(cat "$INSTALL_SCRIPT" | bash -s -- --help 2>&1) || true
+    if echo "$output" | grep -qi 'usage\|install\|sdlc'; then
+        pass "Piped --help works (cat script | bash -s -- --help)"
+    else
+        fail "Piped --help did not show usage"
+    fi
+}
+
+test_shebang_no_escaped_bang() {
+    # Regression: heredoc-created scripts can get #\! instead of #!
+    # This caused exec format error in gh-sdlc-wizard
+    local first_bytes
+    first_bytes=$(xxd -l 2 -p "$INSTALL_SCRIPT")
+    if [ "$first_bytes" = "2321" ]; then
+        pass "Shebang is #! (not escaped #\\!)"
+    else
+        fail "Shebang bytes are '$first_bytes' — expected '2321' (#!)"
+    fi
+}
+
 # --- Run tests ---
 
+# Structural tests
 test_script_exists
 test_script_is_executable
 test_has_bash_shebang
@@ -175,6 +263,12 @@ test_no_hardcoded_tmp
 test_colors_conditional_on_terminal
 test_references_correct_package
 test_has_error_function
+test_shebang_no_escaped_bang
+
+# Integration tests (live execution)
+test_piped_install_creates_files
+test_piped_install_hooks_executable
+test_piped_help_works
 
 # --- Results ---
 
