@@ -520,12 +520,15 @@ Local tests pass -> Commit -> Push -> Watch CI
 **The full shepherd sequence — every step is mandatory:**
 1. Push changes to remote
 2. Watch CI: `gh pr checks --watch`
-3. If CI fails → read logs (`gh run view <RUN_ID> --log-failed`), fix, push again (max 2 attempts)
-4. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
-5. Fix valid suggestions, push, iterate until clean
-6. Only then: explicit merge with `gh pr merge --squash`
+3. Read CI logs — **pass or fail**: `gh run view <RUN_ID> --log` (not just `--log-failed`). Passing CI can still hide warnings, skipped steps, or degraded scores. Don't just check the green checkmark
+4. If CI fails → diagnose from logs, fix, push again (max 2 attempts)
+5. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
+6. Fix valid suggestions, push, iterate until clean
+7. Only then: explicit merge with `gh pr merge --squash`
 
 **Why this is non-negotiable:** PR #145 auto-merged a release before review feedback was read. CI reviewer found a P1 dead-code bug that shipped to main. The fix required a follow-up commit. Auto-merge cost more time than the shepherd loop would have taken.
+
+**Why read passing logs:** v1.24.0 release only read logs on failure (round 1), then just checked the green checkmark on round 2. Passing CI can hide warnings, skipped steps, degraded E2E scores, or silent test exclusions. A green checkmark is necessary but not sufficient.
 
 **Context GC (compact during idle):** While waiting for CI (typically 3-5 min), suggest `/compact` if the conversation is long. Think of it like a time-based garbage collector — idle time + high memory pressure = good time to collect. Don't suggest on short conversations.
 
@@ -613,9 +616,12 @@ Before implementing any release items:
 2. **Plan each at 95% confidence** — For each item: what files change, what tests prove it works, what's the blast radius. If confidence < 95% on any item, flag it
 3. **Identify blocks** — Which items depend on others? What must go first?
 4. **Present all plans together** — User reviews the complete batch, not one at a time. This catches conflicts, sequencing issues, and scope creep before any code is written
-5. **User approves, then implement** — Full SDLC per item (TDD RED → GREEN → self-review), in the prioritized order
+5. **Pre-release CI audit** — Before cutting the release, review CI runs across ALL PRs merged since last release. Look for: warnings in passing runs, degraded E2E scores, skipped test suites, silent failures masked by `continue-on-error`. Use `gh run list` + `gh run view <ID> --log` to audit. A green checkmark is necessary but not sufficient
+6. **User approves, then implement** — Full SDLC per item (TDD RED → GREEN → self-review), in the prioritized order
 
 **Why batch planning works:** Ad-hoc one-at-a-time implementation leads to unvalidated additions and scope creep. Batch planning catches problems early — if you can't plan it at 95%, you're not ready to ship it.
+
+**Why pre-release CI audit:** v1.24.0 shipped without auditing CI logs across merged PRs #150-#152. Passing CI doesn't mean nothing fishy got through — warnings, degraded scores, and skipped steps can hide in green runs.
 
 ## Deployment Tasks (If Task Involves Deploy)
 
