@@ -4,6 +4,25 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.25.0] - 2026-04-04
+
+### Added
+- Claude Code plugin format — single source of truth: `skills/` and `hooks/` at repo root serve plugin + CLI. `.claude-plugin/plugin.json` manifest, `hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}`, `.claude-plugin/marketplace.json` for self-hosted marketplace. Absorbs #66 + #87 (#89)
+- 6 distribution channels — npm, plugin, curl install script, Homebrew tap, gh CLI extension, GitHub Releases (#90)
+- `install.sh` curl-pipeable installer — download guard, strict mode, Node.js >= 18 check, `--global` flag, terminal-aware colors. 20 tests (structural + integration)
+- `.github/workflows/release.yml` — tag-push automation with npm publish --provenance (SLSA), GitHub Release via softprops/action-gh-release@v2. 14 tests
+- External repos: `BaseInfinity/homebrew-sdlc-wizard` (Homebrew tap), `BaseInfinity/gh-sdlc-wizard` (gh CLI extension)
+- 25 plugin format tests, 34 distribution tests (20 install + 14 release workflow)
+
+### Fixed
+- CI shepherd: enforce reading CI logs on pass AND fail (not just failures). Pre-release CI audit across merged PRs added to release planning gate
+
+### Changed
+- CLI `init.js` reads skills/hooks from repo root (single source, no duplication)
+- Dogfood `.claude/` uses symlinks to root skills/hooks
+- README: added curl, Homebrew, gh extension, GitHub install methods
+- CI_CD.md: added release.yml documentation + NPM_TOKEN secret
+
 ## [1.24.0] - 2026-04-04
 
 ### Added
