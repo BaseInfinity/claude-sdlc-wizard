@@ -106,7 +106,7 @@ Using detected + confirmed values, generate `CLAUDE.md` with:
 - Architecture summary (from scan)
 - Special notes (infra, deployment)
 
-Reference: See "Step 3" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
+Reference: See "Step 8" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
 ### Step 5: Generate SDLC.md
 
@@ -124,7 +124,7 @@ Include metadata comments:
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 ```
 
-Reference: See "Step 4" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
+Reference: See "Step 9" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
 ### Step 6: Generate TESTING.md (Domain-Adaptive)
 
