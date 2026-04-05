@@ -4,6 +4,18 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.26.0] - 2026-04-05
+
+### Added
+- Codex SDLC Adapter plan — certified (9/10) through 5-round cross-model review. `BaseInfinity/codex-sdlc-wizard` repo created with plan + README. Upstream sync architecture designed (weekly GH Action monitors sdlc-wizard releases). Hooks: PreToolUse `^Bash$` for git commit/push blocking (HARD — stronger than CC), AGENTS.md for TDD guidance (SOFT), UserPromptSubmit for SDLC baseline. ~70% CC parity (#91)
+- Research: claw-code, OmO, OmX pattern analysis — 16 candidate patterns identified from 3 open-source AI agent projects (claw-code 168K stars, OmO 48K, OmX 16K). Key findings: GreenContract graduated test levels, $ralph bounded persistence loop, planning gate enforcement, planner/executor separation. All candidates require Prove It Gate before adoption. Codex certified 8/10 round 3 (#58)
+- Automated CC Feature Discovery verified working — weekly-update.yml already implements this via analyze-release.md (#85)
+
+### Changed
+- Roadmap: #79 (Domain-Adaptive Testing) and #92 (Autocompact Benchmarking) queued for next release
+- Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` added as reference (candidates list, not commitments)
+- Codex adapter plan: `CODEX_ADAPTER_PLAN.md` added with full specs (hooks, scripts, tests, install flow)
+
 ## [1.25.0] - 2026-04-04
 
 ### Added
