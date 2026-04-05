@@ -106,7 +106,7 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 79 | Domain-Adaptive Testing Diamond | Setup wizard generates domain-specific TESTING.md. Detect firmware (shell + `/sys/` + device configs → SIL/HIL layers), data science (notebooks → data validation/model eval), CLI (shell + no UI → integration-heavy). Must show different TESTING.md output per domain. Depends on #78 fixture |
+| 1 | 79 | ~~Domain-Adaptive Testing Diamond~~ DONE | PR #157. Setup wizard auto-detects domain (firmware/data-science/CLI/web) and generates domain-specific TESTING.md. 4 domains with distinct testing layers: Firmware (HIL/SIL/Config Validation), Data Science (Model Eval/Pipeline Integration/Data Validation), CLI (CLI Integration/Behavior), Web/API (default, unchanged). 3 new fixtures, 25 quality tests. Partially satisfies #78 (firmware fixture created) |
 | 2 | 92 | Research: Rigorous Autocompact Benchmarking | Controlled benchmarks at 50/60/70/75/80/83% thresholds across 200K and 1M models. Measure quality, cost, degradation. Opportunity to be THE authority. High differentiation |
 
 ## Previous Release (v1.25.0)

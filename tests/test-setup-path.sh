@@ -42,7 +42,7 @@ echo ""
 # Per-fixture tests: init into each project type
 # ─────────────────────────────────────────────────────
 
-FIXTURE_NAMES="fresh-nextjs fresh-python go-api legacy-messy mern-stack nextjs-typescript python-fastapi complex-existing-config blank-repo"
+FIXTURE_NAMES="fresh-nextjs fresh-python go-api legacy-messy mern-stack nextjs-typescript python-fastapi complex-existing-config blank-repo firmware-embedded data-science cli-tool"
 
 for fixture in $FIXTURE_NAMES; do
     # Test: init exits 0
