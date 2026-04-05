@@ -4,6 +4,23 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.28.0] - 2026-04-06
+
+### Added
+- Autocompact benchmarking methodology — first rigorous framework for testing `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` thresholds (#92, PR #158)
+  - `AUTOCOMPACT_BENCHMARK.md`: experimental design, canary fact mechanism, cost estimation, limitations
+  - `tests/benchmarks/run-benchmark.sh`: parameterized harness with `--dry-run`, threshold validation, multi-turn session via `--resume`
+  - `tests/benchmarks/analyze-results.sh`: statistical comparison tables using `stats.sh`
+  - 3 task files (short/medium/long) with canary fact injection for context preservation measurement
+  - `canary-facts.json`: 5 domain-independent facts for binary recall scoring with negation detection
+  - `.github/workflows/benchmark-autocompact.yml`: `workflow_dispatch` with matrix strategy across thresholds
+  - 26 quality tests proving methodology rigor, harness behavior, and research standards
+
+### Changed
+- README bio: reflects full-stack founding engineer background (not just SDET/QA)
+- Wizard doc autocompact section references benchmarking methodology
+- Workflow count updated (5→6) across README and CI
+
 ## [1.27.0] - 2026-04-05
 
 ### Added

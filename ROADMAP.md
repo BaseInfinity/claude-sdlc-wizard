@@ -107,7 +107,7 @@
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 79 | ~~Domain-Adaptive Testing Diamond~~ DONE | PR #157. Setup wizard auto-detects domain (firmware/data-science/CLI/web) and generates domain-specific TESTING.md. 4 domains with distinct testing layers: Firmware (HIL/SIL/Config Validation), Data Science (Model Eval/Pipeline Integration/Data Validation), CLI (CLI Integration/Behavior), Web/API (default, unchanged). 3 new fixtures, 25 quality tests. Partially satisfies #78 (firmware fixture created) |
-| 2 | 92 | Research: Rigorous Autocompact Benchmarking | Controlled benchmarks at 50/60/70/75/80/83% thresholds across 200K and 1M models. Measure quality, cost, degradation. Opportunity to be THE authority. High differentiation |
+| 2 | 92 | ~~Research: Rigorous Autocompact Benchmarking~~ DONE | PR #158. First rigorous autocompact benchmarking methodology — experimental design with canary fact mechanism for context preservation measurement. Harness script, 3 task complexity levels, CI workflow with matrix strategy, 26 quality tests. Methodology + infrastructure ships before data (benchmark runs deferred to budget). Codex cross-model reviewed (plan + implementation) |
 
 ## Previous Release (v1.25.0)
 
