@@ -98,9 +98,8 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 67 | Add Agent Team Hooks | `TaskCreated`, `TaskCompleted`, `TeammateIdle` events — purpose-built SDLC enforcement for multi-agent workflows. Add to hooks.json, write hook scripts, tests |
-| 2 | 85 | Automated CC Feature Discovery | Extend weekly-update.yml to parse CC release notes and flag SDLC-relevant features. Post as GitHub issue tagged `feature-evaluation` |
-| 3 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement |
+| 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | Already implemented in weekly-update.yml: fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PR. GitHub issue per-feature deferred — PR + ROADMAP already cover tracking |
+| 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement |
 
 ## Previous Release (v1.25.0)
 
@@ -128,7 +127,7 @@
 | 63 | Evaluate: Batched Codex Release Review | Currently cross-model review runs per-PR. Evaluate whether a batched release-level Codex review (all changes since last release) catches different issues than per-PR reviews. May not be needed — per-PR + release review checklist already covers it. Low priority until evidence suggests a gap |
 | 65 | ~~Testing Diamond Boundary~~ DONE | Completed in v1.23.0 |
 | 66 | ~~Convert to Plugin Format~~ Absorbed into #89 | Plugin format + marketplace submission combined into single item #89. Plugins now support hooks (updated finding from 2026-04-03 research) |
-| 67 | Add Agent Team Hooks | `TaskCreated`, `TaskCompleted`, `TeammateIdle` are purpose-built SDLC enforcement points for multi-agent workflows. Add to default hook config. Spawned from #59 research |
+| 67 | Add Agent Team Hooks | DEFERRED — Agent Teams requires experimental feature flag (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). Hooks would be inert for most users. Main session enforcement already covers subagent workflows (subagents do what the main session tells them). Revisit when Agent Teams exits experimental. Prove It Gate: can't prove value without GA feature |
 | 68 | Hook `if` Conditionals | Use CC v2.1.85's `if` field to reduce false positives (e.g., skip TDD check when editing test files, skip on `--bare`). Cleaner than shell-script filtering. Spawned from #59 research |
 | 69 | ~~Skill Frontmatter Docs~~ DONE | Completed in v1.23.0 |
 | 70 | ~~`--bare` Docs~~ DONE | Completed in v1.23.0 |
