@@ -519,6 +519,82 @@ Here's the "Testing Diamond" approach (recommended for AI agents):
 - **Unit**: Pure logic only — no DB, no API, no filesystem. ~5% of suite.
 - **The rule**: If your test doesn't open a browser or render a UI, it's not E2E — it's integration. Mislabeling leads to overinvestment in slow browser tests.
 
+#### Domain-Adaptive Testing Layers
+
+The Testing Diamond above is the Web/API default. Other project domains have fundamentally different testing layers. The setup wizard auto-detects your domain and generates the appropriate TESTING.md.
+
+**Domain Detection Patterns:**
+
+| Domain | File/Dir Indicators |
+|--------|-------------------|
+| **Firmware/Embedded** | Makefile with `flash`/`burn` targets, `.cfg` device configs, `/sys/` or `/dev/tty` references, `.c`/`.h` source, `platformio.ini`, `CMakeLists.txt` with embedded targets |
+| **Data Science** | `.ipynb` notebooks, `requirements.txt` with pandas/sklearn/tensorflow/torch, `data/` or `datasets/` dir, `models/` dir, Jupyter config |
+| **CLI Tool** | `package.json` with `"bin"` field (no React/Vue/Angular), `bin/` dir, `src/cli.*`, no `src/components/` |
+| **Web/API (default)** | Everything else — web frameworks, `src/components/`, Playwright/Cypress config, DB config. Fallback when no other domain matches |
+
+**Firmware/Embedded Testing Layers:**
+
+```
+        /\           ← Few HIL (Hardware-in-the-Loop: real device, flash + boot verify)
+       /  \
+      /    \
+     /------\
+    |        |       ← MANY SIL (Software-in-the-Loop: emulated hardware, QEMU, device sims)
+    |        |
+     \------/
+      \    /        ← Config Validation (device config parsing, constraint checks)
+       \  /
+        \/           ← Few Unit (parsers, formatters, math)
+```
+
+- **HIL (~5%)**: Hardware-in-the-Loop — flash to real device, verify boot, test hardware interfaces
+- **SIL (~60%)**: Software-in-the-Loop — emulated hardware via QEMU or device simulators. Best bang for buck
+- **Config Validation (~25%)**: Device config (.cfg) parsing, cross-device constraint checks, valid value ranges
+- **Unit (~10%)**: Pure logic only — parsers, formatters, math functions
+- **Mocking**: Mock hardware interfaces (`/dev/tty*`, GPIO), NEVER mock config parsers
+- NO browser tests, NO database mocking
+
+**Data Science Testing Layers:**
+
+```
+        /\           ← Few Model Evaluation (accuracy/precision/recall on holdout sets)
+       /  \
+      /    \
+     /------\
+    |        |       ← MANY Pipeline Integration (end-to-end with test datasets)
+    |        |
+     \------/
+      \    /        ← Data Validation (schema checks, distribution drift, missing values)
+       \  /
+        \/           ← Few Unit (pure transformations, feature engineering)
+```
+
+- **Model Evaluation (~10%)**: Accuracy, precision, recall, F1 on holdout test sets. Catches model degradation
+- **Pipeline Integration (~60%)**: End-to-end pipeline runs with test datasets. Best bang for buck
+- **Data Validation (~20%)**: Schema checks, distribution drift detection, missing value handling, type enforcement
+- **Unit (~10%)**: Pure transformations, feature engineering functions, data cleaning logic
+- **Mocking**: Mock external data sources (APIs, S3), NEVER mock data transformations
+- NO browser tests, NO traditional API endpoint testing
+
+**CLI Tool Testing Layers:**
+
+```
+     /------\
+    |        |       ← MANY CLI Integration (full invocations, real args, real filesystem)
+    |        |
+    |        |
+     \------/
+      \    /        ← Behavior (exit codes, stdout/stderr content, file creation)
+       \  /
+        \/           ← Few Unit (arg parsing, formatters, pure logic)
+```
+
+- **CLI Integration (~80%)**: Full CLI invocations with real arguments and real filesystem. Best bang for buck
+- **Behavior (~10%)**: Exit codes, stdout/stderr output validation, file creation/modification verification
+- **Unit (~10%)**: Argument parsing, output formatters, pure logic
+- **Mocking**: Mock network calls, NEVER mock filesystem operations
+- NO browser tests, usually NO database
+
 **But your team decides:**
 
 | Question | Your Choice |
@@ -1235,12 +1311,34 @@ Claude scans for:
 │   ├── docker-compose.yml     → Bash(docker *)
 │   └── .github/workflows/     → Bash(gh *)
 │
-└── Design system (for UI projects):
-    ├── tailwind.config.*      → Extract colors, fonts, spacing from theme
-    ├── CSS with --var-name    → Extract custom property palette
-    ├── .storybook/            → Reference as design source of truth
-    ├── MUI/Chakra theme files → Reference theming docs + overrides
-    └── /assets/, /images/     → Document asset locations
+├── Design system (for UI projects):
+│   ├── tailwind.config.*      → Extract colors, fonts, spacing from theme
+│   ├── CSS with --var-name    → Extract custom property palette
+│   ├── .storybook/            → Reference as design source of truth
+│   ├── MUI/Chakra theme files → Reference theming docs + overrides
+│   └── /assets/, /images/     → Document asset locations
+│
+└── Project domain (for domain-adaptive TESTING.md):
+    ├── Firmware/Embedded:
+    │   ├── Makefile with flash/burn targets
+    │   ├── .cfg device config files
+    │   ├── /sys/ or /dev/tty references in scripts
+    │   ├── .c/.h source files without web frameworks
+    │   ├── platformio.ini, CMakeLists.txt
+    │   └── No package.json with web frameworks
+    ├── Data Science:
+    │   ├── .ipynb notebook files
+    │   ├── requirements.txt with pandas/sklearn/tensorflow/torch
+    │   ├── data/ or datasets/ directory
+    │   ├── models/ directory
+    │   └── No Express/FastAPI/Rails web framework
+    ├── CLI Tool:
+    │   ├── package.json with "bin" field (no React/Vue/Angular deps)
+    │   ├── bin/ directory with executable scripts
+    │   ├── src/cli.* entry point
+    │   └── No src/components/, no browser test config
+    └── Web/API (default):
+        └── Everything else — fallback when no other domain matches
 ```
 
 **If Claude can't detect something, it asks.** Never assumes.
@@ -1553,6 +1651,7 @@ Each resolved data point (whether detected or confirmed by the user) maps to gen
 | Infrastructure (DB, cache) | `CLAUDE.md` - Architecture section, `TESTING.md` - mock decisions |
 | Test duration | `SDLC skill` - wait time note |
 | Test types (E2E) | `TESTING.md` - testing diamond top |
+| Project domain (firmware/data-science/CLI/web) | `TESTING.md` - domain-adaptive testing layers and mocking rules |
 
 ---
 
@@ -2525,24 +2624,166 @@ See `.claude/skills/sdlc/SKILL.md` for the enforced checklist.
 - Survives file edits
 - Travels with the repo
 
-**TESTING.md:**
+**TESTING.md (domain-adaptive — generate the template matching the detected domain):**
+
+**Web/API (default):**
 ```markdown
 # Testing Guidelines
 
-See `TESTING.md` for TDD philosophy.
+## Testing Diamond
+
+Integration tests are best bang for buck. Mocks can "pass" while production fails.
+
+| Layer | What It Tests | % of Suite |
+|-------|--------------|------------|
+| E2E | Full user flow through browser (Playwright, Cypress) | ~5% |
+| Integration | Real DB, real cache, API-level — no UI | ~90% |
+| Unit | Pure logic — no DB, no API, no filesystem | ~5% |
 
 ## Test Commands
 
 - All tests: `[your command]`
 - Specific test: `[your command]`
 
+## Mocking Rules
+
+| Dependency | Mock? | Why |
+|------------|-------|-----|
+| Database | NEVER | Use test DB or in-memory |
+| Cache | NEVER | Use isolated test instance |
+| External APIs | YES | Real calls = flaky + expensive |
+| Time/Date | YES | Determinism |
+
 ## Fixtures
 
-Location: `[Claude will discover or ask - e.g., tests/fixtures/, test-data/]`
+Location: `[tests/fixtures/ or test-data/]`
 
 ## Lessons Learned
 
 <!-- Add testing gotchas as you discover them -->
+```
+
+**Firmware/Embedded (if detected):**
+```markdown
+# Testing Guidelines
+
+## Testing Layers (Firmware)
+
+SIL tests are best bang for buck. Real hardware tests are slow but prove the real thing works.
+
+| Layer | What It Tests | % of Suite |
+|-------|--------------|------------|
+| HIL | Hardware-in-the-Loop — real device, flash + boot verify | ~5% |
+| SIL | Software-in-the-Loop — emulated hardware (QEMU, device sims) | ~60% |
+| Config Validation | Device config parsing, constraint checks, valid ranges | ~25% |
+| Unit | Pure logic — parsers, formatters, math | ~10% |
+
+## Test Commands
+
+- All tests: `[your command, e.g., make test]`
+- Flash + verify: `[your flash command]`
+- Config validation: `[your config check command]`
+
+## Mocking Rules
+
+| Dependency | Mock? | Why |
+|------------|-------|-----|
+| Hardware interfaces (/dev/tty*, GPIO) | YES | Real hardware not always available |
+| Config parsers | NEVER | Config bugs brick devices |
+| Filesystem (/sys/, /proc/) | YES in CI | Real paths only exist on target |
+| Serial protocols | YES | Use loopback or emulator |
+
+## Device Matrix
+
+| Device | Config File | Status |
+|--------|------------|--------|
+| [device-a] | configs/device-a.cfg | [tested/untested] |
+
+## Lessons Learned
+
+<!-- Add firmware testing gotchas as you discover them -->
+```
+
+**Data Science (if detected):**
+```markdown
+# Testing Guidelines
+
+## Testing Layers (Data Science)
+
+Pipeline integration tests are best bang for buck. Model evaluation catches degradation.
+
+| Layer | What It Tests | % of Suite |
+|-------|--------------|------------|
+| Model Evaluation | Accuracy/precision/recall/F1 on holdout sets | ~10% |
+| Pipeline Integration | End-to-end pipeline runs with test datasets | ~60% |
+| Data Validation | Schema checks, distribution drift, missing values | ~20% |
+| Unit | Pure transformations, feature engineering | ~10% |
+
+## Test Commands
+
+- All tests: `[your command, e.g., pytest]`
+- Model evaluation: `[your eval command]`
+- Data validation: `[your validation command]`
+
+## Mocking Rules
+
+| Dependency | Mock? | Why |
+|------------|-------|-----|
+| External data sources (APIs, S3) | YES | Real calls = flaky + expensive |
+| Data transformations | NEVER | Transform bugs corrupt pipelines |
+| Model training | PARTIAL | Use small test datasets for speed |
+| Database/warehouse | YES in unit | Use test fixtures for integration |
+
+## Test Datasets
+
+Location: `[tests/data/ or tests/fixtures/]`
+- Keep test datasets small but representative
+- Include edge cases: missing values, wrong types, outliers
+
+## Lessons Learned
+
+<!-- Add data science testing gotchas as you discover them -->
+```
+
+**CLI Tool (if detected):**
+```markdown
+# Testing Guidelines
+
+## Testing Layers (CLI)
+
+CLI integration tests are best bang for buck. Test real invocations with real arguments.
+
+| Layer | What It Tests | % of Suite |
+|-------|--------------|------------|
+| CLI Integration | Full invocations with real args, real filesystem | ~80% |
+| Behavior | Exit codes, stdout/stderr content, file creation | ~10% |
+| Unit | Arg parsing, formatters, pure logic | ~10% |
+
+## Test Commands
+
+- All tests: `[your command]`
+- Specific test: `[your command]`
+
+## Mocking Rules
+
+| Dependency | Mock? | Why |
+|------------|-------|-----|
+| Filesystem | NEVER | CLI tools live on the filesystem |
+| Network calls | YES | Real calls = flaky |
+| Stdin/stdout | CAPTURE | Use child_process or subprocess |
+| Environment vars | SET per test | Determinism |
+
+## Behavior Contract
+
+| Input | Expected Exit Code | Expected Output |
+|-------|-------------------|----------------|
+| `--help` | 0 | Usage text |
+| (no args) | 1 | Error message |
+| `--version` | 0 | Version string |
+
+## Lessons Learned
+
+<!-- Add CLI testing gotchas as you discover them -->
 ```
 
 ---

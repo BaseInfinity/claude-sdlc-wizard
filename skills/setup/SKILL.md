@@ -42,6 +42,11 @@ Scan the project root for:
 - Scripts in package.json (lint, test, build, typecheck, etc.)
 - Database config files (prisma/, drizzle.config.*, knexfile.*, .env with DB_*)
 - Cache config (redis.conf, .env with REDIS_*)
+- Domain indicators (for domain-adaptive TESTING.md):
+  - Firmware/Embedded: Makefile with flash/burn targets, .cfg device configs, /sys/ or /dev/tty references, .c/.h source, platformio.ini
+  - Data Science: .ipynb notebooks, requirements.txt with pandas/sklearn/tensorflow/torch, data/ or datasets/ dir, models/ dir
+  - CLI Tool: package.json with "bin" field (no React/Vue/Angular), bin/ dir, src/cli.*, no src/components/
+  - Web/API: default — everything else (web frameworks, src/components/, Playwright/Cypress config)
 
 ### Step 2: Build Confidence Map
 
@@ -69,6 +74,7 @@ For each configuration data point, assign a confidence level based on scan resul
 | Testing | Test types | What test files exist (*.test.*, *.spec.*, e2e/, integration/) |
 | Coverage | Coverage config | nyc, c8, coverage.py config, CI coverage steps |
 | CI | CI shepherd opt-in | Only if CI detected — ALWAYS ASK |
+| Domain | Project domain | Auto-detect from domain indicators above (firmware/data-science/CLI/web). Web/API is the default fallback. One domain per project — dominant signal wins |
 
 **Each data point has one of three states:**
 - **RESOLVED (detected):** Found concrete evidence — config file, script, directory exists. No question needed, just confirm.
@@ -100,7 +106,7 @@ Using detected + confirmed values, generate `CLAUDE.md` with:
 - Architecture summary (from scan)
 - Special notes (infra, deployment)
 
-Reference: See "Step 3" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
+Reference: See "Step 8" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
 ### Step 5: Generate SDLC.md
 
@@ -118,19 +124,23 @@ Include metadata comments:
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 ```
 
-Reference: See "Step 4" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
+Reference: See "Step 9" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
 
-### Step 6: Generate TESTING.md
+### Step 6: Generate TESTING.md (Domain-Adaptive)
 
-Generate `TESTING.md` based on detected/confirmed testing data:
-- Testing Diamond visualization
-- Test types and their purposes
-- Mocking rules (from detected patterns or user input)
-- Test file organization (from detected structure)
-- Coverage config (from detected config or user input)
-- Framework-specific patterns
+Generate `TESTING.md` using the domain-specific template matching the detected project domain:
+- **Web/API (default)**: Standard Testing Diamond (E2E/Integration/Unit)
+- **Firmware/Embedded**: HIL/SIL/Config Validation/Unit layers
+- **Data Science**: Model Evaluation/Pipeline Integration/Data Validation/Unit layers
+- **CLI Tool**: CLI Integration/Behavior/Unit layers
 
-Reference: See "Step 5" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
+Each domain template includes:
+- Domain-appropriate testing layer visualization and percentages
+- Domain-specific mocking rules (what to mock, what NEVER to mock)
+- Test commands and fixture locations
+- Domain-specific sections (Device Matrix for firmware, Test Datasets for data science, Behavior Contract for CLI)
+
+Reference: See "Step 9" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full domain-conditional templates.
 
 ### Step 7: Generate ARCHITECTURE.md
 

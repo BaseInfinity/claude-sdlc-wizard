@@ -48,6 +48,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-compliance.sh` | Compliance checker | Complexity extraction, pattern matching |
 | `tests/test-evaluate-bugs.sh` | Evaluate bug regression | Regression tests for evaluate.sh bugs |
 | `tests/test-score-analytics.sh` | Score analytics | History parsing, trends, reports |
+| `tests/test-domain-detection.sh` | Domain detection | Domain-adaptive testing layers, detection patterns, fixture validation |
 
 **How to run:**
 ```bash
@@ -60,6 +61,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 ./tests/test-compliance.sh
 ./tests/test-evaluate-bugs.sh
 ./tests/test-score-analytics.sh
+./tests/test-domain-detection.sh
 ```
 
 ### Layer 2: Fixture Validation
