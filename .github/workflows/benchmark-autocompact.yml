@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "Threshold: ${{ matrix.threshold }}"
           echo "Task: ${{ inputs.task }}"
-          echo "Trials: ${{ inputs.trials }}"
+          echo "Trials: 1 (per dispatch)"
           echo "Session completed"
           # Results extraction from $RUNNER_TEMP/claude-execution-output.json
           # Format verification needed before production use
