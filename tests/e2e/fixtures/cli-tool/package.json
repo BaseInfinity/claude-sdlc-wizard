@@ -1,0 +1,14 @@
+{
+  "name": "my-cli-tool",
+  "version": "1.0.0",
+  "description": "A CLI tool for processing files",
+  "bin": {
+    "mycli": "./bin/mycli.js"
+  },
+  "scripts": {
+    "test": "node tests/cli.test.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

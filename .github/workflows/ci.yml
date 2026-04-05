@@ -150,6 +150,9 @@ jobs:
       - name: Run release workflow tests
         run: ./tests/test-release-workflow.sh
 
+      - name: Run domain detection tests
+        run: ./tests/test-domain-detection.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
