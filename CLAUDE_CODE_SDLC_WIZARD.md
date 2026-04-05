@@ -800,7 +800,7 @@ Two tools for managing context — use the right one:
 
 ### Autocompact Tuning
 
-Override the default auto-compact threshold with environment variables. These are community-discovered settings referenced in upstream issues ([#34332](https://github.com/anthropics/claude-code/issues/34332), [#42375](https://github.com/anthropics/claude-code/issues/42375)) — not yet officially documented by Anthropic:
+Override the default auto-compact threshold with environment variables. These are community-discovered settings referenced in upstream issues ([#34332](https://github.com/anthropics/claude-code/issues/34332), [#42375](https://github.com/anthropics/claude-code/issues/42375)) — not yet officially documented by Anthropic. For a rigorous benchmarking methodology to validate these thresholds, see [AUTOCOMPACT_BENCHMARK.md](AUTOCOMPACT_BENCHMARK.md).
 
 | Variable | What It Does | Default |
 |----------|-------------|---------|
@@ -827,6 +827,10 @@ export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75
 **Important:** Values above the default ~95% threshold have no effect — you can only trigger compaction *earlier*, not later. Noise (progress ticks, thinking blocks, stale reads) makes up 50-70% of session tokens, so threshold tuning matters less than noise reduction (scoped reads, subagents, `/compact` between phases).
 
 **Note:** These env vars may change as Claude Code evolves. Check [Claude Code settings docs](https://docs.anthropic.com/en/docs/claude-code/settings) for the latest supported configuration.
+
+### Benchmarking Methodology
+
+The thresholds above are community consensus — not empirically validated. For rigorous benchmarking of autocompact thresholds (measuring task quality, context preservation, and cost at each setting), see [AUTOCOMPACT_BENCHMARK.md](AUTOCOMPACT_BENCHMARK.md). It provides a controlled experimental methodology with a novel "canary fact" mechanism for measuring context preservation post-compaction.
 
 ### 1M vs 200K Context Window
 
