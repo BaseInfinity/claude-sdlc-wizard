@@ -143,6 +143,14 @@ if $DRY_RUN; then
     fi
 
     CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if command -v bc >/dev/null 2>&1; then
+        echo "  [OK] bc installed: $(which bc)"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  [MISSING] bc not installed (needed for arithmetic)"
+    fi
+
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
     if [ -f "$CANARY_FILE" ]; then
         local_count=$(jq '.facts | length' "$CANARY_FILE" 2>/dev/null || echo "0")
         echo "  [OK] canary-facts.json found ($local_count facts)"
@@ -221,6 +229,7 @@ build_recall_prompt() {
 TASK_PROMPT=$(build_prompt)
 RECALL_PROMPT=$(build_recall_prompt)
 
+mkdir -p "$RESULTS_DIR"
 RESULTS_FILE="$RESULTS_DIR/benchmark-$(date +%Y%m%d-%H%M%S).jsonl"
 
 for threshold in "${THRESHOLD_ARRAY[@]}"; do
@@ -237,7 +246,14 @@ for threshold in "${THRESHOLD_ARRAY[@]}"; do
         RECALL_OUTPUT=$(mktemp)
 
         # Phase 1+2: Run task with canary facts (JSON output for machine parsing)
-        claude -p "$TASK_PROMPT" --max-turns "$MAX_TURNS" --output-format json > "$SESSION_OUTPUT" 2>&1 || true
+        CLAUDE_EXIT=0
+        claude -p "$TASK_PROMPT" --max-turns "$MAX_TURNS" --output-format json > "$SESSION_OUTPUT" 2>&1 || CLAUDE_EXIT=$?
+
+        TRIAL_STATUS="success"
+        if [ "$CLAUDE_EXIT" -ne 0 ]; then
+            echo "    WARNING: Claude exited with code $CLAUDE_EXIT"
+            TRIAL_STATUS="claude_error"
+        fi
 
         # Extract session_id for continuation
         # Note: session_id field location depends on Claude CLI version — verify with:
@@ -245,8 +261,16 @@ for threshold in "${THRESHOLD_ARRAY[@]}"; do
         SESSION_ID=$(jq -r '.session_id // .sessionId // empty' "$SESSION_OUTPUT" 2>/dev/null || echo "")
 
         # Phase 3: Resume session for canary recall (if session_id available)
-        if [ -n "$SESSION_ID" ]; then
-            claude --resume "$SESSION_ID" -p "$RECALL_PROMPT" --output-format json > "$RECALL_OUTPUT" 2>&1 || true
+        RECALL_STATUS="skipped"
+        if [ -n "$SESSION_ID" ] && [ "$TRIAL_STATUS" = "success" ]; then
+            RECALL_EXIT=0
+            claude --resume "$SESSION_ID" -p "$RECALL_PROMPT" --output-format json > "$RECALL_OUTPUT" 2>&1 || RECALL_EXIT=$?
+            if [ "$RECALL_EXIT" -eq 0 ]; then
+                RECALL_STATUS="success"
+            else
+                echo "    WARNING: Recall phase exited with code $RECALL_EXIT"
+                RECALL_STATUS="recall_error"
+            fi
         else
             echo "    WARNING: No session_id found — canary recall skipped"
         fi
@@ -255,7 +279,11 @@ for threshold in "${THRESHOLD_ARRAY[@]}"; do
         DURATION=$((TRIAL_END - TRIAL_START))
 
         # Score task completion
-        TASK_SCORE=$(jq -r '.score // 0' "$SESSION_OUTPUT" 2>/dev/null || echo "0")
+        # Note: Claude CLI JSON output structure varies by version.
+        # Common paths: .result, .score, or nested under .messages[-1].content
+        # Verify with: claude -p "test" --output-format json | jq 'keys'
+        # For now, attempt multiple paths; actual scoring uses evaluate.sh in production
+        TASK_SCORE=$(jq -r '.score // .result.score // 0' "$SESSION_OUTPUT" 2>/dev/null || echo "0")
 
         # Count compaction events
         COMPACTION_EVENTS=$(grep -c 'compact\|compaction\|summariz' "$SESSION_OUTPUT" 2>/dev/null || echo "0")
@@ -293,12 +321,16 @@ for threshold in "${THRESHOLD_ARRAY[@]}"; do
             --argjson duration_seconds "$DURATION" \
             --argjson compaction_events "$COMPACTION_EVENTS" \
             --arg session_id "$SESSION_ID" \
+            --arg status "$TRIAL_STATUS" \
+            --arg recall_status "$RECALL_STATUS" \
             '{
                 timestamp: $timestamp,
                 threshold: $threshold,
                 context_window: $context_window,
                 task: $task,
                 trial: $trial,
+                status: $status,
+                recall_status: $recall_status,
                 task_score: $task_score,
                 max_score: $max_score,
                 canary_recall: $canary_recall,
