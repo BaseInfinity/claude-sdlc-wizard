@@ -100,9 +100,14 @@
 |----------|---|------|-------------|
 | 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | Already implemented in weekly-update.yml: fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PR. GitHub issue per-feature deferred — PR + ROADMAP already cover tracking |
 | 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement. **Plan CERTIFIED (9/10), repo created, awaiting implementation** |
-| 3 | 58 | Research: claw-code + OmO/OmX Patterns | Study claw-code (open-source CC alternative) for hook architecture, skills implementation, enforcement patterns. Also OmO (46K stars, multi-model orchestration) `$team` mode (parallel agent review) and `$ralph` mode (persistent execution loops). Study for IDEAS and patterns to port — not copying code |
-| 4 | 79 | Domain-Adaptive Testing Diamond | Setup wizard generates domain-specific TESTING.md. Detect firmware (shell + `/sys/` + device configs → SIL/HIL layers), data science (notebooks → data validation/model eval), CLI (shell + no UI → integration-heavy). Must show different TESTING.md output per domain. Depends on #78 fixture |
-| 5 | 92 | Research: Rigorous Autocompact Benchmarking | Controlled benchmarks at 50/60/70/75/80/83% thresholds across 200K and 1M models. Measure quality, cost, degradation. Opportunity to be THE authority. High differentiation |
+| 3 | 58 | ~~Research: claw-code + OmO/OmX Patterns~~ DONE | Studied claw-code (168K stars), OmO (48K), OmX (16K). 16 candidate patterns identified. Codex certified 8/10 round 3. All candidates require Prove It Gate. Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` |
+
+## Next Release
+
+| Priority | # | Item | Description |
+|----------|---|------|-------------|
+| 1 | 79 | Domain-Adaptive Testing Diamond | Setup wizard generates domain-specific TESTING.md. Detect firmware (shell + `/sys/` + device configs → SIL/HIL layers), data science (notebooks → data validation/model eval), CLI (shell + no UI → integration-heavy). Must show different TESTING.md output per domain. Depends on #78 fixture |
+| 2 | 92 | Research: Rigorous Autocompact Benchmarking | Controlled benchmarks at 50/60/70/75/80/83% thresholds across 200K and 1M models. Measure quality, cost, degradation. Opportunity to be THE authority. High differentiation |
 
 ## Previous Release (v1.25.0)
 
