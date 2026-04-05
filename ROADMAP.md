@@ -99,7 +99,10 @@
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | Already implemented in weekly-update.yml: fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PR. GitHub issue per-feature deferred — PR + ROADMAP already cover tracking |
-| 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement |
+| 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement. **Plan CERTIFIED (9/10), repo created, awaiting implementation** |
+| 3 | 58 | Research: claw-code + OmO/OmX Patterns | Study claw-code (open-source CC alternative) for hook architecture, skills implementation, enforcement patterns. Also OmO (46K stars, multi-model orchestration) `$team` mode (parallel agent review) and `$ralph` mode (persistent execution loops). Study for IDEAS and patterns to port — not copying code |
+| 4 | 79 | Domain-Adaptive Testing Diamond | Setup wizard generates domain-specific TESTING.md. Detect firmware (shell + `/sys/` + device configs → SIL/HIL layers), data science (notebooks → data validation/model eval), CLI (shell + no UI → integration-heavy). Must show different TESTING.md output per domain. Depends on #78 fixture |
+| 5 | 92 | Research: Rigorous Autocompact Benchmarking | Controlled benchmarks at 50/60/70/75/80/83% thresholds across 200K and 1M models. Measure quality, cost, degradation. Opportunity to be THE authority. High differentiation |
 
 ## Previous Release (v1.25.0)
 
@@ -119,7 +122,7 @@
 | 54 | ~~Prototype/Vibe Coding Mode~~ KILLED | Deleted — effort levels cover this |
 | 56 | ~~Adversarial Review Prompting~~ DONE | Merged into #72 (v1.23.0) |
 | 57 | ~~Context Position Audit~~ DONE | Completed in v1.23.0 |
-| 58 | Research: OmO/OmX Harness Patterns | ~~Was: claw-code deep-dive. Redirected after research — claw-code is built from leaked CC source, IP contamination risk, avoid.~~ Instead study the legitimate adjacent tools: **oh-my-openagent (OmO, 46K stars)** — multi-model orchestration, provider-agnostic harness, anti-lock-in philosophy. **oh-my-codex (OmX, 8K stars)** — `$team` mode (parallel agent review, relevant to our N-reviewer pipeline), `$ralph` mode (persistent execution loops with architect verification, relevant to our CI shepherd). Also: LogicKor (Korean LLM benchmark) for evaluation methodology. Focus on patterns we can validate and adopt, not code we'd copy. Cross-model review findings |
+| 58 | Research: claw-code + OmO/OmX Harness Patterns | PRIORITIZED — moved to This Release. Study claw-code (open-source CC alternative) for hook/skills/enforcement patterns — studying for ideas is standard practice, not IP risk. Also OmO (46K stars, multi-model orchestration), OmX (8K stars, `$team`/`$ralph` modes). LogicKor for evaluation methodology |
 | 59 | ~~CC Architecture Research~~ DONE | Completed in v1.23.0. Spawned #66-71 |
 | 60 | Research: Forge "Vocabulary Routing" + 10 Principles | Deep-dive `jdforsythe/forge` and the 10 Principles article series. Test the vocabulary routing claim (domain terminology > flattery in activating expert knowledge). Validate the "19 requirements = worse accuracy" claim against our skill/wizard doc size. The 45% threshold for multi-agent ROI — does it hold for our CI pipeline? Cross-model review |
 | 61 | Research: Parity Audit Skill for Migrations | Evaluate subsystem gap analysis with coverage ratios as a potential `/migration` skill (pattern seen in multiple harness projects). Would users doing rewrites benefit from automated parity tracking? Is this a real gap or a theoretical nice-to-have? Prove It Gate applies |

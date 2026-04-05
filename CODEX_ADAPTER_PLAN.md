@@ -127,6 +127,10 @@ BaseInfinity/codex-sdlc-wizard/
 │       ├── bash-guard.sh        # PreToolUse Bash: git commit/push gate
 │       └── session-start.sh     # SessionStart: AGENTS.md check
 ├── install.sh                   # Non-destructive installer
+├── UPSTREAM_VERSION             # Pinned sdlc-wizard version for sync tracking
+├── .github/
+│   └── workflows/
+│       └── upstream-sync.yml    # Weekly check for sdlc-wizard updates
 └── tests/
     └── test-adapter.sh          # Validates hook behavior
 ```
@@ -375,11 +379,89 @@ All claims verified against `openai/codex` commit as of 2026-04-04:
 | `codex-rs/hooks/src/events/pre_tool_use.rs` | PreToolUse input schema (tool_input.command, NOT file_path) |
 | `codex-rs/hooks/src/engine/mod.rs:83-91` | Lifecycle hooks disabled on Windows |
 
+## Upstream Sync Architecture
+
+The adapter is a **standalone repo** that translates sdlc-wizard patterns to Codex format. This matches how ESLint/Prettier adapters, Terraform providers, and Kubernetes staging repos work — separate repos with automated upstream awareness.
+
+### Why Not Fork/Submodule
+
+- **Fork**: Can't fork your own repo into the same account. Even if you could, every file is different (`.codex/` vs `.claude/`, `AGENTS.md` vs `CLAUDE.md`) — merges would be constant meaningless conflicts
+- **Submodule**: The shared content needs *translation*, not wholesale inclusion. Users don't need sdlc-wizard installed to use the Codex adapter
+- **Monorepo**: Different CI needs (testing against Codex CLI), different users, different release cadence
+
+### How Sync Works
+
+```
+sdlc-wizard releases v1.26.0
+        ↓
+upstream-sync.yml (weekly cron) detects new version
+        ↓
+Opens GitHub issue: "Upstream sdlc-wizard v1.26.0 — review for Codex adaptation"
+        ↓
+Human/Codex reviews changes, translates what applies
+        ↓
+Updates UPSTREAM_VERSION to v1.26.0
+```
+
+### UPSTREAM_VERSION
+
+Plain text file pinning which sdlc-wizard version this adapter is based on:
+```
+v1.25.0
+```
+
+### .github/workflows/upstream-sync.yml
+
+```yaml
+name: Upstream Sync Check
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly Monday 9am UTC
+  workflow_dispatch:
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for sdlc-wizard updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST=$(gh release view --repo BaseInfinity/agentic-ai-sdlc-wizard --json tagName -q .tagName 2>/dev/null || echo "unknown")
+          CURRENT=$(cat UPSTREAM_VERSION 2>/dev/null || echo "none")
+
+          if [ "$LATEST" = "unknown" ]; then
+            echo "Could not fetch upstream version"
+            exit 0
+          fi
+
+          if [ "$LATEST" != "$CURRENT" ]; then
+            # Check if issue already exists
+            EXISTING=$(gh issue list --search "Upstream sync: $LATEST" --json number -q '.[0].number' 2>/dev/null || echo "")
+            if [ -z "$EXISTING" ]; then
+              gh issue create \
+                --title "Upstream sync: sdlc-wizard $LATEST" \
+                --body "sdlc-wizard released **$LATEST** (adapter is based on **$CURRENT**).
+
+          Review [release notes](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/releases/tag/$LATEST) and translate applicable changes to Codex format.
+
+          After adapting, update \`UPSTREAM_VERSION\` to \`$LATEST\`." \
+                --label "upstream-sync"
+              echo "Created sync issue for $LATEST"
+            else
+              echo "Issue already exists: #$EXISTING"
+            fi
+          else
+            echo "Already up to date: $CURRENT"
+          fi
+```
+
 ## Implementation Plan
 
-1. **Claude** writes this plan (done)
-2. **Codex** cross-reviews until CERTIFIED (in progress)
-3. **User** creates the GitHub repo `BaseInfinity/codex-sdlc-wizard`
+1. **Claude** writes this plan (DONE)
+2. **Codex** cross-reviews until CERTIFIED (DONE — 9/10, round 5)
+3. **Claude** creates the GitHub repo `BaseInfinity/codex-sdlc-wizard` (DONE)
 4. **Codex** implements from this plan (TDD: tests first, then code)
 5. **Claude** reviews the implementation
 6. **User** verifies and ships
