@@ -45,13 +45,13 @@ Extract the latest version from the first `## [X.X.X]` line.
 Parse all CHANGELOG entries between the user's installed version and the latest. Present a clear summary:
 
 ```
-Installed: 1.23.0
-Latest:    1.25.0
+Installed: 1.24.0
+Latest:    1.26.0
 
 What changed:
+- [1.26.0] Codex SDLC Adapter plan, claw-code/OmO/OmX research, CC feature discovery verified, ...
 - [1.25.0] Plugin format, 6 distribution channels (curl, Homebrew, gh, GitHub Releases), ...
 - [1.24.0] Hook if conditionals, autocompact tuning + 1M/200K guidance, tdd_red fix, ...
-- [1.23.0] Update notification hook, cross-model review standardization, ...
 ```
 
 **If versions match:** Say "You're up to date! (version X.X.X)" and stop.
