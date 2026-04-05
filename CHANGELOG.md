@@ -4,6 +4,21 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.27.0] - 2026-04-05
+
+### Added
+- Domain-adaptive testing diamond — setup wizard auto-detects project domain (firmware/data-science/CLI/web) and generates domain-specific TESTING.md with appropriate testing layers (#79, PR #157)
+  - Firmware/Embedded: HIL/SIL/Config Validation/Unit (no browser, no DB)
+  - Data Science: Model Evaluation/Pipeline Integration/Data Validation/Unit
+  - CLI Tool: CLI Integration/Behavior/Unit (no browser)
+  - Web/API: unchanged default (E2E/Integration/Unit)
+- Domain detection patterns in wizard doc scan tree and setup skill Step 1/2/6
+- 3 new test fixtures: firmware-embedded, data-science, cli-tool (partially satisfies #78)
+- 25 domain detection quality tests
+
+### Fixed
+- Setup skill cross-references: Step 4/5 now correctly reference wizard doc Steps 8/9 (caught by CI PR review)
+
 ## [1.26.0] - 2026-04-05
 
 ### Added
