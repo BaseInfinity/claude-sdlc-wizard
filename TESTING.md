@@ -49,6 +49,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-evaluate-bugs.sh` | Evaluate bug regression | Regression tests for evaluate.sh bugs |
 | `tests/test-score-analytics.sh` | Score analytics | History parsing, trends, reports |
 | `tests/test-domain-detection.sh` | Domain detection | Domain-adaptive testing layers, detection patterns, fixture validation |
+| `tests/test-autocompact-benchmark.sh` | Autocompact benchmarking | Methodology rigor, harness quality, task suite, canary facts, CI workflow |
 
 **How to run:**
 ```bash
@@ -62,6 +63,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 ./tests/test-evaluate-bugs.sh
 ./tests/test-score-analytics.sh
 ./tests/test-domain-detection.sh
+./tests/test-autocompact-benchmark.sh
 ```
 
 ### Layer 2: Fixture Validation
