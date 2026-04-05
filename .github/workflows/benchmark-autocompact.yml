@@ -18,10 +18,9 @@ on:
           - short
           - medium
           - long
-      trials:
-        description: 'Number of trials per threshold'
-        required: true
-        default: '3'
+      # Note: For multiple trials per threshold, dispatch the workflow
+      # multiple times. Each dispatch = 1 trial per threshold.
+      # The local harness (run-benchmark.sh) handles multi-trial natively.
 
 permissions:
   contents: read
