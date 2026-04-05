@@ -2,7 +2,7 @@
 
 A **self-evolving Software Development Life Cycle (SDLC) enforcement system for AI coding agents**. Makes Claude plan before coding, test before shipping, and ask when uncertain. Measures itself getting better over time.
 
-**Built on 15+ years of SDET and QA engineering experience** — battle-tested patterns from real production systems, baked into an AI agent that follows tried-and-true software quality practices so you don't have to enforce them manually.
+**Built on 15+ years of software engineering and founding engineering experience** — battle-tested patterns from real production systems, baked into an AI agent that follows tried-and-true software quality practices so you don't have to enforce them manually.
 
 ## Install
 
@@ -229,7 +229,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | Document | What It Covers |
 |----------|---------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, 5-layer diagram, data flows, file structure |
-| [CI_CD.md](CI_CD.md) | All 5 workflows, E2E scoring, tier system, SDP, integrity checks |
+| [CI_CD.md](CI_CD.md) | All 6 workflows, E2E scoring, tier system, SDP, integrity checks |
 | [SDLC.md](SDLC.md) | Version tracking, enforcement rules, SDLC configuration |
 | [TESTING.md](TESTING.md) | Testing philosophy, test diamond, TDD approach |
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |

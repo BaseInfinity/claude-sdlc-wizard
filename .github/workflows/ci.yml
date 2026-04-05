@@ -153,6 +153,9 @@ jobs:
       - name: Run domain detection tests
         run: ./tests/test-domain-detection.sh
 
+      - name: Run autocompact benchmark tests
+        run: ./tests/test-autocompact-benchmark.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:

@@ -1,0 +1,35 @@
+{
+  "description": "Canary facts for autocompact context preservation benchmarking. Domain-independent facts injected early in session, queried post-compaction to measure recall.",
+  "facts": [
+    {
+      "id": "deadline",
+      "fact": "The project deadline is March 15th.",
+      "recall_prompt": "What is the project deadline?",
+      "verification_keyword": "march 15"
+    },
+    {
+      "id": "contact",
+      "fact": "The team lead's preferred contact method is Slack DM, not email.",
+      "recall_prompt": "What is the team lead's preferred contact method?",
+      "verification_keyword": "slack DM"
+    },
+    {
+      "id": "staging",
+      "fact": "The staging server address is staging.internal:8080.",
+      "recall_prompt": "What is the staging server address?",
+      "verification_keyword": "staging.internal:8080"
+    },
+    {
+      "id": "migration",
+      "fact": "The database migration window is Tuesdays 2-4 AM PST.",
+      "recall_prompt": "When is the database migration window?",
+      "verification_keyword": "2-4 AM"
+    },
+    {
+      "id": "budget",
+      "fact": "The error budget for Q2 is 99.95% uptime.",
+      "recall_prompt": "What is the error budget for Q2?",
+      "verification_keyword": "99.95"
+    }
+  ]
+}
