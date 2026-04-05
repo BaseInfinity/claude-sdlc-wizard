@@ -283,7 +283,9 @@ for threshold in "${THRESHOLD_ARRAY[@]}"; do
         # Common paths: .result, .score, or nested under .messages[-1].content
         # Verify with: claude -p "test" --output-format json | jq 'keys'
         # For now, attempt multiple paths; actual scoring uses evaluate.sh in production
-        TASK_SCORE=$(jq -r '.score // .result.score // 0' "$SESSION_OUTPUT" 2>/dev/null || echo "0")
+        # -1 = unmeasured (Claude JSON doesn't have a .score field natively)
+        # Real scoring requires evaluate.sh integration — future work
+        TASK_SCORE=$(jq -r '.score // .result.score // -1' "$SESSION_OUTPUT" 2>/dev/null || echo "-1")
 
         # Count compaction events
         COMPACTION_EVENTS=$(grep -c 'compact\|compaction\|summariz' "$SESSION_OUTPUT" 2>/dev/null || echo "0")
