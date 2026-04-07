@@ -50,6 +50,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-score-analytics.sh` | Score analytics | History parsing, trends, reports |
 | `tests/test-domain-detection.sh` | Domain detection | Domain-adaptive testing layers, detection patterns, fixture validation |
 | `tests/test-autocompact-benchmark.sh` | Autocompact benchmarking | Methodology rigor, harness quality, task suite, canary facts, CI workflow |
+| `tests/test-node24-compliance.sh` | Node 24 compliance | No deprecated node20 actions, correct versions, no node-version: 20 |
 
 **How to run:**
 ```bash
@@ -64,6 +65,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 ./tests/test-score-analytics.sh
 ./tests/test-domain-detection.sh
 ./tests/test-autocompact-benchmark.sh
+./tests/test-node24-compliance.sh
 ```
 
 ### Layer 2: Fixture Validation
