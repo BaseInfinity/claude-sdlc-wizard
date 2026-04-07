@@ -51,6 +51,18 @@ function mergeSettings(existingPath, templatePath, force) {
     const existing = JSON.parse(fs.readFileSync(existingPath, 'utf8'));
     const template = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
 
+    // Merge env field
+    if (template.env) {
+      if (!existing.env || typeof existing.env !== 'object' || Array.isArray(existing.env)) {
+        existing.env = {};
+      }
+      for (const [key, val] of Object.entries(template.env)) {
+        if (!(key in existing.env) || force) {
+          existing.env[key] = val;
+        }
+      }
+    }
+
     if (!existing.hooks) existing.hooks = {};
 
     for (const [event, templateEntries] of Object.entries(template.hooks || {})) {
