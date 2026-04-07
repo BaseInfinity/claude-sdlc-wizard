@@ -658,6 +658,250 @@ test_install_restart_messaging() {
 
 test_install_restart_messaging
 
+# Test 33: Template settings.json has env field with CLAUDE_AUTOCOMPACT_PCT_OVERRIDE
+test_template_has_autocompact_env() {
+    local template="$SCRIPT_DIR/../cli/templates/settings.json"
+    local val
+    val=$(python3 -c "
+import json, sys
+with open('$template') as f:
+    data = json.load(f)
+env = data.get('env', {})
+print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+" 2>/dev/null)
+    if [ "$val" = "75" ]; then
+        pass "Template settings.json has CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75"
+    else
+        fail "Template settings.json should have env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75 (got: '$val')"
+    fi
+}
+
+# Test 34: Init creates settings.json with env field on fresh install
+test_init_has_env_field() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local has_env
+    has_env=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+print('yes' if 'env' in data and 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE' in data['env'] else 'no')
+" 2>/dev/null)
+    if [ "$has_env" = "yes" ]; then
+        pass "Init creates settings.json with env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"
+    else
+        fail "Init should create settings.json with env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"
+    fi
+    rm -rf "$d"
+}
+
+# Test 35: Merge preserves existing env vars when adding wizard env
+test_merge_preserves_existing_env() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "hooks": {},
+  "env": {
+    "MY_CUSTOM_VAR": "keep-me"
+  }
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local result
+    result=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+env = data.get('env', {})
+custom = env.get('MY_CUSTOM_VAR', '')
+wizard = env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', '')
+print(f'{custom}|{wizard}')
+" 2>/dev/null)
+    if [ "$result" = "keep-me|75" ]; then
+        pass "Merge preserves existing env vars and adds wizard env"
+    else
+        fail "Merge should preserve MY_CUSTOM_VAR and add AUTOCOMPACT (got: '$result')"
+    fi
+    rm -rf "$d"
+}
+
+# Test 36: Merge adds wizard env to settings without env field
+test_merge_adds_env_to_existing_settings() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "allowedTools": ["Read"],
+  "hooks": {}
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local result
+    result=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+env = data.get('env', {})
+allowed = 'allowedTools' in data
+wizard = env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', '')
+print(f'{allowed}|{wizard}')
+" 2>/dev/null)
+    if [ "$result" = "True|75" ]; then
+        pass "Merge adds wizard env to settings without env field"
+    else
+        fail "Merge should add env.AUTOCOMPACT and preserve allowedTools (got: '$result')"
+    fi
+    rm -rf "$d"
+}
+
+# Test 37: Merge does not overwrite user's existing autocompact value
+test_merge_respects_user_autocompact() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "hooks": {},
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+  }
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+print(data.get('env', {}).get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+" 2>/dev/null)
+    if [ "$val" = "30" ]; then
+        pass "Merge respects user's existing AUTOCOMPACT value (30)"
+    else
+        fail "Merge should not overwrite user's AUTOCOMPACT=30 (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+# Test 38: --force overwrites user's autocompact value back to default
+test_merge_force_resets_autocompact() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "hooks": {},
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+  }
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init --force > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+print(data.get('env', {}).get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+" 2>/dev/null)
+    if [ "$val" = "75" ]; then
+        pass "--force resets AUTOCOMPACT back to template default (75)"
+    else
+        fail "--force should reset AUTOCOMPACT to 75 (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+# Test 39: Setup wizard skill Step 9.5 references settings.json (not shell profile)
+test_setup_skill_references_settings_json() {
+    local skill="$SCRIPT_DIR/../skills/setup/SKILL.md"
+    if grep -q "settings.json" "$skill" && grep -q "Step 9.5" "$skill"; then
+        if grep -A20 "Step 9.5" "$skill" | grep -q "settings.json"; then
+            pass "Setup skill Step 9.5 references settings.json"
+        else
+            fail "Setup skill Step 9.5 should reference settings.json"
+        fi
+    else
+        fail "Setup skill should have Step 9.5 referencing settings.json"
+    fi
+}
+
+# Test 40: Merge handles malformed env (array) — replaces with wizard env
+test_merge_malformed_env_array() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "hooks": {},
+  "env": ["not", "an", "object"]
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+env = data.get('env', {})
+if isinstance(env, dict):
+    print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+else:
+    print('NOT_OBJECT')
+" 2>/dev/null)
+    if [ "$val" = "75" ]; then
+        pass "Merge handles malformed env (array) — replaces with wizard env"
+    else
+        fail "Merge should replace malformed array env with wizard env (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+# Test 41: Merge handles malformed env (string) — replaces with wizard env
+test_merge_malformed_env_string() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "hooks": {},
+  "env": "not-an-object"
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    data = json.load(f)
+env = data.get('env', {})
+if isinstance(env, dict):
+    print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+else:
+    print('NOT_OBJECT')
+" 2>/dev/null)
+    if [ "$val" = "75" ]; then
+        pass "Merge handles malformed env (string) — replaces with wizard env"
+    else
+        fail "Merge should replace malformed string env with wizard env (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+test_merge_malformed_env_array
+test_merge_malformed_env_string
+test_template_has_autocompact_env
+test_init_has_env_field
+test_merge_preserves_existing_env
+test_merge_adds_env_to_existing_settings
+test_merge_respects_user_autocompact
+test_merge_force_resets_autocompact
+test_setup_skill_references_settings_json
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"

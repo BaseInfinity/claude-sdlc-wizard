@@ -106,8 +106,8 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 93 | Node.js 20 EOL | **Hard deadline June 2, 2026.** `actions/checkout@v4` + `oven-sh/setup-bun` forced to Node 24. Audit CI workflows, update matrix, test. Moved from Back Burner — time-sensitive |
-| 2 | 88 | Autocompact in Setup | Detect model context window during `/setup-wizard`, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` in generated settings.json. Recommended: 75% for 200K, 30% for 1M. Research complete (#92 benchmarking methodology shipped) |
+| 1 | 93 | ~~Node.js 20 EOL~~ DONE | PR #160. 5 action version bumps across 6 workflows, 2 third-party actions replaced with gh CLI, 4 node-version bumps 20→22. 13 compliance tests. Expression injection P0 caught by CI reviewer and fixed |
+| 2 | 88 | ~~Autocompact in Setup~~ DONE | CLI sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in settings.json `env` field by default. Smart merge preserves existing user env vars on upgrade, `--force` resets to defaults. Setup wizard Step 9.5 customizes for 1M models (30%). 7 new tests (39 total CLI tests) |
 | 3 | 80 | Effectiveness Scoreboard | Track when each SDLC layer catches bugs: self-review, cross-model review, CI, hooks. Append-only log (`.metrics/catches.jsonl`). Proves ROI — once this exists, every future item logs catches from day one. Research phase |
 
 ## v1.30.0 — Philosophy + Domain
