@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get current month
         id: current-month
@@ -285,12 +285,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Claude Code
         run: |
@@ -472,7 +472,7 @@ jobs:
       - name: Create PR with results
         id: create-research-pr
         if: steps.verdict.outputs.verdict == 'IMPROVED' || steps.verdict.outputs.verdict == 'STABLE'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "feat(sdlc): incorporate research findings"

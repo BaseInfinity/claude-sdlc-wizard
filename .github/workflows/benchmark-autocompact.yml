@@ -33,7 +33,7 @@ jobs:
       matrix:
         threshold: ${{ fromJSON(format('[{0}]', inputs.thresholds)) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run benchmark trial
         uses: anthropics/claude-code-action@v1
@@ -61,7 +61,7 @@ jobs:
           # Format verification needed before production use
 
       - name: Upload results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-${{ matrix.threshold }}-${{ inputs.task }}
           path: |
