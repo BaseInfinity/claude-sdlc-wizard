@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure git identity for tests
         run: |
@@ -156,6 +156,9 @@ jobs:
       - name: Run autocompact benchmark tests
         run: ./tests/test-autocompact-benchmark.sh
 
+      - name: Run node24 compliance tests
+        run: ./tests/test-node24-compliance.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
@@ -166,18 +169,49 @@ jobs:
     steps:
       - name: Resolve outdated bot comments
         if: github.event_name == 'pull_request'
-        uses: int128/hide-comment-action@v1
-        with:
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
           # Hide (collapse) old bot comments when new push arrives
           # Human comments are preserved
-          authors: 'github-actions[bot]'
-          starts-with: |
-            ## E2E SDLC Evaluation
-            ## E2E Before/After Comparison
-            ## E2E Quick Check
-            ## E2E Full Evaluation
-            ## PR Code Review
-            **Claude finished
+          # Replaces int128/hide-comment-action (no node24 release)
+          COMMENTS=$(gh api graphql -f query='
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                pullRequest(number: $number) {
+                  comments(last: 100, orderBy: {field: UPDATED_AT, direction: DESC}) {
+                    nodes { id author { login } body isMinimized }
+                  }
+                }
+              }
+            }' -f owner="${GITHUB_REPOSITORY_OWNER}" \
+               -f name="${GITHUB_REPOSITORY#*/}" \
+               -F number="$PR_NUMBER")
+
+          echo "$COMMENTS" | jq -r '
+            .data.repository.pullRequest.comments.nodes[]
+            | select(.isMinimized == false)
+            | select(.author.login == "github-actions[bot]")
+            | select(
+                (.body | startswith("## E2E SDLC Evaluation")) or
+                (.body | startswith("## E2E Before/After Comparison")) or
+                (.body | startswith("## E2E Quick Check")) or
+                (.body | startswith("## E2E Full Evaluation")) or
+                (.body | startswith("## PR Code Review")) or
+                (.body | startswith("**Claude finished"))
+              )
+            | .id' | while read -r NODE_ID; do
+              if [ -n "$NODE_ID" ]; then
+                echo "Minimizing comment $NODE_ID"
+                gh api graphql -f query='
+                  mutation($id: ID!) {
+                    minimizeComment(input: {classifier: OUTDATED, subjectId: $id}) {
+                      clientMutationId
+                    }
+                  }' -f id="$NODE_ID"
+              fi
+            done
 
   # TIER 1: Quick E2E Check - Runs on every PR commit
   # Single comparison: baseline vs candidate (1x each)
@@ -192,12 +226,12 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: pr-branch
 
       - name: Checkout main branch for baseline
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           path: main-branch
@@ -618,7 +652,7 @@ jobs:
 
       - name: Upload score data artifact
         if: steps.check-baseline.outputs.should_simulate == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: score-data-tier1
           path: |
@@ -903,7 +937,7 @@ jobs:
       - name: Comment quick check results on PR
         if: steps.check-baseline.outputs.should_simulate == 'true'
         continue-on-error: true   # Comment is cosmetic — don't fail the job
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: e2e-quick-check
           message: ${{ steps.build-quick-message.outputs.message }}
@@ -932,12 +966,12 @@ jobs:
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: pr-branch
 
       - name: Checkout main branch for baseline
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
           path: main-branch
@@ -1368,7 +1402,7 @@ jobs:
           fi
 
       - name: Upload score data artifact (Tier 2)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: score-data-tier2
           path: |
@@ -1667,7 +1701,7 @@ jobs:
           fi
 
       - name: Comment full evaluation results on PR
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: e2e-full-eval
           message: ${{ steps.build-full-message.outputs.message }}

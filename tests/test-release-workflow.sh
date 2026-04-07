@@ -56,27 +56,27 @@ test_has_contents_write_permission() {
     fi
 }
 
-test_uses_checkout_v4() {
-    if grep -q 'actions/checkout@v4' "$WORKFLOW"; then
-        pass "release.yml uses actions/checkout@v4"
+test_uses_checkout_v5() {
+    if grep -q 'actions/checkout@v5' "$WORKFLOW"; then
+        pass "release.yml uses actions/checkout@v5"
     else
-        fail "release.yml does not use actions/checkout@v4"
+        fail "release.yml does not use actions/checkout@v5"
     fi
 }
 
 test_uses_setup_node_with_registry() {
-    if grep -q 'actions/setup-node@v4' "$WORKFLOW" && grep -q 'registry-url' "$WORKFLOW"; then
-        pass "release.yml uses setup-node@v4 with registry-url"
+    if grep -q 'actions/setup-node@v5' "$WORKFLOW" && grep -q 'registry-url' "$WORKFLOW"; then
+        pass "release.yml uses setup-node@v5 with registry-url"
     else
-        fail "release.yml missing setup-node@v4 with registry-url"
+        fail "release.yml missing setup-node@v5 with registry-url"
     fi
 }
 
-test_uses_gh_release_action() {
-    if grep -q 'softprops/action-gh-release' "$WORKFLOW"; then
-        pass "release.yml uses softprops/action-gh-release"
+test_uses_gh_release_create() {
+    if grep -q 'gh release create' "$WORKFLOW"; then
+        pass "release.yml uses gh release create"
     else
-        fail "release.yml does not use softprops/action-gh-release"
+        fail "release.yml does not use gh release create"
     fi
 }
 
@@ -89,7 +89,7 @@ test_references_npm_token() {
 }
 
 test_generates_release_notes() {
-    if grep -q 'generate_release_notes: true' "$WORKFLOW"; then
+    if grep -q '\-\-generate-notes' "$WORKFLOW"; then
         pass "release.yml generates release notes automatically"
     else
         fail "release.yml does not generate release notes"
@@ -142,9 +142,9 @@ test_workflow_exists
 test_yaml_valid
 test_trigger_on_tag_push
 test_has_contents_write_permission
-test_uses_checkout_v4
+test_uses_checkout_v5
 test_uses_setup_node_with_registry
-test_uses_gh_release_action
+test_uses_gh_release_create
 test_references_npm_token
 test_generates_release_notes
 test_npm_publish_step

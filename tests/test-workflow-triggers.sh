@@ -2351,7 +2351,7 @@ test_pr_review_checkout_explicit_ref() {
         return
     fi
 
-    if grep -A 5 'actions/checkout@v4' "$WORKFLOW" | grep -q 'ref:'; then
+    if grep -A 5 'actions/checkout@v5' "$WORKFLOW" | grep -q 'ref:'; then
         pass "pr-review.yml checkout specifies explicit ref (pull_request_target safe)"
     else
         fail "pr-review.yml checkout missing explicit ref (pull_request_target checks out base branch)"
