@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Read last checked version
         id: last-version
@@ -352,7 +352,7 @@ jobs:
       - name: Create PR for all updates
         id: create-update-pr
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update last-checked-version to ${{ steps.latest-release.outputs.latest_version }}"
@@ -388,12 +388,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Phase A: Regression Test
       # Test if new CC version breaks SDLC enforcement with current docs
@@ -657,7 +657,7 @@ jobs:
           fi
 
       - name: Post version test results to PR
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: version-test
           message: |
@@ -705,7 +705,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Read last scan date
         id: last-scan
@@ -956,12 +956,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Claude Code
         run: |
@@ -1131,7 +1131,7 @@ jobs:
       - name: Create PR with results
         id: create-community-pr
         if: steps.verdict.outputs.verdict == 'IMPROVED' || steps.verdict.outputs.verdict == 'STABLE'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "feat(sdlc): incorporate community patterns"
@@ -1186,12 +1186,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Claude Code
         run: |

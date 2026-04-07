@@ -44,7 +44,7 @@ jobs:
             echo "Found PR #$PR_NUMBER"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.pr.outputs.skip != 'true'
         with:
           fetch-depth: 0
@@ -368,7 +368,7 @@ jobs:
           steps.pr.outputs.skip != 'true' &&
           steps.check-trivial.outputs.trivial != 'true' &&
           steps.wait-ci.outputs.ci_passed == 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           number: ${{ steps.pr.outputs.pr_number }}
           header: claude-review
@@ -379,7 +379,7 @@ jobs:
         if: |
           steps.pr.outputs.skip != 'true' &&
           steps.check-trivial.outputs.trivial == 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           number: ${{ steps.pr.outputs.pr_number }}
           header: claude-review
