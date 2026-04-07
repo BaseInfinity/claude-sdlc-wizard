@@ -1,13 +1,38 @@
 {
-  "review_id": "release-v1.22.0",
-  "status": "PENDING_RECHECK",
-  "round": 2,
+  "review_id": "autocompact-92-impl",
+  "status": "PENDING_REVIEW",
+  "round": 1,
+  "mission": "Review the implementation of #92 (Autocompact Benchmarking). Deliverables: AUTOCOMPACT_BENCHMARK.md methodology doc, run-benchmark.sh harness, analyze-results.sh, 3 task files, canary-facts.json, benchmark-autocompact.yml CI workflow, 26 quality tests. Also: README bio fix, wizard doc reference to methodology. No expensive benchmark runs — methodology + infrastructure only.",
+  "success": "The methodology is publishable-quality, the harness would actually work if run, the tests prove quality not existence, and no regressions in existing test suites.",
+  "failure": "The methodology has logical flaws, the harness has bugs that would prevent actual benchmark runs, the CI workflow wouldn't actually pass thresholds to Claude, or the tests are existence checks in disguise.",
   "files_changed": [
-    "SDLC.md",
-    "tests/test-self-update.sh"
+    "AUTOCOMPACT_BENCHMARK.md",
+    "tests/benchmarks/run-benchmark.sh",
+    "tests/benchmarks/analyze-results.sh",
+    "tests/benchmarks/tasks/short-task.md",
+    "tests/benchmarks/tasks/medium-task.md",
+    "tests/benchmarks/tasks/long-task.md",
+    "tests/benchmarks/canary-facts.json",
+    ".github/workflows/benchmark-autocompact.yml",
+    "tests/test-autocompact-benchmark.sh",
+    "CLAUDE_CODE_SDLC_WIZARD.md",
+    "README.md",
+    "TESTING.md",
+    "CONTRIBUTING.md",
+    ".github/workflows/ci.yml"
   ],
-  "review_instructions": "TARGETED RECHECK for v1.22.0. Previous review found 2 findings. Author fixed both. Verify fixes against original certify conditions.",
-  "previous_review": ".reviews/latest-review.md",
-  "response_path": ".reviews/response.json",
-  "artifact_path": ".reviews/release-v1.22.0/"
+  "fixes_applied": [],
+  "previous_score": null,
+  "verification_checklist": [
+    "(a) Verify run-benchmark.sh would actually work: does it parse claude CLI output correctly for session_id? Is the --resume flag real?",
+    "(b) Verify canary fact scoring logic: does grep -qi on verification_keyword actually prove recall? Could it false-positive?",
+    "(c) Verify benchmark-autocompact.yml: does fromJSON(format('[{0}]', inputs.thresholds)) actually create a valid matrix? Is claude_env a real input for claude-code-action?",
+    "(d) Verify analyze-results.sh: does it actually source stats.sh correctly? Would calculate_confidence_interval work on the JSONL data format?",
+    "(e) Verify AUTOCOMPACT_BENCHMARK.md: is the methodology actually rigorous enough to publish? Any logical gaps in the experimental design?",
+    "(f) Check test quality: are the 26 tests actually quality tests or existence checks in disguise? Do any just check for file existence?",
+    "(g) Verify no regressions: did the wizard doc edit break any existing content? Did the README change break anything?"
+  ],
+  "review_instructions": "Focus on whether the harness would ACTUALLY WORK if someone ran it. Check for real bugs in the bash scripts, logical flaws in the methodology, and CI workflow issues. The tests all pass — but do they test the right things? Be strict.",
+  "preflight_path": ".reviews/preflight-autocompact-92-impl.md",
+  "artifact_path": ".reviews/autocompact-92/"
 }
