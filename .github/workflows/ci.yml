@@ -162,6 +162,9 @@ jobs:
       - name: Run effectiveness scoreboard tests
         run: ./tests/test-effectiveness-scoreboard.sh
 
+      - name: Run firmware fixture tests
+        run: ./tests/test-firmware-fixture.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
