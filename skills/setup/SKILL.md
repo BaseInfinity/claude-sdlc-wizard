@@ -197,6 +197,8 @@ To update, edit `.claude/settings.json`:
 }
 ```
 
+For CI pipelines, consider `"60"` — short tasks benefit from compacting early.
+
 This is project-scoped and shared with the team via git.
 
 ### Step 10: Customize Hooks
