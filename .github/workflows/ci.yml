@@ -159,6 +159,9 @@ jobs:
       - name: Run node24 compliance tests
         run: ./tests/test-node24-compliance.sh
 
+      - name: Run effectiveness scoreboard tests
+        run: ./tests/test-effectiveness-scoreboard.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:

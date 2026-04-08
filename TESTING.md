@@ -51,6 +51,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-domain-detection.sh` | Domain detection | Domain-adaptive testing layers, detection patterns, fixture validation |
 | `tests/test-autocompact-benchmark.sh` | Autocompact benchmarking | Methodology rigor, harness quality, task suite, canary facts, CI workflow |
 | `tests/test-node24-compliance.sh` | Node 24 compliance | No deprecated node20 actions, correct versions, no node-version: 20 |
+| `tests/test-effectiveness-scoreboard.sh` | Effectiveness scoreboard | Seed data quality, DDE calculation, escape rate, analytics output |
 
 **How to run:**
 ```bash
