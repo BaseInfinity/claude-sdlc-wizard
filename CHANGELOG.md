@@ -4,6 +4,32 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.29.0] - 2026-04-07
+
+### Added
+- Node 24 compliance across all GitHub Actions workflows (#93, PR #160)
+  - 5 action version bumps: checkout@v5, setup-node@v5, upload-artifact@v6, create-pull-request@v8, sticky-pull-request-comment@v3
+  - 2 third-party actions replaced with `gh` CLI: `int128/hide-comment-action` → GraphQL `minimizeComment`, `softprops/action-gh-release` → `gh release create`
+  - 4 node-version bumps from 20 to 22
+  - 13 new compliance regression tests (`test-node24-compliance.sh`)
+  - Expression injection P0 in release.yml caught by CI reviewer and fixed
+- Autocompact env var in settings.json (#88, PR #161)
+  - CLI now ships `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in `settings.json` `env` field (200K default)
+  - Smart merge preserves existing user env vars on upgrade; `--force` resets to defaults
+  - Handles malformed env values (arrays, strings) gracefully with type validation
+  - Setup wizard Step 9.5 references settings.json instead of shell profiles; 1M users guided to 30%
+  - 9 new tests (41 total CLI tests)
+- Effectiveness scoreboard (#80, PR #162)
+  - `.metrics/catches.jsonl`: 52 historical bug catches extracted from repo history
+  - `catch-analytics.sh`: DDE (Defect Detection Effectiveness) per layer, escape rates, severity breakdown
+  - Results: cross-model-review (48%) and self-review (46%) nearly tied; self-review missed 28 bugs caught downstream; all 3 P0s caught by cross-model or CI review
+  - 14 new quality tests (`test-effectiveness-scoreboard.sh`)
+  - Log automation deferred until analytics proven useful (prove-it gate)
+
+### Fixed
+- Expression injection in `release.yml`: `${{ github.ref_name }}` directly in `run:` shell command allowed tag-based code injection. Fixed by passing through `TAG_NAME` env var (P0, caught by CI reviewer)
+- `$TOTAL_` variable name collision in `catch-analytics.sh`: bash parsed as undefined variable `TOTAL_` instead of `$TOTAL` + underscore. Fixed with `${TOTAL}_` brace syntax (P0, caught by CI reviewer)
+
 ## [1.28.0] - 2026-04-06
 
 ### Added
