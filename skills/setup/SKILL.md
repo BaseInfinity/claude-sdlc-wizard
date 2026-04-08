@@ -183,13 +183,23 @@ Present suggestions and let the user confirm.
 
 ### Step 9.5: Context Window Configuration
 
-Recommend autocompact settings based on the user's context window:
+The CLI already sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in `.claude/settings.json` `env` field (200K default). Ask the user which model context window they use:
 
-- **200K models (default):** Suggest `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` — leaves room for implementation after planning
-- **1M models:** Suggest `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` — the default fires at ~76K on 1M, wasting 92% of the window
-- **CI pipelines:** Suggest 60% — short tasks, compact early
+- **200K models (default):** Already configured. Confirm `75` is set in `settings.json` `env` field
+- **1M models:** Update `settings.json` `env` field: set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to `"30"` — the default fires at ~76K on 1M, wasting 92% of the window. Optionally also add `CLAUDE_CODE_AUTO_COMPACT_WINDOW` set to `"400000"`
 
-Tell the user to add the export to their shell profile (`~/.bashrc`, `~/.zshrc`) or project `.envrc`. This is guidance, not enforcement — the wizard doesn't write shell profiles.
+To update, edit `.claude/settings.json`:
+```json
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+  }
+}
+```
+
+For CI pipelines, consider `"60"` — short tasks benefit from compacting early.
+
+This is project-scoped and shared with the team via git.
 
 ### Step 10: Customize Hooks
 

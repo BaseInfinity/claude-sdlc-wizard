@@ -807,10 +807,19 @@ Override the default auto-compact threshold with environment variables. These ar
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Trigger compaction at this % of context capacity (1-100) | ~95% |
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Override context capacity in tokens (useful for 1M models) | Model default |
 
-Set these in your shell profile (`~/.bashrc`, `~/.zshrc`) or per-project `.envrc`:
+**Recommended:** The SDLC Wizard CLI sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in `.claude/settings.json` by default (200K model optimized). To customize, edit the `env` field in `.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
+  }
+}
+```
+
+Alternatively, set via shell profile (`~/.bashrc`, `~/.zshrc`) or per-project `.envrc`:
 
 ```bash
-# Example: compact earlier on a 200K model
 export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75
 ```
 
