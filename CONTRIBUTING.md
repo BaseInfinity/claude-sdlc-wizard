@@ -23,6 +23,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-autocompact-benchmark.sh && \
    ./tests/test-node24-compliance.sh && \
    ./tests/test-effectiveness-scoreboard.sh && \
+   ./tests/test-firmware-fixture.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \

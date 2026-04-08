@@ -52,6 +52,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-autocompact-benchmark.sh` | Autocompact benchmarking | Methodology rigor, harness quality, task suite, canary facts, CI workflow |
 | `tests/test-node24-compliance.sh` | Node 24 compliance | No deprecated node20 actions, correct versions, no node-version: 20 |
 | `tests/test-effectiveness-scoreboard.sh` | Effectiveness scoreboard | Seed data quality, DDE calculation, escape rate, analytics output |
+| `tests/test-firmware-fixture.sh` | Firmware fixture | Domain indicators, Python overlay, test infra, multi-device, no-web negative test |
 
 **How to run:**
 ```bash
@@ -67,6 +68,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 ./tests/test-domain-detection.sh
 ./tests/test-autocompact-benchmark.sh
 ./tests/test-node24-compliance.sh
+./tests/test-firmware-fixture.sh
 ```
 
 ### Layer 2: Fixture Validation

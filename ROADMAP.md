@@ -114,7 +114,7 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 78 | Firmware Fixture | Prove wizard handles non-web domains. Python + shell SD card overlay with multi-device configs. Validates domain-adaptive setup (#79) generates correct firmware testing layers. Partially satisfied by #79 |
+| 1 | 78 | ~~Firmware Fixture~~ DONE | Fleshed out firmware-embedded fixture: Python SD card overlay manager, 3 device configs, SIL + config validation tests within fixture. 12 quality tests prove domain indicators, multi-device differentiation, no-web misclassification. Completes the #79 domain-adaptive proof |
 | 2 | 91 | Multi-Agent Adapter Layer | Codex/Cursor/Windsurf adapters. Skills port directly, hooks need per-agent adaptation. Expands reach beyond Claude Code |
 
 Deferred: #83 (Local Model — needs real demand signal), #82 (Domain DLCs — Stefan's separate track), #71 (KAIROS — watch-only until CC feature exits experimental), #67 (Agent Team Hooks — same)
