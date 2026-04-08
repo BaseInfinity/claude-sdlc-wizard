@@ -65,18 +65,6 @@ if [ "$TOTAL" -eq 0 ]; then
     exit 0
 fi
 
-# Layer ordering for escape analysis
-# Index: hook=0, self-review=1, cross-model-review=2, ci-review=3
-layer_index() {
-    case "$1" in
-        hook) echo 0 ;;
-        self-review) echo 1 ;;
-        cross-model-review) echo 2 ;;
-        ci-review) echo 3 ;;
-        *) echo -1 ;;
-    esac
-}
-
 # Count per layer (use -c for compact single-line output)
 COUNT_HOOK=$(jq -c 'select(.layer=="hook")' "$HISTORY_FILE" | wc -l | tr -d ' ')
 COUNT_SELF=$(jq -c 'select(.layer=="self-review")' "$HISTORY_FILE" | wc -l | tr -d ' ')
@@ -149,7 +137,7 @@ if [ "$REPORT_MODE" = true ]; then
     echo "| cross-model-review | $(sev_per_layer cross-model-review P0) | $(sev_per_layer cross-model-review P1) | $(sev_per_layer cross-model-review P2) |"
     echo "| ci-review | $(sev_per_layer ci-review P0) | $(sev_per_layer ci-review P1) | $(sev_per_layer ci-review P2) |"
     echo ""
-    echo "_Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ) | Total catches: $TOTAL_"
+    echo "_Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ) | Total catches: ${TOTAL}_"
 else
     echo "=== Effectiveness Scoreboard ==="
     echo ""
