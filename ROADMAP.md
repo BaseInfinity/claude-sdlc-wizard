@@ -119,6 +119,17 @@
 
 Deferred: #83 (Local Model — needs real demand signal), #82 (Domain DLCs — Stefan's separate track), #71 (KAIROS — watch-only until CC feature exits experimental), #67 (Agent Team Hooks — same)
 
+## Built With SDLC Wizard
+
+Living tracker of projects shipped using this wizard. **Rule:** only list projects that have been explicitly marked as using SDLC Wizard — no "powered by" claims before that.
+
+| Project | Repo | Status |
+|---------|------|--------|
+| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.29.0 |
+| _(add as projects are marked)_ | | |
+
+**TODO:** audit Stefan's GitHub projects + production apps, mark the ones that used the wizard, then list them here. Do not populate from memory — only list what's been marked.
+
 ## Previous Release (v1.28.0)
 
 | Priority | # | Item | Description |
