@@ -277,6 +277,16 @@ test_trials_min_cap() {
     fi
 }
 
+# Test 19b: Validate-inputs rejects max_turns > 100 (cost guard)
+test_max_turns_cap() {
+    if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
+    if grep -qE '\-gt 100|max_turns.*100|MAX_TURNS.*100' "$WORKFLOW"; then
+        pass "Validate-inputs rejects max_turns > 100 (cost guard)"
+    else
+        fail "Workflow missing max_turns > 100 rejection (cost guard)"
+    fi
+}
+
 # ─────────────────────────────────────────────────────
 # Simulation Quality (behavioral — proves correct setup)
 # ─────────────────────────────────────────────────────
@@ -324,6 +334,16 @@ test_wizard_install() {
         pass "Workflow installs wizard into test fixture before simulation"
     else
         fail "Workflow missing wizard installation into test fixture"
+    fi
+}
+
+# Test 23b: Workflow verifies wizard installation (not silent failure)
+test_wizard_install_verify() {
+    if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
+    if grep -q "Verify wizard" "$WORKFLOW" && grep -q "hooks.*not installed\|meaningless" "$WORKFLOW"; then
+        pass "Workflow verifies wizard installation (P0 fix: no silent failures)"
+    else
+        fail "Workflow missing wizard installation verification step"
     fi
 }
 
@@ -460,6 +480,41 @@ test_permissions_readonly() {
     fi
 }
 
+# Test 34: Zero inline ${{ inputs.* }} or ${{ matrix.* }} in run: blocks (injection prevention)
+test_env_block_injection_prevention() {
+    if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
+    # Parse YAML, extract run: blocks, check for inline interpolation
+    local violations
+    violations=$(python3 -c "
+import yaml, re
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+count = 0
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        run_block = step.get('run', '')
+        if run_block:
+            matches = re.findall(r'\\\$\{\{.*?(inputs\.|matrix\.).*?\}\}', run_block)
+            count += len(matches)
+print(count)
+")
+    if [ "$violations" = "0" ]; then
+        pass "Zero inline \${{ inputs/matrix }} in run: blocks (injection-safe)"
+    else
+        fail "Found $violations inline \${{ inputs/matrix }} in run: blocks (shell injection risk)"
+    fi
+}
+
+# Test 35: Artifact construction uses jq (not fragile heredoc)
+test_artifact_uses_jq() {
+    if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
+    if grep -q "jq -n" "$WORKFLOW" && grep -q "\-\-arg model\|\-\-argjson mean" "$WORKFLOW"; then
+        pass "Artifact JSON constructed with jq (safe against empty outputs)"
+    else
+        fail "Artifact JSON uses fragile heredoc instead of jq"
+    fi
+}
+
 # ─────────────────────────────────────────────────────
 # Run all tests
 # ─────────────────────────────────────────────────────
@@ -485,10 +540,12 @@ test_score_validation
 test_scenario_validation
 test_trials_max_cap
 test_trials_min_cap
+test_max_turns_cap
 test_claude_code_action
 test_integrity_check
 test_prompt_quality
 test_wizard_install
+test_wizard_install_verify
 test_api_key_required
 test_output_file_guard
 test_matrix_strategy
@@ -499,6 +556,8 @@ test_summary_ci_fields
 test_artifact_content
 test_concurrency
 test_permissions_readonly
+test_env_block_injection_prevention
+test_artifact_uses_jq
 
 echo ""
 echo "=== Results: $PASSED passed, $FAILED failed ==="
