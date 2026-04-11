@@ -44,22 +44,33 @@ jobs:
 
       - name: Validate and resolve inputs
         id: resolve
+        env:
+          INPUT_SCENARIO: ${{ inputs.scenario }}
+          INPUT_TRIALS: ${{ inputs.trials }}
+          INPUT_MAX_TURNS: ${{ inputs.max_turns }}
         run: |
-          TRIALS=${{ inputs.trials }}
-          SCENARIO="${{ inputs.scenario }}"
-
           # Trials must be 1-5 (cost guard)
-          if [ "$TRIALS" -lt 1 ]; then
-            echo "::error::Trials must be >= 1 (got $TRIALS)"
+          if [ "$INPUT_TRIALS" -lt 1 ]; then
+            echo "::error::Trials must be >= 1 (got $INPUT_TRIALS)"
             exit 1
           fi
-          if [ "$TRIALS" -gt 5 ]; then
-            echo "::error::Trials must be <= 5 (got $TRIALS). Cost guard: max 5 trials per run."
+          if [ "$INPUT_TRIALS" -gt 5 ]; then
+            echo "::error::Trials must be <= 5 (got $INPUT_TRIALS). Cost guard: max 5 trials per run."
+            exit 1
+          fi
+
+          # Max turns must be 1-100 (cost guard)
+          if [ "$INPUT_MAX_TURNS" -lt 1 ]; then
+            echo "::error::max_turns must be >= 1 (got $INPUT_MAX_TURNS)"
+            exit 1
+          fi
+          if [ "$INPUT_MAX_TURNS" -gt 100 ]; then
+            echo "::error::max_turns must be <= 100 (got $INPUT_MAX_TURNS). Cost guard."
             exit 1
           fi
 
           # Resolve scenario list
-          if [ "$SCENARIO" == "all" ]; then
+          if [ "$INPUT_SCENARIO" == "all" ]; then
             # Build JSON array of all scenario filenames (without .md)
             SCENARIOS="["
             FIRST=true
@@ -76,18 +87,19 @@ jobs:
             echo "Resolved 'all' to: $SCENARIOS"
           else
             # Validate specific scenario exists
-            if [ ! -f "tests/e2e/scenarios/${SCENARIO}.md" ]; then
-              echo "::error::Scenario not found: tests/e2e/scenarios/${SCENARIO}.md"
+            if [ ! -f "tests/e2e/scenarios/${INPUT_SCENARIO}.md" ]; then
+              echo "::error::Scenario not found: tests/e2e/scenarios/${INPUT_SCENARIO}.md"
               echo "Available scenarios:"
               ls tests/e2e/scenarios/*.md | xargs -I{} basename {} .md
               exit 1
             fi
-            SCENARIOS="[\"$SCENARIO\"]"
+            SCENARIOS="[\"$INPUT_SCENARIO\"]"
           fi
 
           echo "scenarios=$SCENARIOS" >> $GITHUB_OUTPUT
           echo "Model: ${{ inputs.model }}"
-          echo "Trials: $TRIALS"
+          echo "Trials: $INPUT_TRIALS"
+          echo "Max turns: $INPUT_MAX_TURNS"
           echo "Scenarios: $SCENARIOS"
 
   # ────────────────────────────────────────────────────
@@ -112,6 +124,15 @@ jobs:
           cp hooks/*.sh tests/e2e/fixtures/test-repo/.claude/hooks/ 2>/dev/null || true
           cp -r skills/* tests/e2e/fixtures/test-repo/.claude/skills/ 2>/dev/null || true
           cp cli/templates/settings.json tests/e2e/fixtures/test-repo/.claude/ 2>/dev/null || true
+
+      - name: Verify wizard installation
+        run: |
+          HOOKS_DIR="tests/e2e/fixtures/test-repo/.claude/hooks"
+          if [ ! -d "$HOOKS_DIR" ] || [ -z "$(ls "$HOOKS_DIR"/ 2>/dev/null)" ]; then
+            echo "::error::Wizard hooks not installed — benchmark results would be meaningless"
+            exit 1
+          fi
+          echo "Wizard installed: $(ls "$HOOKS_DIR"/ | wc -l) hook files"
 
       - name: Record simulation start time
         run: echo "SIM_START=$(date +%s)" >> $GITHUB_ENV
@@ -179,10 +200,11 @@ jobs:
         id: evaluate
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BENCH_SCENARIO: ${{ matrix.scenario }}
+          BENCH_TRIALS: ${{ inputs.trials }}
         run: |
           OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
-          SCENARIO="tests/e2e/scenarios/${{ matrix.scenario }}.md"
-          TRIALS=${{ inputs.trials }}
+          SCENARIO="tests/e2e/scenarios/${BENCH_SCENARIO}.md"
 
           # Source stats library for confidence interval calculation
           source tests/e2e/lib/stats.sh
@@ -192,13 +214,13 @@ jobs:
             exit 1
           fi
 
-          echo "Running evaluation ${TRIALS} times for scenario: ${{ matrix.scenario }}"
+          echo "Running evaluation ${BENCH_TRIALS} times for scenario: ${BENCH_SCENARIO}"
           SCORES=""
           ALL_CRITERIA=""
           SUCCESSFUL_TRIALS=0
 
-          for i in $(seq 1 "$TRIALS"); do
-            echo "Evaluation run $i/$TRIALS..."
+          for i in $(seq 1 "$BENCH_TRIALS"); do
+            echo "Evaluation run $i/$BENCH_TRIALS..."
             EVAL_STDERR="/tmp/eval-stderr-$i.log"
             EVAL_EXIT=0
             RESULT=$(./tests/e2e/evaluate.sh "$SCENARIO" "$OUTPUT_FILE" --json 2>"$EVAL_STDERR") || EVAL_EXIT=$?
@@ -222,7 +244,7 @@ jobs:
               continue
             fi
 
-            # Score bounds check
+            # Score bounds check (max 11: 10 criteria, one worth 2 points for UI scenarios)
             if [ "$(echo "$SCORE < 0 || $SCORE > 11" | bc -l)" -eq 1 ]; then
               echo "::warning::Score $SCORE out of bounds [0-11], skipping"
               continue
@@ -236,11 +258,11 @@ jobs:
             ALL_CRITERIA="$CRITERIA"
 
             echo "  Run $i score: $SCORE"
-            sleep 1
+            sleep 1  # Rate limiting between API evaluation calls
           done
 
           if [ "$SUCCESSFUL_TRIALS" -eq 0 ]; then
-            echo "::error::All $TRIALS evaluation trials failed"
+            echo "::error::All $BENCH_TRIALS evaluation trials failed"
             exit 1
           fi
 
@@ -253,35 +275,58 @@ jobs:
           CI_UPPER=$(get_ci_upper "$SCORES_DISPLAY")
 
           echo "Result: $CI_RESULT from [$SCORES_DISPLAY]"
-          echo "mean=$MEAN" >> $GITHUB_OUTPUT
+          echo "mean=${MEAN:-0}" >> $GITHUB_OUTPUT
           echo "scores=$SCORES_DISPLAY" >> $GITHUB_OUTPUT
-          echo "ci_result=$CI_RESULT" >> $GITHUB_OUTPUT
-          echo "ci_lower=$CI_LOWER" >> $GITHUB_OUTPUT
-          echo "ci_upper=$CI_UPPER" >> $GITHUB_OUTPUT
+          echo "ci_result=${CI_RESULT:-N/A}" >> $GITHUB_OUTPUT
+          echo "ci_lower=${CI_LOWER:-0}" >> $GITHUB_OUTPUT
+          echo "ci_upper=${CI_UPPER:-0}" >> $GITHUB_OUTPUT
           echo "successful_trials=$SUCCESSFUL_TRIALS" >> $GITHUB_OUTPUT
-          echo "criteria=$ALL_CRITERIA" >> $GITHUB_OUTPUT
+          echo "criteria=${ALL_CRITERIA:-{}}" >> $GITHUB_OUTPUT
 
       - name: Write results artifact
+        env:
+          BENCH_MODEL: ${{ inputs.model }}
+          BENCH_SCENARIO: ${{ matrix.scenario }}
+          BENCH_TRIALS: ${{ inputs.trials }}
+          BENCH_MAX_TURNS: ${{ inputs.max_turns }}
+          EVAL_MEAN: ${{ steps.evaluate.outputs.mean }}
+          EVAL_CI_LOWER: ${{ steps.evaluate.outputs.ci_lower }}
+          EVAL_CI_UPPER: ${{ steps.evaluate.outputs.ci_upper }}
+          EVAL_CI_RESULT: ${{ steps.evaluate.outputs.ci_result }}
+          EVAL_SCORES: ${{ steps.evaluate.outputs.scores }}
+          EVAL_SUCCESSFUL: ${{ steps.evaluate.outputs.successful_trials }}
+          EVAL_CRITERIA: ${{ steps.evaluate.outputs.criteria }}
         run: |
           RESULTS_DIR="/tmp/benchmark-results"
           mkdir -p "$RESULTS_DIR"
 
-          cat > "$RESULTS_DIR/${{ matrix.scenario }}.json" <<ARTIFACT_EOF
-          {
-          "model": "${{ inputs.model }}",
-          "scenario": "${{ matrix.scenario }}",
-          "trials": ${{ inputs.trials }},
-          "successful_trials": ${{ steps.evaluate.outputs.successful_trials }},
-          "scores": "${{ steps.evaluate.outputs.scores }}",
-          "mean": ${{ steps.evaluate.outputs.mean }},
-          "ci_lower": ${{ steps.evaluate.outputs.ci_lower }},
-          "ci_upper": ${{ steps.evaluate.outputs.ci_upper }},
-          "ci_result": "${{ steps.evaluate.outputs.ci_result }}",
-          "criteria": ${{ steps.evaluate.outputs.criteria }},
-          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "max_turns": ${{ inputs.max_turns }}
-          }
-          ARTIFACT_EOF
+          jq -n \
+            --arg model "$BENCH_MODEL" \
+            --arg scenario "$BENCH_SCENARIO" \
+            --argjson trials "${BENCH_TRIALS:-5}" \
+            --argjson successful "${EVAL_SUCCESSFUL:-0}" \
+            --arg scores "$EVAL_SCORES" \
+            --argjson mean "${EVAL_MEAN:-0}" \
+            --argjson ci_lower "${EVAL_CI_LOWER:-0}" \
+            --argjson ci_upper "${EVAL_CI_UPPER:-0}" \
+            --arg ci_result "$EVAL_CI_RESULT" \
+            --argjson criteria "${EVAL_CRITERIA:-{}}" \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson max_turns "${BENCH_MAX_TURNS:-55}" \
+            '{
+              model: $model,
+              scenario: $scenario,
+              trials: $trials,
+              successful_trials: $successful,
+              scores: $scores,
+              mean: $mean,
+              ci_lower: $ci_lower,
+              ci_upper: $ci_upper,
+              ci_result: $ci_result,
+              criteria: $criteria,
+              timestamp: $timestamp,
+              max_turns: $max_turns
+            }' > "$RESULTS_DIR/${BENCH_SCENARIO}.json"
 
       - name: Upload results artifact
         uses: actions/upload-artifact@v6
@@ -291,24 +336,25 @@ jobs:
           retention-days: 90
 
       - name: Write step summary
+        env:
+          BENCH_MODEL: ${{ inputs.model }}
+          BENCH_SCENARIO: ${{ matrix.scenario }}
+          BENCH_TRIALS_INPUT: ${{ inputs.trials }}
+          EVAL_MEAN: ${{ steps.evaluate.outputs.mean }}
+          EVAL_CI_LOWER: ${{ steps.evaluate.outputs.ci_lower }}
+          EVAL_CI_UPPER: ${{ steps.evaluate.outputs.ci_upper }}
+          EVAL_SCORES: ${{ steps.evaluate.outputs.scores }}
+          EVAL_SUCCESSFUL: ${{ steps.evaluate.outputs.successful_trials }}
         run: |
-          MEAN="${{ steps.evaluate.outputs.mean }}"
-          CI_LOWER="${{ steps.evaluate.outputs.ci_lower }}"
-          CI_UPPER="${{ steps.evaluate.outputs.ci_upper }}"
-          SCORES="${{ steps.evaluate.outputs.scores }}"
-          TRIALS="${{ steps.evaluate.outputs.successful_trials }}"
-
-          cat >> $GITHUB_STEP_SUMMARY << SUMMARY_EOF
-
-          ## Benchmark: ${{ inputs.model }} on ${{ matrix.scenario }}
+          cat >> $GITHUB_STEP_SUMMARY <<SUMMARY_EOF
+          ## Benchmark: ${BENCH_MODEL} on ${BENCH_SCENARIO}
 
           | Metric | Value |
           |--------|-------|
-          | **Model** | \`${{ inputs.model }}\` |
-          | **Scenario** | ${{ matrix.scenario }} |
-          | **Mean Score** | **${MEAN}** / 10 |
-          | **95% CI** | [${CI_LOWER}, ${CI_UPPER}] |
-          | **Trials** | ${TRIALS} / ${{ inputs.trials }} successful |
-          | **Raw Scores** | ${SCORES} |
-
+          | **Model** | \`${BENCH_MODEL}\` |
+          | **Scenario** | ${BENCH_SCENARIO} |
+          | **Mean Score** | **${EVAL_MEAN:-N/A}** / 10 |
+          | **95% CI** | [${EVAL_CI_LOWER:-N/A}, ${EVAL_CI_UPPER:-N/A}] |
+          | **Trials** | ${EVAL_SUCCESSFUL:-0} / ${BENCH_TRIALS_INPUT} successful |
+          | **Raw Scores** | ${EVAL_SCORES:-N/A} |
           SUMMARY_EOF
