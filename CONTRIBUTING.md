@@ -24,6 +24,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-node24-compliance.sh && \
    ./tests/test-effectiveness-scoreboard.sh && \
    ./tests/test-firmware-fixture.sh && \
+   ./tests/test-model-comparison.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \
@@ -158,6 +159,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/test-cli.sh
 ./tests/test-setup-path.sh
 ./tests/test-docs-usability.sh
+./tests/test-model-comparison.sh
 ./tests/e2e/run-simulation.sh
 ./tests/e2e/test-deterministic-checks.sh
 ./tests/e2e/test-scenario-rotation.sh
