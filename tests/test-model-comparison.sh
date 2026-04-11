@@ -480,14 +480,28 @@ test_permissions_readonly() {
     fi
 }
 
-# Test 34: String inputs passed via env: blocks, not inline ${{ }} in run: (injection prevention)
+# Test 34: Zero inline ${{ inputs.* }} or ${{ matrix.* }} in run: blocks (injection prevention)
 test_env_block_injection_prevention() {
     if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
-    # Check that evaluate step uses env: block for scenario (not inline ${{ inputs.scenario }})
-    if grep -q "BENCH_SCENARIO.*matrix\.scenario\|INPUT_SCENARIO.*inputs\.scenario" "$WORKFLOW"; then
-        pass "String inputs use env: blocks for shell safety (injection prevention)"
+    # Parse YAML, extract run: blocks, check for inline interpolation
+    local violations
+    violations=$(python3 -c "
+import yaml, re
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+count = 0
+for job_name, job in wf.get('jobs', {}).items():
+    for step in job.get('steps', []):
+        run_block = step.get('run', '')
+        if run_block:
+            matches = re.findall(r'\\\$\{\{.*?(inputs\.|matrix\.).*?\}\}', run_block)
+            count += len(matches)
+print(count)
+")
+    if [ "$violations" = "0" ]; then
+        pass "Zero inline \${{ inputs/matrix }} in run: blocks (injection-safe)"
     else
-        fail "Workflow uses inline \${{ inputs.scenario }} in run: blocks (shell injection risk)"
+        fail "Found $violations inline \${{ inputs/matrix }} in run: blocks (shell injection risk)"
     fi
 }
 

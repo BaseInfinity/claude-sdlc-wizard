@@ -45,6 +45,7 @@ jobs:
       - name: Validate and resolve inputs
         id: resolve
         env:
+          INPUT_MODEL: ${{ inputs.model }}
           INPUT_SCENARIO: ${{ inputs.scenario }}
           INPUT_TRIALS: ${{ inputs.trials }}
           INPUT_MAX_TURNS: ${{ inputs.max_turns }}
@@ -97,7 +98,7 @@ jobs:
           fi
 
           echo "scenarios=$SCENARIOS" >> $GITHUB_OUTPUT
-          echo "Model: ${{ inputs.model }}"
+          echo "Model: $INPUT_MODEL"
           echo "Trials: $INPUT_TRIALS"
           echo "Max turns: $INPUT_MAX_TURNS"
           echo "Scenarios: $SCENARIOS"
