@@ -102,7 +102,23 @@
 | 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement. **Plan CERTIFIED (9/10), repo created, awaiting implementation** |
 | 3 | 58 | ~~Research: claw-code + OmO/OmX Patterns~~ DONE | Studied claw-code (168K stars), OmO (48K), OmX (16K). 16 candidate patterns identified. Codex certified 8/10 round 3. All candidates require Prove It Gate. Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` |
 
-## Next Release (v1.29.0) — Infra + Setup
+## Next Release (v1.31.0)
+
+| Priority | # | Item | Description |
+|----------|---|------|-------------|
+| 1 | 91 | Multi-Agent Adapter Layer | Codex/Cursor/Windsurf adapters. Skills port directly, hooks need per-agent adaptation. Expands reach beyond Claude Code |
+
+Deferred: #83 (Local Model — needs real demand signal), #82 (Domain DLCs — Stefan's separate track), #71 (KAIROS — watch-only until CC feature exits experimental), #67 (Agent Team Hooks — same)
+
+## Previous Release (v1.30.0) — Domain + Detection
+
+| Priority | # | Item | Description |
+|----------|---|------|-------------|
+| 1 | 78 | ~~Firmware Fixture~~ DONE | Fleshed out firmware-embedded fixture: Python SD card overlay manager, 3 device configs, SIL + config validation tests within fixture. 12 quality tests prove domain indicators, multi-device differentiation, no-web misclassification. Completes the #79 domain-adaptive proof |
+| 2 | 94 | ~~Model A/B Comparison Workflow~~ DONE | PRs #164, #165. `workflow_dispatch` benchmark: Opus vs Sonnet on 16 E2E scenarios with 95% CI. Codex GPT-5.4 xhigh reviewed (3 rounds plan, 2 rounds impl). P0 shell injection fix, wizard install verification, jq artifact construction. 37 quality tests. 7 workflows total |
+| 3 | 96 | ~~CC Degradation Detection~~ DONE | Score persistence (ci.yml git-commits JSONL to PR branch) + wizard hardening (adaptive thinking context, `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`, anti-laziness guidance). 14 behavioral tests |
+
+## Previous Release (v1.29.0) — Infra + Setup
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
@@ -110,24 +126,13 @@
 | 2 | 88 | ~~Autocompact in Setup~~ DONE | CLI sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in settings.json `env` field by default. Smart merge preserves existing user env vars on upgrade, `--force` resets to defaults. Setup wizard Step 9.5 customizes for 1M models (30%). 7 new tests (39 total CLI tests) |
 | 3 | 80 | ~~Effectiveness Scoreboard~~ DONE | 52 historical catches seeded in `.metrics/catches.jsonl`. `catch-analytics.sh` computes DDE per layer, escape rates, severity breakdown. Results: cross-model-review (48%) and self-review (46%) nearly tied, self-review missed 28 bugs caught downstream. 14 tests. Log automation deferred until analytics proven useful |
 
-## v1.30.0 — Domain + Adapters
-
-| Priority | # | Item | Description |
-|----------|---|------|-------------|
-| 1 | 78 | ~~Firmware Fixture~~ DONE | Fleshed out firmware-embedded fixture: Python SD card overlay manager, 3 device configs, SIL + config validation tests within fixture. 12 quality tests prove domain indicators, multi-device differentiation, no-web misclassification. Completes the #79 domain-adaptive proof |
-| 2 | 94 | ~~Model A/B Comparison Workflow~~ DONE | PRs #164, #165. `workflow_dispatch` benchmark: Opus vs Sonnet on 16 E2E scenarios with 95% CI. Codex GPT-5.4 xhigh reviewed (3 rounds plan, 2 rounds impl). P0 shell injection fix, wizard install verification, jq artifact construction. 37 quality tests. 7 workflows total |
-| 3 | 96 | ~~CC Degradation Detection~~ DONE | Score persistence (ci.yml git-commits JSONL to PR branch) + wizard hardening (adaptive thinking context, `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING`, anti-laziness guidance). 14 behavioral tests |
-| 4 | 91 | Multi-Agent Adapter Layer | Codex/Cursor/Windsurf adapters. Skills port directly, hooks need per-agent adaptation. Expands reach beyond Claude Code |
-
-Deferred: #83 (Local Model — needs real demand signal), #82 (Domain DLCs — Stefan's separate track), #71 (KAIROS — watch-only until CC feature exits experimental), #67 (Agent Team Hooks — same)
-
 ## Built With SDLC Wizard
 
 Living tracker of projects shipped using this wizard. **Rule:** only list projects that have been explicitly marked as using SDLC Wizard — no "powered by" claims before that.
 
 | Project | Repo | Status |
 |---------|------|--------|
-| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.29.0 |
+| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.30.0 |
 | _(add as projects are marked)_ | | |
 
 **TODO:** audit Stefan's GitHub projects + production apps, mark the ones that used the wizard, then list them here. Do not populate from memory — only list what's been marked.
