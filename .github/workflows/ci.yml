@@ -168,6 +168,9 @@ jobs:
       - name: Run model comparison benchmark tests
         run: ./tests/test-model-comparison.sh
 
+      - name: Run degradation detection tests
+        run: ./tests/test-degradation-detection.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
@@ -648,6 +651,22 @@ jobs:
             >> tests/e2e/score-history.jsonl
 
           echo "Score recorded: $SCORE for $SCENARIO"
+
+      - name: Persist scores to PR branch
+        if: |
+          steps.check-baseline.outputs.should_simulate == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        working-directory: pr-branch
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/score-history.jsonl
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: record E2E score [skip ci]"
+          git push origin HEAD:refs/heads/"$PR_HEAD_REF"
 
       - name: Generate score trends report
         if: steps.check-baseline.outputs.should_simulate == 'true'
@@ -1400,6 +1419,22 @@ jobs:
             >> tests/e2e/score-history.jsonl
 
           echo "Score recorded: $SCORE for $SCENARIO (Tier 2)"
+
+      - name: Persist scores to PR branch
+        if: |
+          steps.check-baseline.outputs.should_simulate == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        working-directory: pr-branch
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/score-history.jsonl
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: record E2E score [skip ci]"
+          git push origin HEAD:refs/heads/"$PR_HEAD_REF"
 
       - name: Generate score trends report (Tier 2)
         continue-on-error: true
