@@ -224,7 +224,11 @@ Claude Code's **effort level** controls how much thinking the model does before 
 | `high` | **Default for all SDLC work.** Features, bug fixes, refactoring, tests, reviews | `effort: high` in skill frontmatter (already set) |
 | `max` | LOW confidence, FAILED 2x, architecture decisions, complex debugging, cross-model reviews | `/effort max` (session only — resets next session) |
 
-**Why `high` is the default:** The `/sdlc` skill sets `effort: high` in its frontmatter, so every SDLC invocation automatically uses high effort. This gives thorough reasoning without the unbounded token cost of `max`.
+**Why `high` is the default:** Claude Code uses **adaptive thinking** to dynamically allocate reasoning budget per turn. On Pro and Max plans, the default effort level is **medium (85)**, which causes the model to under-allocate reasoning on complex multi-step tasks — leading to shallow analysis, missed edge cases, and "lazy" outputs. This was [confirmed by Anthropic engineer Boris Cherny](https://github.com/anthropics/claude-code/issues/42796) and is documented at [code.claude.com](https://code.claude.com/docs/en/model-config). API, Team, and Enterprise plans default to high effort and are not affected.
+
+The `/sdlc` skill sets `effort: high` in its frontmatter, overriding the medium default on every SDLC invocation. This gives thorough reasoning without the unbounded token cost of `max`.
+
+**Nuclear option — disable adaptive thinking entirely:** Set `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` in your environment or settings.json `env` block. This forces a fixed reasoning budget per turn instead of letting the model dynamically allocate. Use this if you observe persistent quality issues even with `effort: high`. See [Claude Code model config docs](https://code.claude.com/docs/en/model-config) for details.
 
 **When to escalate to `max`:**
 - You hit LOW confidence on your approach — deeper thinking may find clarity
@@ -241,6 +245,21 @@ Claude Code's **effort level** controls how much thinking the model does before 
 **Cost note:** `max` uses significantly more tokens than `high`. Use it when the problem justifies it, not as a default.
 
 > See also: the **Effort** column in the [Confidence Check table](#confidence-check-required) below for per-confidence-level guidance on when to escalate to `max`.
+
+### Anti-Laziness Guidance for CLAUDE.md
+
+If you notice Claude Code producing shallow outputs despite `effort: high`, add these instructions to your project's `CLAUDE.md`. These target the **specific mechanisms** behind quality degradation — adaptive thinking and effort levels — rather than vague directives:
+
+```markdown
+## Quality Anchoring
+- This project uses effort: high via SDLC skill frontmatter. Do not reduce reasoning depth.
+- Adaptive thinking may under-allocate your thinking budget on complex tasks. When working on
+  multi-file changes, architecture decisions, or debugging: reason through the full problem
+  before acting, even if the system prompt suggests taking the "simplest approach first."
+- If you catch yourself skipping steps, re-read the task requirements and verify completeness.
+```
+
+**Why this works:** Claude Code's hidden system prompt includes "Go straight to the point. Try the simplest approach first." This is good for simple queries but causes the model to under-invest in reasoning on complex SDLC tasks. The instructions above don't fight the system prompt — they provide task-specific context that justifies deeper reasoning. Note that CLAUDE.md instructions can be partially overridden by the system prompt, so `effort: high` in skill frontmatter remains the primary defense.
 
 ---
 

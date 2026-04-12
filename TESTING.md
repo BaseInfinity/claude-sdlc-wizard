@@ -54,6 +54,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-effectiveness-scoreboard.sh` | Effectiveness scoreboard | Seed data quality, DDE calculation, escape rate, analytics output |
 | `tests/test-firmware-fixture.sh` | Firmware fixture | Domain indicators, Python overlay, test infra, multi-device, no-web negative test |
 | `tests/test-model-comparison.sh` | Model comparison benchmark | Workflow structure, model parameterization, error handling, cost controls |
+| `tests/test-degradation-detection.sh` | Degradation detection | Score persistence, fork guard, wizard hardening, anti-laziness mechanisms |
 
 **How to run:**
 ```bash
