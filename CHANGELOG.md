@@ -4,6 +4,32 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.30.0] - 2026-04-12
+
+### Added
+- CC degradation detection (#96, PR #166)
+  - Score persistence: CI now git-commits `score-history.jsonl` to PR branch after E2E runs, feeding CUSUM drift detection with real data
+  - Fork guard (`head.repo.full_name == github.repository`) prevents silent push failures on fork PRs
+  - Injection-safe: `head.ref` passed via `env:` block, not inline `${{ }}`
+  - Wizard effort section hardened: explains adaptive thinking root cause (Boris Cherny GH #42796), scopes "medium default" to Pro/Max plans, cites code.claude.com docs
+  - `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` documented as opt-in hardening (not default)
+  - Anti-laziness CLAUDE.md guidance section targeting specific mechanisms (adaptive thinking, effort levels, thinking budget)
+  - 14 behavioral tests (`test-degradation-detection.sh`)
+- Model A/B comparison workflow (#94, PRs #164, #165)
+  - `workflow_dispatch` benchmark: Opus vs Sonnet on E2E scenarios with 95% CI
+  - Matrix strategy over scenarios, parameterized model/trials/max_turns
+  - Wizard installation verification before simulation (P0 fix)
+  - jq-based artifact construction (safe against empty outputs)
+  - 37 quality tests (`test-model-comparison.sh`)
+- Firmware-embedded E2E fixture (#78, PR #163)
+  - Python SD card overlay manager, 3 device configs (Raspberry Pi, STM32, ESP32)
+  - SIL + config validation tests within fixture
+  - Domain-adaptive testing proof: firmware indicators, Python overlay, multi-device differentiation
+  - 12 quality tests (`test-firmware-fixture.sh`)
+
+### Fixed
+- P0 shell injection in model comparison workflow: `${{ inputs.model }}` directly in `run:` blocks. Fixed by passing all inputs through `env:` block (caught by Codex review)
+
 ## [1.29.0] - 2026-04-07
 
 ### Added
