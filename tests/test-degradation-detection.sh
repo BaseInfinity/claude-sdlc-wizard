@@ -324,12 +324,22 @@ test_live_docs_citation() {
     fi
 }
 
-# Test 11: settings.json template includes CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING
-test_settings_env_var() {
-    if jq -e '.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING' "$SETTINGS_JSON" > /dev/null 2>&1; then
-        pass "settings.json includes CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING env var"
+# Test 11: Wizard doc documents CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING as opt-in
+test_env_var_documented() {
+    # The env var must be documented in the wizard doc as an opt-in hardening option,
+    # NOT shipped as a default in settings.json (it's a "nuclear option").
+    local effort_section
+    effort_section=$(sed -n '/## Recommended Effort Level/,/^## /p' "$WIZARD_DOC")
+
+    if echo "$effort_section" | grep -q "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING"; then
+        # Also verify it's NOT in the default settings.json template
+        if jq -e '.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING' "$SETTINGS_JSON" > /dev/null 2>&1; then
+            fail "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING should be opt-in, not in default settings.json"
+        else
+            pass "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING documented as opt-in (not in default template)"
+        fi
     else
-        fail "settings.json must include CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING in env block"
+        fail "Wizard doc must document CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING env var"
     fi
 }
 
@@ -402,7 +412,7 @@ test_cusum_integration
 test_adaptive_thinking_reference
 test_pro_max_scope
 test_live_docs_citation
-test_settings_env_var
+test_env_var_documented
 test_anti_laziness_mechanisms
 test_weekly_update_cusum
 test_cusum_score_field
