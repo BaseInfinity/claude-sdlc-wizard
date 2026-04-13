@@ -582,6 +582,55 @@ test_tdd_red_object_format_test_first
 test_tdd_red_object_format_impl_first
 test_tdd_red_content_as_string
 
+# claude-code-action SDK format: messages wrapped in {type, message: {role, content}}
+test_tdd_red_sdk_format_test_first() {
+    local tmpfile
+    tmpfile=$(mktemp)
+    cat > "$tmpfile" << 'TESTJSON'
+[
+  {"type": "system", "subtype": "init", "message": {"role": "system", "content": "init"}},
+  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "I'll write tests first."}]}},
+  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Write", "input": {"file_path": "tests/auth.test.js", "content": "test code"}}]}},
+  {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "File written"}]}},
+  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t2", "name": "Write", "input": {"file_path": "src/auth.js", "content": "impl code"}}]}},
+  {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "content": "File written"}]}},
+  {"type": "result", "subtype": "success", "is_error": false, "duration_ms": 45000, "num_turns": 3}
+]
+TESTJSON
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "2" ]; then
+        pass "TDD RED: SDK format (type+message wrapper) detected test-first"
+    else
+        fail "SDK format with test-first should score 2, got $result"
+    fi
+}
+
+test_tdd_red_sdk_format_impl_first() {
+    local tmpfile
+    tmpfile=$(mktemp)
+    cat > "$tmpfile" << 'TESTJSON'
+[
+  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Write", "input": {"file_path": "src/auth.js", "content": "impl"}}]}},
+  {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]}},
+  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "t2", "name": "Write", "input": {"file_path": "tests/auth.test.js", "content": "test"}}]}},
+  {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "content": "ok"}]}}
+]
+TESTJSON
+    local result
+    result=$(check_tdd_red "$tmpfile")
+    rm -f "$tmpfile"
+    if [ "$result" = "0" ]; then
+        pass "TDD RED: SDK format impl-first scores 0"
+    else
+        fail "SDK format with impl-first should score 0, got $result"
+    fi
+}
+
+test_tdd_red_sdk_format_test_first
+test_tdd_red_sdk_format_impl_first
+
 test_full_compliance
 test_zero_compliance
 test_partial_compliance
