@@ -58,7 +58,9 @@ check_tdd_red() {
     operations=$(jq -r '
         # Normalize: object with .messages → extract array; bare array → use as-is
         (if type == "array" then . elif .messages then .messages else [.] end) |
-        [.[] | select(type == "object" and .role == "assistant") |
+        # Unwrap SDK format: {type:"assistant", message:{role,content}} → {role,content}
+        [.[] | (if .message then .message else . end) |
+         select(type == "object" and .role == "assistant") |
          (if (.content | type) == "array" then .content[] else empty end) |
          select(type == "object" and .type == "tool_use" and (.name == "Write" or .name == "Edit")) |
          .input.file_path // empty
