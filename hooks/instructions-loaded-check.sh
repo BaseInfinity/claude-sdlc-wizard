@@ -8,10 +8,15 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HOOK_DIR/_find-sdlc-root.sh"
 
+# CWD walk-up finds nearest SDLC project (#173: silent exit for non-SDLC dirs)
 if find_sdlc_root; then
     PROJECT_DIR="$SDLC_ROOT"
+elif find_partial_sdlc_root; then
+    # Partial setup — one file exists but not both. Warn about missing files
+    PROJECT_DIR="$SDLC_ROOT"
 else
-    PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+    # Not an SDLC project at all — exit silently
+    exit 0
 fi
 
 MISSING=""
