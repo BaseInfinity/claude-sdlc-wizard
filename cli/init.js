@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const RESET = '\x1b[0m';
@@ -285,15 +286,29 @@ function check(targetDir, { json = false } = {}) {
     // Offline or npm unavailable — skip update check
   }
 
-  const hasDrift = results.some((r) => r.status === 'MISSING' || r.status === 'DRIFT');
+  const marketplace = checkMarketplacePaths();
+  const hasDrift = results.some((r) => r.status === 'MISSING' || r.status === 'DRIFT')
+    || marketplace.some((m) => m.status === 'DANGLING');
 
   if (json) {
-    console.log(JSON.stringify({ files: results, update: updateInfo }, null, 2));
+    console.log(JSON.stringify({ files: results, update: updateInfo, marketplace }, null, 2));
   } else {
     for (const r of results) {
       const color = r.status === 'MATCH' ? GREEN : r.status === 'MISSING' ? RED : YELLOW;
       console.log(`  ${color}${r.status}${RESET}  ${r.file}`);
       if (r.details) console.log(`         ${r.details}`);
+    }
+    for (const m of marketplace) {
+      const color = m.status === 'DANGLING' ? RED : YELLOW;
+      const heading = m.status === 'EPHEMERAL'
+        ? `Marketplace '${m.name}' source path is ephemeral:`
+        : `Marketplace '${m.name}' source path does not exist:`;
+      console.log(`\n  ${color}${m.status}${RESET}  ${heading}`);
+      console.log(`         ${m.path}`);
+      console.log(`         ${m.details}`);
+      if (m.suggestion) {
+        console.log(`         Recommended: move to ${m.suggestion}`);
+      }
     }
     if (updateInfo) {
       console.log(`\n  ${YELLOW}UPDATE${RESET}  v${updateInfo.current} -> v${updateInfo.latest}`);
@@ -301,7 +316,7 @@ function check(targetDir, { json = false } = {}) {
     }
   }
 
-  return { results, updateInfo, hasDrift };
+  return { results, updateInfo, hasDrift, marketplace };
 }
 
 function checkFile(srcPath, destPath, relativeDest, shouldBeExecutable) {
@@ -339,6 +354,58 @@ function checkGitignore(gitignorePath) {
     return { file: '.gitignore', status: 'DRIFT', details: `Missing entries: ${missing.join(', ')}` };
   }
   return { file: '.gitignore', status: 'MATCH' };
+}
+
+const EPHEMERAL_ROOTS = /^(\/tmp\/|\/private\/tmp\/|\/var\/folders\/|\/private\/var\/folders\/)/;
+
+function checkMarketplacePaths() {
+  const results = [];
+  const globalSettings = path.join(os.homedir(), '.claude', 'settings.json');
+
+  if (!fs.existsSync(globalSettings)) return results;
+
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(globalSettings, 'utf8'));
+  } catch (_) {
+    return results;
+  }
+
+  const marketplaces = data.extraKnownMarketplaces;
+  if (!marketplaces || typeof marketplaces !== 'object') return results;
+
+  for (const [name, entry] of Object.entries(marketplaces)) {
+    const source = entry && entry.source;
+    if (!source || source.source !== 'directory' || !source.path || typeof source.path !== 'string') continue;
+
+    const sourcePath = source.path;
+    const isEphemeral = EPHEMERAL_ROOTS.test(sourcePath);
+    const exists = fs.existsSync(sourcePath);
+    const basename = path.basename(sourcePath);
+    const suggestion = `~/.claude/plugins-local/${basename}`;
+
+    if (!exists) {
+      results.push({
+        name,
+        path: sourcePath,
+        status: 'DANGLING',
+        details: isEphemeral
+          ? 'Ephemeral path has been reaped — plugin is broken'
+          : 'Path does not exist — plugin may be silently broken',
+        suggestion: isEphemeral ? suggestion : undefined,
+      });
+    } else if (isEphemeral) {
+      results.push({
+        name,
+        path: sourcePath,
+        status: 'EPHEMERAL',
+        details: 'macOS reaps this path periodically — plugin may break silently',
+        suggestion,
+      });
+    }
+  }
+
+  return results;
 }
 
 module.exports = { init, check, planOperations, GITIGNORE_ENTRIES };

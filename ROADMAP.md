@@ -108,7 +108,7 @@
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 173 | ~~Fix: Hook False-Positive in Non-SDLC Dirs~~ DONE | PR #175. Silent exit when walk-up finds neither SDLC.md nor TESTING.md. Partial setups (one file) still warn. Added `find_partial_sdlc_root` helper. 2 new tests (60 total hook tests) |
-| 2 | 174 | Warn on Ephemeral Marketplace Path | CLI `check` command should warn when marketplace source points to /tmp or /var/folders |
+| 2 | 174 | ~~Warn on Ephemeral Marketplace Path~~ DONE | CLI `check` scans `~/.claude/settings.json` `extraKnownMarketplaces` for ephemeral (`/tmp/`, `/private/tmp/`, `/var/folders/`) and dangling directory sources. EPHEMERAL warns (exit 0), DANGLING errors (exit 1). Suggests `~/.claude/plugins-local/`. 10 new tests (51 total CLI tests) |
 
 Deferred: #83 (Local Model — needs real demand signal), #82 (Domain DLCs — Stefan's separate track), #71 (KAIROS — watch-only until CC feature exits experimental), #67 (Agent Team Hooks — same)
 
@@ -134,7 +134,7 @@ Living tracker of projects shipped using this wizard. **Rule:** only list projec
 
 | Project | Repo | Status |
 |---------|------|--------|
-| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.30.0 |
+| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.31.0 |
 | Codex SDLC Adapter | BaseInfinity/codex-sdlc-wizard | v1, shipped with SDLC workflow |
 | _(add as projects are marked)_ | | |
 
