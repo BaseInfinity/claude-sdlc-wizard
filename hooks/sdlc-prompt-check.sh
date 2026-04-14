@@ -2,8 +2,17 @@
 # Light SDLC hook - baseline reminder every prompt (~100 tokens)
 # Full guidance in skill: .claude/skills/sdlc/
 
-# Check if setup has been completed
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+# Walk up from CWD to find nearest SDLC.md + TESTING.md (#171: monorepo support)
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HOOK_DIR/_find-sdlc-root.sh"
+
+# CWD walk-up takes precedence, then CLAUDE_PROJECT_DIR, then "."
+if find_sdlc_root; then
+    PROJECT_DIR="$SDLC_ROOT"
+else
+    PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+fi
+
 if [ ! -s "$PROJECT_DIR/SDLC.md" ] || [ ! -s "$PROJECT_DIR/TESTING.md" ]; then
     cat << 'SETUP'
 SETUP NOT COMPLETE: SDLC.md and/or TESTING.md are missing.
