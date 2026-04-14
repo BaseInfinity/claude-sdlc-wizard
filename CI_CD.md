@@ -259,7 +259,7 @@ After each release, verify ALL distribution channels work:
 | Channel | Verification Command | What to Check |
 |---------|---------------------|---------------|
 | npm | `npx agentic-sdlc-wizard --version` | Correct version |
-| curl | `curl -fsSL <url> \| bash` in temp dir | 9 files created, hooks executable |
+| curl | `curl -fsSL <url> \| bash` in temp dir | All CLI files created, hooks executable |
 | Homebrew | `brew upgrade sdlc-wizard && sdlc-wizard --version` | Formula SHA-256 updated, correct version |
 | gh extension | `gh extension upgrade gh-sdlc-wizard && gh sdlc-wizard --version` | Correct version |
 | GitHub Release | Check releases page | Notes generated, tag matches |
@@ -269,7 +269,7 @@ After each release, verify ALL distribution channels work:
 2. Update `Formula/sdlc-wizard.rb` in `BaseInfinity/homebrew-sdlc-wizard`
 
 ### CI-Testable Distribution Checks (in `test-install-script.sh`)
-- Piped install creates all 9 files (simulates `curl | bash`)
+- Piped install creates all CLI files (simulates `curl | bash`)
 - Piped install sets hooks as executable
 - Piped `--help` works
 - Shebang is `#!` not `#\!` (regression from heredoc escaping)
