@@ -1891,7 +1891,7 @@ test_hook_triggers_on_release
 echo ""
 echo "--- CC version check in notification hook ---"
 
-INSTRUCTIONS_HOOK="hooks/instructions-loaded-check.sh"
+INSTRUCTIONS_HOOK="$SCRIPT_DIR/../hooks/instructions-loaded-check.sh"
 
 # Test: Hook checks CC version (claude --version) not just wizard version
 test_hook_checks_cc_version() {
