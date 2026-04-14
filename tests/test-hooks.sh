@@ -180,7 +180,7 @@ test_instructions_hook_missing_sdlc() {
     tmpdir=$(mktemp -d)
     touch "$tmpdir/TESTING.md"
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -qi "SDLC.md"; then
         pass "instructions-loaded-check.sh warns when SDLC.md missing"
@@ -195,7 +195,7 @@ test_instructions_hook_missing_testing() {
     tmpdir=$(mktemp -d)
     touch "$tmpdir/SDLC.md"
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -qi "TESTING.md"; then
         pass "instructions-loaded-check.sh warns when TESTING.md missing"
@@ -209,7 +209,7 @@ test_instructions_hook_missing_both() {
     local tmpdir
     tmpdir=$(mktemp -d)
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -qi "SDLC.md" && echo "$output" | grep -qi "TESTING.md"; then
         pass "instructions-loaded-check.sh warns when both files missing"
@@ -231,7 +231,7 @@ test_instructions_hook_all_present() {
     printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
     chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm" "$tmpdir/bin/codex"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if [ -z "$output" ]; then
         pass "instructions-loaded-check.sh silent when all files present"
@@ -244,7 +244,7 @@ test_instructions_hook_all_present() {
 test_instructions_hook_exit_code() {
     local tmpdir
     tmpdir=$(mktemp -d)
-    CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" > /dev/null 2>&1
+    (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh") > /dev/null 2>&1
     local exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ]; then
@@ -260,7 +260,7 @@ test_instructions_hook_no_trailing_whitespace() {
     tmpdir=$(mktemp -d)
     # Both files missing = worst case for trailing whitespace
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     # Check that no line ends with trailing whitespace (runtime output)
     if echo "$output" | grep -q '[[:blank:]]$'; then
@@ -354,7 +354,7 @@ test_instructions_hook_mentions_setup_wizard() {
     local tmpdir
     tmpdir=$(mktemp -d)
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard"; then
         pass "instructions-loaded-check.sh mentions setup-wizard when files missing"
@@ -369,7 +369,7 @@ test_sdlc_hook_setup_redirect_missing_sdlc() {
     tmpdir=$(mktemp -d)
     touch "$tmpdir/TESTING.md"
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard" && ! echo "$output" | grep -q "SDLC BASELINE"; then
         pass "sdlc-prompt-check.sh redirects to setup-wizard when SDLC.md missing"
@@ -384,7 +384,7 @@ test_sdlc_hook_setup_redirect_missing_testing() {
     tmpdir=$(mktemp -d)
     touch "$tmpdir/SDLC.md"
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard" && ! echo "$output" | grep -q "SDLC BASELINE"; then
         pass "sdlc-prompt-check.sh redirects to setup-wizard when TESTING.md missing"
@@ -416,7 +416,7 @@ test_sdlc_hook_setup_redirect_empty_stubs() {
     touch "$tmpdir/SDLC.md"
     touch "$tmpdir/TESTING.md"
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard" && ! echo "$output" | grep -q "SDLC BASELINE"; then
         pass "sdlc-prompt-check.sh redirects to setup-wizard for empty stub files"
@@ -433,7 +433,7 @@ test_template_hook_setup_redirect() {
     tmpdir=$(mktemp -d)
     # Templates aren't executable in repo — CLI sets chmod +x at install time
     local output
-    output=$(CLAUDE_PROJECT_DIR="$tmpdir" bash "$TEMPLATE_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" bash "$TEMPLATE_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard"; then
         pass "Template hook redirects to setup-wizard when files missing"
@@ -636,7 +636,7 @@ test_update_notification_newer_available() {
     printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/npm"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "update available" && echo "$output" | grep -q "1.20.0" && echo "$output" | grep -q "1.22.0"; then
         pass "Shows update notification when newer version available"
@@ -656,7 +656,7 @@ test_update_notification_same_version() {
     printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "update available"; then
         fail "Should NOT show update notification when versions match, got: $output"
@@ -674,7 +674,7 @@ test_update_notification_npm_unavailable() {
     # Empty bin dir — npm not in PATH
     mkdir -p "$tmpdir/bin"
     local output
-    output=$(PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     local exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -q "update available"; then
@@ -694,7 +694,7 @@ test_update_notification_npm_fails() {
     printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/npm"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     local exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -q "update available"; then
@@ -715,7 +715,7 @@ test_update_notification_no_version_metadata() {
     printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "Wizard.*update available"; then
         fail "Should NOT show wizard notification when SDLC.md has no version metadata, got: $output"
@@ -734,7 +734,7 @@ test_update_notification_mentions_update_wizard() {
     printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/npm"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "/update-wizard"; then
         pass "Update notification mentions /update-wizard"
@@ -832,6 +832,124 @@ test_template_settings_has_if_field
 test_wizard_documents_if_field
 test_wizard_settings_example_has_if
 test_if_field_parity
+
+echo ""
+echo "--- CWD walk-up tests (#171: monorepo / nested project support) ---"
+
+# Test: Shared helper _find-sdlc-root.sh exists
+test_find_sdlc_root_helper_exists() {
+    if [ -f "$HOOKS_DIR/_find-sdlc-root.sh" ]; then
+        pass "_find-sdlc-root.sh helper exists"
+    else
+        fail "_find-sdlc-root.sh helper not found (needed by sdlc-prompt-check + instructions-loaded-check)"
+    fi
+}
+
+# Test: sdlc-prompt-check walks up from CWD to find nested SDLC.md
+test_sdlc_hook_cwd_walkup_finds_nested() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # Project at $tmpdir/project/, but CLAUDE_PROJECT_DIR is empty (simulates parent launch)
+    mkdir -p "$tmpdir/project/src/components"
+    echo "# SDLC" > "$tmpdir/project/SDLC.md"
+    echo "# Testing" > "$tmpdir/project/TESTING.md"
+    local output
+    # Run hook from deep inside the project — CWD walk should find SDLC.md
+    output=$(cd "$tmpdir/project/src/components" && CLAUDE_PROJECT_DIR="" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "SDLC BASELINE" && ! echo "$output" | grep -q "SETUP NOT COMPLETE"; then
+        pass "sdlc-prompt-check.sh walks up from CWD to find nested SDLC.md"
+    else
+        fail "sdlc-prompt-check.sh should walk up from CWD when CLAUDE_PROJECT_DIR is empty"
+    fi
+}
+
+# Test: CWD walk-up prefers nearest SDLC.md (monorepo with per-package setup)
+test_sdlc_hook_cwd_walkup_prefers_nearest() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # Monorepo root has SDLC.md, but sub-package also has its own
+    echo "# Root SDLC" > "$tmpdir/SDLC.md"
+    echo "# Root Testing" > "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/packages/api/src"
+    echo "# API SDLC" > "$tmpdir/packages/api/SDLC.md"
+    echo "# API Testing" > "$tmpdir/packages/api/TESTING.md"
+    local output
+    # CWD is deep inside packages/api — should find packages/api/SDLC.md first
+    output=$(cd "$tmpdir/packages/api/src" && CLAUDE_PROJECT_DIR="" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "SDLC BASELINE"; then
+        pass "sdlc-prompt-check.sh prefers nearest SDLC.md in monorepo"
+    else
+        fail "Should find nearest SDLC.md when multiple exist in ancestor chain"
+    fi
+}
+
+# Test: Falls back to CLAUDE_PROJECT_DIR when CWD walk finds nothing
+test_sdlc_hook_cwd_walkup_fallback() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local projdir
+    projdir=$(mktemp -d)
+    echo "# SDLC" > "$projdir/SDLC.md"
+    echo "# Testing" > "$projdir/TESTING.md"
+    # CWD has nothing, but CLAUDE_PROJECT_DIR points to valid project
+    local output
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$projdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir" "$projdir"
+    if echo "$output" | grep -q "SDLC BASELINE"; then
+        pass "sdlc-prompt-check.sh falls back to CLAUDE_PROJECT_DIR when CWD walk fails"
+    else
+        fail "Should fall back to CLAUDE_PROJECT_DIR when CWD walk finds nothing"
+    fi
+}
+
+# Test: instructions-loaded-check also walks up from CWD
+test_instructions_hook_cwd_walkup() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/project/src"
+    echo '<!-- SDLC Wizard Version: 1.29.0 -->' > "$tmpdir/project/SDLC.md"
+    echo "# Testing" > "$tmpdir/project/TESTING.md"
+    # Mock npm/claude/codex to prevent version check output
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    local output
+    output=$(cd "$tmpdir/project/src" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ] || ! echo "$output" | grep -qi "missing"; then
+        pass "instructions-loaded-check.sh walks up from CWD (no false warning)"
+    else
+        fail "instructions-loaded-check.sh should walk up from CWD, got: $output"
+    fi
+}
+
+# Test: CWD walk-up with empty SDLC.md still triggers setup (non-empty check preserved)
+test_sdlc_hook_cwd_walkup_empty_stubs() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/project/src"
+    touch "$tmpdir/project/SDLC.md"   # empty
+    touch "$tmpdir/project/TESTING.md" # empty
+    local output
+    output=$(cd "$tmpdir/project/src" && CLAUDE_PROJECT_DIR="" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q "setup-wizard"; then
+        pass "CWD walk-up still triggers setup for empty stub files"
+    else
+        fail "Empty stubs found by CWD walk should still trigger setup-wizard"
+    fi
+}
+
+test_find_sdlc_root_helper_exists
+test_sdlc_hook_cwd_walkup_finds_nested
+test_sdlc_hook_cwd_walkup_prefers_nearest
+test_sdlc_hook_cwd_walkup_fallback
+test_instructions_hook_cwd_walkup
+test_sdlc_hook_cwd_walkup_empty_stubs
 
 echo ""
 echo "--- SDLC enforcement gap audit ---"
