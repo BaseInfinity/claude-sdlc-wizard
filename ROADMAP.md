@@ -101,6 +101,7 @@
 | 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | Already implemented in weekly-update.yml: fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PR. GitHub issue per-feature deferred — PR + ROADMAP already cover tracking |
 | 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement. **Plan CERTIFIED (9/10), repo created, awaiting implementation** |
 | 3 | 58 | ~~Research: claw-code + OmO/OmX Patterns~~ DONE | Studied claw-code (168K stars), OmO (48K), OmX (16K). 16 candidate patterns identified. Codex certified 8/10 round 3. All candidates require Prove It Gate. Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` |
+| 4 | 103 | ~~Fix: self_review 0% in E2E Scoring~~ DONE | Root cause: simulation prompt said "self-review" without explaining HOW (Read/Grep on modified files) or marking it scored. Golden output had text-only review (the exact NO example from the evaluator). Fix: all 5 simulation prompts now explain self-review = Read back modified files + marked scored in IMPORTANT section. Golden output/scores updated. 4 new tests |
 
 ## Next Release (v1.31.0)
 

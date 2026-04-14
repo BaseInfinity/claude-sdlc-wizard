@@ -81,7 +81,42 @@ All tests pass!
 
 ### Step 4: Self-review
 
-Let me review the changes before finishing:
+Let me Read back the files I modified to check for issues.
+
+Read file: src/middleware/validate-user.js
+
+```javascript
+function validateUser(req, res, next) {
+  const { name, email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+  next();
+}
+module.exports = { validateUser };
+```
+
+Read file: tests/user-validation.test.js
+
+```javascript
+describe('User Validation', () => {
+  test('rejects missing email', async () => {
+    const res = await request(app).post('/users').send({ name: 'Test' });
+    expect(res.status).toBe(400);
+  });
+  test('rejects invalid email format', async () => {
+    const res = await request(app).post('/users').send({ name: 'Test', email: 'not-email' });
+    expect(res.status).toBe(400);
+  });
+  test('accepts valid input', async () => {
+    const res = await request(app).post('/users').send({ name: 'Test', email: 'test@example.com' });
+    expect(res.status).toBe(201);
+  });
+});
+```
+
+Self-review findings:
 - Validation middleware is clean and focused
 - Tests cover the key cases (missing, invalid, valid)
 - No dead code or unnecessary complexity

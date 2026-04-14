@@ -11,10 +11,10 @@
             "plan_mode_tool": {"min": 1, "max": 1},
             "tdd_green_ran": {"min": 1, "max": 1},
             "tdd_green_pass": {"min": 1, "max": 1},
-            "self_review": {"min": 0, "max": 1},
+            "self_review": {"min": 1, "max": 1},
             "clean_code": {"min": 0, "max": 1}
         },
-        "expected_total": {"min": 8, "max": 10},
+        "expected_total": {"min": 9, "max": 10},
         "description": "Full SDLC compliance: planning, TDD red/green, self-review, clean code"
     },
     "medium-compliance": {
