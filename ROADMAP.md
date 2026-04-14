@@ -99,7 +99,7 @@
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | Already implemented in weekly-update.yml: fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PR. GitHub issue per-feature deferred — PR + ROADMAP already cover tracking |
-| 2 | 91 | Codex SDLC Adapter | Create `BaseInfinity/codex-sdlc-wizard` repo. Claude plans the adapter (AGENTS.md, notify config, install script), Codex cross-reviews the plan, Codex implements. Other agents (Cursor, Windsurf) lack hooks — adapters deferred until they add enforcement. **Plan CERTIFIED (9/10), repo created, awaiting implementation** |
+| 2 | 91 | ~~Codex SDLC Adapter~~ DONE | `BaseInfinity/codex-sdlc-wizard` PR #1. 3 hook scripts (bash-guard hard-blocks git commit/push, sdlc-prompt-check, session-start), non-destructive install.sh (6-case config merge, comment-aware), AGENTS.md, upstream-sync workflow. 15 behavioral tests. Codex review caught 2 bugs (commented config lines, macOS sed TOML corruption) — both fixed. ~70% CC parity |
 | 3 | 58 | ~~Research: claw-code + OmO/OmX Patterns~~ DONE | Studied claw-code (168K stars), OmO (48K), OmX (16K). 16 candidate patterns identified. Codex certified 8/10 round 3. All candidates require Prove It Gate. Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` |
 | 4 | 103 | ~~Fix: self_review 0% in E2E Scoring~~ DONE | Root cause: simulation prompt said "self-review" without explaining HOW (Read/Grep on modified files) or marking it scored. Golden output had text-only review (the exact NO example from the evaluator). Fix: all 5 simulation prompts now explain self-review = Read back modified files + marked scored in IMPORTANT section. Golden output/scores updated. 4 new tests |
 
@@ -107,7 +107,8 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 91 | Multi-Agent Adapter Layer | Codex/Cursor/Windsurf adapters. Skills port directly, hooks need per-agent adaptation. Expands reach beyond Claude Code |
+| 1 | 173 | ~~Fix: Hook False-Positive in Non-SDLC Dirs~~ DONE | PR #175. Silent exit when walk-up finds neither SDLC.md nor TESTING.md. Partial setups (one file) still warn. Added `find_partial_sdlc_root` helper. 2 new tests (60 total hook tests) |
+| 2 | 174 | Warn on Ephemeral Marketplace Path | CLI `check` command should warn when marketplace source points to /tmp or /var/folders |
 
 Deferred: #83 (Local Model — needs real demand signal), #82 (Domain DLCs — Stefan's separate track), #71 (KAIROS — watch-only until CC feature exits experimental), #67 (Agent Team Hooks — same)
 
@@ -134,6 +135,7 @@ Living tracker of projects shipped using this wizard. **Rule:** only list projec
 | Project | Repo | Status |
 |---------|------|--------|
 | SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.30.0 |
+| Codex SDLC Adapter | BaseInfinity/codex-sdlc-wizard | v1, shipped with SDLC workflow |
 | _(add as projects are marked)_ | | |
 
 **TODO:** audit Stefan's GitHub projects + production apps, mark the ones that used the wizard, then list them here. Do not populate from memory — only list what's been marked.
