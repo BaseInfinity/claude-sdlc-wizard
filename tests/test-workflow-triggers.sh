@@ -1924,7 +1924,7 @@ test_monthly_cleans_output_before_candidate() {
     fi
 }
 
-# Test 97: README workflow count matches actual count (5 workflows)
+# Test 97: README uses count-free workflow language (hardcoded counts drift — #102)
 test_readme_workflow_count_accurate() {
     README="$REPO_ROOT/README.md"
 
@@ -1933,13 +1933,12 @@ test_readme_workflow_count_accurate() {
         return
     fi
 
-    # Count actual workflow files
-    ACTUAL_COUNT=$(ls "$REPO_ROOT"/.github/workflows/*.yml 2>/dev/null | wc -l | tr -d ' ')
-
-    if grep -q "All $ACTUAL_COUNT workflows" "$README"; then
-        pass "README workflow count ($ACTUAL_COUNT) matches actual workflow files"
+    # README should say "All workflows" not "All N workflows"
+    # Hardcoded counts drift silently (#102 — doc consistency enforcement)
+    if grep -q "All workflows" "$README" && ! grep -qE 'All [0-9]+ workflows' "$README"; then
+        pass "README uses count-free workflow language"
     else
-        fail "README workflow count does not match actual count ($ACTUAL_COUNT workflows)"
+        fail "README should use 'All workflows' not a hardcoded count (see #102)"
     fi
 }
 
