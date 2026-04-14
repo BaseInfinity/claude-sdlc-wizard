@@ -171,6 +171,9 @@ jobs:
       - name: Run degradation detection tests
         run: ./tests/test-degradation-detection.sh
 
+      - name: Run doc consistency tests
+        run: ./tests/test-doc-consistency.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
