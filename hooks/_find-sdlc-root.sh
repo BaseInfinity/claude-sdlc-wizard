@@ -18,3 +18,19 @@ find_sdlc_root() {
     done
     return 1
 }
+
+# find_partial_sdlc_root — walks up looking for EITHER SDLC.md OR TESTING.md
+# Used to detect partial setup (one file exists but not both) vs not-an-SDLC-project
+find_partial_sdlc_root() {
+    local check_dir
+    check_dir="$(pwd)"
+    SDLC_ROOT=""
+    while [ "$check_dir" != "/" ] && [ "$check_dir" != "$HOME" ] && [ -n "$check_dir" ]; do
+        if [ -f "$check_dir/SDLC.md" ] || [ -f "$check_dir/TESTING.md" ]; then
+            SDLC_ROOT="$check_dir"
+            return 0
+        fi
+        check_dir="$(dirname "$check_dir")"
+    done
+    return 1
+}
