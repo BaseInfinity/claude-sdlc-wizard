@@ -1914,7 +1914,7 @@ test_cc_version_check_nonblocking() {
     printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm"
     local exit_code
-    PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" > /dev/null 2>&1
+    (cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK") > /dev/null 2>&1
     exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ]; then
@@ -1935,7 +1935,7 @@ test_cc_version_shows_update() {
     printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "Claude Code update" && echo "$output" | grep -q "2.1.81" && echo "$output" | grep -q "2.1.90"; then
         pass "Shows CC update notification with version numbers"
@@ -1955,7 +1955,7 @@ test_cc_version_no_notification_when_current() {
     printf '#!/bin/bash\nif [ "$1" = "view" ] && echo "$@" | grep -q "claude-code"; then echo "2.1.90"; elif [ "$1" = "view" ]; then echo "1.23.0"; fi\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "Claude Code update"; then
         fail "Should NOT show CC update notification when versions match, got: $output"
@@ -2014,7 +2014,7 @@ test_review_staleness_warns_when_stale() {
     printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -qi "review\|stale\|cross-model"; then
         pass "Warns when cross-model reviews are stale (many commits since last review)"
@@ -2045,7 +2045,7 @@ test_review_staleness_silent_when_recent() {
     printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -qi "review\|stale\|cross-model"; then
         fail "Should NOT warn when cross-model review is recent, got: $output"
@@ -2067,7 +2067,7 @@ test_review_staleness_silent_no_reviews_dir() {
     printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
     local output
-    output=$(PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -qi "review\|stale\|cross-model"; then
         fail "Should NOT warn when .reviews/ doesn't exist (not configured), got: $output"
@@ -2088,7 +2088,7 @@ test_review_staleness_silent_no_codex() {
     # Empty bin — no codex, no npm, no claude
     mkdir -p "$tmpdir/bin"
     local output
-    output=$(PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" 2>/dev/null)
     local exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -qi "review\|stale\|cross-model"; then
@@ -2123,7 +2123,7 @@ test_review_staleness_nonblocking() {
     printf '#!/bin/bash\necho "codex-cli 0.118.0"\n' > "$tmpdir/bin/codex"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
     local exit_code
-    PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK" > /dev/null 2>&1
+    (cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$INSTRUCTIONS_HOOK") > /dev/null 2>&1
     exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ]; then
