@@ -163,12 +163,13 @@ jobs:
             4. For medium/hard tasks, plan your approach before coding (outline steps in a message)
             5. Follow TDD: write/update tests FIRST, verify they fail, then implement
             6. Run `npm test` to verify all tests pass
-            7. Self-review your changes before finishing
+            7. Self-review: use Read to read back the files you modified, check for issues
 
             IMPORTANT:
             - You MUST use TodoWrite or TaskCreate (scored by automated checks)
             - You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)
             - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
+            - You MUST self-review by using Read on files you modified before finishing (scored by automated checks)
             - All files you need are in the working directory — do not search elsewhere
             - Be efficient with your turns — execute, don't just plan
             - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead

@@ -80,6 +80,59 @@ test_prompt_mentions_self_review() {
     fi
 }
 
+test_prompt_self_review_explains_how() {
+    # Self-review was 0% across all E2E evaluations because the prompt just said
+    # "self-review your changes" without explaining HOW (Read/Grep/diff on modified files).
+    # The evaluator requires tool-based evidence, not just text statements.
+    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qiE 'Read.*modified|Read.*files.*changed|Read.*back|review.*Read|Grep.*diff|git diff'; then
+        pass "Prompt explains self-review means using Read/Grep/diff on modified files"
+    else
+        fail "Prompt must explain self-review = use Read/Grep/diff on modified files (scored criterion)"
+    fi
+}
+
+test_prompt_self_review_marked_scored() {
+    # Self-review must be in the IMPORTANT/scored section, not just step list.
+    # Other scored criteria (task_tracking, confidence, tdd_red) all have MUST + scored warnings.
+    if grep -A 40 'IMPORTANT:' "$CI_FILE" | grep -qiE 'self.review.*scored|review.*scored|self.review.*MUST'; then
+        pass "Prompt marks self-review as scored in IMPORTANT section"
+    else
+        fail "Prompt must mark self-review as scored in IMPORTANT section (like task_tracking, confidence, tdd_red)"
+    fi
+}
+
+test_all_structured_simulation_prompts_have_self_review() {
+    # Every individual prompt block in workflows with structured prompts must have
+    # self-review in both STEPS and IMPORTANT. Counts occurrences to ensure each
+    # prompt block is individually covered (ci.yml has 4 blocks, benchmark has 1).
+    local missing=""
+    for wf in "$REPO_ROOT"/.github/workflows/*.yml; do
+        [ ! -f "$wf" ] && continue
+        grep -q 'STEPS:' "$wf" || continue
+        grep -q 'IMPORTANT:' "$wf" || continue
+        local basename
+        basename=$(basename "$wf")
+        # Count prompt blocks (each "STEPS:" starts a new prompt)
+        local prompt_count step_review_count important_review_count
+        prompt_count=$(grep -c 'STEPS:' "$wf")
+        # Count self-review in step 7 (Read back files)
+        step_review_count=$(grep -ciE 'Self-review:.*Read.*back.*files|Read.*back.*files.*modified|Read.*files.*modified' "$wf")
+        # Count self-review in IMPORTANT (MUST + scored)
+        important_review_count=$(grep -ciE 'MUST self.review.*scored|self.review.*MUST.*scored' "$wf")
+        if [ "$step_review_count" -lt "$prompt_count" ]; then
+            missing="$missing $basename(STEPS:$step_review_count/$prompt_count)"
+        fi
+        if [ "$important_review_count" -lt "$prompt_count" ]; then
+            missing="$missing $basename(IMPORTANT:$important_review_count/$prompt_count)"
+        fi
+    done
+    if [ -z "$missing" ]; then
+        pass "All structured simulation prompts have self-review in STEPS + IMPORTANT"
+    else
+        fail "Missing self-review in structured simulation prompts:$missing"
+    fi
+}
+
 # -----------------------------------------------
 # Infrastructure tests
 # -----------------------------------------------
@@ -139,6 +192,9 @@ test_prompt_mentions_confidence
 test_prompt_mentions_tdd
 test_prompt_mentions_plan_mode
 test_prompt_mentions_self_review
+test_prompt_self_review_explains_how
+test_prompt_self_review_marked_scored
+test_all_structured_simulation_prompts_have_self_review
 test_output_limit_adequate
 test_fixture_app_size
 test_fixture_has_multiple_source_files

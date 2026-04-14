@@ -122,6 +122,77 @@ test_golden_json_files_paired() {
     fi
 }
 
+test_high_compliance_has_tool_based_self_review() {
+    # self_review scored 0% across all E2E evaluations because the golden output
+    # only had text like "Let me review" — the evaluator requires Read/Grep/diff
+    # tool calls on modified files. High-compliance must demonstrate actual tool use.
+    local high_txt="$GOLDEN_DIR/high-compliance.txt"
+    if [ ! -f "$high_txt" ]; then
+        fail "high-compliance.txt not found"
+        return
+    fi
+    # Must show "Read file:" format (tool invocation), not just prose about reading.
+    # "Read file: src/foo.js" is a tool call; "Let me Read back the files" is prose.
+    if grep -qE '^Read file: ' "$high_txt"; then
+        pass "High-compliance golden output has tool-based self-review (Read file: invocations)"
+    else
+        fail "High-compliance golden output must show 'Read file:' tool invocations on modified files"
+    fi
+}
+
+test_high_compliance_json_read_after_write() {
+    # The golden JSON must have Read tool_use blocks AFTER Write/Edit blocks,
+    # AND the Read file_paths must overlap with previously Written file_paths.
+    # This proves self-review reads back the same files that were modified.
+    local high_json="$GOLDEN_DIR/high-compliance.json"
+    if [ ! -f "$high_json" ]; then
+        fail "high-compliance.json not found"
+        return
+    fi
+    # Extract tool_use name+file_path pairs in order
+    local tool_pairs
+    tool_pairs=$(jq -r '
+        [.[] | select(.role == "assistant") |
+         if (.content | type) == "array" then .content[]
+         else empty end |
+         select(.type == "tool_use" and (.name == "Write" or .name == "Edit" or .name == "Read" or .name == "Grep")) |
+         "\(.name):\(.input.file_path // "unknown")"
+        ] | .[]
+    ' "$high_json" 2>/dev/null)
+    # Track written files, then verify reads overlap
+    local written_files="" read_matches_write=false
+    while IFS= read -r pair; do
+        local tool_name file_path
+        tool_name="${pair%%:*}"
+        file_path="${pair#*:}"
+        case "$tool_name" in
+            Write|Edit) written_files="$written_files $file_path" ;;
+            Read|Grep)
+                # Check if this file was previously written
+                if echo "$written_files" | grep -qF "$file_path"; then
+                    read_matches_write=true
+                fi
+                ;;
+        esac
+    done <<< "$tool_pairs"
+    if [ "$read_matches_write" = true ]; then
+        pass "High-compliance JSON has Read on previously Written files (self-review targets correct files)"
+    else
+        fail "High-compliance JSON must have Read/Grep on files that were Write/Edit'd earlier"
+    fi
+}
+
+test_high_compliance_self_review_expected_score() {
+    # Golden scores must expect self_review=1 for high-compliance
+    local min_score
+    min_score=$(jq '.["high-compliance"].expected_llm.self_review.min' "$SCORES_FILE")
+    if [ "$min_score" = "1" ]; then
+        pass "High-compliance expects self_review min=1"
+    else
+        fail "High-compliance self_review.min should be 1, got $min_score (self_review is a critical criterion)"
+    fi
+}
+
 # -----------------------------------------------
 # Deterministic score validation (no API key needed)
 # -----------------------------------------------
@@ -258,6 +329,9 @@ test_scores_file_valid_json
 test_golden_outputs_exist
 test_golden_json_files_paired
 test_golden_scores_match_outputs
+test_high_compliance_has_tool_based_self_review
+test_high_compliance_json_read_after_write
+test_high_compliance_self_review_expected_score
 
 # Deterministic validation for each golden output
 for golden_file in "$GOLDEN_DIR"/*.txt; do
