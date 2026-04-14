@@ -204,17 +204,22 @@ test_instructions_hook_missing_testing() {
     fi
 }
 
-# Test 15: Warns when both are missing
+# Test 15: Silent when neither file exists (not an SDLC project, #173)
 test_instructions_hook_missing_both() {
     local tmpdir
     tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
     local output
-    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
-    if echo "$output" | grep -qi "SDLC.md" && echo "$output" | grep -qi "TESTING.md"; then
-        pass "instructions-loaded-check.sh warns when both files missing"
+    if [ -z "$output" ]; then
+        pass "instructions-loaded-check.sh silent when neither SDLC file exists (#173)"
     else
-        fail "Should warn about both missing files, got: $output"
+        fail "Should be silent when no SDLC project, got: $output"
     fi
 }
 
@@ -349,15 +354,24 @@ test_sdlc_update_frequency() {
     fi
 }
 
-# Test 25: instructions-loaded-check.sh mentions setup-wizard when files missing
+# Test 25: instructions-loaded-check.sh mentions setup-wizard on partial setup
 test_instructions_hook_mentions_setup_wizard() {
     local tmpdir
     tmpdir=$(mktemp -d)
+    # Partial setup: only TESTING.md exists — should warn about missing SDLC.md
+    # CWD must be below HOME for walk-up to check the project dir
+    mkdir -p "$tmpdir/project"
+    touch "$tmpdir/project/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
     local output
-    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard"; then
-        pass "instructions-loaded-check.sh mentions setup-wizard when files missing"
+        pass "instructions-loaded-check.sh mentions setup-wizard on partial setup"
     else
         fail "Should mention setup-wizard skill invocation, got: $output"
     fi
@@ -425,18 +439,20 @@ test_sdlc_hook_setup_redirect_empty_stubs() {
     fi
 }
 
-# Test 30: Template hook behaves identically to repo hook (post-install execution test)
+# Test 30: Template hook redirects to setup-wizard on partial setup (one file present)
 test_template_hook_setup_redirect() {
     local TEMPLATE_HOOK="$SCRIPT_DIR/../hooks/sdlc-prompt-check.sh"
     if [ ! -f "$TEMPLATE_HOOK" ]; then fail "Template hook not found"; return; fi
     local tmpdir
     tmpdir=$(mktemp -d)
-    # Templates aren't executable in repo — CLI sets chmod +x at install time
+    # Partial setup: only TESTING.md exists, CWD below HOME for walk-up
+    mkdir -p "$tmpdir/project"
+    touch "$tmpdir/project/TESTING.md"
     local output
-    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" bash "$TEMPLATE_HOOK" 2>/dev/null)
+    output=$(cd "$tmpdir/project" && CLAUDE_PROJECT_DIR="" HOME="$tmpdir" bash "$TEMPLATE_HOOK" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "setup-wizard"; then
-        pass "Template hook redirects to setup-wizard when files missing"
+        pass "Template hook redirects to setup-wizard on partial setup"
     else
         fail "Template hook should redirect to setup-wizard, got: $output"
     fi
@@ -889,18 +905,14 @@ test_sdlc_hook_cwd_walkup_prefers_nearest() {
 test_sdlc_hook_cwd_walkup_fallback() {
     local tmpdir
     tmpdir=$(mktemp -d)
-    local projdir
-    projdir=$(mktemp -d)
-    echo "# SDLC" > "$projdir/SDLC.md"
-    echo "# Testing" > "$projdir/TESTING.md"
-    # CWD has nothing, but CLAUDE_PROJECT_DIR points to valid project
+    # CWD has nothing — hook should exit silently (#173: no fallback to CLAUDE_PROJECT_DIR)
     local output
-    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="$projdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
-    rm -rf "$tmpdir" "$projdir"
-    if echo "$output" | grep -q "SDLC BASELINE"; then
-        pass "sdlc-prompt-check.sh falls back to CLAUDE_PROJECT_DIR when CWD walk fails"
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="" HOME="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "sdlc-prompt-check.sh exits silently when CWD walk finds no SDLC project"
     else
-        fail "Should fall back to CLAUDE_PROJECT_DIR when CWD walk finds nothing"
+        fail "Should exit silently when CWD walk finds nothing, got: $(echo "$output" | head -1)"
     fi
 }
 
@@ -944,12 +956,48 @@ test_sdlc_hook_cwd_walkup_empty_stubs() {
     fi
 }
 
+# Test: Non-SDLC directory — hooks silent when walk-up finds nothing (#173)
+test_sdlc_hook_silent_non_sdlc_dir() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # CWD has no SDLC.md anywhere up to $HOME, CLAUDE_PROJECT_DIR unset
+    local output
+    output=$(cd "$tmpdir" && CLAUDE_PROJECT_DIR="" HOME="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "sdlc-prompt-check.sh silent in non-SDLC directory (#173)"
+    else
+        fail "sdlc-prompt-check.sh should be silent in non-SDLC dir, got: $(echo "$output" | head -1)"
+    fi
+}
+
+# Test: instructions-loaded-check silent in non-SDLC directory (#173)
+test_instructions_hook_silent_non_sdlc_dir() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "instructions-loaded-check.sh silent in non-SDLC directory (#173)"
+    else
+        fail "instructions-loaded-check.sh should be silent in non-SDLC dir, got: $(echo "$output" | head -1)"
+    fi
+}
+
 test_find_sdlc_root_helper_exists
 test_sdlc_hook_cwd_walkup_finds_nested
 test_sdlc_hook_cwd_walkup_prefers_nearest
 test_sdlc_hook_cwd_walkup_fallback
 test_instructions_hook_cwd_walkup
 test_sdlc_hook_cwd_walkup_empty_stubs
+test_sdlc_hook_silent_non_sdlc_dir
+test_instructions_hook_silent_non_sdlc_dir
 
 echo ""
 echo "--- SDLC enforcement gap audit ---"
