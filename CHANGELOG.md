@@ -4,6 +4,23 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.31.0] - 2026-04-14
+
+### Added
+- Ephemeral marketplace path detection in CLI `check` command (#174)
+  - Scans `~/.claude/settings.json` `extraKnownMarketplaces` for directory sources on ephemeral paths (`/tmp/`, `/private/tmp/`, `/var/folders/`)
+  - `EPHEMERAL` status (path exists but in ephemeral root) warns but doesn't fail check
+  - `DANGLING` status (path doesn't exist) errors with non-zero exit code
+  - Suggests moving to `~/.claude/plugins-local/<name>` for stable installs
+  - JSON output (`--json`) includes new `marketplace` field
+  - 10 new tests (51 total CLI tests)
+
+### Fixed
+- Hook false-positive "SETUP NOT COMPLETE" in non-SDLC directories (#173, PR #175)
+  - Three-way detection: both files (normal), one file (warn partial setup), neither (silent exit)
+  - Added `find_partial_sdlc_root` helper for partial-setup detection
+  - 2 new hook tests (60 total hook tests)
+
 ## [1.30.0] - 2026-04-12
 
 ### Added
