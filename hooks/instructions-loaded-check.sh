@@ -4,7 +4,16 @@
 # Available since Claude Code v2.1.69
 # Note: no set -e — this hook must always exit 0 to not block session start
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+# Walk up from CWD to find nearest SDLC.md + TESTING.md (#171: monorepo support)
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HOOK_DIR/_find-sdlc-root.sh"
+
+if find_sdlc_root; then
+    PROJECT_DIR="$SDLC_ROOT"
+else
+    PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+fi
+
 MISSING=""
 
 if [ ! -f "$PROJECT_DIR/SDLC.md" ]; then
