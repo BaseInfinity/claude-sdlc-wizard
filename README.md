@@ -87,7 +87,7 @@ Layer 4: STATISTICAL VALIDATION
   SDP normalizes for model quality. CUSUM catches drift.
 
 Layer 3: SCORING ENGINE
-  7 criteria, 10/11 points. Claude evaluates Claude.
+  Multi-criteria scoring, 10/11 points. Claude evaluates Claude.
   Before/after wizard A/B comparison in CI.
 
 Layer 2: ENFORCEMENT
@@ -229,7 +229,7 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | Document | What It Covers |
 |----------|---------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, 5-layer diagram, data flows, file structure |
-| [CI_CD.md](CI_CD.md) | All 7 workflows, E2E scoring, tier system, SDP, integrity checks |
+| [CI_CD.md](CI_CD.md) | All workflows, E2E scoring, tier system, SDP, integrity checks |
 | [SDLC.md](SDLC.md) | Version tracking, enforcement rules, SDLC configuration |
 | [TESTING.md](TESTING.md) | Testing philosophy, test diamond, TDD approach |
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |

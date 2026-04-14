@@ -55,6 +55,7 @@ This is a **meta-project** - it's a wizard that sets up other projects. Traditio
 | `tests/test-firmware-fixture.sh` | Firmware fixture | Domain indicators, Python overlay, test infra, multi-device, no-web negative test |
 | `tests/test-model-comparison.sh` | Model comparison benchmark | Workflow structure, model parameterization, error handling, cost controls |
 | `tests/test-degradation-detection.sh` | Degradation detection | Score persistence, fork guard, wizard hardening, anti-laziness mechanisms |
+| `tests/test-doc-consistency.sh` | Doc consistency | Workflow/file/skill/scenario counts match filesystem, no stale hardcoded counts |
 
 **How to run:**
 ```bash
