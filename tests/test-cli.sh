@@ -902,6 +902,299 @@ test_merge_respects_user_autocompact
 test_merge_force_resets_autocompact
 test_setup_skill_references_settings_json
 
+# === Marketplace Path Check Tests (#174) ===
+
+# Test 42: check warns on ephemeral /tmp/ marketplace path (EPHEMERAL — path exists)
+test_check_marketplace_ephemeral_tmp() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    # make_temp creates under $TMPDIR which is /tmp/... — matches ephemeral regex
+    local ephemeral_dir
+    ephemeral_dir=$(make_temp)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << FIXTURE
+{
+  "extraKnownMarketplaces": {
+    "sdlc-local": {
+      "source": { "source": "directory", "path": "$ephemeral_dir" }
+    }
+  }
+}
+FIXTURE
+    local output
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1)
+    if echo "$output" | grep -q "EPHEMERAL"; then
+        pass "check warns on ephemeral /tmp/ marketplace path"
+    else
+        fail "check should warn EPHEMERAL for /tmp/ path (got: $output)"
+    fi
+    rm -rf "$d" "$fake_home" "$ephemeral_dir"
+}
+
+# Test 43: check detects reaped ephemeral path as DANGLING with ephemeral message
+test_check_marketplace_reaped_ephemeral() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "extraKnownMarketplaces": {
+    "my-plugin": {
+      "source": { "source": "directory", "path": "/tmp/definitely-reaped-plugin-xyz" }
+    }
+  }
+}
+FIXTURE
+    local output exit_code
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    if [ "$exit_code" -ne 0 ] && echo "$output" | grep -q "DANGLING" && echo "$output" | grep -qi "reaped"; then
+        pass "check detects reaped ephemeral path as DANGLING"
+    else
+        fail "check should show DANGLING + reaped message for missing ephemeral path (exit=$exit_code)"
+    fi
+    rm -rf "$d" "$fake_home"
+}
+
+# Test 44: check errors on dangling (non-existent, non-ephemeral) marketplace path
+test_check_marketplace_dangling() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "extraKnownMarketplaces": {
+    "gone-plugin": {
+      "source": { "source": "directory", "path": "/opt/definitely-does-not-exist-xyz" }
+    }
+  }
+}
+FIXTURE
+    local output exit_code
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    if [ "$exit_code" -ne 0 ] && echo "$output" | grep -q "DANGLING"; then
+        pass "check errors on dangling marketplace path (exit=$exit_code)"
+    else
+        fail "check should error on non-existent marketplace path (exit=$exit_code)"
+    fi
+    rm -rf "$d" "$fake_home"
+}
+
+# Test 45: check passes clean with no marketplace entries
+test_check_marketplace_no_entries() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    echo '{}' > "$fake_home/.claude/settings.json"
+    local output
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1)
+    if ! echo "$output" | grep -qi "marketplace\|ephemeral\|DANGLING"; then
+        pass "check passes clean with no marketplace entries"
+    else
+        fail "check should not mention marketplace when no entries exist"
+    fi
+    rm -rf "$d" "$fake_home"
+}
+
+# Test 46: check --json includes marketplace field
+test_check_marketplace_json_output() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local ephemeral_dir
+    ephemeral_dir=$(make_temp)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << FIXTURE
+{
+  "extraKnownMarketplaces": {
+    "test-plugin": {
+      "source": { "source": "directory", "path": "$ephemeral_dir" }
+    }
+  }
+}
+FIXTURE
+    local output
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check --json 2>&1)
+    if echo "$output" | python3 -c "import json, sys; d=json.load(sys.stdin); assert 'marketplace' in d" 2>/dev/null; then
+        pass "check --json includes marketplace field"
+    else
+        fail "check --json should include marketplace field"
+    fi
+    rm -rf "$d" "$fake_home" "$ephemeral_dir"
+}
+
+# Test 47: check skips non-directory marketplace sources
+test_check_marketplace_skips_non_directory() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "extraKnownMarketplaces": {
+    "remote-plugin": {
+      "source": { "source": "url", "url": "https://example.com/plugin" }
+    }
+  }
+}
+FIXTURE
+    local output
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1)
+    if ! echo "$output" | grep -qi "ephemeral\|DANGLING"; then
+        pass "check skips non-directory marketplace sources"
+    else
+        fail "check should not warn about non-directory marketplace sources"
+    fi
+    rm -rf "$d" "$fake_home"
+}
+
+# Test 48: check suggests stable path for ephemeral marketplace
+test_check_marketplace_suggests_fix() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local ephemeral_dir
+    ephemeral_dir=$(make_temp)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << FIXTURE
+{
+  "extraKnownMarketplaces": {
+    "my-wizard": {
+      "source": { "source": "directory", "path": "$ephemeral_dir" }
+    }
+  }
+}
+FIXTURE
+    local output
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1)
+    if echo "$output" | grep -q "plugins-local"; then
+        pass "check suggests stable ~/.claude/plugins-local/ path"
+    else
+        fail "check should suggest ~/.claude/plugins-local/ for ephemeral paths"
+    fi
+    rm -rf "$d" "$fake_home" "$ephemeral_dir"
+}
+
+# Test 49: check detects /private/var/folders/ as ephemeral (Codex finding #1)
+test_check_marketplace_private_var_folders() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    # Create a real dir under /private/var/folders (macOS canonical realpath)
+    # Use TMPDIR's realpath which should be under /private/var/folders/
+    local real_tmpdir
+    real_tmpdir=$(python3 -c "import os; print(os.path.realpath('${TMPDIR:-/tmp}'))")
+    local ephemeral_dir
+    ephemeral_dir=$(mktemp -d "${real_tmpdir}/sdlc-pvf-test-XXXXXX")
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << FIXTURE
+{
+  "extraKnownMarketplaces": {
+    "pvf-plugin": {
+      "source": { "source": "directory", "path": "$ephemeral_dir" }
+    }
+  }
+}
+FIXTURE
+    local output
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1)
+    if echo "$output" | grep -q "EPHEMERAL"; then
+        pass "check detects /private/var/folders/ as ephemeral"
+    else
+        fail "check should detect /private/var/folders/ as ephemeral (got: $output)"
+    fi
+    rm -rf "$d" "$fake_home" "$ephemeral_dir"
+}
+
+# Test 50: check handles malformed source.path (non-string) gracefully (Codex finding #2)
+test_check_marketplace_malformed_path() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "extraKnownMarketplaces": {
+    "bad-plugin": {
+      "source": { "source": "directory", "path": {"not": "a-string"} }
+    }
+  }
+}
+FIXTURE
+    local output exit_code
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check --json 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    # Should not crash — should output valid JSON
+    if echo "$output" | python3 -c "import json, sys; json.load(sys.stdin)" 2>/dev/null; then
+        pass "check handles malformed source.path (non-string) gracefully"
+    else
+        fail "check should not crash on non-string source.path (exit=$exit_code)"
+    fi
+    rm -rf "$d" "$fake_home"
+}
+
+# Test 51: non-ephemeral DANGLING path shows "does not exist" heading (Codex finding #3)
+test_check_marketplace_dangling_heading() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local fake_home
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "extraKnownMarketplaces": {
+    "gone-plugin": {
+      "source": { "source": "directory", "path": "/opt/definitely-does-not-exist-xyz" }
+    }
+  }
+}
+FIXTURE
+    local output exit_code
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1) || exit_code=$?
+    exit_code=${exit_code:-0}
+    if echo "$output" | grep -q "does not exist:" && ! echo "$output" | grep -q "ephemeral:"; then
+        pass "non-ephemeral DANGLING shows 'does not exist' heading, not 'ephemeral'"
+    else
+        fail "non-ephemeral DANGLING should say 'does not exist:', not 'ephemeral:'"
+    fi
+    rm -rf "$d" "$fake_home"
+}
+
+test_check_marketplace_ephemeral_tmp
+test_check_marketplace_reaped_ephemeral
+test_check_marketplace_dangling
+test_check_marketplace_no_entries
+test_check_marketplace_json_output
+test_check_marketplace_skips_non_directory
+test_check_marketplace_suggests_fix
+test_check_marketplace_private_var_folders
+test_check_marketplace_malformed_path
+test_check_marketplace_dangling_heading
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
