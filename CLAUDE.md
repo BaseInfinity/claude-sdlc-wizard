@@ -1,5 +1,9 @@
 # SDLC Wizard - Claude Instructions
 
+> **Part of the [XDLC ecosystem](https://github.com/BaseInfinity/xdlc)** — this is the SDLC sibling, installed into every project as the code quality layer.
+>
+> **Skills first → wizard later.** Build skills on real work; only graduate to a self-improving wizard once re-use proves what's portable. sdlc-wizard earned the wizard form — it didn't start there.
+
 ## Project Overview
 
 This is a **meta-repository** - it contains the SDLC Wizard documentation and automation, not traditional application code.
