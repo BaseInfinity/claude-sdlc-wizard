@@ -1238,12 +1238,15 @@ test_init_blocks_on_plugin_local() {
     stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
     make_plugin_home "$fake_home" "local"
     exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home")
+    local error_lines
+    error_lines=$(grep -cE '^Error:' "$stderr_f" || true)
     if [ "$exit_code" -ne 0 ] \
        && grep -qi "plugin install detected" "$stderr_f" \
-       && [ ! -d "$d/.claude" ]; then
-        pass "init blocks and warns (stderr) when plugins-local detected"
+       && [ ! -d "$d/.claude" ] \
+       && [ "$error_lines" = "0" ]; then
+        pass "init blocks, guidance stands alone (no duplicate Error: line)"
     else
-        fail "init should block on plugins-local (exit=$exit_code, stderr=$(cat "$stderr_f"))"
+        fail "init block should not duplicate Error prefix (exit=$exit_code, error_lines=$error_lines, stderr=$(cat "$stderr_f"))"
     fi
     rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
 }
