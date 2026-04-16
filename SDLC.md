@@ -36,7 +36,8 @@ This repository uses the SDLC Wizard to enforce:
 |------|---------|---------|
 | `sdlc-prompt-check.sh` | Every prompt | SDLC baseline reminder |
 | `tdd-pretool-check.sh` | Before Write/Edit | TDD reminder for workflows |
-| `instructions-loaded-check.sh` | Session start | Validates SDLC.md/TESTING.md exist |
+| `instructions-loaded-check.sh` | Session start | Validates SDLC.md/TESTING.md exist, effort/model check |
+| `model-effort-check.sh` | Session start | Nudges upgrade when effort/model is behind recommended |
 
 ## Skills Available
 
@@ -72,7 +73,8 @@ When Claude Code releases new features:
 ├── hooks/
 │   ├── sdlc-prompt-check.sh      # SDLC baseline
 │   ├── tdd-pretool-check.sh      # TDD reminder
-│   └── instructions-loaded-check.sh  # Session start validation
+│   ├── instructions-loaded-check.sh  # Session start validation + effort/model
+│   └── model-effort-check.sh     # SessionStart upgrade nudge
 └── skills/
     ├── sdlc/SKILL.md             # SDLC workflow
     ├── setup/SKILL.md            # Setup wizard
