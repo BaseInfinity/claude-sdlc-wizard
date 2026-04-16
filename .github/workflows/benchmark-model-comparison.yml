@@ -10,7 +10,7 @@ on:
           - 'claude-sonnet-4-6'
           - 'claude-opus-4-6'
           - 'claude-opus-4-7'
-        default: 'claude-opus-4-6'
+        default: 'claude-opus-4-7'
       effort:
         description: 'Reasoning effort level'
         type: choice
@@ -18,7 +18,7 @@ on:
           - 'high'
           - 'xhigh'
           - 'max'
-        default: 'high'
+        default: 'xhigh'
       scenario:
         description: 'Scenario to run (filename without .md, or "all")'
         type: string
