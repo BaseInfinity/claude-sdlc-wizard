@@ -1000,6 +1000,131 @@ test_sdlc_hook_silent_non_sdlc_dir
 test_instructions_hook_silent_non_sdlc_dir
 
 echo ""
+echo "--- Model/effort upgrade detection (#179) ---"
+
+# Test: model-effort-check.sh exists and is executable
+test_model_effort_check_exists() {
+    if [ -x "$HOOKS_DIR/model-effort-check.sh" ]; then
+        pass "model-effort-check.sh exists and is executable"
+    else
+        fail "model-effort-check.sh not found or not executable"
+    fi
+}
+
+# Test: detects stale model and outputs upgrade nudge
+test_model_effort_check_stale_model() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.json"
+    local output
+    output=$(echo '{"model":"claude-opus-4-6","session_id":"test"}' | HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q '/model'; then
+        pass "model-effort-check.sh nudges to upgrade model when on opus-4-6"
+    else
+        fail "model-effort-check.sh should nudge /model when on stale model, got: $output"
+    fi
+}
+
+# Test: detects stale effort and outputs upgrade nudge
+test_model_effort_check_stale_effort() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
+    local output
+    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q '/effort'; then
+        pass "model-effort-check.sh nudges to upgrade effort when on high"
+    else
+        fail "model-effort-check.sh should nudge /effort when effort is stale, got: $output"
+    fi
+}
+
+# Test: silent when model and effort are both current
+test_model_effort_check_silent_when_current() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.json"
+    local output
+    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "model-effort-check.sh silent when model and effort are current"
+    else
+        fail "model-effort-check.sh should be silent when current, got: $output"
+    fi
+}
+
+# Test: graceful when no JSON stdin (non-blocking)
+test_model_effort_check_no_stdin() {
+    local exit_code
+    echo "" | "$HOOKS_DIR/model-effort-check.sh" > /dev/null 2>&1
+    exit_code=$?
+    if [ "$exit_code" -eq 0 ]; then
+        pass "model-effort-check.sh exits 0 when stdin is empty"
+    else
+        fail "model-effort-check.sh should exit 0 on empty stdin, got exit $exit_code"
+    fi
+}
+
+# Test: settings.json has SessionStart hook wired
+test_settings_has_session_start_hook() {
+    local SETTINGS="$SCRIPT_DIR/../.claude/settings.json"
+    if [ ! -f "$SETTINGS" ]; then fail "settings.json not found"; return; fi
+    if grep -q '"SessionStart"' "$SETTINGS" && grep -q 'model-effort-check.sh' "$SETTINGS"; then
+        pass "settings.json wires SessionStart hook to model-effort-check.sh"
+    else
+        fail "settings.json should have SessionStart hook for model-effort-check.sh"
+    fi
+}
+
+# Test: nested CWD uses CLAUDE_PROJECT_DIR for settings (Codex P0 fix)
+test_model_effort_check_nested_cwd() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude" "$tmpdir/src/deep"
+    echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
+    local output
+    output=$(cd "$tmpdir/src/deep" && echo '{"model":"claude-opus-4-7","session_id":"test"}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q '/effort'; then
+        pass "model-effort-check.sh finds project settings via CLAUDE_PROJECT_DIR from nested CWD"
+    else
+        fail "model-effort-check.sh should find project settings from nested CWD, got: $output"
+    fi
+}
+
+# Test: settings.json precedence — local overrides project
+test_model_effort_check_local_overrides_project() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
+    echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.local.json"
+    local output
+    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "model-effort-check.sh respects local settings override (xhigh from local, silent)"
+    else
+        fail "model-effort-check.sh should respect local settings.json override, got: $output"
+    fi
+}
+
+test_model_effort_check_exists
+test_model_effort_check_stale_model
+test_model_effort_check_stale_effort
+test_model_effort_check_silent_when_current
+test_model_effort_check_no_stdin
+test_settings_has_session_start_hook
+test_model_effort_check_nested_cwd
+test_model_effort_check_local_overrides_project
+
+echo ""
 echo "--- SDLC enforcement gap audit ---"
 test_todowrite_has_capture_learnings
 test_todowrite_has_scope_guard

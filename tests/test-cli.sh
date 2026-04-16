@@ -67,7 +67,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 9 expected files
+# Test 4: init creates all 10 expected files
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -77,15 +77,16 @@ test_creates_all_files() {
     [ -f "$d/.claude/hooks/sdlc-prompt-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/tdd-pretool-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/instructions-loaded-check.sh" ] && count=$((count + 1))
+    [ -f "$d/.claude/hooks/model-effort-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/update/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/feedback/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 9 ]; then
-        pass "init creates all 9 expected files"
+    if [ "$count" -eq 10 ]; then
+        pass "init creates all 10 expected files"
     else
-        fail "init should create 9 files, found $count"
+        fail "init should create 10 files, found $count"
     fi
     rm -rf "$d"
 }
@@ -178,7 +179,7 @@ test_wizard_doc() {
     rm -rf "$d"
 }
 
-# Test 10: settings.json is valid JSON with 3 hook events
+# Test 10: settings.json is valid JSON with 4 hook events
 test_settings_json() {
     local d
     d=$(make_temp)
@@ -191,10 +192,10 @@ with open('$d/.claude/settings.json') as f:
 hooks = data.get('hooks', {})
 print(len(hooks))
 " 2>/dev/null)
-    if [ "$hook_count" = "3" ]; then
-        pass "settings.json is valid JSON with 3 hook events"
+    if [ "$hook_count" = "4" ]; then
+        pass "settings.json is valid JSON with 4 hook events"
     else
-        fail "settings.json should have 3 hook events, found: $hook_count"
+        fail "settings.json should have 4 hook events, found: $hook_count"
     fi
     rm -rf "$d"
 }
