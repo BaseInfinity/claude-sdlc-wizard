@@ -1,20 +1,17 @@
 #!/bin/bash
-# SessionStart hook — nudges user when a better model or effort level is available
-# Reads model from JSON stdin (SessionStart payload), effort from settings.json
+# SessionStart hook — nudges user when effort level is below recommended
+# and tells Claude the recommended model so it can compare against its own
+# CC does NOT expose the model to hooks, so model nudge relies on Claude
+# seeing this output and comparing against its system prompt
 # Non-blocking: always exits 0
 
-# Recommended model and effort — update these when new models ship
 RECOMMENDED_MODEL="claude-opus-4-7"
 RECOMMENDED_EFFORT="xhigh"
 
-input=$(cat)
+# Drain stdin (SessionStart sends JSON but model field isn't in it)
+cat > /dev/null
 
 if ! command -v jq > /dev/null 2>&1; then
-    exit 0
-fi
-
-model=$(echo "$input" | jq -r '.model // empty' 2>/dev/null)
-if [ -z "$model" ]; then
     exit 0
 fi
 
@@ -30,21 +27,17 @@ for f in "$project_dir/.claude/settings.local.json" "$project_dir/.claude/settin
     fi
 done
 
-nudge_model=""
-nudge_effort=""
-
-if [ "$model" != "$RECOMMENDED_MODEL" ]; then
-    nudge_model="model: $model → $RECOMMENDED_MODEL (run: /model $RECOMMENDED_MODEL)"
-fi
+nudge=""
 
 if [ -n "$effort" ] && [ "$effort" != "$RECOMMENDED_EFFORT" ]; then
-    nudge_effort="effort: $effort → $RECOMMENDED_EFFORT (run: /effort $RECOMMENDED_EFFORT)"
+    nudge="effort: $effort → $RECOMMENDED_EFFORT (run: /effort $RECOMMENDED_EFFORT)"
 fi
 
-if [ -n "$nudge_model" ] || [ -n "$nudge_effort" ]; then
+if [ -n "$nudge" ]; then
     echo "Upgrade available:"
-    [ -n "$nudge_model" ] && echo "  $nudge_model"
-    [ -n "$nudge_effort" ] && echo "  $nudge_effort"
+    echo "  $nudge"
+    echo "  recommended model: $RECOMMENDED_MODEL (run: /model $RECOMMENDED_MODEL)"
+    echo "  (Claude: compare recommended model against your current model — nudge user if different)"
 fi
 
 exit 0
