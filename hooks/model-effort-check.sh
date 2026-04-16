@@ -19,7 +19,8 @@ if [ -z "$model" ]; then
 fi
 
 effort=""
-for f in ".claude/settings.local.json" ".claude/settings.json" "$HOME/.claude/settings.json"; do
+project_dir="${CLAUDE_PROJECT_DIR:-.}"
+for f in "$project_dir/.claude/settings.local.json" "$project_dir/.claude/settings.json" "$HOME/.claude/settings.json"; do
     if [ -f "$f" ]; then
         val=$(jq -r '.effortLevel // empty' "$f" 2>/dev/null)
         if [ -n "$val" ]; then

@@ -1082,12 +1082,47 @@ test_settings_has_session_start_hook() {
     fi
 }
 
+# Test: nested CWD uses CLAUDE_PROJECT_DIR for settings (Codex P0 fix)
+test_model_effort_check_nested_cwd() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude" "$tmpdir/src/deep"
+    echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
+    local output
+    output=$(cd "$tmpdir/src/deep" && echo '{"model":"claude-opus-4-7","session_id":"test"}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q '/effort'; then
+        pass "model-effort-check.sh finds project settings via CLAUDE_PROJECT_DIR from nested CWD"
+    else
+        fail "model-effort-check.sh should find project settings from nested CWD, got: $output"
+    fi
+}
+
+# Test: settings.json precedence — local overrides project
+test_model_effort_check_local_overrides_project() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
+    echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.local.json"
+    local output
+    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "model-effort-check.sh respects local settings override (xhigh from local, silent)"
+    else
+        fail "model-effort-check.sh should respect local settings.json override, got: $output"
+    fi
+}
+
 test_model_effort_check_exists
 test_model_effort_check_stale_model
 test_model_effort_check_stale_effort
 test_model_effort_check_silent_when_current
 test_model_effort_check_no_stdin
 test_settings_has_session_start_hook
+test_model_effort_check_nested_cwd
+test_model_effort_check_local_overrides_project
 
 echo ""
 echo "--- SDLC enforcement gap audit ---"
