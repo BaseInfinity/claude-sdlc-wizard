@@ -74,16 +74,17 @@ test_model_input_choice() {
     fi
 }
 
-# Test 4: Workflow model choices include both Opus and Sonnet
+# Test 4: Workflow model choices include Opus 4.6, Opus 4.7, and Sonnet
 test_model_choices() {
     if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
-    local has_opus has_sonnet
-    has_opus=$(grep -c "claude-opus-4-6" "$WORKFLOW" || true)
+    local has_opus46 has_opus47 has_sonnet
+    has_opus46=$(grep -c "claude-opus-4-6" "$WORKFLOW" || true)
+    has_opus47=$(grep -c "claude-opus-4-7" "$WORKFLOW" || true)
     has_sonnet=$(grep -c "claude-sonnet-4-6" "$WORKFLOW" || true)
-    if [ "$has_opus" -gt 0 ] && [ "$has_sonnet" -gt 0 ]; then
-        pass "Workflow model choices include both claude-opus-4-6 and claude-sonnet-4-6"
+    if [ "$has_opus46" -gt 0 ] && [ "$has_opus47" -gt 0 ] && [ "$has_sonnet" -gt 0 ]; then
+        pass "Workflow model choices include claude-opus-4-6, claude-opus-4-7, and claude-sonnet-4-6"
     else
-        fail "Workflow missing one or both model choices (opus=$has_opus, sonnet=$has_sonnet)"
+        fail "Workflow missing model choices (opus46=$has_opus46, opus47=$has_opus47, sonnet=$has_sonnet)"
     fi
 }
 
@@ -118,6 +119,26 @@ test_max_turns_input() {
         pass "Workflow has max_turns input with number type, default 55"
     else
         fail "Workflow missing max_turns input with default 55"
+    fi
+}
+
+# Test 4b: Workflow has effort input with choice type (high/xhigh/max)
+test_effort_input() {
+    if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
+    if grep -q "effort:" "$WORKFLOW" && grep -q "xhigh" "$WORKFLOW"; then
+        pass "Workflow has effort input with xhigh option"
+    else
+        fail "Workflow missing effort input with xhigh option"
+    fi
+}
+
+# Test 4c: Workflow passes --effort via claude_args
+test_effort_in_claude_args() {
+    if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
+    if grep -q "\-\-effort" "$WORKFLOW"; then
+        pass "Workflow passes --effort via claude_args"
+    else
+        fail "Workflow missing --effort flag in claude_args"
     fi
 }
 
@@ -525,6 +546,8 @@ test_workflow_valid_yaml
 test_workflow_dispatch_trigger
 test_model_input_choice
 test_model_choices
+test_effort_input
+test_effort_in_claude_args
 test_scenario_input
 test_trials_input
 test_max_turns_input

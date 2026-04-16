@@ -9,7 +9,16 @@ on:
         options:
           - 'claude-sonnet-4-6'
           - 'claude-opus-4-6'
-        default: 'claude-sonnet-4-6'
+          - 'claude-opus-4-7'
+        default: 'claude-opus-4-6'
+      effort:
+        description: 'Reasoning effort level'
+        type: choice
+        options:
+          - 'high'
+          - 'xhigh'
+          - 'max'
+        default: 'high'
       scenario:
         description: 'Scenario to run (filename without .md, or "all")'
         type: string
@@ -46,6 +55,7 @@ jobs:
         id: resolve
         env:
           INPUT_MODEL: ${{ inputs.model }}
+          INPUT_EFFORT: ${{ inputs.effort }}
           INPUT_SCENARIO: ${{ inputs.scenario }}
           INPUT_TRIALS: ${{ inputs.trials }}
           INPUT_MAX_TURNS: ${{ inputs.max_turns }}
@@ -67,6 +77,12 @@ jobs:
           fi
           if [ "$INPUT_MAX_TURNS" -gt 100 ]; then
             echo "::error::max_turns must be <= 100 (got $INPUT_MAX_TURNS). Cost guard."
+            exit 1
+          fi
+
+          # Validate effort level (xhigh only valid on opus-4-7)
+          if [ "$INPUT_EFFORT" = "xhigh" ] && [ "$INPUT_MODEL" != "claude-opus-4-7" ]; then
+            echo "::error::xhigh effort is only supported on claude-opus-4-7 (got $INPUT_MODEL). GitHub Actions resolves inputs before shell runs, so the value cannot be overridden at runtime."
             exit 1
           fi
 
@@ -146,6 +162,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --model ${{ inputs.model }}
+            --effort ${{ inputs.effort }}
             --max-turns ${{ inputs.max_turns }}
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir tests/e2e
@@ -288,6 +305,7 @@ jobs:
       - name: Write results artifact
         env:
           BENCH_MODEL: ${{ inputs.model }}
+          BENCH_EFFORT: ${{ inputs.effort }}
           BENCH_SCENARIO: ${{ matrix.scenario }}
           BENCH_TRIALS: ${{ inputs.trials }}
           BENCH_MAX_TURNS: ${{ inputs.max_turns }}
@@ -304,6 +322,7 @@ jobs:
 
           jq -n \
             --arg model "$BENCH_MODEL" \
+            --arg effort "$BENCH_EFFORT" \
             --arg scenario "$BENCH_SCENARIO" \
             --argjson trials "${BENCH_TRIALS:-5}" \
             --argjson successful "${EVAL_SUCCESSFUL:-0}" \
@@ -317,6 +336,7 @@ jobs:
             --argjson max_turns "${BENCH_MAX_TURNS:-55}" \
             '{
               model: $model,
+              effort: $effort,
               scenario: $scenario,
               trials: $trials,
               successful_trials: $successful,
@@ -333,13 +353,14 @@ jobs:
       - name: Upload results artifact
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-${{ inputs.model }}-${{ matrix.scenario }}
+          name: benchmark-${{ inputs.model }}-${{ inputs.effort }}-${{ matrix.scenario }}
           path: /tmp/benchmark-results/
           retention-days: 90
 
       - name: Write step summary
         env:
           BENCH_MODEL: ${{ inputs.model }}
+          BENCH_EFFORT: ${{ inputs.effort }}
           BENCH_SCENARIO: ${{ matrix.scenario }}
           BENCH_TRIALS_INPUT: ${{ inputs.trials }}
           EVAL_MEAN: ${{ steps.evaluate.outputs.mean }}
@@ -349,11 +370,12 @@ jobs:
           EVAL_SUCCESSFUL: ${{ steps.evaluate.outputs.successful_trials }}
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<SUMMARY_EOF
-          ## Benchmark: ${BENCH_MODEL} on ${BENCH_SCENARIO}
+          ## Benchmark: ${BENCH_MODEL} (${BENCH_EFFORT}) on ${BENCH_SCENARIO}
 
           | Metric | Value |
           |--------|-------|
           | **Model** | \`${BENCH_MODEL}\` |
+          | **Effort** | \`${BENCH_EFFORT}\` |
           | **Scenario** | ${BENCH_SCENARIO} |
           | **Mean Score** | **${EVAL_MEAN:-N/A}** / 10 |
           | **95% CI** | [${EVAL_CI_LOWER:-N/A}, ${EVAL_CI_UPPER:-N/A}] |
