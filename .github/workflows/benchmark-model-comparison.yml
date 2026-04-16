@@ -82,7 +82,8 @@ jobs:
 
           # Validate effort level (xhigh only valid on opus-4-7)
           if [ "$INPUT_EFFORT" = "xhigh" ] && [ "$INPUT_MODEL" != "claude-opus-4-7" ]; then
-            echo "::warning::xhigh effort is only supported on claude-opus-4-7, falling back to high"
+            echo "::error::xhigh effort is only supported on claude-opus-4-7 (got $INPUT_MODEL). GitHub Actions resolves inputs before shell runs, so the value cannot be overridden at runtime."
+            exit 1
           fi
 
           # Resolve scenario list
@@ -352,7 +353,7 @@ jobs:
       - name: Upload results artifact
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-${{ inputs.model }}-${{ matrix.scenario }}
+          name: benchmark-${{ inputs.model }}-${{ inputs.effort }}-${{ matrix.scenario }}
           path: /tmp/benchmark-results/
           retention-days: 90
 
