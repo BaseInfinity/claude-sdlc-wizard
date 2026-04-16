@@ -1011,49 +1011,33 @@ test_model_effort_check_exists() {
     fi
 }
 
-# Test: detects stale model and outputs upgrade nudge
-test_model_effort_check_stale_model() {
-    local tmpdir
-    tmpdir=$(mktemp -d)
-    mkdir -p "$tmpdir/.claude"
-    echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.json"
-    local output
-    output=$(echo '{"model":"claude-opus-4-6","session_id":"test"}' | HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
-    rm -rf "$tmpdir"
-    if echo "$output" | grep -q '/model'; then
-        pass "model-effort-check.sh nudges to upgrade model when on opus-4-6"
-    else
-        fail "model-effort-check.sh should nudge /model when on stale model, got: $output"
-    fi
-}
-
-# Test: detects stale effort and outputs upgrade nudge
+# Test: detects stale effort and outputs upgrade nudge with model recommendation
 test_model_effort_check_stale_effort() {
     local tmpdir
     tmpdir=$(mktemp -d)
     mkdir -p "$tmpdir/.claude"
     echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
     local output
-    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
-    if echo "$output" | grep -q '/effort'; then
-        pass "model-effort-check.sh nudges to upgrade effort when on high"
+    if echo "$output" | grep -q '/effort' && echo "$output" | grep -q 'recommended model'; then
+        pass "model-effort-check.sh nudges effort + recommends model when effort is stale"
     else
-        fail "model-effort-check.sh should nudge /effort when effort is stale, got: $output"
+        fail "model-effort-check.sh should nudge /effort and recommend model, got: $output"
     fi
 }
 
-# Test: silent when model and effort are both current
+# Test: silent when effort is already current
 test_model_effort_check_silent_when_current() {
     local tmpdir
     tmpdir=$(mktemp -d)
     mkdir -p "$tmpdir/.claude"
     echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.json"
     local output
-    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if [ -z "$output" ]; then
-        pass "model-effort-check.sh silent when model and effort are current"
+        pass "model-effort-check.sh silent when effort is current"
     else
         fail "model-effort-check.sh should be silent when current, got: $output"
     fi
@@ -1089,7 +1073,7 @@ test_model_effort_check_nested_cwd() {
     mkdir -p "$tmpdir/.claude" "$tmpdir/src/deep"
     echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
     local output
-    output=$(cd "$tmpdir/src/deep" && echo '{"model":"claude-opus-4-7","session_id":"test"}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir/src/deep" && echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q '/effort'; then
         pass "model-effort-check.sh finds project settings via CLAUDE_PROJECT_DIR from nested CWD"
@@ -1106,7 +1090,7 @@ test_model_effort_check_local_overrides_project() {
     echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
     echo '{"effortLevel":"xhigh"}' > "$tmpdir/.claude/settings.local.json"
     local output
-    output=$(echo '{"model":"claude-opus-4-7","session_id":"test"}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="/nonexistent" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if [ -z "$output" ]; then
         pass "model-effort-check.sh respects local settings override (xhigh from local, silent)"
@@ -1116,7 +1100,6 @@ test_model_effort_check_local_overrides_project() {
 }
 
 test_model_effort_check_exists
-test_model_effort_check_stale_model
 test_model_effort_check_stale_effort
 test_model_effort_check_silent_when_current
 test_model_effort_check_no_stdin
