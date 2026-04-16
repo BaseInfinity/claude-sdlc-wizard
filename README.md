@@ -235,6 +235,10 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, evaluation methodology |
 
+## Community
+
+Come join **[Automation Station](https://discord.com/invite/fGPEF7GHrF)** — a community Discord packed with software engineers bringing 40+ years of combined experience across every area of the stack (frontend, backend, infra, embedded, data, QA, DevOps, you name it). Share patterns, ask questions, compare notes on AI agents, automation, and SDLC tooling.
+
 ## Contributing
 
 PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for evaluation methodology and testing.
