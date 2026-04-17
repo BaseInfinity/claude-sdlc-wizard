@@ -327,11 +327,117 @@ test_parser_writes_latest_date_file() {
     rm -f "$outdir/latest_date.txt" "$outdir/new_count.txt"
     "$PARSER" "$FIXTURE" "1970-01-01" >/dev/null 2>&1
     local latest
-    latest=$(cat "$outdir/latest_date.txt" 2>/dev/null || echo "")
+    latest=$(cat "$outdir/latest_date.txt" 2>/dev/null || return 0)
     if [ "$latest" = "2026-04-16" ]; then
         pass "parser writes latest_date.txt with newest entry"
     else
         fail "latest_date.txt expected 2026-04-16, got '$latest'"
+    fi
+}
+
+test_parser_captures_bullet_summary() {
+    # Issue body UX: each entry needs WHAT changed, not just the date.
+    # Parser output must be iso\traw_header\tbullet_summary.
+    if [ ! -x "$PARSER" ] || [ ! -f "$FIXTURE" ]; then
+        fail "skip: parser or fixture missing"; return
+    fi
+    local out line third
+    out=$("$PARSER" "$FIXTURE" "1970-01-01" 2>/dev/null)
+    line=$(printf '%s\n' "$out" | grep '^2026-04-16' | head -1)
+    # Count tabs: must be >= 2 (3 columns).
+    local tab_count
+    tab_count=$(printf '%s' "$line" | tr -cd '\t' | wc -c | tr -d ' ')
+    if [ "$tab_count" -lt 2 ]; then
+        fail "parser output missing bullet column (tabs=$tab_count): '$line'"
+        return
+    fi
+    third=$(printf '%s' "$line" | awk -F'\t' '{print $3}')
+    if printf '%s' "$third" | grep -qi 'Opus 4\.7'; then
+        pass "parser captures bullet summary under date header"
+    else
+        fail "bullet summary missing expected feature text: '$third'"
+    fi
+}
+
+test_parser_bullets_survive_subheaders() {
+    # Codex finding #1: bullet search must bound on next DATE header, not any
+    # h2-h4 header. Regression: a non-date sub-header inside a date block
+    # shouldn't drop that block's bullets.
+    if [ ! -x "$PARSER" ]; then
+        fail "skip: parser missing"; return
+    fi
+    local tmp
+    tmp="${TMPDIR:-/tmp}/api-parser-subheader.$$.md"
+    {
+        echo "# Claude Platform"
+        echo ""
+        echo "### April 16, 2026"
+        echo "Intro paragraph (no bullet)."
+        echo "#### SDKs"
+        echo "- SDK-level feature for April 16"
+        echo ""
+        echo "### April 9, 2026"
+        echo "- April 9 feature"
+    } > "$tmp"
+    local out line third
+    out=$("$PARSER" "$tmp" "1970-01-01" 2>/dev/null)
+    rm -f "$tmp"
+    line=$(printf '%s\n' "$out" | grep '^2026-04-16' | head -1)
+    third=$(printf '%s' "$line" | awk -F'\t' '{print $3}')
+    if printf '%s' "$third" | grep -q 'SDK-level feature'; then
+        pass "parser bounds bullets on next date header (survives sub-headers)"
+    else
+        fail "sub-header regression: 2026-04-16 bullets missing, got '$third'"
+    fi
+}
+
+test_parser_scrubs_tabs_in_bullets() {
+    # Claude PR review P2.1: tab chars in bullet text would break the TSV
+    # 3-column contract. Parser owns the delimiter — scrub tabs to spaces.
+    if [ ! -x "$PARSER" ]; then
+        fail "skip: parser missing"; return
+    fi
+    local tmp
+    tmp="${TMPDIR:-/tmp}/api-parser-tab.$$.md"
+    printf '# H\n\n### March 2, 2026\n- before\tafter middle\ttab\n' > "$tmp"
+    local out tabs
+    out=$("$PARSER" "$tmp" "1970-01-01" 2>/dev/null)
+    rm -f "$tmp"
+    # Expected output: exactly 2 tabs (column separators), none inside bullet.
+    tabs=$(printf '%s' "$out" | tr -cd '\t' | wc -c | tr -d ' ')
+    if [ "$tabs" -eq 2 ]; then
+        pass "parser scrubs tabs from bullet text (preserves TSV invariant)"
+    else
+        fail "parser emitted $tabs tabs, expected exactly 2 (col separators): '$out'"
+    fi
+}
+
+test_parser_truncates_long_bullet_summary() {
+    # Sanity bound: issue bodies shouldn't include novella-length bullets.
+    # Parser must cap bullet_summary (we target ~200 chars).
+    if [ ! -x "$PARSER" ]; then
+        fail "skip: parser missing"; return
+    fi
+    local tmp
+    tmp="${TMPDIR:-/tmp}/api-parser-long-bullet.$$.md"
+    {
+        echo "# Header"
+        echo ""
+        echo "### March 1, 2026"
+        # 300-char bullet
+        printf -- "- "
+        printf 'x%.0s' $(seq 1 300)
+        echo ""
+    } > "$tmp"
+    local out third len
+    out=$("$PARSER" "$tmp" "1970-01-01" 2>/dev/null)
+    rm -f "$tmp"
+    third=$(printf '%s' "$out" | awk -F'\t' '{print $3}')
+    len=${#third}
+    if [ "$len" -gt 0 ] && [ "$len" -le 220 ]; then
+        pass "parser truncates long bullet summary ($len chars)"
+    else
+        fail "bullet summary length=$len out of bounds (expected 1-220)"
     fi
 }
 
@@ -534,6 +640,10 @@ test_parser_filters_by_last_date
 test_parser_handles_ordinal_dates
 test_parser_rejects_bad_last_date
 test_parser_writes_latest_date_file
+test_parser_captures_bullet_summary
+test_parser_bullets_survive_subheaders
+test_parser_scrubs_tabs_in_bullets
+test_parser_truncates_long_bullet_summary
 test_persist_survives_rejected_push
 test_hook_nudges_only_when_workflow_local
 

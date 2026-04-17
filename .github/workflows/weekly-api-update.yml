@@ -121,9 +121,13 @@ jobs:
             echo ""
             echo "## New entries"
             echo ""
-            while IFS=$'\t' read -r iso raw_text; do
+            while IFS=$'\t' read -r iso raw_text bullet_summary; do
               [ -z "$iso" ] && continue
-              echo "- **${iso}** — ${raw_text}"
+              if [ -n "${bullet_summary:-}" ]; then
+                echo "- **${iso}** — ${bullet_summary}"
+              else
+                echo "- **${iso}** — ${raw_text}"
+              fi
             done < /tmp/new_entries.txt
             echo ""
             echo "## Source"
