@@ -53,6 +53,13 @@ function mergeSettings(existingPath, templatePath, force) {
     const existing = JSON.parse(fs.readFileSync(existingPath, 'utf8'));
     const template = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
 
+    // Merge top-level model field (only set if missing, unless --force).
+    // Respects user's explicit model choice; adds the wizard default on fresh
+    // installs and for users upgrading from a pre-model template.
+    if (template.model && (!('model' in existing) || force)) {
+      existing.model = template.model;
+    }
+
     // Merge env field
     if (template.env) {
       if (!existing.env || typeof existing.env !== 'object' || Array.isArray(existing.env)) {

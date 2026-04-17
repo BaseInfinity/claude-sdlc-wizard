@@ -5,7 +5,7 @@
 # seeing this output and comparing against its system prompt
 # Non-blocking: always exits 0
 
-RECOMMENDED_MODEL="claude-opus-4-7"
+RECOMMENDED_MODEL="opus[1m]"
 RECOMMENDED_EFFORT="xhigh"
 
 # Drain stdin (SessionStart sends JSON but model field isn't in it)
