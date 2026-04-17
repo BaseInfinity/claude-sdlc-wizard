@@ -99,6 +99,27 @@ This prevents both false positives (crying wolf) and false negatives (missing re
 - Green CI = safe to upgrade. Red = stay on current version until fixed
 - Results shown in PR with statistical confidence
 
+### Benchmark Ceiling Effect (Known Issue — April 2026)
+
+**Our E2E benchmark currently has zero discriminating power.** Both Opus 4.6 and 4.7 scored perfect 10/10 on the `add-feature` scenario (3 trials each, `high` effort). A cross-model audit (Codex GPT-5.4, xhigh reasoning) rated the benchmark methodology **2/10, NOT CERTIFIED** and identified 4 P0 critical issues:
+
+| Finding | Severity | Problem |
+|---------|----------|---------|
+| **Fake trials** | P0 | The workflow runs the simulation ONCE, then re-scores the same output N times. "Trials" measure judge jitter, not model variance |
+| **Answer key leaked** | P0 | The simulation prompt tells the model exactly what's scored ("You MUST use TodoWrite... scored by automated checks"). This tests obedience to rubric, not SDLC judgment |
+| **No independent verification** | P0 | "Tests pass" is self-reported from the transcript. The evaluator never re-runs `npm test` on the final code |
+| **Binary rubric** | P0 | Every criterion is YES/NO. The evaluator is explicitly designed for "near-zero variance." On an easy coached task, scores collapse to 10/10 |
+
+**Three concrete fixes to break the ceiling:**
+
+1. **Remove rubric leakage** — Don't tell the model what's scored in the simulation prompt. Let the wizard hooks and docs drive behavior naturally. Score hidden behaviors from traces, not coached compliance
+2. **Make correctness the majority of the score** — After simulation, run an external verifier: re-run `npm test` on the modified fixture, add hidden tests the model didn't know about, inspect the actual diff. Replace transcript-only `clean_code` with diff-based quality checks
+3. **Real trials on calibrated scenarios** — Each trial must be a fresh end-to-end simulation run on a fresh checkout. Select scenarios by pilot difficulty so top models don't all saturate (similar to Aider's hard-subset methodology). The current single-coached-toy-run approach is measuring nothing
+
+**What external benchmarks do differently:** SWE-Bench gives a real issue plus a full repo snapshot, applies the agent's patch, and runs the repo's actual tests to score `% resolved`. Aider's polyglot benchmark was explicitly rebuilt because the old one saturated — it uses 225 harder tasks chosen to preserve headroom. Our benchmark lacks real task difficulty calibration, independent execution-based correctness, multi-task breadth, and headroom management.
+
+**Status:** This is tracked as item #96 (E2E score audit) on the roadmap. Until fixed, the benchmark measures process compliance coaching, not model quality differentiation.
+
 ---
 
 ## Philosophy: Sensible Defaults, Smart Customization
@@ -221,12 +242,20 @@ Claude Code's **effort level** controls how much thinking the model does before 
 
 | Level | When to Use | How to Set |
 |-------|-------------|------------|
-| `high` | **Default for all SDLC work.** Features, bug fixes, refactoring, tests, reviews | `effort: high` in skill frontmatter (already set) |
-| `max` | LOW confidence, FAILED 2x, architecture decisions, complex debugging, cross-model reviews | `/effort max` (session only — resets next session) |
+| `high` | Standard SDLC work. Features, bug fixes, refactoring, tests, reviews | `effort: high` in skill frontmatter (already set) |
+| `xhigh` | **Recommended default for coding and agentic work (Opus 4.7+).** Long-running tasks, repeated tool calls, deep exploration. Claude Code defaults to this on Opus 4.7 | `/effort xhigh` or set in skill frontmatter |
+| `max` | LOW confidence, FAILED 2x, architecture decisions, complex debugging, cross-model reviews. Reserve for genuinely frontier problems — on most workloads `max` adds cost for small quality gains | `/effort max` (session only — resets next session) |
 
-**Why `high` is the default:** Claude Code uses **adaptive thinking** to dynamically allocate reasoning budget per turn. On Pro and Max plans, the default effort level is **medium (85)**, which causes the model to under-allocate reasoning on complex multi-step tasks — leading to shallow analysis, missed edge cases, and "lazy" outputs. This was [confirmed by Anthropic engineer Boris Cherny](https://github.com/anthropics/claude-code/issues/42796) and is documented at [code.claude.com](https://code.claude.com/docs/en/model-config). API, Team, and Enterprise plans default to high effort and are not affected.
+**Effort level changes in Opus 4.7 (April 2026):**
+- **`xhigh` is new** — sits between `high` and `max`, designed for coding and agentic work (30+ minute tasks with token budgets in the millions)
+- **Claude Code now defaults to `xhigh`** on Opus 4.7 for all plans
+- **Opus 4.7 respects effort levels more strictly** than 4.6 — at lower levels it scopes work tighter instead of going above and beyond. If you see shallow reasoning, raise effort rather than prompting around it
+- **`budget_tokens` is deprecated** on Opus 4.7 — use adaptive thinking with effort instead
+- When running at `xhigh` or `max`, set a large `max_tokens` (64k+) so the model has room to think across subagents and tool calls
 
-The `/sdlc` skill sets `effort: high` in its frontmatter, overriding the medium default on every SDLC invocation. This gives thorough reasoning without the unbounded token cost of `max`.
+**Why `high` was the previous default:** Claude Code uses **adaptive thinking** to dynamically allocate reasoning budget per turn. On Pro and Max plans, the default effort level was **medium (85)**, which causes the model to under-allocate reasoning on complex multi-step tasks — leading to shallow analysis, missed edge cases, and "lazy" outputs. This was [confirmed by Anthropic engineer Boris Cherny](https://github.com/anthropics/claude-code/issues/42796) and is documented at [code.claude.com](https://code.claude.com/docs/en/model-config). API, Team, and Enterprise plans default to high effort and are not affected.
+
+The `/sdlc` skill sets `effort: high` in its frontmatter, overriding the medium default on every SDLC invocation. Consider upgrading to `effort: xhigh` on Opus 4.7+ for deeper reasoning on complex tasks.
 
 **Nuclear option — disable adaptive thinking entirely:** Set `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` in your environment or settings.json `env` block. This forces a fixed reasoning budget per turn instead of letting the model dynamically allocate. Use this if you observe persistent quality issues even with `effort: high`. See [Claude Code model config docs](https://code.claude.com/docs/en/model-config) for details.
 
