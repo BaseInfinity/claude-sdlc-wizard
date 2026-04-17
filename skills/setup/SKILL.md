@@ -224,10 +224,11 @@ Tell the user:
 > **Exit Claude Code and restart it** for the new configuration to take effect.
 > On restart, the SDLC hook will fire and you'll see the checklist in every response.
 >
-> **Optional next step:**
+> **Optional next steps:**
 > - Run `/claude-automation-recommender` for stack-specific tooling suggestions (MCP servers, formatting hooks, type-checking hooks, plugins)
+> - After a few sessions, run `/less-permission-prompts` — a native Claude Code skill that scans your transcripts for common read-only Bash and MCP calls and proposes a prioritized allowlist. Reduces permission friction without enabling auto mode.
 >
-> The recommender is complementary to the SDLC wizard — it adds tooling recommendations, not process enforcement.
+> Both are complementary to the SDLC wizard — they add tooling and quality-of-life, not process enforcement.
 
 ## Rules
 
