@@ -4,6 +4,36 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.33.0] - 2026-04-17
+
+### Added
+- `opus[1m]` as the SDLC wizard default model (#182)
+  - CLI template ships `"model": "opus[1m]"` + `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` (tuned for 1M — compacts at ~300K)
+  - `cli/init.js` `mergeSettings` merges top-level `model` on fresh installs and when absent; respects user's explicit choice; `--force` overwrites
+  - Wizard doc "1M vs 200K Context Window" section flipped to recommend `opus[1m]` as default; pricing framed as "verify current rates at docs.anthropic.com" (no stale tier-specific claims)
+  - `/sdlc` skill: new "Recommended Model" section between auto-approval and Confidence Check
+  - `/setup` skill Step 9.5: 1M default, 200K fallback (inverted from before)
+  - SDLC.md baseline bumped to v2.1.111+ (Opus 4.7 minimum)
+  - Session-start hooks now recommend `opus[1m]` alias (matches the `/model` command users run)
+  - 9 new tests (5 CLI model merge, 4 doc consistency); 6 existing autocompact tests updated to expect `30`, fixtures bumped to `50` in tests 37/38 to preserve the no-overwrite proof
+  - Codex xhigh 2-round review: 9/10 CERTIFIED
+- Dual-channel install drift guardrails (#181)
+  - `cli/init.js` detects plugin install paths (`~/.claude/plugins-local/sdlc-wizard-wrap/`, `~/.claude/plugins/cache/sdlc-wizard-local/`) and blocks init with a typed `err.pluginPaths` error; `--force` bypasses
+  - `instructions-loaded-check.sh` non-blocking nudge when both CLI skills and Claude plugin are present in the same project
+  - HOME isolation in test files (`mktemp -d` + `trap` cleanup) prevents dev-machine HOME from leaking into assertions
+  - `path.isAbsolute(home)` guard in `detectPluginInstall` — empty/relative HOME no longer causes false-positive block
+  - `run_init_split` test helper captures stdout/stderr separately with explicit exit code
+  - 9 new CLI tests, 5 new hook tests; Codex xhigh 4-round review: 9/10 CERTIFIED
+- Model/effort upgrade detection at session start (#179, #180)
+  - SessionStart hook nudges when configured `effortLevel` is below `xhigh` recommendation
+  - Reads `.claude/settings.local.json` → `.claude/settings.json` → `$HOME/.claude/settings.json` precedence
+  - Non-blocking (`exit 0`); asks Claude to compare recommended model against its own system prompt
+  - `claude-opus-4-6` defaults bumped to `claude-opus-4-7` in `pr-review.yml`, `evaluate.sh`, `sdp-score.sh`, `pairwise-compare.sh`
+  - Hook added to `SDLC.md` hooks table + CLI distributes `model-effort-check.sh`
+
+### Fixed
+- `cli/bin/sdlc-wizard.js` double-print: plugin-detect errors now suppress the outer `"Error:"` prefix since detection streams its own colored guidance block (#181)
+
 ## [1.32.0] - 2026-04-16
 
 ### Added
