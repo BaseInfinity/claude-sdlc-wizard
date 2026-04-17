@@ -110,7 +110,7 @@ call_criterion_api() {
     request_file=$(mktemp)
     cat > "$request_file" <<JSONEOF
 {
-    "model": "claude-opus-4-6",
+    "model": "claude-opus-4-7",
     "max_tokens": 512,
     "messages": [{
         "role": "user",
@@ -298,7 +298,7 @@ SDP_ROBUSTNESS="1.0"
 SDP_INTERPRETATION="STABLE"
 
 if [ -x "$SDP_SCRIPT" ]; then
-    SDP_MODEL="${SDP_MODEL:-claude-opus-4-6}"
+    SDP_MODEL="${SDP_MODEL:-claude-opus-4-7}"
     SDP_OUTPUT=$("$SDP_SCRIPT" "$SCORE" "$SDP_MODEL" 2>&1) || true
     if [ -n "$SDP_OUTPUT" ] && ! echo "$SDP_OUTPUT" | grep -qi "error"; then
         SDP_SCORE=$(echo "$SDP_OUTPUT" | grep "^sdp=" | cut -d'=' -f2 || echo "$SCORE")

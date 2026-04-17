@@ -128,7 +128,7 @@ _pairwise_api_call() {
     request_file=$(mktemp)
     cat > "$request_file" <<JSONEOF
 {
-    "model": "claude-opus-4-6",
+    "model": "claude-opus-4-7",
     "max_tokens": 512,
     "messages": [{
         "role": "user",

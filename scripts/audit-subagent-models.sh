@@ -34,7 +34,7 @@ echo "=== Subagent Model Compliance Audit ==="
 echo "Session: $SESSION_DIR"
 echo ""
 
-EXPECTED_MODEL="${CLAUDE_CODE_SUBAGENT_MODEL:-claude-opus-4-6}"
+EXPECTED_MODEL="${CLAUDE_CODE_SUBAGENT_MODEL:-claude-opus-4-7}"
 echo "Expected model: $EXPECTED_MODEL"
 echo ""
 

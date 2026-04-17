@@ -212,7 +212,7 @@ The SDLC skill's CI feedback loops (`.claude/skills/sdlc/SKILL.md`) run during a
 - Triggers on PR open, ready_for_review, or `needs-review` label
 - Waits for CI to pass before reviewing (saves API costs)
 - Skips trivial PRs (docs-only, config-only)
-- Uses Claude Code action for AI review, pinned to `claude-opus-4-6`
+- Uses Claude Code action for AI review, pinned to `claude-opus-4-7`
 - Posts review as **sticky PR comment**
 - Checks E2E coverage for SDLC-affecting changes
 
