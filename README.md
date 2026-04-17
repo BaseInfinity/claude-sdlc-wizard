@@ -237,7 +237,17 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 
 ## Community
 
-Come join **[Automation Station](https://discord.com/invite/fGPEF7GHrF)** — a community Discord packed with software engineers bringing 40+ years of combined experience across every area of the stack (frontend, backend, infra, embedded, data, QA, DevOps, you name it). Share patterns, ask questions, compare notes on AI agents, automation, and SDLC tooling.
+<div align="center">
+
+[![Discord](https://img.shields.io/badge/Discord-Automation%20Station-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/fGPEF7GHrF)
+
+**[Automation Station](https://discord.com/invite/fGPEF7GHrF)** — a community Discord packed with software engineers bringing 40+ years of combined experience across every area of the stack.
+
+_Frontend · Backend · Infra · Embedded · Data · QA · DevOps_
+
+Share patterns, ask questions, compare notes on AI agents, automation, and SDLC tooling.
+
+</div>
 
 ## Contributing
 
