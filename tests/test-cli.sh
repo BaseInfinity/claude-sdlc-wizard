@@ -676,10 +676,10 @@ with open('$template') as f:
 env = data.get('env', {})
 print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
 " 2>/dev/null)
-    if [ "$val" = "75" ]; then
-        pass "Template settings.json has CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75"
+    if [ "$val" = "30" ]; then
+        pass "Template settings.json has CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30"
     else
-        fail "Template settings.json should have env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75 (got: '$val')"
+        fail "Template settings.json should have env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30 (got: '$val')"
     fi
 }
 
@@ -727,7 +727,7 @@ custom = env.get('MY_CUSTOM_VAR', '')
 wizard = env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', '')
 print(f'{custom}|{wizard}')
 " 2>/dev/null)
-    if [ "$result" = "keep-me|75" ]; then
+    if [ "$result" = "keep-me|30" ]; then
         pass "Merge preserves existing env vars and adds wizard env"
     else
         fail "Merge should preserve MY_CUSTOM_VAR and add AUTOCOMPACT (got: '$result')"
@@ -757,7 +757,7 @@ allowed = 'allowedTools' in data
 wizard = env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', '')
 print(f'{allowed}|{wizard}')
 " 2>/dev/null)
-    if [ "$result" = "True|75" ]; then
+    if [ "$result" = "True|30" ]; then
         pass "Merge adds wizard env to settings without env field"
     else
         fail "Merge should add env.AUTOCOMPACT and preserve allowedTools (got: '$result')"
@@ -765,7 +765,10 @@ print(f'{allowed}|{wizard}')
     rm -rf "$d"
 }
 
-# Test 37: Merge does not overwrite user's existing autocompact value
+# Test 37: Merge does not overwrite user's existing autocompact value.
+# Use 50 as the fixture value — distinct from the 30 template default —
+# so this test actually proves "no overwrite" rather than coincidentally
+# matching the new default.
 test_merge_respects_user_autocompact() {
     local d
     d=$(make_temp)
@@ -774,7 +777,7 @@ test_merge_respects_user_autocompact() {
 {
   "hooks": {},
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
   }
 }
 FIXTURE
@@ -786,15 +789,16 @@ with open('$d/.claude/settings.json') as f:
     data = json.load(f)
 print(data.get('env', {}).get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
 " 2>/dev/null)
-    if [ "$val" = "30" ]; then
-        pass "Merge respects user's existing AUTOCOMPACT value (30)"
+    if [ "$val" = "50" ]; then
+        pass "Merge respects user's existing AUTOCOMPACT value (50)"
     else
-        fail "Merge should not overwrite user's AUTOCOMPACT=30 (got: '$val')"
+        fail "Merge should not overwrite user's AUTOCOMPACT=50 (got: '$val')"
     fi
     rm -rf "$d"
 }
 
-# Test 38: --force overwrites user's autocompact value back to default
+# Test 38: --force overwrites user's autocompact value back to default.
+# Fixture value 50 is distinct from the 30 template default.
 test_merge_force_resets_autocompact() {
     local d
     d=$(make_temp)
@@ -803,7 +807,7 @@ test_merge_force_resets_autocompact() {
 {
   "hooks": {},
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
   }
 }
 FIXTURE
@@ -815,10 +819,10 @@ with open('$d/.claude/settings.json') as f:
     data = json.load(f)
 print(data.get('env', {}).get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
 " 2>/dev/null)
-    if [ "$val" = "75" ]; then
-        pass "--force resets AUTOCOMPACT back to template default (75)"
+    if [ "$val" = "30" ]; then
+        pass "--force resets AUTOCOMPACT back to template default (30)"
     else
-        fail "--force should reset AUTOCOMPACT to 75 (got: '$val')"
+        fail "--force should reset AUTOCOMPACT to 30 (got: '$val')"
     fi
     rm -rf "$d"
 }
@@ -860,7 +864,7 @@ if isinstance(env, dict):
 else:
     print('NOT_OBJECT')
 " 2>/dev/null)
-    if [ "$val" = "75" ]; then
+    if [ "$val" = "30" ]; then
         pass "Merge handles malformed env (array) — replaces with wizard env"
     else
         fail "Merge should replace malformed array env with wizard env (got: '$val')"
@@ -891,7 +895,7 @@ if isinstance(env, dict):
 else:
     print('NOT_OBJECT')
 " 2>/dev/null)
-    if [ "$val" = "75" ]; then
+    if [ "$val" = "30" ]; then
         pass "Merge handles malformed env (string) — replaces with wizard env"
     else
         fail "Merge should replace malformed string env with wizard env (got: '$val')"
@@ -908,6 +912,124 @@ test_merge_adds_env_to_existing_settings
 test_merge_respects_user_autocompact
 test_merge_force_resets_autocompact
 test_setup_skill_references_settings_json
+
+# Model field merge tests — ensure opus[1m] default is delivered to fresh
+# installs and users upgrading from pre-model templates, while respecting
+# any explicit model a user has already configured.
+
+test_template_has_model_opus_1m() {
+    local template="$SCRIPT_DIR/../cli/templates/settings.json"
+    local val
+    val=$(python3 -c "
+import json
+with open('$template') as f:
+    print(json.load(f).get('model', ''))
+" 2>/dev/null)
+    if [ "$val" = "opus[1m]" ]; then
+        pass "Template settings.json has model=opus[1m]"
+    else
+        fail "Template settings.json should have model='opus[1m]' (got: '$val')"
+    fi
+}
+
+test_fresh_init_writes_model_opus_1m() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    print(json.load(f).get('model', ''))
+" 2>/dev/null)
+    if [ "$val" = "opus[1m]" ]; then
+        pass "Fresh init writes model=opus[1m] to settings.json"
+    else
+        fail "Fresh init should write model='opus[1m]' (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+test_merge_adds_model_when_missing() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "hooks": {},
+  "env": { "MY_VAR": "x" }
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    print(json.load(f).get('model', ''))
+" 2>/dev/null)
+    if [ "$val" = "opus[1m]" ]; then
+        pass "Merge adds model=opus[1m] when absent from existing settings"
+    else
+        fail "Merge should add model='opus[1m]' when missing (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+test_merge_respects_user_model() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "model": "sonnet",
+  "hooks": {}
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    print(json.load(f).get('model', ''))
+" 2>/dev/null)
+    if [ "$val" = "sonnet" ]; then
+        pass "Merge respects user's explicit model (sonnet)"
+    else
+        fail "Merge should not overwrite user's model=sonnet (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+test_merge_force_resets_model() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "model": "sonnet",
+  "hooks": {}
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init --force > /dev/null 2>&1)
+    local val
+    val=$(python3 -c "
+import json
+with open('$d/.claude/settings.json') as f:
+    print(json.load(f).get('model', ''))
+" 2>/dev/null)
+    if [ "$val" = "opus[1m]" ]; then
+        pass "--force resets model to template default (opus[1m])"
+    else
+        fail "--force should reset model to 'opus[1m]' (got: '$val')"
+    fi
+    rm -rf "$d"
+}
+
+test_template_has_model_opus_1m
+test_fresh_init_writes_model_opus_1m
+test_merge_adds_model_when_missing
+test_merge_respects_user_model
+test_merge_force_resets_model
 
 # === Marketplace Path Check Tests (#174) ===
 

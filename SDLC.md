@@ -9,7 +9,11 @@
 |----------|-------|
 | Wizard Version | 1.32.0 |
 | Last Updated | 2026-04-14 |
-| Claude Code Baseline | v2.1.85+ |
+| Claude Code Baseline | v2.1.111+ (required for Opus 4.7 / `opus[1m]`) |
+| Recommended Model | `opus[1m]` (Opus 4.7, 1M context) — run `/model opus[1m]` |
+| Recommended Effort | `xhigh` — run `/effort xhigh` |
+
+See `CLAUDE_CODE_SDLC_WIZARD.md` → "1M vs 200K Context Window" for the rationale and pricing notes.
 
 ## SDLC Enforcement
 

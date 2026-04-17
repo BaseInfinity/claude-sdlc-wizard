@@ -183,16 +183,17 @@ Present suggestions and let the user confirm.
 
 ### Step 9.5: Context Window Configuration
 
-The CLI already sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in `.claude/settings.json` `env` field (200K default). Ask the user which model context window they use:
+The CLI ships `cli/templates/settings.json` with `"model": "opus[1m]"` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` (tuned for the 1M context window — compacts at ~300K). This is the SDLC wizard default. Confirm the installed values, or fall back to 200K if the user prefers:
 
-- **200K models (default):** Already configured. Confirm `75` is set in `settings.json` `env` field
-- **1M models:** Update `settings.json` `env` field: set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to `"30"` — the default fires at ~76K on 1M, wasting 92% of the window. Optionally also add `CLAUDE_CODE_AUTO_COMPACT_WINDOW` set to `"400000"`
+- **1M default (`opus[1m]`):** Confirm `"model": "opus[1m]"` at top level and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: "30"` under `env`. Requires Claude Code v2.1.111+ for Opus 4.7.
+- **200K fallback (`opus`):** Edit `.claude/settings.json` — change `"model"` to `"opus"` and raise `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to `"75"` (otherwise `30%` of 200K compacts too early at 60K).
 
-To update, edit `.claude/settings.json`:
+To fall back to 200K, edit `.claude/settings.json`:
 ```json
 {
+  "model": "opus",
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
   }
 }
 ```

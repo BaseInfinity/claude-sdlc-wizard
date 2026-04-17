@@ -67,7 +67,7 @@ if command -v codex > /dev/null 2>&1 && [ -d "$PROJECT_DIR/.reviews" ]; then
 fi
 
 # Model/effort upgrade check (non-blocking, best-effort)
-RECOMMENDED_MODEL="claude-opus-4-7"
+RECOMMENDED_MODEL="opus[1m]"
 RECOMMENDED_EFFORT="xhigh"
 if command -v jq > /dev/null 2>&1; then
     EFFORT=""

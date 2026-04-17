@@ -300,6 +300,117 @@ test_readme_no_hardcoded_criteria_count() {
 test_readme_no_hardcoded_criteria_count
 
 # ────────────────────────────────────────────
+# Recommended Model Consistency (opus[1m])
+# ────────────────────────────────────────────
+
+echo ""
+echo "--- Recommended Model (opus[1m]) ---"
+
+# Wizard recommends opus[1m] as the default model for SDLC sessions.
+# These tests ensure the recommendation is surfaced consistently across docs + templates.
+# Pricing claims in the docs themselves are kept generic ("verify current rates") —
+# these tests assert presence of the opus[1m] reference, not any specific pricing language.
+
+test_wizard_doc_recommends_opus_1m() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -qE 'opus\[1m\]' "$DOC"; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md references opus[1m]"
+    else
+        fail "CLAUDE_CODE_SDLC_WIZARD.md missing opus[1m] recommendation"
+    fi
+}
+
+test_sdlc_skill_recommends_opus_1m() {
+    local SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
+    if [ ! -f "$SKILL" ]; then fail "skills/sdlc/SKILL.md not found"; return; fi
+    if grep -qE 'opus\[1m\]' "$SKILL"; then
+        pass "skills/sdlc/SKILL.md references opus[1m]"
+    else
+        fail "skills/sdlc/SKILL.md missing opus[1m] recommendation"
+    fi
+}
+
+test_cli_template_sets_opus_1m_model() {
+    local TPL="$REPO_ROOT/cli/templates/settings.json"
+    if [ ! -f "$TPL" ]; then fail "cli/templates/settings.json not found"; return; fi
+    local model
+    model=$(jq -r '.model // empty' "$TPL" 2>/dev/null)
+    if [ "$model" = "opus[1m]" ]; then
+        pass "cli/templates/settings.json model = opus[1m]"
+    else
+        fail "cli/templates/settings.json model should be 'opus[1m]', got: '$model'"
+    fi
+}
+
+test_cli_template_autocompact_tuned_for_1m() {
+    local TPL="$REPO_ROOT/cli/templates/settings.json"
+    if [ ! -f "$TPL" ]; then fail "cli/templates/settings.json not found"; return; fi
+    local pct
+    pct=$(jq -r '.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE // empty' "$TPL" 2>/dev/null)
+    # On 1M models the default auto-compact fires too early (~76K).
+    # Values of 30 (= 300K) or lower are 1M-tuned; >=75 is the old 200K default.
+    if [ -n "$pct" ] && [ "$pct" -le 30 ] 2>/dev/null; then
+        pass "cli/templates/settings.json autocompact tuned for 1M (PCT=$pct)"
+    else
+        fail "cli/templates/settings.json CLAUDE_AUTOCOMPACT_PCT_OVERRIDE should be <=30 for 1M default, got: '$pct'"
+    fi
+}
+
+# Setup skill must describe 1M as the default (not the 200K/75 fallback).
+# Regression guard against Codex round-1 finding #2: skills/setup/SKILL.md
+# contradicted the CLI template by calling 75/200K the default.
+test_setup_skill_describes_1m_default() {
+    local SKILL="$REPO_ROOT/skills/setup/SKILL.md"
+    if [ ! -f "$SKILL" ]; then fail "skills/setup/SKILL.md not found"; return; fi
+    if grep -qE 'opus\[1m\]' "$SKILL"; then
+        pass "skills/setup/SKILL.md references opus[1m]"
+    else
+        fail "skills/setup/SKILL.md missing opus[1m] — Step 9.5 must describe 1M as the default"
+    fi
+}
+
+# Repo's tracked .claude/settings.json must match the template it ships.
+# Regression guard against Codex round-1 finding #2.
+test_repo_settings_match_template_autocompact() {
+    local SETTINGS="$REPO_ROOT/.claude/settings.json"
+    if [ ! -f "$SETTINGS" ]; then fail ".claude/settings.json not found"; return; fi
+    local pct
+    pct=$(jq -r '.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE // empty' "$SETTINGS" 2>/dev/null)
+    if [ "$pct" = "30" ]; then
+        pass ".claude/settings.json autocompact matches template (30)"
+    else
+        fail ".claude/settings.json CLAUDE_AUTOCOMPACT_PCT_OVERRIDE should match template (30), got: '$pct'"
+    fi
+}
+
+# Hooks must nudge users toward the recommended alias, not the API id.
+# Regression guard against Codex round-1 finding #3.
+test_hooks_recommend_opus_1m_alias() {
+    local H1="$REPO_ROOT/hooks/model-effort-check.sh"
+    local H2="$REPO_ROOT/hooks/instructions-loaded-check.sh"
+    local ok=1
+    for h in "$H1" "$H2"; do
+        if [ ! -f "$h" ]; then fail "$h not found"; ok=0; continue; fi
+        if ! grep -qE 'RECOMMENDED_MODEL="opus\[1m\]"' "$h"; then
+            fail "$(basename "$h") should set RECOMMENDED_MODEL=\"opus[1m]\""
+            ok=0
+        fi
+    done
+    if [ "$ok" = "1" ]; then
+        pass "Both session-start hooks recommend opus[1m]"
+    fi
+}
+
+test_wizard_doc_recommends_opus_1m
+test_sdlc_skill_recommends_opus_1m
+test_cli_template_sets_opus_1m_model
+test_cli_template_autocompact_tuned_for_1m
+test_setup_skill_describes_1m_default
+test_repo_settings_match_template_autocompact
+test_hooks_recommend_opus_1m_alias
+
+# ────────────────────────────────────────────
 # Summary
 # ────────────────────────────────────────────
 

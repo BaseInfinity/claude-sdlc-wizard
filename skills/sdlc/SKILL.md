@@ -161,6 +161,21 @@ When auto-approving, still announce your approach — just don't wait for approv
 
 **When in doubt, wait for approval.** Auto-approval is for clear-cut cases only.
 
+## Recommended Model
+
+**Default: `opus[1m]` (Opus 4.7 with 1M context window).** Run `/model opus[1m]` at the start of any non-trivial SDLC session.
+
+**Why:**
+- SDLC sessions (plan → TDD → review → CI shepherd) accumulate context fast — plans, test output, diffs, review artifacts. 200K fills up before you're done.
+- Forced auto-compact mid-task loses your working state. Extra headroom is cheaper than re-reading files.
+- At time of writing, Anthropic lists 1M context at standard pricing for supported Opus/Sonnet models — verify current rates for your plan before relying on this.
+
+**Requires Claude Code v2.1.111+** for Opus 4.7.
+
+**Pair with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`.** Without it, CC's default auto-compact on 1M fires at ~76K and defeats the purpose. The wizard's `cli/templates/settings.json` sets both defaults on install.
+
+**Fall back to `opus` (200K) only when:** your plan charges a premium for long-context prompts, the task is genuinely short (<30K), or team cost controls flag >200K prompts. See the "1M vs 200K Context Window" section in `CLAUDE_CODE_SDLC_WIZARD.md` for details.
+
 ## Confidence Check (REQUIRED)
 
 Before presenting approach, STATE your confidence:

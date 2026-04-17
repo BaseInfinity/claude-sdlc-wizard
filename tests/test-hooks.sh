@@ -1011,7 +1011,8 @@ test_model_effort_check_exists() {
     fi
 }
 
-# Test: detects stale effort and outputs upgrade nudge with model recommendation
+# Test: detects stale effort and outputs upgrade nudge with model recommendation.
+# The nudge must name the opus[1m] alias specifically so the command is copy-pasteable.
 test_model_effort_check_stale_effort() {
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -1020,10 +1021,12 @@ test_model_effort_check_stale_effort() {
     local output
     output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
-    if echo "$output" | grep -q '/effort' && echo "$output" | grep -q 'recommended model'; then
-        pass "model-effort-check.sh nudges effort + recommends model when effort is stale"
+    if echo "$output" | grep -q '/effort' \
+        && echo "$output" | grep -q 'recommended model' \
+        && echo "$output" | grep -qF 'opus[1m]'; then
+        pass "model-effort-check.sh nudges effort + recommends opus[1m] when effort is stale"
     else
-        fail "model-effort-check.sh should nudge /effort and recommend model, got: $output"
+        fail "model-effort-check.sh should nudge /effort and recommend 'opus[1m]', got: $output"
     fi
 }
 

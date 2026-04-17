@@ -855,30 +855,31 @@ Override the default auto-compact threshold with environment variables. These ar
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Trigger compaction at this % of context capacity (1-100) | ~95% |
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Override context capacity in tokens (useful for 1M models) | Model default |
 
-**Recommended:** The SDLC Wizard CLI sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` in `.claude/settings.json` by default (200K model optimized). To customize, edit the `env` field in `.claude/settings.json`:
+**Recommended:** The SDLC Wizard CLI sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` and `"model": "opus[1m]"` in `.claude/settings.json` by default (tuned for the 1M context window — compacts at ~300K). To customize, edit `.claude/settings.json`:
 
 ```json
 {
+  "model": "opus[1m]",
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
   }
 }
 ```
 
-Alternatively, set via shell profile (`~/.bashrc`, `~/.zshrc`) or per-project `.envrc`:
+If you switch back to the 200K model (`opus`), raise the override to `75` — otherwise 30% of 200K = 60K compacts too early. Alternatively, set via shell profile (`~/.bashrc`, `~/.zshrc`) or per-project `.envrc`:
 
 ```bash
-export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75
+export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30
 ```
 
 **Community-recommended thresholds by use case:**
 
 | Use Case | AUTOCOMPACT % | Why |
 |----------|--------------|-----|
-| General development (200K) | 75% | Leaves room for implementation after planning |
-| Complex refactors (200K) | 80% | Slightly more context before compaction |
+| **SDLC default (`opus[1m]`)** | **30%** | **Fires at ~300K on 1M — right balance for plan + TDD + review sessions** |
+| General development (200K `opus`) | 75% | Leaves room for implementation after planning |
+| Complex refactors (200K `opus`) | 80% | Slightly more context before compaction |
 | CI pipelines | 60% | Short tasks, compact early to stay fast |
-| 1M context model | 30% | See "1M vs 200K" below — 95% on 1M wastes budget |
 | Short tasks | 60-70% | Less context needed, compact early |
 
 **Important:** Values above the default ~95% threshold have no effect — you can only trigger compaction *earlier*, not later. Noise (progress ticks, thinking blocks, stale reads) makes up 50-70% of session tokens, so threshold tuning matters less than noise reduction (scoped reads, subagents, `/compact` between phases).
@@ -891,27 +892,31 @@ The thresholds above are community consensus — not empirically validated. For 
 
 ### 1M vs 200K Context Window
 
-Claude Code supports both 200K and 1M context windows. Choose based on your task:
+Claude Code supports both 200K and 1M context windows. **Default to `opus[1m]` for SDLC work** — the 1M headroom is free until you actually use it.
 
-| | 200K Context | 1M Context |
+| | 200K Context (`opus`) | 1M Context (`opus[1m]`) **← default** |
 |---|---|---|
-| **Best for** | Normal SDLC cycles (plan → TDD → review) | Multi-feature releases, deep codebase exploration |
-| **Typical usage** | 50-80K tokens per task | 200K+ tokens for complex workflows |
-| **Cost** | Lower total cost per session | ~5x more tokens consumed (cost scales linearly) |
-| **Auto-compact** | Default 95% works well | Reported to fire at ~76K ([issue #34332](https://github.com/anthropics/claude-code/issues/34332)) |
+| **Best for** | Short one-off tasks | Normal SDLC cycles + multi-feature work |
+| **Typical usage** | 50-80K tokens per task | 50-80K typical, up to 200K+ for complex workflows |
+| **Cost** | Standard pricing | Anthropic currently lists the 1M window at standard pricing across the full context for supported Opus/Sonnet models — **verify current rates at [docs.anthropic.com/pricing](https://docs.anthropic.com/)** before assuming no premium |
+| **Auto-compact** | Default 95% works well | Fires at ~76K by default ([issue #34332](https://github.com/anthropics/claude-code/issues/34332)) — **tune to 30%** |
 | **Suggested override** | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` |
 
-**Default to 200K.** Normal SDLC tasks (single feature, bug fix, refactor) rarely exceed 80K tokens. The 200K window handles this with room to spare.
+**Why `opus[1m]` as default:**
+- **Long SDLC sessions accumulate context fast** — plan → TDD → review → CI shepherd on a single feature regularly crosses 100K tokens
+- **Safety margin against autocompact loss** — cheaper to have headroom than to re-read files after a forced compact
+- **At time of writing, Anthropic lists 1M context at standard pricing for supported Opus/Sonnet models.** Verify current rates for your plan before relying on this — see [docs.anthropic.com/pricing](https://docs.anthropic.com/)
 
-**Switch to 1M when:**
-- Implementing multiple related features in one session
-- Deep research across a large codebase (reading 20+ files)
-- Multi-agent workflows that accumulate context
-- Complex debugging sessions that need full history
+**Set it up:** `/model opus[1m]` in your session, or set `"model": "opus[1m]"` in `.claude/settings.json`. The CLI template ships with this default. Requires Claude Code v2.1.111+ for Opus 4.7.
 
-**Cost awareness:** No per-token premium since March 2026, but total cost scales linearly with context consumed. A 900K-token session costs ~$4.50 in input alone. Use `/cost` to monitor.
+**Fall back to `opus` (200K) when:**
+- Your plan or organization charges higher rates for long-context prompts (check your billing)
+- You're doing genuinely short one-off tasks and want slightly faster responses
+- Your team has cost controls that flag >200K prompts
 
-**1M autocompact workaround:** On 1M models, the default auto-compact has been reported to fire too early (~76K, per [issue #34332](https://github.com/anthropics/claude-code/issues/34332)). Community workaround: set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` to use more of the window.
+**Cost awareness:** Larger windows let you consume more tokens in one session, and total cost always scales with tokens consumed regardless of tier. Use `/cost` to monitor — a 900K-token session is meaningfully more expensive than an 80K one even at standard rates.
+
+**Autocompact pairing (important):** If you default to `opus[1m]`, also set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` — otherwise CC's default autocompact fires at ~76K and destroys the headroom you're paying for. The CLI template sets this automatically.
 
 ---
 
