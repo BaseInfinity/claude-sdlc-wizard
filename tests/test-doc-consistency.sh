@@ -427,6 +427,18 @@ test_wizard_doc_mentions_less_permission_prompts() {
     fi
 }
 
+# Pin the second row of the "Complementary native skills" table too —
+# otherwise a future edit could silently drop /permissions and no test catches it.
+test_wizard_doc_mentions_permissions_command() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -qE '\| `/permissions` \|' "$DOC"; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md pins /permissions row in complementary-skills table"
+    else
+        fail "CLAUDE_CODE_SDLC_WIZARD.md should keep /permissions in the complementary-skills table"
+    fi
+}
+
 test_wizard_doc_recommends_opus_1m
 test_sdlc_skill_recommends_opus_1m
 test_cli_template_sets_opus_1m_model
@@ -436,6 +448,7 @@ test_repo_settings_match_template_autocompact
 test_hooks_recommend_opus_1m_alias
 test_setup_skill_mentions_less_permission_prompts
 test_wizard_doc_mentions_less_permission_prompts
+test_wizard_doc_mentions_permissions_command
 
 # ────────────────────────────────────────────
 # Summary

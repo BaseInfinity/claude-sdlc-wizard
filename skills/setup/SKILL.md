@@ -226,7 +226,9 @@ Tell the user:
 >
 > **Optional next steps:**
 > - Run `/claude-automation-recommender` for stack-specific tooling suggestions (MCP servers, formatting hooks, type-checking hooks, plugins)
-> - After a few sessions, run `/less-permission-prompts` — a native Claude Code skill that scans your transcripts for common read-only Bash and MCP calls and proposes a prioritized allowlist. Reduces permission friction without enabling auto mode.
+> - After a few sessions, run `/less-permission-prompts` — a native Claude Code skill
+>   that scans your transcripts for common read-only Bash/MCP calls and proposes a
+>   prioritized allowlist. Reduces permission friction without enabling auto mode.
 >
 > Both are complementary to the SDLC wizard — they add tooling and quality-of-life, not process enforcement.
 
