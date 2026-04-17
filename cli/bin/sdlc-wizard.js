@@ -42,7 +42,9 @@ if (command === 'init') {
     init(process.cwd(), flags);
     process.exit(0);
   } catch (err) {
-    console.error(`Error: ${err.message}`);
+    // Plugin-detect errors already streamed a colored guidance block to stderr
+    // from init() — skip the redundant "Error:" prefix line.
+    if (!err.pluginPaths) console.error(`Error: ${err.message}`);
     process.exit(1);
   }
 } else if (command === 'check') {

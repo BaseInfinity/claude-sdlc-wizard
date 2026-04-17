@@ -36,6 +36,23 @@ const WIZARD_HOOK_MARKERS = FILES
 
 const GITIGNORE_ENTRIES = ['.claude/plans/', '.claude/settings.local.json'];
 
+// Paths where the Claude plugin form of this wizard installs.
+// If present, running `npx init` creates duplicate /update-wizard (#181).
+const PLUGIN_INSTALL_PATHS = [
+  '.claude/plugins-local/sdlc-wizard-wrap',
+  '.claude/plugins/cache/sdlc-wizard-local',
+];
+
+function detectPluginInstall(homeDir) {
+  const home = homeDir || os.homedir();
+  // Guard empty / non-absolute HOME: without this, path.join('', '.claude/...')
+  // produces a project-relative path and init falsely blocks on local dirs.
+  if (!home || !path.isAbsolute(home)) return [];
+  return PLUGIN_INSTALL_PATHS
+    .map((rel) => path.join(home, rel))
+    .filter((p) => fs.existsSync(p));
+}
+
 // Paths from previous versions that should be removed on upgrade
 const OBSOLETE_PATHS = [
   '.claude/skills/testing',  // consolidated into /sdlc in v1.17.0
@@ -209,6 +226,24 @@ function printOps(ops) {
 }
 
 function init(targetDir, { force = false, dryRun = false } = {}) {
+  if (!dryRun && !force) {
+    const pluginPaths = detectPluginInstall();
+    if (pluginPaths.length > 0) {
+      console.error(`\n${YELLOW}Claude plugin install detected:${RESET}`);
+      for (const p of pluginPaths) console.error(`  ${p}`);
+      console.error('\nInstalling via npm on top of the plugin creates duplicate /update-wizard commands.');
+      console.error('Pick one channel:');
+      console.error(`  - Keep plugin:   exit and use ${CYAN}/plugin update sdlc-wizard${RESET}`);
+      console.error(`  - Switch to CLI: remove plugin dir above, then rerun ${CYAN}init${RESET}`);
+      console.error(`  - Keep both:     rerun with ${CYAN}--force${RESET} (duplicates expected)\n`);
+      const err = new Error(
+        `Plugin install detected at: ${pluginPaths.join(', ')}. Use --force to bypass.`
+      );
+      err.pluginPaths = pluginPaths;
+      throw err;
+    }
+  }
+
   const ops = planOperations(targetDir, { force });
 
   if (dryRun) {
@@ -416,4 +451,4 @@ function checkMarketplacePaths() {
   return results;
 }
 
-module.exports = { init, check, planOperations, GITIGNORE_ENTRIES };
+module.exports = { init, check, planOperations, detectPluginInstall, GITIGNORE_ENTRIES };
