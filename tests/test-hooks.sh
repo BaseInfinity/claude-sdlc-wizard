@@ -1117,6 +1117,118 @@ test_todowrite_has_legacy_delete_check
 test_enforcement_coverage_score
 
 echo ""
+echo "--- Dual-channel install drift guardrails (#181) ---"
+
+# Helper: create a fake project + fake HOME with plugin install path
+prepare_dual_install_fixture() {
+    local tmpdir="$1"
+    local plugin_which="$2"  # "local", "cache", "both", or "none"
+    local has_cli_skills="$3"  # "yes" or "no"
+    mkdir -p "$tmpdir/project"
+    touch "$tmpdir/project/SDLC.md"
+    echo "# SDLC" > "$tmpdir/project/SDLC.md"
+    echo "# Testing" > "$tmpdir/project/TESTING.md"
+    if [ "$has_cli_skills" = "yes" ]; then
+        mkdir -p "$tmpdir/project/.claude/skills/update"
+        echo "# Update skill" > "$tmpdir/project/.claude/skills/update/SKILL.md"
+    fi
+    mkdir -p "$tmpdir/.claude"
+    if [ "$plugin_which" = "local" ] || [ "$plugin_which" = "both" ]; then
+        mkdir -p "$tmpdir/.claude/plugins-local/sdlc-wizard-wrap"
+    fi
+    if [ "$plugin_which" = "cache" ] || [ "$plugin_which" = "both" ]; then
+        mkdir -p "$tmpdir/.claude/plugins/cache/sdlc-wizard-local"
+    fi
+    # Mock npm/claude/codex so version/update checks are silent
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+}
+
+# Test: hook emits dual-install nudge when BOTH CLI skills and plugin paths exist
+test_instructions_hook_dual_install_nudge_local() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "local" "yes"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "dual-install\|both channels\|plugin.*and.*CLI\|CLI.*and.*plugin\|pick one"; then
+        pass "instructions-loaded-check.sh emits dual-install nudge (plugins-local)"
+    else
+        fail "Should emit dual-install nudge when CLI skills + plugins-local present, got: $output"
+    fi
+}
+
+# Test: hook emits dual-install nudge when plugin cache path exists
+test_instructions_hook_dual_install_nudge_cache() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "cache" "yes"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qi "dual-install\|both channels\|plugin.*and.*CLI\|CLI.*and.*plugin\|pick one"; then
+        pass "instructions-loaded-check.sh emits dual-install nudge (plugins cache)"
+    else
+        fail "Should emit dual-install nudge when CLI skills + plugin cache present, got: $output"
+    fi
+}
+
+# Test: hook silent when only plugin installed (no CLI skills in project)
+test_instructions_hook_silent_plugin_only() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "both" "no"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if ! echo "$output" | grep -qi "dual-install\|both channels\|pick one"; then
+        pass "instructions-loaded-check.sh silent when plugin-only (no CLI skills)"
+    else
+        fail "Should NOT emit dual-install nudge when only plugin present, got: $output"
+    fi
+}
+
+# Test: hook silent when only CLI skills installed (no plugin paths)
+test_instructions_hook_silent_cli_only() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "none" "yes"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if ! echo "$output" | grep -qi "dual-install\|both channels\|pick one"; then
+        pass "instructions-loaded-check.sh silent when CLI-only (no plugin paths)"
+    else
+        fail "Should NOT emit dual-install nudge when only CLI skills present, got: $output"
+    fi
+}
+
+# Test: dual-install nudge is non-blocking (exit 0)
+test_instructions_hook_dual_install_non_blocking() {
+    local tmpdir exit_code
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "both" "yes"
+    (cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh") > /dev/null 2>&1
+    exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -eq 0 ]; then
+        pass "instructions-loaded-check.sh dual-install nudge is non-blocking (exit 0)"
+    else
+        fail "Hook should exit 0 even with dual-install nudge (exit=$exit_code)"
+    fi
+}
+
+test_instructions_hook_dual_install_nudge_local
+test_instructions_hook_dual_install_nudge_cache
+test_instructions_hook_silent_plugin_only
+test_instructions_hook_silent_cli_only
+test_instructions_hook_dual_install_non_blocking
+
+echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"

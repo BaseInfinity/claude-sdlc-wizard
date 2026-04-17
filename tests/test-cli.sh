@@ -8,6 +8,12 @@ CLI="$SCRIPT_DIR/../cli/bin/sdlc-wizard.js"
 PASSED=0
 FAILED=0
 
+# Isolate tests from real HOME so plugin install detection (#181) doesn't
+# false-trigger in dev environments with the plugin installed. Tests that
+# need a specific HOME (marketplace, plugin-detect) override this explicitly.
+export HOME="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-cli-test-home-XXXXXX")"
+trap 'rm -rf "$HOME"' EXIT
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -1195,6 +1201,209 @@ test_check_marketplace_suggests_fix
 test_check_marketplace_private_var_folders
 test_check_marketplace_malformed_path
 test_check_marketplace_dangling_heading
+
+# === Dual-channel install drift guardrails (#181) ===
+
+# Helper: create fake HOME with plugin install path
+# which: "local", "cache", "both", or "none"
+make_plugin_home() {
+    local home="$1"
+    local which="$2"
+    mkdir -p "$home/.claude"
+    if [ "$which" = "local" ] || [ "$which" = "both" ]; then
+        mkdir -p "$home/.claude/plugins-local/sdlc-wizard-wrap"
+        echo "{}" > "$home/.claude/plugins-local/sdlc-wizard-wrap/.marker"
+    fi
+    if [ "$which" = "cache" ] || [ "$which" = "both" ]; then
+        mkdir -p "$home/.claude/plugins/cache/sdlc-wizard-local"
+        echo "{}" > "$home/.claude/plugins/cache/sdlc-wizard-local/.marker"
+    fi
+}
+
+# Run init with split stdout/stderr and explicit exit code.
+# Writes stdout to $1, stderr to $2, echoes exit code.
+run_init_split() {
+    local stdout_file="$1" stderr_file="$2" workdir="$3" fake_home="$4"
+    shift 4
+    local exit_code=0
+    ( cd "$workdir" && HOME="$fake_home" node "$CLI" init "$@" ) \
+        > "$stdout_file" 2> "$stderr_file" || exit_code=$?
+    echo "$exit_code"
+}
+
+# Test 52: init blocks when plugin install detected (plugins-local path)
+test_init_blocks_on_plugin_local() {
+    local d fake_home stdout_f stderr_f exit_code
+    d=$(make_temp); fake_home=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    make_plugin_home "$fake_home" "local"
+    exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home")
+    if [ "$exit_code" -ne 0 ] \
+       && grep -qi "plugin install detected" "$stderr_f" \
+       && [ ! -d "$d/.claude" ]; then
+        pass "init blocks and warns (stderr) when plugins-local detected"
+    else
+        fail "init should block on plugins-local (exit=$exit_code, stderr=$(cat "$stderr_f"))"
+    fi
+    rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 53: init blocks when plugin cache path detected
+test_init_blocks_on_plugin_cache() {
+    local d fake_home stdout_f stderr_f exit_code
+    d=$(make_temp); fake_home=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    make_plugin_home "$fake_home" "cache"
+    exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home")
+    if [ "$exit_code" -ne 0 ] && grep -qi "plugin install detected" "$stderr_f"; then
+        pass "init blocks and warns (stderr) when plugin cache detected"
+    else
+        fail "init should block on plugin cache (exit=$exit_code, stderr=$(cat "$stderr_f"))"
+    fi
+    rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 54: init --force bypasses plugin detection
+test_init_force_bypasses_plugin() {
+    local d fake_home stdout_f stderr_f exit_code
+    d=$(make_temp); fake_home=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    make_plugin_home "$fake_home" "both"
+    exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home" --force)
+    if [ "$exit_code" -eq 0 ] && [ -f "$d/.claude/settings.json" ]; then
+        pass "init --force bypasses plugin detection and installs"
+    else
+        fail "init --force should bypass (exit=$exit_code)"
+    fi
+    rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 55: init --dry-run is not blocked by plugin detection
+test_init_dry_run_ignores_plugin() {
+    local d fake_home stdout_f stderr_f exit_code
+    d=$(make_temp); fake_home=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    make_plugin_home "$fake_home" "both"
+    exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home" --dry-run)
+    if [ "$exit_code" -eq 0 ] && [ ! -d "$d/.claude" ]; then
+        pass "init --dry-run not blocked by plugin detection"
+    else
+        fail "init --dry-run should succeed (exit=$exit_code)"
+    fi
+    rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 56: init runs silently when no plugin install present
+test_init_silent_without_plugin() {
+    local d fake_home stdout_f stderr_f exit_code
+    d=$(make_temp); fake_home=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    make_plugin_home "$fake_home" "none"
+    exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home")
+    if [ "$exit_code" -eq 0 ] \
+       && [ -f "$d/.claude/settings.json" ] \
+       && ! grep -qi "plugin install detected" "$stderr_f"; then
+        pass "init silent about plugins when absent"
+    else
+        fail "init should be silent without plugins (exit=$exit_code)"
+    fi
+    rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 57: plugin warning mentions how to resolve (pick one channel)
+test_init_plugin_warning_guidance() {
+    local d fake_home stdout_f stderr_f exit_code
+    d=$(make_temp); fake_home=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    make_plugin_home "$fake_home" "local"
+    exit_code=$(run_init_split "$stdout_f" "$stderr_f" "$d" "$fake_home")
+    if [ "$exit_code" -ne 0 ] \
+       && grep -qi "force" "$stderr_f" \
+       && grep -qi "plugin" "$stderr_f"; then
+        pass "plugin warning mentions --force and plugin on stderr"
+    else
+        fail "plugin warning should mention --force (exit=$exit_code, stderr=$(cat "$stderr_f"))"
+    fi
+    rm -rf "$d" "$fake_home" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 58c: unset HOME (env -u HOME) does not false-trigger on cwd-relative path
+test_init_unset_home_no_false_positive() {
+    local d stdout_f stderr_f exit_code
+    d=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    # Seed cwd with a would-match dir (only matters if guard fails)
+    mkdir -p "$d/.claude/plugins-local/sdlc-wizard-wrap"
+    exit_code=0
+    # env -u HOME makes os.homedir() fall back to /etc/passwd, returning the
+    # real absolute user home (not empty). Guard should route detection to
+    # that absolute path — never to the cwd-relative .claude/... path.
+    ( cd "$d" && env -u HOME node "$CLI" init ) \
+        > "$stdout_f" 2> "$stderr_f" || exit_code=$?
+    # If any plugin warning fires, it must reference an absolute path.
+    # Reject any relative path like ".claude/plugins-local/..." in stderr.
+    if grep -Eq '(^|[^/])\.claude/plugins' "$stderr_f"; then
+        fail "unset HOME produced cwd-relative plugin path (stderr=$(cat "$stderr_f"))"
+    else
+        pass "unset HOME does not false-trigger on cwd-relative path"
+    fi
+    rm -rf "$d" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+# Test 58b: detectPluginInstall guard rejects empty, undefined, and relative homeDir
+test_detect_plugin_install_guards_bad_homedir() {
+    local d result
+    d=$(make_temp)
+    # Seed cwd with a dir that WOULD match if guard were missing
+    mkdir -p "$d/.claude/plugins-local/sdlc-wizard-wrap"
+    # Call exported detectPluginInstall directly with each bad homeDir value.
+    # Use HOME="" so os.homedir() fallback is also empty — isolates the guard.
+    result=$(cd "$d" && HOME="" node -e '
+      const { detectPluginInstall } = require("'"$SCRIPT_DIR/../cli/init.js"'");
+      const cases = { empty: "", undef: undefined, relative: ".claude" };
+      for (const [k, v] of Object.entries(cases)) {
+        const out = detectPluginInstall(v);
+        console.log(k + "=" + out.length);
+      }
+    ')
+    if echo "$result" | grep -q "^empty=0$" \
+       && echo "$result" | grep -q "^undef=0$" \
+       && echo "$result" | grep -q "^relative=0$"; then
+        pass "detectPluginInstall guards against empty/undefined/relative homeDir"
+    else
+        fail "detectPluginInstall guard failed (got: $result)"
+    fi
+    rm -rf "$d"
+}
+
+# Test 58: empty HOME does not false-trigger plugin detection via relative paths
+test_init_empty_home_no_false_positive() {
+    local d stdout_f stderr_f exit_code
+    d=$(make_temp)
+    stdout_f=$(make_temp)/stdout; stderr_f=$(make_temp)/stderr
+    # Seed cwd with a directory that would match if path.join used "" as home
+    mkdir -p "$d/.claude/plugins-local/sdlc-wizard-wrap"
+    exit_code=0
+    ( cd "$d" && HOME="" node "$CLI" init ) \
+        > "$stdout_f" 2> "$stderr_f" || exit_code=$?
+    if [ "$exit_code" -eq 0 ] \
+       && ! grep -qi "plugin install detected" "$stderr_f"; then
+        pass "empty HOME does not false-trigger plugin detection"
+    else
+        fail "empty HOME should not trigger plugin block (exit=$exit_code, stderr=$(cat "$stderr_f"))"
+    fi
+    rm -rf "$d" "$(dirname "$stdout_f")" "$(dirname "$stderr_f")"
+}
+
+test_init_blocks_on_plugin_local
+test_init_blocks_on_plugin_cache
+test_init_force_bypasses_plugin
+test_init_dry_run_ignores_plugin
+test_init_silent_without_plugin
+test_init_plugin_warning_guidance
+test_init_empty_home_no_false_positive
+test_init_unset_home_no_false_positive
+test_detect_plugin_install_guards_bad_homedir
 
 echo ""
 echo "=== Results ==="

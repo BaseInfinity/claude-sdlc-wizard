@@ -13,3 +13,4 @@ tests/e2e/.cache/
 # Editor/OS
 .DS_Store
 *.swp
+.claude/settings.local.json

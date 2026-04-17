@@ -11,6 +11,11 @@ FIXTURES_DIR="$SCRIPT_DIR/e2e/fixtures"
 PASSED=0
 FAILED=0
 
+# Isolate tests from real HOME so plugin install detection (#181) doesn't
+# false-trigger in dev environments with the plugin installed.
+export HOME="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-setup-path-test-home-XXXXXX")"
+trap 'rm -rf "$HOME"' EXIT
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

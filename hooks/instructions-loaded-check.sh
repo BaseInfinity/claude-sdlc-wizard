@@ -84,6 +84,20 @@ if command -v jq > /dev/null 2>&1; then
     fi
 fi
 
+# Dual-channel install check (#181) — nudge when CLI skills + Claude plugin both present
+if [ -d "$PROJECT_DIR/.claude/skills/update" ]; then
+    for plugin_path in "$HOME/.claude/plugins-local/sdlc-wizard-wrap" "$HOME/.claude/plugins/cache/sdlc-wizard-local"; do
+        if [ -d "$plugin_path" ]; then
+            echo "WARNING: dual-install detected — CLI skills in .claude/skills/ AND Claude plugin at:"
+            echo "  $plugin_path"
+            echo "  Duplicate /update-wizard commands come from running both channels. Pick one:"
+            echo "    - Keep plugin: remove .claude/skills/ from this project"
+            echo "    - Keep CLI:    /plugin uninstall sdlc-wizard (or remove plugin dir)"
+            break
+        fi
+    done
+fi
+
 # Claude Code version check (non-blocking, best-effort)
 if command -v claude > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
     CC_LOCAL=$(claude --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1) || true
