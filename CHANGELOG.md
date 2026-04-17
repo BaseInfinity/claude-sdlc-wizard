@@ -4,6 +4,29 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.32.0] - 2026-04-16
+
+### Added
+- Opus 4.7 support in benchmark workflow (#178)
+  - `claude-opus-4-7` added to model choices, `effort` input (high/xhigh/max)
+  - `--effort` passed via `claude_args`, effort recorded in artifacts + summaries
+  - Hard-fail when xhigh used with non-4.7 models (inputs resolved before shell)
+  - Artifact names include effort level to prevent collision
+  - Default: opus-4-7 + xhigh (matches CC's new default)
+  - 3 new tests (39 total model-comparison tests)
+- `xhigh` effort level documented in wizard (#178)
+  - New effort table: high → xhigh (recommended for coding) → max
+  - Opus 4.7 changes: stricter effort adherence, budget_tokens deprecated, 64k+ max_tokens guidance
+- Benchmark ceiling effect audit documented in wizard
+  - Cross-model audit (Codex GPT-5.4, xhigh) rated benchmark 2/10 NOT CERTIFIED
+  - 4 P0 findings: fake trials, answer key leaked, no independent verification, binary rubric
+  - 3 concrete fixes documented (remove coaching, add correctness scoring, real trials)
+  - External benchmark comparison (SWE-Bench, Aider methodology)
+- Automation Station community Discord link in README
+
+### Fixed
+- Orphaned `skills/gdlc/` causing test-doc-consistency failures (deleted)
+
 ## [1.31.0] - 2026-04-14
 
 ### Added
