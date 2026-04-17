@@ -4060,6 +4060,15 @@ When Anthropic provides official plugins that overlap with this SDLC:
 
 **Re-run `claude-code-setup` periodically** (quarterly, or when your project expands in scope) to catch new automations — MCP servers, hooks, subagents — that weren't relevant at initial setup but are now.
 
+**Complementary native skills worth knowing:**
+
+| Native Skill | What It Does | When to Run |
+|--------------|--------------|-------------|
+| `/less-permission-prompts` | Scans transcripts for common read-only Bash/MCP calls and proposes a prioritized allowlist | After a few sessions — reduces permission friction without auto mode |
+| `/permissions` | Pre-allow specific commands and check them into `.claude/settings.json` | Anytime you want an auditable team allowlist |
+
+These are shipped by Claude Code itself. The wizard doesn't reimplement them — it points you at them so you benefit from the native version's ongoing maintenance.
+
 ### When Claude Code Improves
 
 Claude Code is actively improving. When they add built-in features:

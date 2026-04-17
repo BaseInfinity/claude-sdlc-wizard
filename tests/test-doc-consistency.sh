@@ -402,6 +402,43 @@ test_hooks_recommend_opus_1m_alias() {
     fi
 }
 
+# Setup skill must point users at /less-permission-prompts so they can
+# auto-tune their allowlist without enabling auto mode. This is a native CC
+# skill (ships with the CLI), so we just reference it — we don't reimplement.
+test_setup_skill_mentions_less_permission_prompts() {
+    local SKILL="$REPO_ROOT/skills/setup/SKILL.md"
+    if [ ! -f "$SKILL" ]; then fail "skills/setup/SKILL.md not found"; return; fi
+    if grep -qF '/less-permission-prompts' "$SKILL"; then
+        pass "skills/setup/SKILL.md mentions /less-permission-prompts"
+    else
+        fail "skills/setup/SKILL.md should recommend /less-permission-prompts post-setup"
+    fi
+}
+
+# Wizard doc must surface /less-permission-prompts in a Further Reading /
+# complementary-tools section so readers know it's native CC, not wizard-owned.
+test_wizard_doc_mentions_less_permission_prompts() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -qF '/less-permission-prompts' "$DOC"; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md mentions /less-permission-prompts"
+    else
+        fail "CLAUDE_CODE_SDLC_WIZARD.md should reference /less-permission-prompts as a complementary native skill"
+    fi
+}
+
+# Pin the second row of the "Complementary native skills" table too —
+# otherwise a future edit could silently drop /permissions and no test catches it.
+test_wizard_doc_mentions_permissions_command() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -qE '\| `/permissions` \|' "$DOC"; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md pins /permissions row in complementary-skills table"
+    else
+        fail "CLAUDE_CODE_SDLC_WIZARD.md should keep /permissions in the complementary-skills table"
+    fi
+}
+
 test_wizard_doc_recommends_opus_1m
 test_sdlc_skill_recommends_opus_1m
 test_cli_template_sets_opus_1m_model
@@ -409,6 +446,9 @@ test_cli_template_autocompact_tuned_for_1m
 test_setup_skill_describes_1m_default
 test_repo_settings_match_template_autocompact
 test_hooks_recommend_opus_1m_alias
+test_setup_skill_mentions_less_permission_prompts
+test_wizard_doc_mentions_less_permission_prompts
+test_wizard_doc_mentions_permissions_command
 
 # ────────────────────────────────────────────
 # Summary
