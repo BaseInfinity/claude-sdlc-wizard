@@ -4060,6 +4060,14 @@ When Anthropic provides official plugins that overlap with this SDLC:
 
 **Re-run `claude-code-setup` periodically** (quarterly, or when your project expands in scope) to catch new automations — MCP servers, hooks, subagents — that weren't relevant at initial setup but are now.
 
+**API feature shepherd (self-maintenance, roadmap #100):**
+
+The wizard watches the **Anthropic API changelog** — not just Claude Code CLI releases — for new betas, tools, and agent features. The detector runs in `.github/workflows/weekly-api-update.yml`, is intentionally LLM-free, and only opens a tracking issue labeled `api-review-needed` when new entries appear at `platform.claude.com/docs/en/release-notes/api`.
+
+When that issue is open, the session-start hook nudges you. The session (not the workflow) does the deep research + adoption via the full SDLC loop. This mirrors the "local shepherd" pattern used for CI fixes: cheap Action-layer detection + session-time analysis beats expensive Action-layer LLM calls.
+
+The gap this closes: the advisor tool (API beta, `advisor-tool-2026-03-01`) shipped and was missed for several days before manual discovery. Detector would have flagged it on the next weekly tick.
+
 **Complementary native skills worth knowing:**
 
 | Native Skill | What It Does | When to Run |
