@@ -66,6 +66,24 @@ if command -v codex > /dev/null 2>&1 && [ -d "$PROJECT_DIR/.reviews" ]; then
     fi
 fi
 
+# Model/effort upgrade check (non-blocking, best-effort)
+RECOMMENDED_MODEL="claude-opus-4-7"
+RECOMMENDED_EFFORT="xhigh"
+if command -v jq > /dev/null 2>&1; then
+    EFFORT=""
+    PROJ="${CLAUDE_PROJECT_DIR:-$PROJECT_DIR}"
+    for f in "$PROJ/.claude/settings.local.json" "$PROJ/.claude/settings.json" "$HOME/.claude/settings.json"; do
+        if [ -f "$f" ]; then
+            val=$(jq -r '.effortLevel // empty' "$f" 2>/dev/null)
+            if [ -n "$val" ]; then EFFORT="$val"; break; fi
+        fi
+    done
+    if [ -n "$EFFORT" ] && [ "$EFFORT" != "$RECOMMENDED_EFFORT" ]; then
+        echo "Upgrade available: effort $EFFORT → $RECOMMENDED_EFFORT (run: /effort $RECOMMENDED_EFFORT)"
+        echo "Recommended model: $RECOMMENDED_MODEL (run: /model $RECOMMENDED_MODEL)"
+    fi
+fi
+
 # Claude Code version check (non-blocking, best-effort)
 if command -v claude > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
     CC_LOCAL=$(claude --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1) || true
