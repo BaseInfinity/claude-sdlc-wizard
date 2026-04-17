@@ -110,6 +110,7 @@
 | 1 | 178 | Opus 4.7 + xhigh Effort Support | DONE — benchmark workflow adds opus-4-7 model choice + effort input (high/xhigh/max). Hard-fail on xhigh+non-4.7. Effort in artifacts + summaries. Wizard docs updated with xhigh guidance. 39 model-comparison tests |
 | 2 | — | Benchmark Ceiling Effect Audit | DONE — Cross-model audit (Codex GPT-5.4 xhigh) rated benchmark 2/10 NOT CERTIFIED. 4 P0s: fake trials, answer key leaked, no independent verification, binary rubric. Documented in wizard with 3 concrete fixes. Tracked under #96 |
 | 3 | — | Community Discord | DONE — Automation Station link in README (sdlc-wizard + codex-sdlc-wizard + project-tracker) |
+| 4 | 179 | Model/Effort Upgrade Detection | Session-start hook detects when a newer model or recommended effort level is available but user isn't using it. E.g., Opus 4.7+xhigh is available but user is on 4.6+high → print actionable nudge with `/model` and `/effort` commands. Also bump hardcoded `claude-opus-4-6` defaults in pr-review.yml, evaluate.sh, sdp-score.sh, pairwise-compare.sh. The wizard should tell you to upgrade — you shouldn't have to figure it out yourself |
 
 ## Previous Release (v1.31.0)
 
@@ -225,7 +226,7 @@ Living tracker of projects shipped using this wizard. **Rule:** only list projec
 
 - Keep local review loop as the default quality bar: Claude self-review first, then local Codex `xhigh` for independent cross-model review on substantial changes.
 - Keep GitHub PR automation on the existing Claude review pipeline so SDLC checks continue to work.
-- Pin the GitHub PR reviewer to `claude-opus-4-6` for maximum current Claude review quality.
+- Pin the GitHub PR reviewer to `claude-opus-4-7` for maximum current Claude review quality.
 - Enable Codex GitHub review manually and use it on high-risk PRs first rather than every PR.
 
 ### Next: Codex vs Claude Review Experiment

@@ -312,8 +312,8 @@ jobs:
 
           claude_args: |
             --bare
-            --model claude-opus-4-6
-            --effort high
+            --model claude-opus-4-7
+            --effort xhigh
             --allowedTools "mcp__github__get_pull_request_diff,Read,Grep,Glob"
 
       # Extract review from Claude's output

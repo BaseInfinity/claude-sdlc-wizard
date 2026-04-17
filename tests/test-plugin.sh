@@ -150,7 +150,7 @@ test_hooks_json_uses_plugin_root() {
     fi
 }
 
-test_hooks_json_three_events() {
+test_hooks_json_four_events() {
     local file="$REPO_ROOT/hooks/hooks.json"
     [ -f "$file" ] || { fail "hooks.json missing"; return; }
     local count
@@ -161,10 +161,10 @@ with open('$file') as f:
 hooks = d.get('hooks', {})
 print(len(hooks))
 " 2>/dev/null)
-    if [ "$count" = "3" ]; then
-        pass "hooks.json has 3 hook events"
+    if [ "$count" = "4" ]; then
+        pass "hooks.json has 4 hook events"
     else
-        fail "hooks.json should have 3 hook events, got $count"
+        fail "hooks.json should have 4 hook events, got $count"
     fi
 }
 
@@ -402,7 +402,7 @@ test_plugin_json_kebab_case_name
 test_hooks_json_exists
 test_hooks_json_valid
 test_hooks_json_uses_plugin_root
-test_hooks_json_three_events
+test_hooks_json_four_events
 test_hooks_json_event_parity
 test_plugin_skills_exist
 test_plugin_hook_scripts_exist
