@@ -4,6 +4,32 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.34.0] - 2026-04-17
+
+### Added
+- Memory Audit Protocol for promoting private-memory lessons to shared docs (#189)
+  - New `/sdlc` subsection under "After Session (Capture Learnings)" defines a three-bucket classifier (`promote` / `keep` / `manual-review`) with a rule-based privacy denylist (`type: user`/`reference` → keep, `project`/`feedback` → manual-review)
+  - YAML frontmatter parser in `tests/test-memory-audit-protocol.sh` normalizes inline comments, quoted values, and whitespace so variants like `type: "user" # external` still route to keep
+  - `SDLC.md` now has a `## Lessons Learned` section seeded with 7 verified technical gotchas (GH CLI stdout, `workflows` YAML scope, GITHUB_TOKEN workflow triggers, GHA `${{ }}` backtick substitution, macOS bash 3.x, stderr/stdout separation for JSON parsing, `continue-on-error` + `||` masking); each entry cites its originating PR or incident date and was re-verified with a runnable repro before promotion
+  - 10-fixture corpus at `tests/fixtures/memory-audit-corpus/` (6 promote / 2 keep / 2 manual-review) with `test_expected` frontmatter seeds the future LLM-gated quality runner
+  - 12-test protocol suite covers structure, rule-based denylist, YAML-variant hardening, corpus consistency (promote fixtures route to manual-review under rule-based), and corpus shape
+  - Codex xhigh 3-round code review: 4/10 → 8/10 → 10/10 CERTIFIED. Caught two false lessons in private memory (`${3:-{}}` brace-default claim and `--argjson result` jq-conflict claim) that were retracted with dated strikethroughs — the protocol's first real use prevented its own false claims from shipping
+  - CLI distributes skill updates + new SDLC.md section; CI wire-up in `.github/workflows/ci.yml` (validate job)
+- API feature detection shepherd for Claude API release notes (#100, PRs #184, #186, #187)
+  - LLM-free weekly detector at `.github/workflows/weekly-api-update.yml` polls `platform.claude.com/docs/en/release-notes/api.md`
+  - `scripts/parse-api-changelog.py` parses ATX date headers with ordinal-date normalizer and bullet-summary capture (non-date sub-headers like `#### SDKs` no longer terminate bullet extraction); 200-char truncation with ellipsis; tab scrub
+  - `scripts/persist-api-state.sh` writes last-seen date with branch-protection-safe non-blocking push; opens/updates a single `api-review-needed` tracking issue with enriched bullet summaries (not just dates)
+  - `instructions-loaded-check.sh` nudges at session start when open issues exist; gated on local workflow presence so consumer forks see only their own detector's issues
+  - 33 tests including 8 fixture-based parser tests (bullet capture, subheader boundary, tab scrub, truncation, ordinal dates) and 2 integration tests
+  - Codex xhigh 5 rounds across 2 PRs: 9/10 CERTIFIED. Found-in-prod P0 hotfix in #187 — `gh api` writes JSON error bodies to stdout (not stderr), so the label-create `already_exists` check was broken after the first successful dispatch; pattern now captures both streams
+
+### Fixed
+- `gh api` error handling in `weekly-api-update.yml` now captures stdout+stderr together for `already_exists` detection on label creation (#187). Added as portable lesson in `SDLC.md` Lessons Learned
+
+### Docs
+- `/less-permission-prompts` Claude Code native skill surfaced in wizard and setup documentation (#183)
+- README community section restyled with visual Discord badge for Automation Station
+
 ## [1.33.0] - 2026-04-17
 
 ### Added
