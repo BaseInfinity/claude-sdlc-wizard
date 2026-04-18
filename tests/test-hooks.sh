@@ -1232,6 +1232,122 @@ test_instructions_hook_silent_cli_only
 test_instructions_hook_dual_install_non_blocking
 
 echo ""
+echo "--- CC release review nudge (#85) ---"
+
+# Helper: fixture with weekly-update.yml + mocked gh returning configurable PR count
+prepare_cc_update_fixture() {
+    local tmpdir="$1"
+    local pr_count="$2"       # integer — count returned by mocked gh
+    local has_workflow="$3"   # "yes" or "no"
+    mkdir -p "$tmpdir/project"
+    echo "# SDLC" > "$tmpdir/project/SDLC.md"
+    echo "# Testing" > "$tmpdir/project/TESTING.md"
+    if [ "$has_workflow" = "yes" ]; then
+        mkdir -p "$tmpdir/project/.github/workflows"
+        echo "name: Weekly Update" > "$tmpdir/project/.github/workflows/weekly-update.yml"
+    fi
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    # Mock gh: returns pr_count when asked for auto-update PRs, empty otherwise
+    cat > "$tmpdir/bin/gh" <<EOF
+#!/bin/bash
+# Look at full args — distinguish 'pr list ... auto-update' from other calls
+for arg in "\$@"; do
+    if [ "\$arg" = "auto-update" ]; then
+        echo "$pr_count"
+        exit 0
+    fi
+    if [ "\$arg" = "api-review-needed" ]; then
+        echo "0"
+        exit 0
+    fi
+done
+# Default: empty (keeps other gh calls quiet)
+echo ""
+exit 0
+EOF
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex" "$tmpdir/bin/gh"
+}
+
+test_hook_queries_auto_update_label() {
+    if grep -qF 'auto-update' "$HOOKS_DIR/instructions-loaded-check.sh"; then
+        pass "hook queries for auto-update label"
+    else
+        fail "hook must check for open PRs with auto-update label (#85)"
+    fi
+}
+
+test_hook_gates_cc_nudge_on_weekly_update_workflow() {
+    # Mirror the api-review-needed gating pattern — only fire when the
+    # detector workflow lives in this repo (not in consumer projects).
+    if grep -B1 -A10 'auto-update' "$HOOKS_DIR/instructions-loaded-check.sh" | grep -q 'weekly-update.yml'; then
+        pass "hook gates CC update nudge on weekly-update.yml presence"
+    else
+        fail "hook must gate auto-update nudge on .github/workflows/weekly-update.yml"
+    fi
+}
+
+test_hook_guards_gh_for_cc_nudge() {
+    if grep -B1 -A10 'auto-update' "$HOOKS_DIR/instructions-loaded-check.sh" | grep -q 'command -v gh'; then
+        pass "hook guards on gh availability for CC nudge"
+    else
+        fail "hook must check 'command -v gh' before querying auto-update PRs"
+    fi
+}
+
+test_hook_emits_cc_nudge_when_pending() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_cc_update_fixture "$tmpdir" "2" "yes"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qiE 'Claude Code.*update.*pending|auto-update.*PR|CC.*release.*review'; then
+        pass "hook emits CC update nudge when auto-update PRs open"
+    else
+        fail "Should emit nudge when gh reports open auto-update PR(s), got: $output"
+    fi
+}
+
+test_hook_silent_when_no_pending_cc_updates() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_cc_update_fixture "$tmpdir" "0" "yes"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qiE 'Claude Code.*update.*pending|auto-update.*PR|CC.*release.*review'; then
+        fail "Should be silent when no open auto-update PRs, got: $output"
+    else
+        pass "hook silent when no auto-update PRs pending"
+    fi
+}
+
+test_hook_silent_without_weekly_update_workflow() {
+    # Consumer projects don't own the detector — don't pester them.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_cc_update_fixture "$tmpdir" "3" "no"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qiE 'auto-update.*PR|CC.*release.*review'; then
+        fail "Consumer project without detector workflow shouldn't see upstream nudge, got: $output"
+    else
+        pass "hook silent without weekly-update.yml (consumer project)"
+    fi
+}
+
+test_hook_queries_auto_update_label
+test_hook_gates_cc_nudge_on_weekly_update_workflow
+test_hook_guards_gh_for_cc_nudge
+test_hook_emits_cc_nudge_when_pending
+test_hook_silent_when_no_pending_cc_updates
+test_hook_silent_without_weekly_update_workflow
+
+echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
