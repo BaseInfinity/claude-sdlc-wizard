@@ -47,7 +47,9 @@ def _extract_bullets(lines: list[str], start: int, end: int) -> str:
         m = BULLET_LINE.match(lines[i])
         if not m:
             continue
-        taken.append(m.group(1).strip())
+        # TSV delimiter is an invariant the parser owns — defensively scrub
+        # any tabs that might sneak in via inline code spans or raw markdown.
+        taken.append(m.group(1).strip().replace("\t", " "))
         if len(taken) >= BULLET_TAKE:
             break
     if not taken:
