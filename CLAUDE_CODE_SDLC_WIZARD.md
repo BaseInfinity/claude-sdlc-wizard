@@ -2628,6 +2628,28 @@ These are your full reference docs. Start with stubs and expand over time:
 
 **Claude follows this automatically.** After a deploy task, Claude runs through the Post-Deploy Verification table for the target environment. If any check fails, Claude suggests rollback and a new fix cycle.
 
+## Pipeline Liveness Audits — CI green ≠ data flowing
+
+A green CI badge only means "no step crashed." It does **not** mean "this pipeline is still producing the output it's supposed to produce." Long-running pipelines — scheduled benchmarks, nightly analytics jobs, weekly report generators, any workflow that appends to a log or dataset — can silently stop producing output while every run still reports success. Regression tests alone do not catch this: the fault lives between "green status" and "observable artifact."
+
+**Symptom to watch for:** a file, table, or dashboard that's supposed to be updated by a scheduled workflow stops advancing even though the workflow keeps running green.
+
+**Concrete example from this repo (2026-04-18):** `tests/e2e/score-history.jsonl` hadn't been appended to since 2026-03-30, yet weekly runs kept completing. Two stacked causes:
+
+1. On the 2026-04-13 run, a `CRITICAL MISS` caused `evaluate.sh` to exit 1 *with* a valid score payload; the tier2 wrapper aborted on the non-zero exit and dropped the trial (fix: PR #193 — disambiguate infra error from legitimate low-score exit via JSON payload, not exit code).
+2. On other runs, a separate PR-branch push race (`refs/pull/N/merge` checkout vs. `refs/heads/<branch>` push) silently dropped the new trial because `continue-on-error: true` was set on the push step.
+
+The second failure was silent (push step protected by `continue-on-error`); the first was a red CI run but nobody was watching weekly runs closely enough to notice the artifact had stopped advancing. Either way, the artifact's liveness would have caught the stall weeks earlier than a CI-badge-only review.
+
+**Audit pattern — run when you touch a pipeline, and when asked to check pipeline health:**
+
+1. **Identify the observable output** — the artifact the pipeline is supposed to produce (file, PR, issue, log row, dashboard row).
+2. **Check its liveness** — what's the last timestamp? If the pipeline runs weekly but the artifact is 3+ cycles stale, that's a stall, not a lull.
+3. **Walk backward from the artifact to CI** — find the step that writes it, read that specific step's logs (not just the top-level status), confirm the write actually happened.
+4. **When `continue-on-error: true` is present upstream of the write step**, treat that step as suspect by default — its failures are masked.
+
+**When Claude should run this.** Claude runs the liveness audit when it merges or edits a scheduled workflow, when it ships a change that writes to a long-running artifact, and whenever the user asks to check a pipeline's health. It is not a background task — if no one is looking, the audit does not happen.
+
 ## Rollback
 
 If deployment fails or post-deploy verification catches issues:
