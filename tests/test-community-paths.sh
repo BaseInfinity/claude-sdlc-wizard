@@ -79,10 +79,44 @@ test_question_template() {
         fail "question.md template missing"
         return
     fi
-    if grep -q '^name:' "$f" && grep -q '^labels:' "$f"; then
-        pass "question.md has required frontmatter"
+    # All three markdown templates must have name/about/labels — consistent contract
+    if grep -q '^name:' "$f" && grep -q '^about:' "$f" && grep -q '^labels:' "$f"; then
+        pass "question.md has required frontmatter (name/about/labels)"
     else
-        fail "question.md missing required frontmatter"
+        fail "question.md missing required frontmatter (name/about/labels)"
+    fi
+}
+
+test_config_yml_exists() {
+    local f="$ISSUE_DIR/config.yml"
+    if [ -f "$f" ]; then
+        pass ".github/ISSUE_TEMPLATE/config.yml exists"
+    else
+        fail "config.yml missing — blank issues not disabled, contact links not surfaced"
+    fi
+}
+
+test_config_yml_disables_blank_issues() {
+    local f="$ISSUE_DIR/config.yml"
+    if [ ! -f "$f" ]; then return; fi
+    if grep -qE '^blank_issues_enabled:[[:space:]]*false' "$f"; then
+        pass "config.yml disables blank issues (forces users into a template)"
+    else
+        fail "config.yml does not set blank_issues_enabled: false"
+    fi
+}
+
+test_config_yml_has_contact_links() {
+    local f="$ISSUE_DIR/config.yml"
+    if [ ! -f "$f" ]; then return; fi
+    # contact_links schema: each entry has name/url/about. Check at least one full triple.
+    if grep -q '^contact_links:' "$f" \
+       && grep -qE '^\s*-\s*name:' "$f" \
+       && grep -qE '^\s*url:' "$f" \
+       && grep -qE '^\s*about:' "$f"; then
+        pass "config.yml has contact_links with name/url/about schema"
+    else
+        fail "config.yml missing valid contact_links entries (name/url/about)"
     fi
 }
 
@@ -163,6 +197,9 @@ test_issue_template_dir_exists
 test_bug_report_template
 test_feature_request_template
 test_question_template
+test_config_yml_exists
+test_config_yml_disables_blank_issues
+test_config_yml_has_contact_links
 test_issue_templates_reference_feedback_skill
 test_bug_template_mentions_sdlc_version
 
