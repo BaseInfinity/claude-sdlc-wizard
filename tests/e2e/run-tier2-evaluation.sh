@@ -49,23 +49,37 @@ for i in $(seq 1 "$TRIALS"); do
     EVAL_EXIT=0
     RESULT=$("$SCRIPT_DIR/evaluate.sh" "$SCENARIO" "$OUTPUT_FILE" --json 2>"$EVAL_STDERR") || EVAL_EXIT=$?
 
-    if [ "$EVAL_EXIT" -ne 0 ]; then
-        echo "Error: evaluate.sh failed on trial $i with exit code $EVAL_EXIT" >&2
-        echo "Stderr: $(cat "$EVAL_STDERR")" >&2
-        exit 1
+    # evaluate.sh exit semantics are overloaded: exit 1 covers both
+    # "genuine infra error" (LLM outage, bad input) AND "evaluation
+    # completed with PASS=false" (critical miss, score < baseline). For
+    # 5-trial statistical evaluation, only the former should abort — a
+    # critical-miss trial is still a valid data point. Distinguish via
+    # the JSON .error field, matching ci.yml's single-trial pattern.
+    INFRA_ERROR=false
+    if echo "$RESULT" | jq -e '.error == true' > /dev/null 2>&1; then
+        INFRA_ERROR=true
     fi
 
-    # Check for evaluation error in JSON response
-    if echo "$RESULT" | jq -e '.error == true' > /dev/null 2>&1; then
-        echo "Error: evaluate.sh returned error on trial $i: $(echo "$RESULT" | jq -r '.summary')" >&2
+    if [ "$INFRA_ERROR" = "true" ]; then
+        echo "Error: evaluate.sh returned .error=true on trial $i: $(echo "$RESULT" | jq -r '.summary')" >&2
+        echo "Stderr: $(cat "$EVAL_STDERR")" >&2
         exit 1
     fi
 
     SCORE=$(echo "$RESULT" | jq -r '.score // empty')
     if [ -z "$SCORE" ]; then
-        echo "Error: evaluate.sh returned no score on trial $i" >&2
+        # Non-zero exit AND no valid JSON/score = treat as infra error.
+        # Non-zero exit WITH valid score = low-score run, record it.
+        echo "Error: evaluate.sh returned no score on trial $i (exit=$EVAL_EXIT)" >&2
+        echo "Stderr: $(cat "$EVAL_STDERR")" >&2
         echo "Result: ${RESULT:0:500}" >&2
         exit 1
+    fi
+
+    # If evaluate.sh exited non-zero but we got a valid score here, log a
+    # warning so weekly-update triage still surfaces the low score.
+    if [ "$EVAL_EXIT" -ne 0 ]; then
+        echo "Warning: trial $i scored $SCORE but evaluate.sh exited $EVAL_EXIT (critical miss or below baseline — recording data point)" >&2
     fi
     SCORES="$SCORES $SCORE"
     echo "  Trial $i score: $SCORE" >&2

@@ -460,6 +460,111 @@ test_simulation_copies_contents
 test_docs_mention_claude_cli
 
 echo ""
+echo "--- Tier 2 abort semantics (#benchmarking-stall) ---"
+
+# Bug: run-tier2-evaluation.sh aborts on first trial when evaluate.sh exits 1,
+# even if evaluate.sh emitted valid JSON with a score and critical_miss:true.
+# Root cause: evaluate.sh exit code overloads "low score / critical miss /
+# LLM outage" onto exit 1. Single-trial ci.yml callers distinguish infra
+# errors via `.error == true` in JSON; the 5-trial script does not. Result:
+# one CRITICAL_MISS trial tanks the whole weekly-update run, zero scores
+# appended to history. Fix: run-tier2-evaluation.sh must record the score
+# and continue when evaluate.sh emits valid JSON (error != true), even on
+# non-zero exit.
+
+# Build a fake evaluate.sh stub that mimics a critical-miss exit: emits
+# valid --json with score/critical_miss/pass but exits 1.
+#
+# Heredoc note: the outer `<<EOF` is UN-quoted so `$exit_code` and
+# `$error_flag` interpolate at fixture-creation time; the inner `<<JSON`
+# is inside the stub script and runs at stub-invocation time. That is
+# why the JSON payload appears double-nested — it's intentional.
+make_tier2_fixture() {
+    local dir="$1"
+    local exit_code="$2"   # 0 or 1
+    local error_flag="$3"  # "true" = infra error, "false" = low-score
+    mkdir -p "$dir"
+    # Stub script-dir layout expected by run-tier2-evaluation.sh
+    cp "$SCRIPT_DIR/e2e/run-tier2-evaluation.sh" "$dir/run-tier2-evaluation.sh"
+    mkdir -p "$dir/lib"
+    cp "$SCRIPT_DIR/e2e/lib/stats.sh" "$dir/lib/stats.sh"
+    cat > "$dir/evaluate.sh" <<EOF
+#!/bin/bash
+# Stub: emits JSON with a score, then exits \$EXIT_CODE.
+cat <<JSON
+{"score":3,"summary":"stub","criteria":{},"pass":false,"critical_miss":true,"error":$error_flag,"sdp":{"adjusted":3,"external_benchmark":68,"robustness":1.0}}
+JSON
+exit $exit_code
+EOF
+    chmod +x "$dir/evaluate.sh"
+    mkdir -p "$dir/scenarios"
+    touch "$dir/scenarios/fake.md"
+    echo '{"ok":true}' > "$dir/output.json"
+}
+
+test_tier2_records_trial_on_low_score_exit() {
+    # evaluate.sh exits 1 but .error=false (PASS=false due to critical_miss).
+    # run-tier2-evaluation.sh MUST complete all 5 trials and emit scores.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    make_tier2_fixture "$tmpdir" 1 false
+    local out
+    out=$("$tmpdir/run-tier2-evaluation.sh" "$tmpdir/scenarios/fake.md" "$tmpdir/output.json" 5 2>&1) || true
+    rm -rf "$tmpdir"
+    # Expect scores=3 three times... 5 times (all trials recorded) and mean=3
+    local scores
+    scores=$(echo "$out" | grep '^scores=' | cut -d= -f2 | tr -s ' ')
+    local mean
+    mean=$(echo "$out" | grep '^score=' | cut -d= -f2)
+    local trial_count
+    trial_count=$(echo "$scores" | tr ' ' '\n' | grep -c '^3$' || true)
+    if [ "$trial_count" = "5" ] && [ -n "$mean" ]; then
+        pass "run-tier2 completes all 5 trials when evaluate.sh exits 1 with valid JSON (low score, not infra error)"
+    else
+        fail "run-tier2 should record all 5 low-score trials; got scores='$scores' mean='$mean' (out: $out)"
+    fi
+}
+
+test_tier2_aborts_on_infra_error() {
+    # evaluate.sh exits 1 AND .error=true (LLM outage or similar).
+    # run-tier2-evaluation.sh MUST abort — that's the genuine infra error case.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    make_tier2_fixture "$tmpdir" 1 true
+    local out exit_code=0
+    # `|| exit_code=$?` protects against outer `set -e` aborting on expected non-zero.
+    out=$("$tmpdir/run-tier2-evaluation.sh" "$tmpdir/scenarios/fake.md" "$tmpdir/output.json" 5 2>&1) || exit_code=$?
+    rm -rf "$tmpdir"
+    if [ "$exit_code" -ne 0 ]; then
+        pass "run-tier2 aborts when evaluate.sh reports .error=true (genuine infra error)"
+    else
+        fail "run-tier2 must abort on .error=true, not record the trial (exit=$exit_code, out: $out)"
+    fi
+}
+
+test_tier2_records_trial_on_clean_low_score() {
+    # evaluate.sh exits 0 with a low score (no critical miss, just below baseline).
+    # Baseline behavior: records all trials. Protects against regressions.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    make_tier2_fixture "$tmpdir" 0 false
+    local out
+    out=$("$tmpdir/run-tier2-evaluation.sh" "$tmpdir/scenarios/fake.md" "$tmpdir/output.json" 3 2>&1) || true
+    rm -rf "$tmpdir"
+    local trial_count
+    trial_count=$(echo "$out" | grep '^scores=' | cut -d= -f2 | tr ' ' '\n' | grep -c '^3$' || true)
+    if [ "$trial_count" = "3" ]; then
+        pass "run-tier2 records all trials when evaluate.sh exits 0 cleanly"
+    else
+        fail "Baseline regression: run-tier2 should record clean exits; got trials='$trial_count' (out: $out)"
+    fi
+}
+
+test_tier2_records_trial_on_low_score_exit
+test_tier2_aborts_on_infra_error
+test_tier2_records_trial_on_clean_low_score
+
+echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
