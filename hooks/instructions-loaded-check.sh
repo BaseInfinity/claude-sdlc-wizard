@@ -98,6 +98,29 @@ if [ -d "$PROJECT_DIR/.claude/skills/update" ]; then
     done
 fi
 
+# API feature review nudge (#100) — surface open 'api-review-needed' issues
+# opened by .github/workflows/weekly-api-update.yml so the session picks up
+# new API features without waiting for manual discovery.
+#
+# Gated on LOCAL presence of the detector workflow: the CLI distributes this
+# hook to consumer projects, and we don't want to pester those users with
+# upstream-wizard issues. The nudge only fires when the current repo owns
+# the detector (= the wizard repo or a fork of it).
+if [ -f "$PROJECT_DIR/.github/workflows/weekly-api-update.yml" ] && \
+   command -v gh > /dev/null 2>&1; then
+    # Query the current repo (not hardcoded upstream) — in a fork, users see
+    # their own detector's issues, not ours.
+    API_REVIEW_COUNT=$(gh issue list \
+        --state open \
+        --label "api-review-needed" \
+        --limit 1 \
+        --json number \
+        --jq 'length' 2>/dev/null) || API_REVIEW_COUNT=""
+    if [ -n "$API_REVIEW_COUNT" ] && [ "$API_REVIEW_COUNT" -gt 0 ] 2>/dev/null; then
+        echo "Anthropic API features pending review: ${API_REVIEW_COUNT} open issue(s) with label 'api-review-needed' (see .github/workflows/weekly-api-update.yml)"
+    fi
+fi
+
 # Claude Code version check (non-blocking, best-effort)
 if command -v claude > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
     CC_LOCAL=$(claude --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1) || true

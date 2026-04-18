@@ -1,0 +1,161 @@
+name: Weekly API Update
+
+# Roadmap #100: detect Anthropic API changelog additions and flag them
+# for session-time review. Shepherd pattern (ROADMAP #36): this workflow
+# does cheap detection only — no LLM analysis. When the user opens a
+# Claude Code session, the session-start hook (instructions-loaded-check.sh)
+# nudges toward any open 'api-review-needed' issue, and the session handles
+# deep research + adoption.
+#
+# Source: platform.claude.com serves `.md` for all doc pages (Mintlify convention).
+# Parsing markdown is strictly more stable than scraping rendered HTML.
+
+on:
+  schedule:
+    # Monday 10:00 UTC — staggered from weekly-update.yml (09:00 UTC)
+    # to avoid burst on GitHub API + Anthropic docs at the same minute.
+    - cron: '0 10 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # write last-checked-api-date.txt back to repo (best-effort)
+  issues: write    # open / update the tracking issue
+
+env:
+  CHANGELOG_URL: 'https://platform.claude.com/docs/en/release-notes/api.md'
+  STATE_FILE: '.github/last-checked-api-date.txt'
+  REVIEW_LABEL: 'api-review-needed'
+
+jobs:
+  detect-api-changes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Read last-checked date
+        id: last-checked
+        run: |
+          set -euo pipefail
+          if [ -f "${STATE_FILE}" ]; then
+            LAST=$(tr -d '\n' < "${STATE_FILE}")
+          else
+            LAST="1970-01-01"
+          fi
+          if ! [[ "$LAST" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "::warning::invalid state file contents ('$LAST') — treating as 1970-01-01"
+            LAST="1970-01-01"
+          fi
+          echo "last_date=$LAST" >> "$GITHUB_OUTPUT"
+          echo "Last checked: $LAST"
+
+      - name: Fetch changelog (markdown)
+        id: fetch
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            --max-time 30 \
+            --retry 3 --retry-delay 5 \
+            --user-agent 'sdlc-wizard-bot/1.0 (+https://github.com/BaseInfinity/agentic-ai-sdlc-wizard)' \
+            "${CHANGELOG_URL}" \
+            -o /tmp/api-changelog.md
+
+          SIZE=$(wc -c < /tmp/api-changelog.md)
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "::error::changelog fetch returned only ${SIZE} bytes — source may have changed"
+            exit 1
+          fi
+          echo "fetched ${SIZE} bytes of markdown"
+
+      - name: Extract new changelog dates
+        id: extract
+        env:
+          LAST_DATE: ${{ steps.last-checked.outputs.last_date }}
+        run: |
+          set -euo pipefail
+          TMPDIR="${TMPDIR:-/tmp}"
+          ./scripts/parse-api-changelog.py /tmp/api-changelog.md "$LAST_DATE" > /tmp/new_entries.txt
+
+          NEW_COUNT=$(tr -d '\n' < "$TMPDIR/new_count.txt")
+          LATEST=$(tr -d '\n' < "$TMPDIR/latest_date.txt")
+          echo "new_count=${NEW_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "latest_date=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "found ${NEW_COUNT} new entries, latest=${LATEST}"
+
+      - name: Open or update tracking issue
+        if: steps.extract.outputs.new_count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NEW_COUNT: ${{ steps.extract.outputs.new_count }}
+          LAST_DATE: ${{ steps.last-checked.outputs.last_date }}
+          LATEST_DATE: ${{ steps.extract.outputs.latest_date }}
+        run: |
+          set -euo pipefail
+
+          # Ensure the label exists (idempotent).
+          gh api "repos/${REPO}/labels" --method POST \
+            -f name="${REVIEW_LABEL}" \
+            -f color='0E8A16' \
+            -f description='Anthropic API changelog entries pending session-time review (#100)' \
+            2>/dev/null || true
+
+          # Build issue body from /tmp/new_entries.txt.
+          {
+            echo "**${NEW_COUNT} new Anthropic API changelog entries since ${LAST_DATE}.**"
+            echo ""
+            echo "This is a shepherd-pattern reminder — not a PR, not an auto-adoption. Open a Claude Code session in this repo and the session-start hook will nudge you; decide whether each entry warrants wizard changes."
+            echo ""
+            echo "## New entries"
+            echo ""
+            while IFS=$'\t' read -r iso raw_text; do
+              [ -z "$iso" ] && continue
+              echo "- **${iso}** — ${raw_text}"
+            done < /tmp/new_entries.txt
+            echo ""
+            echo "## Source"
+            echo ""
+            echo "- [${CHANGELOG_URL}](${CHANGELOG_URL})"
+            echo ""
+            echo "## How to process"
+            echo ""
+            echo "1. Open a Claude Code session in this repo."
+            echo "2. Session-start hook reports open \`${REVIEW_LABEL}\` issues."
+            echo "3. Ask Claude: \"Review the new API features — which should we adopt?\""
+            echo "4. For each adoption, run the full SDLC loop (TDD → tests → review → PR)."
+            echo "5. When all entries processed, close this issue and the workflow will open a fresh one on the next cron tick if new entries arrive."
+          } > /tmp/issue_body.md
+
+          TITLE="API features to review (${NEW_COUNT} pending as of ${LATEST_DATE})"
+
+          # Find existing open issue with our label (idempotent).
+          EXISTING=$(gh issue list \
+            --repo "${REPO}" \
+            --state open \
+            --label "${REVIEW_LABEL}" \
+            --limit 1 \
+            --json number \
+            --jq '.[0].number // empty' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing issue #${EXISTING}"
+            gh issue edit "$EXISTING" \
+              --repo "${REPO}" \
+              --title "$TITLE" \
+              --body-file /tmp/issue_body.md
+          else
+            echo "Creating new tracking issue"
+            gh issue create \
+              --repo "${REPO}" \
+              --title "$TITLE" \
+              --body-file /tmp/issue_body.md \
+              --label "${REVIEW_LABEL}" \
+              --label "auto-generated"
+          fi
+
+      - name: Persist latest-checked date
+        if: steps.extract.outputs.new_count != '0'
+        env:
+          LATEST_DATE: ${{ steps.extract.outputs.latest_date }}
+        run: ./scripts/persist-api-state.sh "${STATE_FILE}" "${LATEST_DATE}"
