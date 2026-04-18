@@ -252,3 +252,11 @@ Share patterns, ask questions, compare notes on AI agents, automation, and SDLC 
 ## Contributing
 
 PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for evaluation methodology and testing.
+
+## Feedback
+
+Three ways to report bugs, request features, or ask questions:
+
+- **In-session:** run `/feedback` inside any Claude Code session using this wizard — auto-fills context and redacts secrets before filing
+- **Issue templates:** [bug report](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/issues/new?template=bug_report.md), [feature request](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/issues/new?template=feature_request.md), [question](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/issues/new?template=question.md)
+- **Discussions:** open-ended conversations at [github.com/BaseInfinity/agentic-ai-sdlc-wizard/discussions](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/discussions)
