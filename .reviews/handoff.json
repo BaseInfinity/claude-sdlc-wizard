@@ -1,31 +1,29 @@
 {
-  "review_id": "100-bullet-summary-001",
-  "status": "PENDING_RECHECK",
-  "round": 2,
-  "mission": "Enhance parse-api-changelog.py to capture first 1-2 bullets under each date header, emit as 3rd tab-separated column, render in issue body. Feedback from E2E test: issue body showed only date (no feature hint). This fixes the UX gap while preserving the LLM-free shepherd pattern.",
-  "success": "Parser correctly captures bullets from real Anthropic changelog format. Workflow renders them without breaking. Truncation bounds issue body size. Fallback preserves existing behavior when bullets absent.",
-  "failure": "Silent parse failure on Anthropic format variations; bullet text exfiltrates through tab-delimited stream incorrectly; truncation drops critical content; workflow breaks when bullet_summary column missing (back-compat for rollback).",
+  "review_id": "85-cc-update-nudge-001",
+  "status": "PENDING_REVIEW",
+  "round": 1,
+  "mission": "Add a session-start nudge to hooks/instructions-loaded-check.sh that surfaces open 'auto-update'-labeled PRs created by .github/workflows/weekly-update.yml. Mirrors the existing 'api-review-needed' issue nudge pattern sitting directly above it. Closes ROADMAP item #85 (Automated CC Feature Discovery) by closing the last gap: detector → PR → session awareness.",
+  "success": "New nudge block is structurally identical to the api-review-needed block (same guards, same gating, same output style). Runtime tests prove it emits on non-zero PR count, stays silent on zero count, and stays silent in consumer projects that don't own the detector. Mutation tests confirm test coverage is behavioral, not just structural.",
+  "failure": "Consumer projects (CLI-distributed hook) pester users with upstream-wizard PRs. gh command not installed → hook crashes or leaks stderr. gh pr list returns unexpected content → regex match gives false positive. Hook no longer exits 0. Output collides with existing api-review-needed output.",
   "files_changed": [
-    "scripts/parse-api-changelog.py",
-    ".github/workflows/weekly-api-update.yml",
-    "tests/test-api-feature-detection.sh"
+    "hooks/instructions-loaded-check.sh",
+    "tests/test-hooks.sh"
   ],
-  "fixes_applied": [
-    "1: parse-api-changelog.py filters header_hits to date-parseable headers only; non-date sub-headers no longer bound bullet search. Added _try_parse_date helper shared between boundary scan and result loop.",
-    "1: tests/test-api-feature-detection.sh adds test_parser_bullets_survive_subheaders with the Codex repro fixture."
-  ],
-  "previous_score": 7,
+  "fixes_applied": [],
+  "previous_score": null,
   "verification_checklist": [
-    "(a) Verify parse-api-changelog.py BULLET_LINE regex handles leading whitespace, all bullet markers (-, *, +), and doesn't match numbered lists",
-    "(b) Verify _extract_bullets correctly bounds search between consecutive date headers (no bleed-through from later entries)",
-    "(c) Verify BULLET_MAX=200 truncation adds ellipsis only when exceeded and doesn't mangle multi-byte chars",
-    "(d) Verify parse_dates pre-computes header line indices so each bullet search is bounded (O(n) not O(n^2))",
-    "(e) Verify workflow `while IFS=$'\\t' read -r iso raw_text bullet_summary` gracefully handles entries where bullet_summary is empty string (tab present but empty)",
-    "(f) Verify test coverage: existing tests still pass with 3-col format, new tests (captures_bullet_summary, truncates_long_bullet_summary) verify both boundaries",
-    "(g) Check for injection risk: bullet text from Anthropic docs flows through echo into issue body. Any shell-special chars that break the here-doc?",
-    "(h) Verify back-compat: if Anthropic changelog had zero bullets under a header, parser emits empty 3rd col, workflow falls back to raw_text"
+    "(a) Verify hooks/instructions-loaded-check.sh:124-141 gates the nudge on BOTH local presence of .github/workflows/weekly-update.yml AND command -v gh — same double-gate as the api-review block at lines 109-122",
+    "(b) Verify the nudge uses `gh pr list --state open --label auto-update --limit 1 --json number --jq 'length'` — matches the label that .github/workflows/weekly-update.yml line ~362 stamps onto its PRs",
+    "(c) Verify CC_UPDATE_COUNT is validated as integer via `[[ \"$CC_UPDATE_COUNT\" =~ ^[0-9]+$ ]]` before the -gt 0 comparison — protects against gh returning error text or empty string",
+    "(d) Verify hook still exits 0 (tests/test-hooks.sh test_instructions_hook_exit_code still passes). The new block does not introduce `set -e` or any non-zero early-exit path",
+    "(e) Verify tests/test-hooks.sh test_hook_silent_without_weekly_update_workflow actually exercises the consumer-project scenario — fixture creates PROJECT with SDLC.md/TESTING.md but NO weekly-update.yml, and mocked gh returns count=3. If the nudge fires, it means consumer projects see upstream PRs — that's the #85 gating failure mode",
+    "(f) Verify mutation robustness: deleting the entire new block from hooks/instructions-loaded-check.sh should trip 4+ tests. Running: I verified manually — `sed '/auto-update/,/^fi$/d'` trips 4 tests (all 4 CC-release-review tests that require the block's behavior)",
+    "(g) Verify no test regression: all 78 test-hooks tests pass, 30 unit-test scripts pass with 0 failures",
+    "(h) Check the mocked `gh` binary in prepare_cc_update_fixture() correctly distinguishes 'pr list --label auto-update' from other gh calls — the loop over \"$@\" checking for \"auto-update\" and \"api-review-needed\" args handles both label queries. Any other gh invocation (e.g., dual-install check) returns empty, which is safe",
+    "(i) Check for output collision: when BOTH api-review-needed issues AND auto-update PRs exist, does the hook emit both nudges cleanly on separate lines? (Expected yes — both blocks use `echo` with no shared state)",
+    "(j) Check backward compat: consumer projects that have .github/workflows/ but no weekly-update.yml must see ZERO new output. Consumer projects without .github/ at all must see ZERO new output. Both paths hit the `-f` test and short-circuit"
   ],
-  "review_instructions": "Focus on parser correctness and injection/escaping risks. Be strict — assume bugs may be present until proven otherwise. This is a meta-repo that ships to consumer projects; a parser regression would silently break every wizard user's detection path. Previous review (100-api-detection, 9/10 CERTIFIED) established the mission pattern — this is a scoped enhancement.",
-  "preflight_path": ".reviews/preflight-100-bullet-summary.md",
+  "review_instructions": "Focus on shell correctness, gating logic, and consumer-project safety. This hook is distributed to every wizard user via the CLI — a regression here fires in every SDLC-managed project. Be strict about: (1) the double-gate (workflow file + gh availability), (2) input validation on the gh return value, (3) any path where the hook might break `exit 0`. The pattern is a direct mirror of the api-review-needed block at lines 109-122 — if the new block is structurally different, that's a bug. Assume bugs may be present until proven otherwise.",
+  "preflight_path": ".reviews/preflight-85-cc-update-nudge.md",
   "artifact_path": ".reviews/"
 }

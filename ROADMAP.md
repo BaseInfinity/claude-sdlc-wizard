@@ -98,7 +98,7 @@
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
-| 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | Already implemented in weekly-update.yml: fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PR. GitHub issue per-feature deferred — PR + ROADMAP already cover tracking |
+| 1 | 85 | ~~Automated CC Feature Discovery~~ DONE | weekly-update.yml fetches CC releases, analyzes with Claude (analyze-release.md), produces relevance/impact JSON, creates PRs with `auto-update` label. Session-start nudge added in `instructions-loaded-check.sh` (mirrors api-review-needed pattern) so open CC-update PRs surface at session start and don't bit-rot |
 | 2 | 91 | ~~Codex SDLC Adapter~~ DONE | `BaseInfinity/codex-sdlc-wizard` PR #1. 3 hook scripts (bash-guard hard-blocks git commit/push, sdlc-prompt-check, session-start), non-destructive install.sh (6-case config merge, comment-aware), AGENTS.md, upstream-sync workflow. 15 behavioral tests. Codex review caught 2 bugs (commented config lines, macOS sed TOML corruption) — both fixed. ~70% CC parity |
 | 3 | 58 | ~~Research: claw-code + OmO/OmX Patterns~~ DONE | Studied claw-code (168K stars), OmO (48K), OmX (16K). 16 candidate patterns identified. Codex certified 8/10 round 3. All candidates require Prove It Gate. Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` |
 | 4 | 103 | ~~Fix: self_review 0% in E2E Scoring~~ DONE | Root cause: simulation prompt said "self-review" without explaining HOW (Read/Grep on modified files) or marking it scored. Golden output had text-only review (the exact NO example from the evaluator). Fix: all 5 simulation prompts now explain self-review = Read back modified files + marked scored in IMPORTANT section. Golden output/scores updated. 4 new tests |
@@ -199,7 +199,7 @@ Living tracker of projects shipped using this wizard. **Rule:** only list projec
 | 65 | ~~Testing Diamond Boundary~~ DONE | Completed in v1.23.0 |
 | 66 | ~~Convert to Plugin Format~~ Absorbed into #89 | Plugin format + marketplace submission combined into single item #89. Plugins now support hooks (updated finding from 2026-04-03 research) |
 | 67 | Add Agent Team Hooks | DEFERRED — Agent Teams requires experimental feature flag (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). Hooks would be inert for most users. Main session enforcement already covers subagent workflows (subagents do what the main session tells them). Revisit when Agent Teams exits experimental. Prove It Gate: can't prove value without GA feature |
-| 68 | Hook `if` Conditionals | Use CC v2.1.85's `if` field to reduce false positives (e.g., skip TDD check when editing test files, skip on `--bare`). Cleaner than shell-script filtering. Spawned from #59 research |
+| 68 | ~~Hook `if` Conditionals~~ DONE | PR #151. PreToolUse tdd-pretool-check.sh wired with CC v2.1.85 `if:` field in .claude/settings.json to filter Write/Edit/MultiEdit by path glob |
 | 69 | ~~Skill Frontmatter Docs~~ DONE | Completed in v1.23.0 |
 | 70 | ~~`--bare` Docs~~ DONE | Completed in v1.23.0 |
 | 71 | Monitor KAIROS/Coordinator Mode | Proactive always-on agent mode and multi-agent coordination. Wizard's enforcement model (hooks on tool calls) needs to scale to always-on monitoring. Track feature flags, prepare skill content for both contexts. Spawned from #59 research |

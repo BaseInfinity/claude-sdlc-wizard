@@ -121,6 +121,26 @@ if [ -f "$PROJECT_DIR/.github/workflows/weekly-api-update.yml" ] && \
     fi
 fi
 
+# Claude Code release review nudge (#85) — surface open 'auto-update' PRs
+# opened by .github/workflows/weekly-update.yml so new CC releases get triaged
+# before they bit-rot (relevance-HIGH PRs can sit for days otherwise).
+#
+# Gated on LOCAL presence of weekly-update.yml: the CLI distributes this hook
+# to consumer projects, which don't own the detector — don't pester them with
+# upstream-wizard PRs.
+if [ -f "$PROJECT_DIR/.github/workflows/weekly-update.yml" ] && \
+   command -v gh > /dev/null 2>&1; then
+    CC_UPDATE_COUNT=$(gh pr list \
+        --state open \
+        --label "auto-update" \
+        --limit 1 \
+        --json number \
+        --jq 'length' 2>/dev/null) || CC_UPDATE_COUNT=""
+    if [[ "$CC_UPDATE_COUNT" =~ ^[0-9]+$ ]] && [ "$CC_UPDATE_COUNT" -gt 0 ]; then
+        echo "Claude Code update pending review: ${CC_UPDATE_COUNT} open auto-update PR(s) (see .github/workflows/weekly-update.yml)"
+    fi
+fi
+
 # Claude Code version check (non-blocking, best-effort)
 if command -v claude > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
     CC_LOCAL=$(claude --version 2>/dev/null | grep -o '[0-9][0-9.]*' | head -1) || true
