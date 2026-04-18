@@ -1,29 +1,35 @@
 {
-  "review_id": "85-cc-update-nudge-001",
-  "status": "PENDING_REVIEW",
-  "round": 1,
-  "mission": "Add a session-start nudge to hooks/instructions-loaded-check.sh that surfaces open 'auto-update'-labeled PRs created by .github/workflows/weekly-update.yml. Mirrors the existing 'api-review-needed' issue nudge pattern sitting directly above it. Closes ROADMAP item #85 (Automated CC Feature Discovery) by closing the last gap: detector → PR → session awareness.",
-  "success": "New nudge block is structurally identical to the api-review-needed block (same guards, same gating, same output style). Runtime tests prove it emits on non-zero PR count, stays silent on zero count, and stays silent in consumer projects that don't own the detector. Mutation tests confirm test coverage is behavioral, not just structural.",
-  "failure": "Consumer projects (CLI-distributed hook) pester users with upstream-wizard PRs. gh command not installed → hook crashes or leaks stderr. gh pr list returns unexpected content → regex match gives false positive. Hook no longer exits 0. Output collides with existing api-review-needed output.",
+  "review_id": "lessons-promotion-001",
+  "status": "PENDING_RECHECK",
+  "round": 3,
+  "mission": "Promote two lessons from the 2026-04-18 benchmarking-stall incident into shared docs: (A) tier2 exit-code disambiguation into SDLC.md Lessons Learned, and (B) 'CI green != data flowing' pipeline liveness audits into CLAUDE_CODE_SDLC_WIZARD.md. Source PR #193 already merged on main as commit e75a4d2; this is a docs-only follow-up that codifies the generalizable lessons.",
+  "success": "Both lessons are accurately phrased, cite verifiable sources (PR #193, concrete dates), and sit in the right section of each doc. Reviewer verifies claims against git history and source files, not just prose quality. Wizard doc section reads naturally in the surrounding narrative (Post-Deploy Verification -> Pipeline Liveness Audits -> Rollback).",
+  "failure": "Lesson text makes claims that don't match code (e.g., 'evaluate.sh exits 1 on low score' without verifying actual exit paths), or the wizard doc section is generic boilerplate that installs into downstream repos and adds noise instead of value. Wizard ships to every user via /update-wizard, so inaccurate or padded content is directly harmful.",
   "files_changed": [
-    "hooks/instructions-loaded-check.sh",
-    "tests/test-hooks.sh"
+    "SDLC.md",
+    "CLAUDE_CODE_SDLC_WIZARD.md",
+    ".reviews/preflight-lessons-promotion-001.md",
+    ".reviews/handoff.json"
   ],
-  "fixes_applied": [],
-  "previous_score": null,
+  "fixes_applied": [
+    "Finding 1 (P1): SDLC.md:111 rescoped to '2026-04-13 run, a usable data point lost' + explicit note the full stall also involved a separate PR-branch push race. CLAUDE_CODE_SDLC_WIZARD.md:2637 rewritten as a numbered two-cause list. 19-day sole-cause framing removed from both docs.",
+    "Finding 2 (P1): CLAUDE_CODE_SDLC_WIZARD.md:2646 closing paragraph rewritten from 'Claude follows this automatically' / 'idle cycles' / 'per session' to explicit trigger list (merge or edit scheduled workflow, ship change writing a long-running artifact, user asks). Closes with 'It is not a background task — if no one is looking, the audit does not happen.' Round 2 ACCEPTED.",
+    "Round 3 follow-up for Finding 1: removed 'Neither failure surfaced as a red CI badge' overclaim. Now correctly states the push-race run was silent (continue-on-error on the push step) while the 2026-04-13 run was red but unnoticed. Matches repo evidence (weekly-update.yml step has no continue-on-error on the run-tier2-evaluation call)."
+  ],
+  "previous_score": 7,
   "verification_checklist": [
-    "(a) Verify hooks/instructions-loaded-check.sh:124-141 gates the nudge on BOTH local presence of .github/workflows/weekly-update.yml AND command -v gh — same double-gate as the api-review block at lines 109-122",
-    "(b) Verify the nudge uses `gh pr list --state open --label auto-update --limit 1 --json number --jq 'length'` — matches the label that .github/workflows/weekly-update.yml line ~362 stamps onto its PRs",
-    "(c) Verify CC_UPDATE_COUNT is validated as integer via `[[ \"$CC_UPDATE_COUNT\" =~ ^[0-9]+$ ]]` before the -gt 0 comparison — protects against gh returning error text or empty string",
-    "(d) Verify hook still exits 0 (tests/test-hooks.sh test_instructions_hook_exit_code still passes). The new block does not introduce `set -e` or any non-zero early-exit path",
-    "(e) Verify tests/test-hooks.sh test_hook_silent_without_weekly_update_workflow actually exercises the consumer-project scenario — fixture creates PROJECT with SDLC.md/TESTING.md but NO weekly-update.yml, and mocked gh returns count=3. If the nudge fires, it means consumer projects see upstream PRs — that's the #85 gating failure mode",
-    "(f) Verify mutation robustness: deleting the entire new block from hooks/instructions-loaded-check.sh should trip 4+ tests. Running: I verified manually — `sed '/auto-update/,/^fi$/d'` trips 4 tests (all 4 CC-release-review tests that require the block's behavior)",
-    "(g) Verify no test regression: all 78 test-hooks tests pass, 30 unit-test scripts pass with 0 failures",
-    "(h) Check the mocked `gh` binary in prepare_cc_update_fixture() correctly distinguishes 'pr list --label auto-update' from other gh calls — the loop over \"$@\" checking for \"auto-update\" and \"api-review-needed\" args handles both label queries. Any other gh invocation (e.g., dual-install check) returns empty, which is safe",
-    "(i) Check for output collision: when BOTH api-review-needed issues AND auto-update PRs exist, does the hook emit both nudges cleanly on separate lines? (Expected yes — both blocks use `echo` with no shared state)",
-    "(j) Check backward compat: consumer projects that have .github/workflows/ but no weekly-update.yml must see ZERO new output. Consumer projects without .github/ at all must see ZERO new output. Both paths hit the `-f` test and short-circuit"
+    "(a) Verify Lesson A in SDLC.md accurately describes the PR #193 fix: read tests/e2e/run-tier2-evaluation.sh on main and confirm the current logic branches on '.error == true' first, records trial if .score present regardless of exit, and only aborts on true infra failure.",
+    "(b) Verify the 19-day claim: git log for tests/e2e/score-history.jsonl should show no appends between 2026-03-30 and the PR #193 fix (commit e75a4d2, 2026-04-18). If the actual gap is different, flag with the correct number.",
+    "(c) Verify evaluate.sh exits non-zero on legitimate low scores (PASS=false / critical miss) while still emitting valid JSON with a numeric .score. Read tests/evaluate.sh and confirm at least one exit path that returns exit=1 after successfully writing a score field.",
+    "(d) Verify Lesson B's placement in CLAUDE_CODE_SDLC_WIZARD.md: it must sit between '## Post-Deploy Verification' and '## Rollback' with consistent heading style. Grep '^## Pipeline Liveness Audits' and confirm the neighbors.",
+    "(e) Verify the wizard section does not duplicate guidance already present elsewhere in CLAUDE_CODE_SDLC_WIZARD.md. Grep for 'liveness', 'data flowing', 'score-history', 'stale artifact' before this PR's diff to confirm no prior overlap.",
+    "(f) Verify Lesson A does not duplicate the existing '### Testing' bullet on 'continue-on-error + || echo masks real failures' — they address different phenomena (masked step failure vs. masked-by-exit-code data loss) and should both remain.",
+    "(g) Verify tone parity: Lesson A should match the terse-bullet style of the other Lessons Learned entries; Lesson B should match the prose-with-example style of Post-Deploy Verification (concrete example, actionable steps, 'Claude follows this automatically' closing).",
+    "(h) Check the claim 'Claude follows this automatically' in Lesson B — this is a behavioral commitment that downstream users will hold Claude to. If the text promises behavior that's not realistically achievable across every idle session, flag for tightening.",
+    "(i) Verify no broken internal references: 'PR #193' should resolve on the BaseInfinity/agentic-ai-sdlc-wizard repo; 'feedback_doc_changes_substantive_review.md' (referenced in preflight) should exist in the user's private memory — this is fine since preflight is not installed downstream.",
+    "(j) Scan for any drift between what the preflight claims was checked and what's actually in the diff — if the preflight overclaims, that's a credibility issue for future preflights."
   ],
-  "review_instructions": "Focus on shell correctness, gating logic, and consumer-project safety. This hook is distributed to every wizard user via the CLI — a regression here fires in every SDLC-managed project. Be strict about: (1) the double-gate (workflow file + gh availability), (2) input validation on the gh return value, (3) any path where the hook might break `exit 0`. The pattern is a direct mirror of the api-review-needed block at lines 109-122 — if the new block is structurally different, that's a bug. Assume bugs may be present until proven otherwise.",
-  "preflight_path": ".reviews/preflight-85-cc-update-nudge.md",
+  "review_instructions": "Focus on factual accuracy and downstream impact. This is a doc-only PR, but the wizard doc ships to every user via /update-wizard — treat claims about code behavior with the same rigor as a code change. Be strict: assume hallucinated specifics may be present until verified against source files and git history. For the 'Claude follows this automatically' commitment in Lesson B, apply a realistic-behavior check: is this something an agent can actually do across sessions, or is it aspirational boilerplate?",
+  "preflight_path": ".reviews/preflight-lessons-promotion-001.md",
   "artifact_path": ".reviews/"
 }
