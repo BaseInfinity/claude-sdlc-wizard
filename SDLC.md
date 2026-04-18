@@ -106,3 +106,7 @@ Portable technical gotchas promoted from private memory via the Memory Audit Pro
 - **Separate stderr from stdout when capturing output for JSON parsing.** `2>&1` mixes stderr into stdout, causing silent JSON parse failures that defaulted scores to 0. Use `2>"$err_file"` and check exit code separately. (Source: 2026-02-06 E2E silent-zero bug)
 - **`continue-on-error: true` + `|| echo "fallback"` masks real failures.** Always audit these patterns for silent bugs — they convert step failures into green checks while hiding the underlying incident.
 
+### Evaluation & Benchmarking
+
+- **Disambiguate infra errors from legitimate low scores by payload, not by exit code.** When an evaluation script exits non-zero for *both* "infra broken" (no JSON produced) and "scored low / critical miss" (valid JSON, PASS=false), any wrapper that aborts on `exit != 0` will throw away perfectly good data points. `tests/e2e/run-tier2-evaluation.sh` did this: the 2026-04-13 weekly run hit `CRITICAL MISS: ["self_review"]`, `evaluate.sh` exited 1 with a valid score payload, and the wrapper aborted before appending the trial — a usable data point lost. (Note: this bug was only one half of the longer `tests/e2e/score-history.jsonl` stall after 2026-03-30; a separate PR-branch push race accounted for the remaining missing appends. See ROADMAP item on PR-branch push races.) Fix: branch on `jq -e '.error == true'` first, record the trial if a numeric `.score` is present regardless of exit code, and only abort on true infra failure. (Source: PR #193, 2026-04-18)
+
