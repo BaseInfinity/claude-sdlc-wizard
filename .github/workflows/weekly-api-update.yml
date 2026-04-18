@@ -97,21 +97,23 @@ jobs:
           # Ensure the label exists (idempotent). Only swallow the known
           # 422 "already_exists" response — any other failure (auth, 5xx)
           # should fail loudly so we don't operate blind.
-          label_err=$(mktemp)
+          # NOTE: `gh api` writes the JSON error body to STDOUT (not stderr)
+          # on non-2xx, so we capture both streams to find 'already_exists'.
+          label_out=$(mktemp)
           if ! gh api "repos/${REPO}/labels" --method POST \
                -f name="${REVIEW_LABEL}" \
                -f color='0E8A16' \
                -f description='Anthropic API changelog entries pending session-time review (#100)' \
-               2>"$label_err"; then
-            if grep -q 'already_exists' "$label_err"; then
+               >"$label_out" 2>&1; then
+            if grep -q 'already_exists' "$label_out"; then
               echo "label ${REVIEW_LABEL} already exists — continuing"
             else
-              cat "$label_err" >&2
-              rm -f "$label_err"
+              cat "$label_out" >&2
+              rm -f "$label_out"
               exit 1
             fi
           fi
-          rm -f "$label_err"
+          rm -f "$label_out"
 
           # Build issue body from /tmp/new_entries.txt.
           {
