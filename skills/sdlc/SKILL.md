@@ -184,9 +184,11 @@ Before presenting approach, STATE your confidence:
 |-------|---------|--------|--------|
 | HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval | `high` (default) |
 | MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties | `high` (default) |
-| LOW (<60%) | Not sure | Do more research or try cross-model research (Codex) to get to 95%. If still LOW after research, ASK USER | Consider `/effort max` |
-| FAILED 2x | Something's wrong | Try cross-model research (Codex) for a fresh perspective. If still stuck, STOP and ASK USER | Try `/effort max` |
-| CONFUSED | Can't diagnose why something is failing | Try cross-model research (Codex). If still confused, STOP. Describe what you tried, ask for help | Try `/effort max` |
+| LOW (<60%) | Not sure | Do more research or try cross-model research (Codex) to get to 95%. If still LOW after research, ASK USER | **Run `/effort xhigh` now** — don't wait |
+| FAILED 2x | Something's wrong | Try cross-model research (Codex) for a fresh perspective. If still stuck, STOP and ASK USER | **Run `/effort max` now** — you're already burning cycles at lower effort |
+| CONFUSED | Can't diagnose why something is failing | Try cross-model research (Codex). If still confused, STOP. Describe what you tried, ask for help | **Run `/effort max` now** — stop spinning |
+
+**Dynamic bumping is NOT optional.** "Consider max effort" is the same as "ignore this" in practice. If your confidence drops or tests fail twice, bump effort BEFORE the next attempt — not after a third failure. Spinning at low effort is an SDLC failure mode, not a style choice.
 
 ## Self-Review Loop (CRITICAL)
 

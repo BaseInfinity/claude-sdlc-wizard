@@ -2057,9 +2057,11 @@ Before presenting approach, STATE your confidence:
 |-------|---------|--------|--------|
 | HIGH (90%+) | Know exactly what to do | Present approach, proceed after approval | `high` (default) |
 | MEDIUM (60-89%) | Solid approach, some uncertainty | Present approach, highlight uncertainties | `high` (default) |
-| LOW (<60%) | Not sure | ASK USER before proceeding | Consider `/effort max` |
-| FAILED 2x | Something's wrong | STOP. ASK USER immediately | Try `/effort max` |
-| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help | Try `/effort max` |
+| LOW (<60%) | Not sure | ASK USER before proceeding | **Run `/effort xhigh` now** — don't wait |
+| FAILED 2x | Something's wrong | STOP. ASK USER immediately | **Run `/effort max` now** — you're burning cycles at lower effort |
+| CONFUSED | Can't diagnose why something is failing | STOP. Describe what you tried, ask for help | **Run `/effort max` now** — stop spinning |
+
+**Dynamic bumping is NOT optional.** "Consider max effort" is the same as "ignore this" in practice. If your confidence drops or tests fail twice, bump effort BEFORE the next attempt — spinning at low effort is an SDLC failure mode.
 
 ## Self-Review Loop (CRITICAL)
 
