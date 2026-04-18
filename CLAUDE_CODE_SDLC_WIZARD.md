@@ -3135,6 +3135,8 @@ Want me to file these? (yes/no/not now)
 
 **`/revise-claude-md` scope:** Only updates CLAUDE.md. It does NOT touch feature docs, TESTING.md, hooks, or skills. Use it for general project context that applies across the codebase.
 
+**Memory Audit Protocol:** Per-user memory at `~/.claude/projects/<proj>/memory/` accumulates private learnings. Some are portable technical lessons that belong in shared docs. The `/sdlc` skill's **Memory Audit Protocol** section (under "After Session (Capture Learnings)") defines a three-bucket classifier (`promote` / `keep` / `manual-review`) with a type-based denylist that keeps `user`/`reference` entries private and routes `project`/`feedback` entries to human review. Run at end-of-release or after debugging-heavy sessions. Human approves every promotion chunk-by-chunk before apply.
+
 **When to do mini-retro:** After features, tricky bugs, or discovering gotchas. Skip for one-line fixes or questions.
 
 **The SDLC evolves:** Weekly research, monthly deep-dives, and CI friction signals feed improvements. Human approves, the system gets better.

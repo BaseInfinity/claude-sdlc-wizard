@@ -177,6 +177,9 @@ jobs:
       - name: Run API feature detection tests
         run: ./tests/test-api-feature-detection.sh
 
+      - name: Run Memory Audit Protocol tests
+        run: SKIP_LLM_CLASSIFIER=1 ./tests/test-memory-audit-protocol.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:

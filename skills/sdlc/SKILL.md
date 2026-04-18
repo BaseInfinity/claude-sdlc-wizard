@@ -717,6 +717,39 @@ If this session revealed insights, update the right place:
 - **General project context** → `CLAUDE.md` (or `/revise-claude-md`)
 - **Plan files** → If this session's work came from a plan file, delete it or mark it complete. Stale plans mislead future sessions into thinking work is still pending
 
+### Memory Audit Protocol
+
+Per-user memory at `~/.claude/projects/<proj>/memory/` accumulates private learnings. Some belong there (user preferences, external references). Others are portable technical lessons (tool quirks, platform gotchas, bash/GHA/macOS footguns) that would save the next contributor hours. Run this audit to promote the portable ones.
+
+**When to run:**
+- End-of-release (before cutting a tag)
+- After a debugging-heavy session with multiple memory additions
+- On explicit "audit my memory" request
+
+**Classify each memory file in `~/.claude/projects/<proj>/memory/`:**
+
+1. **Rule-based denylist (deterministic, no LLM):**
+   - `type: user` → `keep` (user identity, preferences — never promote)
+   - `type: reference` → `keep` (external pointers to Discord/URL/etc — private by default)
+   - `type: project` → `manual-review` (often mixed state + portable lesson — human decides)
+   - `type: feedback` → `manual-review` (often mixed personal preference + portable rule — human decides)
+2. **LLM classifies remaining** entries into `promote` / `keep` / `manual-review`
+
+**Destinations for `promote` entries (no new files — use existing wizard destinations):**
+
+| Content | Target |
+|---------|--------|
+| Language/tool/platform gotchas (bash, gh CLI, GHA, macOS) | `SDLC.md` → `## Lessons Learned` section |
+| Testing gotchas (flaky patterns, mock-vs-integration lessons) | `TESTING.md` |
+| Tool-specific quirks tied to a skill | That skill's `SKILL.md` |
+| Process rules that should govern the project | `CLAUDE.md` |
+
+**Tracking:** When you promote an entry, add `promoted_to: <path>` to that memory file's YAML frontmatter. Subsequent audits skip already-promoted entries.
+
+**Human gate is MANDATORY.** Protocol produces diffs; user approves chunk-by-chunk before apply. Never auto-apply — private memory touching public docs needs human judgement.
+
+**Prove It Gate:** If you find yourself running this protocol 4+ times and manually doing the same classification work, that's evidence to build a `/memory-audit` slash command. Until then, protocol + human review is enough.
+
 ## Post-Mortem: When Process Fails, Feed It Back
 
 **Every process failure becomes an enforcement rule.** When you skip a step and it causes a problem, don't just fix the symptom — add a gate so it can't happen again.
