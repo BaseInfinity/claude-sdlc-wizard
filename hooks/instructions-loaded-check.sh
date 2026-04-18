@@ -116,7 +116,7 @@ if [ -f "$PROJECT_DIR/.github/workflows/weekly-api-update.yml" ] && \
         --limit 1 \
         --json number \
         --jq 'length' 2>/dev/null) || API_REVIEW_COUNT=""
-    if [ -n "$API_REVIEW_COUNT" ] && [ "$API_REVIEW_COUNT" -gt 0 ] 2>/dev/null; then
+    if [[ "$API_REVIEW_COUNT" =~ ^[0-9]+$ ]] && [ "$API_REVIEW_COUNT" -gt 0 ]; then
         echo "Anthropic API features pending review: ${API_REVIEW_COUNT} open issue(s) with label 'api-review-needed' (see .github/workflows/weekly-api-update.yml)"
     fi
 fi

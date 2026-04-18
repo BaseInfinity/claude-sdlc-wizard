@@ -73,7 +73,9 @@ def main() -> int:
     for iso, raw in new_entries:
         print(f"{iso}\t{raw}")
 
-    latest = entries[0][0]  # newest in page order
+    # Order-independent: if Anthropic ever reshuffles the page we still get the
+    # actual newest date instead of silently rewinding state on the next run.
+    latest = max(iso for iso, _ in entries)
     (TMPDIR / "latest_date.txt").write_text(latest, encoding="utf-8")
     (TMPDIR / "new_count.txt").write_text(str(len(new_entries)), encoding="utf-8")
     return 0
