@@ -180,6 +180,9 @@ jobs:
       - name: Run Memory Audit Protocol tests
         run: ./tests/test-memory-audit-protocol.sh
 
+      - name: Run community paths tests
+        run: ./tests/test-community-paths.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
