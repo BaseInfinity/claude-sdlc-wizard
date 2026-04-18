@@ -94,12 +94,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Ensure the label exists (idempotent).
-          gh api "repos/${REPO}/labels" --method POST \
-            -f name="${REVIEW_LABEL}" \
-            -f color='0E8A16' \
-            -f description='Anthropic API changelog entries pending session-time review (#100)' \
-            2>/dev/null || true
+          # Ensure the label exists (idempotent). Only swallow the known
+          # 422 "already_exists" response — any other failure (auth, 5xx)
+          # should fail loudly so we don't operate blind.
+          label_err=$(mktemp)
+          if ! gh api "repos/${REPO}/labels" --method POST \
+               -f name="${REVIEW_LABEL}" \
+               -f color='0E8A16' \
+               -f description='Anthropic API changelog entries pending session-time review (#100)' \
+               2>"$label_err"; then
+            if grep -q 'already_exists' "$label_err"; then
+              echo "label ${REVIEW_LABEL} already exists — continuing"
+            else
+              cat "$label_err" >&2
+              rm -f "$label_err"
+              exit 1
+            fi
+          fi
+          rm -f "$label_err"
 
           # Build issue body from /tmp/new_entries.txt.
           {
@@ -130,13 +142,16 @@ jobs:
           TITLE="API features to review (${NEW_COUNT} pending as of ${LATEST_DATE})"
 
           # Find existing open issue with our label (idempotent).
+          # No stderr suppression: a real gh failure here would silently route
+          # to the "create new issue" branch and break single-issue-per-label.
+          # Let set -euo pipefail halt the step instead.
           EXISTING=$(gh issue list \
             --repo "${REPO}" \
             --state open \
             --label "${REVIEW_LABEL}" \
             --limit 1 \
             --json number \
-            --jq '.[0].number // empty' 2>/dev/null || echo "")
+            --jq '.[0].number // empty')
 
           if [ -n "$EXISTING" ]; then
             echo "Updating existing issue #${EXISTING}"
