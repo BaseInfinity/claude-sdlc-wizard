@@ -474,6 +474,11 @@ echo "--- Tier 2 abort semantics (#benchmarking-stall) ---"
 
 # Build a fake evaluate.sh stub that mimics a critical-miss exit: emits
 # valid --json with score/critical_miss/pass but exits 1.
+#
+# Heredoc note: the outer `<<EOF` is UN-quoted so `$exit_code` and
+# `$error_flag` interpolate at fixture-creation time; the inner `<<JSON`
+# is inside the stub script and runs at stub-invocation time. That is
+# why the JSON payload appears double-nested — it's intentional.
 make_tier2_fixture() {
     local dir="$1"
     local exit_code="$2"   # 0 or 1
