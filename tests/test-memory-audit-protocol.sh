@@ -5,12 +5,14 @@
 #
 # Test groups:
 #   1. Structure check (always runs) — protocol section present + subsections
-#   2. Rule-based denylist (always runs, deterministic) — no LLM needed
-#   3. LLM classification quality (LLM-gated) — ≥8/10 pass threshold
-#   4. LLM destination-selection quality (LLM-gated) — 6/6 pass threshold
+#   2. Rule-based denylist (always runs, deterministic) — includes YAML-variant
+#      hardening and promote-fixtures-route-to-manual-review corpus consistency
+#   3. Corpus shape (always runs, deterministic)
 #
-# Groups 3 and 4 skipped when SKIP_LLM_CLASSIFIER=1 (default for local/CI;
-# nightly runs with SKIP_LLM_CLASSIFIER unset).
+# LLM-gated quality tests are intentionally NOT registered yet — see the
+# "Group 4" comment block below. When the runner lands, guard its tests
+# with `RUN_LLM_CLASSIFIER=1` (explicit opt-in) so nightly CI runs pay the
+# API cost and PR CI stays deterministic.
 
 set -uo pipefail
 
@@ -81,10 +83,20 @@ test_protocol_denylist_rules_documented() {
 # deterministic fixtures (those with types we cover).
 
 apply_denylist_rule() {
-    # Read YAML frontmatter type, emit keep/manual-review/LLM-NEEDED
+    # Read YAML frontmatter type, emit keep/manual-review/LLM-NEEDED.
+    # Normalizes: strips inline '# comment', strips surrounding quotes (single/double),
+    # trims whitespace. Hardened per PR #189 Codex P1 finding #1.
     local file="$1"
     local type
-    type=$(sed -n 's/^type: \(.*\)$/\1/p' "$file" | head -1 | tr -d ' ')
+    type=$(sed -n 's/^type:[[:space:]]*\(.*\)$/\1/p' "$file" | head -1)
+    # Strip inline comment (YAML allows `# comment` after scalar values)
+    type="${type%%#*}"
+    # Strip surrounding whitespace, then strip one layer of matched quotes if present
+    type="$(printf '%s' "$type" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    case "$type" in
+        \"*\") type="${type#\"}"; type="${type%\"}" ;;
+        \'*\') type="${type#\'}"; type="${type%\'}" ;;
+    esac
     case "$type" in
         user|reference)   echo "keep" ;;
         project|feedback) echo "manual-review" ;;
@@ -104,13 +116,10 @@ test_denylist_user_files_classify_as_keep() {
     local fail_list=""
     for f in "$CORPUS"/keep_*.md; do
         [ -f "$f" ] || continue
-        local type expected actual
-        type=$(sed -n 's/^type: \(.*\)$/\1/p' "$f" | head -1 | tr -d ' ')
-        [ "$type" = "user" ] || [ "$type" = "reference" ] || continue
-        expected="keep"
+        local actual
         actual=$(apply_denylist_rule "$f")
-        if [ "$actual" != "$expected" ]; then
-            fail_list="${fail_list:+${fail_list}, }$(basename "$f")"
+        if [ "$actual" != "keep" ]; then
+            fail_list="${fail_list:+${fail_list}, }$(basename "$f"):$actual"
         fi
     done
     if [ -z "$fail_list" ]; then
@@ -124,13 +133,10 @@ test_denylist_project_feedback_classify_as_manual() {
     local fail_list=""
     for f in "$CORPUS"/manual_*.md; do
         [ -f "$f" ] || continue
-        local type expected actual
-        type=$(sed -n 's/^type: \(.*\)$/\1/p' "$f" | head -1 | tr -d ' ')
-        [ "$type" = "project" ] || [ "$type" = "feedback" ] || continue
-        expected="manual-review"
+        local actual
         actual=$(apply_denylist_rule "$f")
-        if [ "$actual" != "$expected" ]; then
-            fail_list="${fail_list:+${fail_list}, }$(basename "$f")"
+        if [ "$actual" != "manual-review" ]; then
+            fail_list="${fail_list:+${fail_list}, }$(basename "$f"):$actual"
         fi
     done
     if [ -z "$fail_list" ]; then
@@ -140,22 +146,71 @@ test_denylist_project_feedback_classify_as_manual() {
     fi
 }
 
+test_denylist_hardened_against_yaml_variants() {
+    # Privacy gate regression test (Codex P1 finding #1): quoted or commented
+    # user/reference types must still classify as keep, not fall through to LLM.
+    local tmp
+    tmp="${TMPDIR:-/tmp}/denylist-variants.$$"
+    mkdir -p "$tmp"
+    local variants=(
+        'type: "user"'
+        "type: 'reference'"
+        'type: user # external pointer'
+        'type:    reference    '
+        'type: "reference" # quoted + commented'
+    )
+    local i=0
+    local fail_list=""
+    for variant in "${variants[@]}"; do
+        i=$((i+1))
+        local f="$tmp/variant_$i.md"
+        printf -- '---\nname: test\n%s\n---\n' "$variant" > "$f"
+        local actual
+        actual=$(apply_denylist_rule "$f")
+        if [ "$actual" != "keep" ]; then
+            fail_list="${fail_list:+${fail_list}, }[$variant]:$actual"
+        fi
+    done
+    rm -rf "$tmp"
+    if [ -z "$fail_list" ]; then
+        pass "Denylist parser normalizes quoted/commented types (privacy gate holds on YAML variants)"
+    else
+        fail "Denylist leaked to non-keep on YAML variants: $fail_list"
+    fi
+}
+
+test_promote_fixtures_route_to_manual_review_under_rule_based() {
+    # Corpus-consistency assertion (Codex P1 finding #2): promote fixtures
+    # are type:feedback by design — they represent realistic portable-lesson
+    # memory. The rule-based denylist MUST route them to manual-review
+    # (human gate before LLM promotion), not to LLM-NEEDED or keep.
+    local fail_list=""
+    for f in "$CORPUS"/promote_*.md; do
+        [ -f "$f" ] || continue
+        local actual
+        actual=$(apply_denylist_rule "$f")
+        if [ "$actual" != "manual-review" ]; then
+            fail_list="${fail_list:+${fail_list}, }$(basename "$f"):$actual"
+        fi
+    done
+    if [ -z "$fail_list" ]; then
+        pass "Promote fixtures route to manual-review under rule-based (human-gate-before-LLM holds)"
+    else
+        fail "Promote fixtures leaked past manual-review: $fail_list"
+    fi
+}
+
 test_denylist_never_promotes_denied_types() {
     # Stricter sanity: the denylist rule must NEVER yield "promote" on any
     # user/reference/project/feedback type, even across synthetic inputs.
     local violations=""
     for f in "$CORPUS"/*.md; do
         [ -f "$f" ] || continue
-        local type actual
-        type=$(sed -n 's/^type: \(.*\)$/\1/p' "$f" | head -1 | tr -d ' ')
-        case "$type" in
-            user|reference|project|feedback)
-                actual=$(apply_denylist_rule "$f")
-                if [ "$actual" = "promote" ]; then
-                    violations="${violations:+${violations}, }$(basename "$f")"
-                fi
-                ;;
-        esac
+        local actual
+        actual=$(apply_denylist_rule "$f")
+        if [ "$actual" = "promote" ]; then
+            violations="${violations:+${violations}, }$(basename "$f")"
+        fi
     done
     if [ -z "$violations" ]; then
         pass "Denylist never yields 'promote' for denied types (privacy gate holds)"
@@ -229,24 +284,20 @@ test_promote_fixtures_have_target() {
 }
 
 # ────────────────────────────────────────────
-# Group 4: LLM classification quality (gated)
+# Group 4: LLM classification quality — OUT OF SCOPE for PR-1
 # ────────────────────────────────────────────
-
-test_llm_classification_quality() {
-    if [ "${SKIP_LLM_CLASSIFIER:-0}" = "1" ]; then
-        skip "LLM classification quality (SKIP_LLM_CLASSIFIER=1)"
-        return
-    fi
-    skip "LLM classification quality — runner not yet implemented (nightly CI only; structure + rule-based checks cover PR gate)"
-}
-
-test_llm_destination_selection() {
-    if [ "${SKIP_LLM_CLASSIFIER:-0}" = "1" ]; then
-        skip "LLM destination-selection quality (SKIP_LLM_CLASSIFIER=1)"
-        return
-    fi
-    skip "LLM destination-selection quality — runner not yet implemented (nightly CI only)"
-}
+#
+# The CERTIFIED plan flagged LLM-gated quality thresholds (8/10 classification,
+# 6/6 destination selection) as aspirational nightly gates. No runner exists
+# yet. Rather than ship stub tests that always skip — which Codex PR #189
+# review flagged as Prove-It Gate violation — we document the scope boundary
+# here and don't register the stubs. When a runner lands, add the tests back
+# with a real gate (env var `RUN_LLM_CLASSIFIER=1` guards cost + key use).
+#
+# Prove It Gate escape hatch: if this protocol runs 4+ times with manual LLM
+# classification, build the runner. Until then, human review at promotion
+# time is the quality gate — and that gate IS tested (test_denylist_* +
+# test_promote_fixtures_route_to_manual_review_under_rule_based).
 
 # ────────────────────────────────────────────
 # Run
@@ -261,14 +312,13 @@ test_protocol_denylist_rules_documented
 test_denylist_user_files_classify_as_keep
 test_denylist_project_feedback_classify_as_manual
 test_denylist_never_promotes_denied_types
+test_denylist_hardened_against_yaml_variants
+test_promote_fixtures_route_to_manual_review_under_rule_based
 
 test_corpus_has_10_entries
 test_corpus_distribution
 test_corpus_frontmatter_shape
 test_promote_fixtures_have_target
-
-test_llm_classification_quality
-test_llm_destination_selection
 
 echo ""
 echo "=== Results: $PASSED passed, $FAILED failed ==="

@@ -28,7 +28,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-degradation-detection.sh && \
    ./tests/test-doc-consistency.sh && \
    ./tests/test-api-feature-detection.sh && \
-   SKIP_LLM_CLASSIFIER=1 ./tests/test-memory-audit-protocol.sh && \
+   ./tests/test-memory-audit-protocol.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \

@@ -733,7 +733,8 @@ Per-user memory at `~/.claude/projects/<proj>/memory/` accumulates private learn
    - `type: reference` → `keep` (external pointers to Discord/URL/etc — private by default)
    - `type: project` → `manual-review` (often mixed state + portable lesson — human decides)
    - `type: feedback` → `manual-review` (often mixed personal preference + portable rule — human decides)
-2. **LLM classifies remaining** entries into `promote` / `keep` / `manual-review`
+   - Parser must normalize YAML variants (`type: "user"`, `type: user # comment`, surrounding whitespace) — see `tests/test-memory-audit-protocol.sh::apply_denylist_rule` for the reference implementation
+2. **Remaining entries** (no type, or type outside the 4 above) fall through to human-gated review. An LLM-assisted classification runner is Prove-It-Gated: build it only after running this protocol 4+ times with manual classification. Until then, human review at promotion time IS the quality gate
 
 **Destinations for `promote` entries (no new files — use existing wizard destinations):**
 
@@ -748,7 +749,7 @@ Per-user memory at `~/.claude/projects/<proj>/memory/` accumulates private learn
 
 **Human gate is MANDATORY.** Protocol produces diffs; user approves chunk-by-chunk before apply. Never auto-apply — private memory touching public docs needs human judgement.
 
-**Prove It Gate:** If you find yourself running this protocol 4+ times and manually doing the same classification work, that's evidence to build a `/memory-audit` slash command. Until then, protocol + human review is enough.
+**Prove It Gate:** If you find yourself running this protocol 4+ times and manually doing the same classification work, that's evidence to build a `/memory-audit` slash command AND wire the LLM-gated quality tests (8/10 classification, 6/6 destination). Until then, protocol + human review is enough — and no stub tests that skip (they mislead reviewers into thinking a gate exists when it doesn't).
 
 ## Post-Mortem: When Process Fails, Feed It Back
 
