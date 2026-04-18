@@ -103,11 +103,13 @@
 | 3 | 58 | ~~Research: claw-code + OmO/OmX Patterns~~ DONE | Studied claw-code (168K stars), OmO (48K), OmX (16K). 16 candidate patterns identified. Codex certified 8/10 round 3. All candidates require Prove It Gate. Research doc: `RESEARCH_58_CLAW_OMO_OMX.md` |
 | 4 | 103 | ~~Fix: self_review 0% in E2E Scoring~~ DONE | Root cause: simulation prompt said "self-review" without explaining HOW (Read/Grep on modified files) or marking it scored. Golden output had text-only review (the exact NO example from the evaluator). Fix: all 5 simulation prompts now explain self-review = Read back modified files + marked scored in IMPORTANT section. Golden output/scores updated. 4 new tests |
 
-## This Release (ordered, v1.34.0 candidates)
+## This Release (v1.34.0, shipped 2026-04-17)
 
 | Priority | # | Item | Description |
 |----------|---|------|-------------|
 | 1 | 100 | ~~API Feature Detection in Auto-Update~~ DONE | PRs #184, #186, #187. Shepherd pattern: LLM-free weekly detector (`.github/workflows/weekly-api-update.yml`) fetches `platform.claude.com/docs/en/release-notes/api.md`, parses ATX date headers with ordinal normalizer + bullet-summary capture (`scripts/parse-api-changelog.py`), opens/updates single `api-review-needed` tracking issue. State persisted via `scripts/persist-api-state.sh` with non-blocking push (branch-protection safe). Session-time hook (`instructions-loaded-check.sh`) nudges when open issues exist — gated on LOCAL workflow presence so consumer/forks only see their own detector's issues. **E2E verified in prod 2026-04-17** — issue body renders feature text like "We've launched Claude Opus 4.7..." not just the date. 33 tests incl. 8 fixture-based parser tests (bullet capture, subheader boundary, tab scrub, truncation, ordinal dates) + 2 integration tests. Codex xhigh 5 rounds across 2 PRs: 9/10 CERTIFIED. Found-in-prod P0 (`gh api` writes JSON error to stdout not stderr — label-create already_exists check broken after first run) hotfixed in #187 |
+| 2 | 189 | ~~Memory Audit Protocol~~ DONE | PR #189. `/sdlc` subsection defines three-bucket classifier (`promote`/`keep`/`manual-review`) with rule-based privacy denylist (`user`/`reference` → keep, `project`/`feedback` → manual-review). Hardened YAML parser normalizes quotes/comments/whitespace. `SDLC.md` seeded with 7 verified technical gotchas (each repro-verified and citing PR# or incident date). 10-fixture corpus (6/2/2) + 12-test suite covers structure, denylist hardening, corpus consistency. Protocol's first dogfood run caught 2 false lessons in private memory (`${3:-{}}` brace-default and `--argjson result` jq-conflict) that Codex verified as wrong — retracted with dated strikethrough rather than shipped. 3 Codex code-review rounds: 4→8→**10/10 CERTIFIED**. Meta-lesson: plan-CERTIFIED ≠ code-CERTIFIED; always run fresh Codex cycle on actual implementation |
+| 3 | 183 | ~~Surface `/less-permission-prompts` native skill~~ DONE | PR #183. Added to wizard + setup docs |
 
 ## Previous Release (v1.33.0)
 
@@ -157,7 +159,7 @@ Living tracker of projects shipped using this wizard. **Rule:** only list projec
 
 | Project | Repo | Status |
 |---------|------|--------|
-| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.33.0 |
+| SDLC Wizard itself | BaseInfinity/agentic-ai-sdlc-wizard | Dogfooded, v1.34.0 |
 | Codex SDLC Adapter | BaseInfinity/codex-sdlc-wizard | v1, shipped with SDLC workflow |
 | _(add as projects are marked)_ | | |
 
