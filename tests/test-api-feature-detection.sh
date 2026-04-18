@@ -391,6 +391,27 @@ test_parser_bullets_survive_subheaders() {
     fi
 }
 
+test_parser_scrubs_tabs_in_bullets() {
+    # Claude PR review P2.1: tab chars in bullet text would break the TSV
+    # 3-column contract. Parser owns the delimiter — scrub tabs to spaces.
+    if [ ! -x "$PARSER" ]; then
+        fail "skip: parser missing"; return
+    fi
+    local tmp
+    tmp="${TMPDIR:-/tmp}/api-parser-tab.$$.md"
+    printf '# H\n\n### March 2, 2026\n- before\tafter middle\ttab\n' > "$tmp"
+    local out tabs
+    out=$("$PARSER" "$tmp" "1970-01-01" 2>/dev/null)
+    rm -f "$tmp"
+    # Expected output: exactly 2 tabs (column separators), none inside bullet.
+    tabs=$(printf '%s' "$out" | tr -cd '\t' | wc -c | tr -d ' ')
+    if [ "$tabs" -eq 2 ]; then
+        pass "parser scrubs tabs from bullet text (preserves TSV invariant)"
+    else
+        fail "parser emitted $tabs tabs, expected exactly 2 (col separators): '$out'"
+    fi
+}
+
 test_parser_truncates_long_bullet_summary() {
     # Sanity bound: issue bodies shouldn't include novella-length bullets.
     # Parser must cap bullet_summary (we target ~200 chars).
@@ -621,6 +642,7 @@ test_parser_rejects_bad_last_date
 test_parser_writes_latest_date_file
 test_parser_captures_bullet_summary
 test_parser_bullets_survive_subheaders
+test_parser_scrubs_tabs_in_bullets
 test_parser_truncates_long_bullet_summary
 test_persist_survives_rejected_push
 test_hook_nudges_only_when_workflow_local
