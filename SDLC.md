@@ -11,7 +11,9 @@
 | Last Updated | 2026-04-17 |
 | Claude Code Baseline | v2.1.111+ (required for Opus 4.7 / `opus[1m]`) |
 | Recommended Model | `opus[1m]` (Opus 4.7, 1M context) — run `/model opus[1m]` |
-| Recommended Effort | `xhigh` — run `/effort xhigh` |
+| Recommended Effort | `max` (preferred) / `xhigh` (floor) — run `/effort max` |
+
+> **Effort warning (Opus 4.7):** `max` is the recommended default, `xhigh` is the absolute floor. Anything below `xhigh` (`high`, `medium`, `low`) causes Opus 4.7 to scope work tighter — shallow reasoning, skipped TDD, dropped self-review, SDLC non-compliance in practice. Use `high` or below only for trivial grep/search subagents, never for real SDLC work.
 
 See `CLAUDE_CODE_SDLC_WIZARD.md` → "1M vs 200K Context Window" for the rationale and pricing notes.
 

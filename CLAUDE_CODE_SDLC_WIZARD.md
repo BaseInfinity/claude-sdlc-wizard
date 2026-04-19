@@ -240,11 +240,13 @@ When Anthropic provides official plugins or tools that handle something:
 
 Claude Code's **effort level** controls how much thinking the model does before responding. Higher effort = deeper reasoning but more tokens.
 
+> ⚠️ **On Opus 4.7, effort below `xhigh` breaks SDLC compliance in practice.** Unlike 4.6, Opus 4.7 respects effort levels *strictly* — at `high` or below it scopes work tighter (shallow reasoning, skipped TDD, no self-review) rather than going above-and-beyond. Treat the table below accordingly: **`max` is the recommended default, `xhigh` is the floor**, `high` or below is for trivial grep/search subagents only.
+
 | Level | When to Use | How to Set |
 |-------|-------------|------------|
-| `high` | Standard SDLC work. Features, bug fixes, refactoring, tests, reviews | `effort: high` in skill frontmatter (already set) |
-| `xhigh` | **Recommended default for coding and agentic work (Opus 4.7+).** Long-running tasks, repeated tool calls, deep exploration. Claude Code defaults to this on Opus 4.7 | `/effort xhigh` or set in skill frontmatter |
-| `max` | LOW confidence, FAILED 2x, architecture decisions, complex debugging, cross-model reviews. Reserve for genuinely frontier problems — on most workloads `max` adds cost for small quality gains | `/effort max` (session only — resets next session) |
+| `high` or below | **Not for SDLC work on Opus 4.7.** Only for trivial grep/search subagents or one-shot questions that don't require planning | `effort: high` in a specific subagent frontmatter only |
+| `xhigh` | **Floor for SDLC work on Opus 4.7.** Long-running tasks, repeated tool calls, deep exploration. Claude Code defaults to this on Opus 4.7 | `/effort xhigh` or set in skill frontmatter |
+| `max` | **Recommended default for Opus 4.7 SDLC work.** Multi-file changes, architecture decisions, debugging, cross-model reviews, any task touching wizard/skill/CI code | `/effort max` (session only — resets next session) |
 
 **Effort level changes in Opus 4.7 (April 2026):**
 - **`xhigh` is new** — sits between `high` and `max`, designed for coding and agentic work (30+ minute tasks with token budgets in the millions)
@@ -255,7 +257,7 @@ Claude Code's **effort level** controls how much thinking the model does before 
 
 **Why `high` was the previous default:** Claude Code uses **adaptive thinking** to dynamically allocate reasoning budget per turn. On Pro and Max plans, the default effort level was **medium (85)**, which causes the model to under-allocate reasoning on complex multi-step tasks — leading to shallow analysis, missed edge cases, and "lazy" outputs. This was [confirmed by Anthropic engineer Boris Cherny](https://github.com/anthropics/claude-code/issues/42796) and is documented at [code.claude.com](https://code.claude.com/docs/en/model-config). API, Team, and Enterprise plans default to high effort and are not affected.
 
-The `/sdlc` skill sets `effort: high` in its frontmatter, overriding the medium default on every SDLC invocation. Consider upgrading to `effort: xhigh` on Opus 4.7+ for deeper reasoning on complex tasks.
+The `/sdlc` skill sets `effort: high` in its frontmatter as a baseline, overriding the medium default on every SDLC invocation. **On Opus 4.7, run `/effort max` at session start** — the frontmatter is a floor, not a ceiling, and `max` is where SDLC-compliant work actually happens on 4.7.
 
 **Nuclear option — disable adaptive thinking entirely:** Set `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` in your environment or settings.json `env` block. This forces a fixed reasoning budget per turn instead of letting the model dynamically allocate. Use this if you observe persistent quality issues even with `effort: high`. See [Claude Code model config docs](https://code.claude.com/docs/en/model-config) for details.
 
