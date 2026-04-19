@@ -1,31 +1,42 @@
 {
-  "review_id": "hook-token-caps-001",
+  "review_id": "precompact-seam-001",
   "status": "PENDING_RECHECK",
   "round": 2,
-  "mission": "ROADMAP #203 — add per-hook output-size caps in tests/test-hooks.sh so a regression that bloats any hook's stdout (runaway echo loop, duplicated warnings, unbounded nudge copy) fails tests instead of silently billing consumers. Motivated by CC issue #50799 (hidden SessionStart-hook billing) and sentiment research showing silent cache/token-cost blowups.",
-  "success": "Reviewer verifies (1) each cap has measured headroom above the current observed size (~2× for lean hooks, ~5× for the stacked instructions-loaded path); (2) negative control actually trips the target test — not a no-op tautology; (3) tests don't pollute each other via shared cache/state; (4) separation of baseline vs worst-case for sdlc-prompt-check is meaningful (existing <1000 baseline AND new <1500 with-bump).",
-  "failure": "Reviewer rubber-stamps 'tests pass'. Reviewer misses that the instructions-loaded fixture doesn't exercise all nudge branches — the actual worst case could exceed 3000 if all conditions stack. Reviewer misses that `test_sdlc_hook_size_with_bump_firing` seeds only 2 signals but never verifies what happens if a trigger-phrase match adds a 3rd signal on the same invocation. Reviewer misses that each size cap is a simple `<` assertion — a cap that's been hit could regress further without the test noticing (e.g., if observed goes 219→499, test still passes but the nudge is 2× bigger).",
+  "mission": "ROADMAP #208 — add a PreCompact hook that blocks manual /compact when we're mid-cycle (Codex review PENDING, git rebase/merge/cherry-pick in flight). Auto-compact is deliberately NOT gated — blocking it risks pushing past 100% context. Motivated by user 2026-04-19: 'compacting between discrete units (end of a cycle, after a commit) rather than mid-unit' matters more than the % threshold. Requires CC v2.1.105+.",
+  "success": "Reviewer verifies (1) hook correctly detects every documented seam-violation class (PENDING_REVIEW, PENDING_RECHECK, rebase-merge, rebase-apply, MERGE_HEAD, CHERRY_PICK_HEAD); (2) hook correctly stays silent on CERTIFIED status and on missing-handoff/missing-git; (3) hook exits 2 with HOLD stderr (not stdout) so CC recognizes it as a block; (4) 9 tests each cover a distinct behavior with real invocations (no tautologies); (5) negative control actually trips size_cap; (6) registration parity between .claude/settings.json, cli/templates/settings.json, hooks/hooks.json; (7) matcher is 'manual' everywhere (never '*' or 'auto'); (8) docs match behavior.",
+  "failure": "Reviewer rubber-stamps 'tests pass' without checking (a) that grep status-parsing is robust to whitespace/quoting variants, (b) that rebase-apply branch is actually covered by a test (only rebase-merge is in the fixture today), (c) that the heredoc `} >&2` produces the intended newline structure, (d) that `|| rc=$?` correctly captures the hook's exit code under set -e, (e) that TodoWrite-in-progress limitation is honestly documented rather than hand-waved, (f) that auto-compact is NOT accidentally gated (a bug where matcher gets reset to '*' would silently cause the worst-case scenario of losing context past 100%).",
   "files_changed": [
+    "hooks/precompact-seam-check.sh",
+    "hooks/hooks.json",
+    ".claude/settings.json",
+    "cli/templates/settings.json",
+    "cli/init.js",
+    "CLAUDE_CODE_SDLC_WIZARD.md",
+    "SDLC.md",
+    "ROADMAP.md",
     "tests/test-hooks.sh",
-    "ROADMAP.md"
+    "tests/test-cli.sh",
+    "tests/test-plugin.sh"
   ],
   "fixes_applied": [
-    "(1) test_instructions_loaded_size_cap rewritten with stacked fixture exercising all 7 emission branches (loud staleness + cross-model staleness + effort upgrade + dual-install + API review + CC release + CC version). Cap tightened <3000 → <1500. Negative 50-line bloat now measures 4210 chars and fails (tests/test-hooks.sh:158).",
-    "(2) test_sdlc_hook_size_with_bump_firing cap tightened <1500 → <1300. Still covers observed 1220-char bump path with 1.2x headroom but fails 50-line bloat at 1345 (tests/test-hooks.sh:108).",
-    "(3) test_sdlc_hook_size wrapped with SDLC_WIZARD_CACHE_DIR=$tmpdir/cache so baseline cannot read ambient $HOME/.cache/sdlc-wizard signals; verified seeding 2 signals leaves baseline at 823 chars vs ~1045 before (tests/test-hooks.sh:82-95)."
+    "(1) Added test_precompact_blocks_on_git_rebase_apply_in_progress — distinct fixture for .git/rebase-apply/ (tests/test-hooks.sh:296). Hook suite 105 → 106 tests.",
+    "(2) tests/test-cli.sh:76 enumerates 11 files incl. precompact-seam-check.sh + model-effort-check.sh. tests/test-cli.sh:101 checks all 5 hooks executable. tests/test-plugin.sh 3-hook loops at :217, :229, :287 expanded to full 5-hook list. Now future shipped hooks can't silently miss test coverage.",
+    "(3a) Added 'What's NOT checked' TodoWrite-limitation paragraph to CLAUDE_CODE_SDLC_WIZARD.md 'Compact at Seams' section. (3b) Added _find-sdlc-root.sh to SDLC.md tree with helper annotation. (3c) ROADMAP.md #208 replaced 4793-char claim with reproducible range explanation."
   ],
-  "previous_score": 5,
+  "previous_score": 7,
   "verification_checklist": [
-    "(a) Read the 4 new tests in tests/test-hooks.sh (lines ~94-164). Confirm each test has: a real fixture, a real hook invocation, a `wc -c` measurement, a `-lt CAP` assertion, and pass/fail messages with the observed size.",
-    "(b) Run `bash tests/test-hooks.sh`. Confirm 96/96 pass. Walk through each new test's assertion.",
-    "(c) Negative controls: inject `for i in {1..50}; do echo bloat; done` at the top of each hook (one at a time). Confirm each injection fails the matching size_cap test. Restore, confirm 96/96.",
-    "(d) Cap tightness: read hooks/instructions-loaded-check.sh lines 85-98 (loud staleness nudge), 142-148 (dual-install), 170-172 (API review), 191-192 (CC update). Sum up a realistic worst-case. Is <3000 the right upper bound, or should it be tighter?",
-    "(e) Cap tightness: read hooks/sdlc-prompt-check.sh lines 52-57 (bump block) + lines 71-91 (baseline). Sum up. Is <1500 appropriate for 'bump firing'?",
-    "(f) Fixture isolation: confirm every new test uses `mktemp -d` and cleans up with `rm -rf`. No cross-test pollution.",
-    "(g) Separation of concerns: confirm `test_sdlc_hook_size` (<1000) still tests the BASELINE path and `test_sdlc_hook_size_with_bump_firing` tests the WORST CASE. They should not duplicate each other.",
-    "(h) Worst-case-of-worst-case: what if a test has a trigger-phrase match AND 2+ pre-seeded signals at the same time? The hook writes one more signal + emits the bump. Does the <1500 cap still hold? Rough math: 823 baseline + ~400 bump block + ~30 signal-line output = ~1253. Confirm no hidden stdout path."
+    "(a) Read hooks/precompact-seam-check.sh. Confirm it: (1) guards stdin with [ ! -t 0 ], (2) uses CLAUDE_PROJECT_DIR with $PWD fallback, (3) parses handoff.json status via grep (NOT jq — no dep), (4) checks exactly: rebase-merge, rebase-apply, MERGE_HEAD, CHERRY_PICK_HEAD, (5) emits HOLD to stderr via `} >&2` block, (6) exits 2 on any blocker or 0 otherwise.",
+    "(b) Run the 9 precompact tests (grep precompact tests/test-hooks.sh | wc -l). Confirm each has real fixture setup, real hook invocation, real assertion. Look for tautologies — any test that would pass even with the hook stubbed to `exit 0`.",
+    "(c) Negative control: copy precompact-seam-check.sh to /tmp/bloat.sh, inject `for i in $(seq 1 50); do echo bloat >&2; done` after the shebang, run the size_cap test against it. Confirm it fails at ~4000+ chars ≥ 1000.",
+    "(d) Matcher parity: grep '\"matcher\"' in .claude/settings.json, cli/templates/settings.json, hooks/hooks.json. All three MUST show `\"matcher\": \"manual\"` — never `*`, `\"auto\"`, or omitted. A wildcard matcher here is a P0 because it would gate auto-compact and potentially crash sessions past 100% context.",
+    "(e) Grep robustness: manually construct handoff.json with `{\"status\":\"PENDING_REVIEW\"}` (no spaces), `{ \"status\" : \"PENDING_REVIEW\" }` (extra spaces), and `{\"status\": \"pending_review\"}` (lowercase). Run the hook against each. Should block on first two, not third.",
+    "(f) Git state edge cases: what if .git exists but is a file (submodule)? What if CLAUDE_PROJECT_DIR is set to a non-existent dir? Hook should not crash/hang.",
+    "(g) Version floor: confirm CLAUDE_CODE_SDLC_WIZARD.md, SDLC.md, and the hook's comment all cite v2.1.105+ as the PreCompact requirement. Mismatch = user confusion.",
+    "(h) Docs vs behavior: the wizard doc says TodoWrite state is NOT checked and explains why. Confirm the hook actually does NOT check it. If the doc claims something the hook doesn't do, that's a lie-in-docs bug.",
+    "(i) Event parity count: test_hooks_json_five_events + test_settings_json both expect 5. Confirm both pass. If CLI or plugin form only has 4, new installs won't get the hook.",
+    "(j) Hook count in SDLC.md tree matches: `ls hooks/*.sh | wc -l` should equal hooks listed in SDLC.md. One script missing from the tree = drift surface."
   ],
-  "review_instructions": "Focus on (1) whether the caps are meaningful — not too tight (false positives on legitimate growth) and not too loose (allows regressions to ship), (2) negative control actually fails the target test, (3) fixtures exercise the REAL worst case, not a partial one. Be strict — this is the test that's supposed to catch hook-budget regressions.",
-  "preflight_path": ".reviews/preflight-hook-token-caps-001.md",
+  "review_instructions": "Focus on (1) the auto-compact-blocking P0 (matcher parity — `manual` in ALL THREE places, never a wildcard), (2) whether the 9 tests actually gate what they claim (look for tautologies that would pass with `exit 0`), (3) grep-based status parsing edge cases, (4) test-isolation (do any tests share state or read ambient $HOME?). Be strict — assume bugs may be present until proven otherwise.",
+  "preflight_path": ".reviews/preflight-precompact-seam-001.md",
   "artifact_path": ".reviews/"
 }

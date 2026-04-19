@@ -24,6 +24,7 @@ const FILES = [
   { src: 'hooks/tdd-pretool-check.sh', dest: '.claude/hooks/tdd-pretool-check.sh', executable: true, base: REPO_ROOT },
   { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true, base: REPO_ROOT },
   { src: 'hooks/model-effort-check.sh', dest: '.claude/hooks/model-effort-check.sh', executable: true, base: REPO_ROOT },
+  { src: 'hooks/precompact-seam-check.sh', dest: '.claude/hooks/precompact-seam-check.sh', executable: true, base: REPO_ROOT },
   { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md', base: REPO_ROOT },
   { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md', base: REPO_ROOT },
   { src: 'skills/update/SKILL.md', dest: '.claude/skills/update/SKILL.md', base: REPO_ROOT },

@@ -73,7 +73,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 10 expected files
+# Test 4: init creates all 11 expected files (hooks + skills + settings + wizard doc)
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -84,20 +84,21 @@ test_creates_all_files() {
     [ -f "$d/.claude/hooks/tdd-pretool-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/instructions-loaded-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/model-effort-check.sh" ] && count=$((count + 1))
+    [ -f "$d/.claude/hooks/precompact-seam-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/update/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/feedback/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 10 ]; then
-        pass "init creates all 10 expected files"
+    if [ "$count" -eq 11 ]; then
+        pass "init creates all 11 expected files"
     else
-        fail "init should create 10 files, found $count"
+        fail "init should create 11 files, found $count"
     fi
     rm -rf "$d"
 }
 
-# Test 5: init sets hooks as executable
+# Test 5: init sets all 5 installed hooks as executable
 test_hooks_executable() {
     local d
     d=$(make_temp)
@@ -106,10 +107,12 @@ test_hooks_executable() {
     [ -x "$d/.claude/hooks/sdlc-prompt-check.sh" ] && exec_count=$((exec_count + 1))
     [ -x "$d/.claude/hooks/tdd-pretool-check.sh" ] && exec_count=$((exec_count + 1))
     [ -x "$d/.claude/hooks/instructions-loaded-check.sh" ] && exec_count=$((exec_count + 1))
-    if [ "$exec_count" -eq 3 ]; then
-        pass "init sets all 3 hooks as executable"
+    [ -x "$d/.claude/hooks/model-effort-check.sh" ] && exec_count=$((exec_count + 1))
+    [ -x "$d/.claude/hooks/precompact-seam-check.sh" ] && exec_count=$((exec_count + 1))
+    if [ "$exec_count" -eq 5 ]; then
+        pass "init sets all 5 hooks as executable"
     else
-        fail "init should set 3 hooks as executable, found $exec_count"
+        fail "init should set 5 hooks as executable, found $exec_count"
     fi
     rm -rf "$d"
 }
@@ -185,7 +188,8 @@ test_wizard_doc() {
     rm -rf "$d"
 }
 
-# Test 10: settings.json is valid JSON with 4 hook events
+# Test 10: settings.json is valid JSON with 5 hook events
+# (UserPromptSubmit, PreToolUse, InstructionsLoaded, SessionStart, PreCompact)
 test_settings_json() {
     local d
     d=$(make_temp)
@@ -198,10 +202,10 @@ with open('$d/.claude/settings.json') as f:
 hooks = data.get('hooks', {})
 print(len(hooks))
 " 2>/dev/null)
-    if [ "$hook_count" = "4" ]; then
-        pass "settings.json is valid JSON with 4 hook events"
+    if [ "$hook_count" = "5" ]; then
+        pass "settings.json is valid JSON with 5 hook events"
     else
-        fail "settings.json should have 4 hook events, found: $hook_count"
+        fail "settings.json should have 5 hook events, found: $hook_count"
     fi
     rm -rf "$d"
 }
