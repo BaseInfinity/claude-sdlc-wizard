@@ -911,8 +911,37 @@ test_update_skill_has_allowedtools_migration() {
     fi
 }
 
+# Test 39f (Codex round-1 finding #1): Step 7.6 "both present" branch must NOT
+# say "dedup" — that's destructive. A user could intentionally have duplicate
+# entries (e.g., same pattern with a comment nearby) and we must not silently
+# collapse them. The migration must use additive language: "append", "concat",
+# "preserve", "do not dedup".
+test_update_skill_migration_is_non_destructive() {
+    local skill="$SCRIPT_DIR/../skills/update/SKILL.md"
+    local step7_6
+    step7_6=$(awk '/^### Step 7\.6/,/^### Step [0-9]+[^.]/' "$skill")
+    local ok=true
+    # Must have additive/preserving language
+    echo "$step7_6" | grep -qiE 'preserve|append|byte.?for.?byte|do not dedup|not dedup|no dedup' || ok=false
+    # Must explicitly say the 'both present' branch does NOT dedup
+    echo "$step7_6" | grep -qiE 'do not dedup|not dedup|no dedup|without dedup' || ok=false
+    # Must NOT contain positive migration instruction with "dedup" — the only
+    # allowed use is an anti-pattern warning.
+    # Catch patterns like "union the two lists (dedup)" or "dedup the list" as
+    # positive instructions.
+    if echo "$step7_6" | grep -qiE 'union[^.]*dedup|dedup[^.]*drop|dedup the|dedup across'; then
+        ok=false
+    fi
+    if [ "$ok" = true ]; then
+        pass "Update skill Step 7.6 migration is non-destructive (no dedup instruction)"
+    else
+        fail "Update skill Step 7.6 must NOT instruct dedup during migration (Codex round-1 #1)"
+    fi
+}
+
 test_setup_skill_step9_writes_permissions_allow
 test_update_skill_has_allowedtools_migration
+test_update_skill_migration_is_non_destructive
 
 # Test 40: Merge preserves malformed env (array) — wizard no longer writes env unconditionally
 test_merge_malformed_env_array_left_alone() {

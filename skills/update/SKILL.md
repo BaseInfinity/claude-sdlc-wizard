@@ -150,13 +150,13 @@ If the user's `.claude/settings.json` has a top-level `allowedTools` array, offe
    >
    > `[m/k/l]`
 
-2. **If both `allowedTools` and `permissions.allow` are present** — flag it: the two lists may have diverged. Show both arrays, ask the user which to keep. On migrate, union the two lists (dedup), drop `allowedTools`.
+2. **If both `allowedTools` and `permissions.allow` are present** — flag it: the two lists may have diverged. Show both arrays to the user. On migrate, append every entry from `allowedTools` to the end of `permissions.allow` (preserving order within each list), then drop the legacy `allowedTools` key. **Do NOT dedup.** If the same string appears in both lists, it stays in both positions — Claude Code treats duplicate entries as a no-op, but dedup would silently remove user data that the user might have intended. If the user explicitly asks to dedup, do that as a separate follow-up edit.
 
 3. **If only `permissions.allow` is present** — user is already on the new shape. No action.
 
 4. **If neither is present** — no action.
 
-When migrating: preserve every entry byte-for-byte; only the container key changes. Do not reorder, dedup across forms, or expand wildcards. Other top-level keys (hooks, env, model, custom user fields) are never touched.
+When migrating: preserve every entry byte-for-byte; only the container key changes. Do not reorder, dedup, or expand wildcards. Other top-level keys (hooks, env, model, custom user fields) are never touched.
 
 ### Step 8: Apply Selected Changes
 
