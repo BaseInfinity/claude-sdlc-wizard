@@ -4,6 +4,32 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.35.0] - 2026-04-19
+
+### Added
+
+- **PreCompact seam gate** (#205 / ROADMAP #208). New `hooks/precompact-seam-check.sh` blocks manual `/compact` when `.reviews/handoff.json` status is `PENDING_REVIEW`/`PENDING_RECHECK` or a git rebase/merge/cherry-pick is in flight. Matcher is `manual` — auto-compact is deliberately NOT gated (blocking it could push past 100% context). Requires Claude Code v2.1.105+. 10 quality tests.
+- **Self-healing PreCompact** (#206 / ROADMAP #209). Hook now treats a stale `PENDING_*` handoff as implicit `CERTIFIED` when optional `pr_number` field is present and `gh pr view <N>` reports `MERGED`. Fixes the "forgot to flip status to CERTIFIED after merge" consumer bug. Graceful fallback: if `pr_number` absent, `gh` missing, offline, or any error → existing block behavior. 4 new quality tests with mocked `gh` binary.
+- **Dynamic effort auto-bump hook** (#202 / ROADMAP #195). `sdlc-prompt-check.sh` scans `UserPromptSubmit` payload for LOW-confidence / FAILED-repeatedly / CONFUSED phrases and logs a timestamped signal. At ≥2 recent signals in a 30-min window, emits a loud `!! EFFORT BUMP REQUIRED !!` block with the exact `/effort xhigh` command. 8 quality tests.
+- **Loud staleness nudge** (#201 / ROADMAP #196). `instructions-loaded-check.sh` now caches npm-latest for 24h and prints a loud multi-line warning when the installed wizard is ≥3 minor versions behind. 1–2 minor keeps the existing mild one-liner.
+- **Session-start CC auto-update nudge** (#192 / ROADMAP #85). Instructions-loaded hook queries for open auto-update PRs and nudges the user to review before compacting.
+- **Hook token-cost caps** (#203). 4 new size-cap tests across every hook. Negative control injects echo bloat to prove the caps trip.
+- **Permissions allowlist** (#204). Top read-only tools pre-approved in `.claude/settings.json` to cut permission prompts during automation.
+- **Codex-audit-on-CI-logs shepherd step** (docs). SDLC skill now requires running `codex exec xhigh` against both Tier 1 and Tier 2 CI logs separately — catches silent failures, degraded metrics, and warnings-promoted-to-errors that the green checkmark hides. Dogfooded on PR #206: caught 4 P1s in pre-existing CI infra (tracked as ROADMAP #210, #211, #215 + regression of #93).
+
+### Fixed
+
+- **CI persist-to-PR-branch race** (#196 / ROADMAP #193). Tier 2 no longer aborts the whole run on a single low-score trial; records the trial instead.
+- **Setup wizard `allowedTools` → `permissions.allow`** (#200 / ROADMAP #197). CC v2.1 renamed the field; setup template updated.
+- **Setup wizard `opus[1m]` opt-in** (#199 / ROADMAP #198). Default no longer force-pins; respects explicit user choice.
+- **SessionStart hook model-field absence** (#180 / commit 3b23860). Model isn't exposed in SessionStart payload; hook now detects effort-only.
+
+### Docs
+
+- Memory lessons promoted (#194): tier2 exit-code pattern + pipeline liveness.
+- Community paths (#191 / ROADMAP #98): issue + PR templates + Discussions enabled.
+- ROADMAP backlog filed this cycle: #210 (Node 24 false-green), #211 (Tier 1 "11/10" score), #212 (local-Max E2E), #213 (ship degradation env vars by default — blocked on #214), #214 (adaptive-thinking A/B Prove-It), #215 (Tier 2 persist dead code), #216 (repo rename).
+
 ## [1.34.0] - 2026-04-17
 
 ### Added
