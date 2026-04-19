@@ -42,6 +42,7 @@ This repository uses the SDLC Wizard to enforce:
 | `tdd-pretool-check.sh` | Before Write/Edit | TDD reminder for workflows |
 | `instructions-loaded-check.sh` | Session start | Validates SDLC.md/TESTING.md exist, effort/model check |
 | `model-effort-check.sh` | Session start | Nudges upgrade when effort/model is behind recommended |
+| `precompact-seam-check.sh` | Before manual `/compact` | Blocks compact mid-Codex-review or mid-rebase/merge/cherry-pick (requires CC v2.1.105+) |
 
 ## Skills Available
 
@@ -78,7 +79,8 @@ When Claude Code releases new features:
 │   ├── sdlc-prompt-check.sh      # SDLC baseline
 │   ├── tdd-pretool-check.sh      # TDD reminder
 │   ├── instructions-loaded-check.sh  # Session start validation + effort/model
-│   └── model-effort-check.sh     # SessionStart upgrade nudge
+│   ├── model-effort-check.sh     # SessionStart upgrade nudge
+│   └── precompact-seam-check.sh  # PreCompact seam gate (CC v2.1.105+)
 └── skills/
     ├── sdlc/SKILL.md             # SDLC workflow
     ├── setup/SKILL.md            # Setup wizard

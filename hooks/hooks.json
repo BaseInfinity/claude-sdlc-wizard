@@ -42,6 +42,17 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/precompact-seam-check.sh"
+          }
+        ]
+      }
     ]
   }
 }

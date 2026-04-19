@@ -197,6 +197,155 @@ test_instructions_loaded_size_cap() {
     fi
 }
 
+# ---- PreCompact seam-gate hook (ROADMAP #208) ----
+# Blocks manual /compact when compacting would lose evidence the next
+# cycle needs — specifically when a Codex review is PENDING or a git
+# rebase/merge/cherry-pick is in flight. Auto-compact is NOT gated
+# (matcher: "manual" only in settings.json) — blocking auto risks
+# pushing past 100% context.
+
+test_precompact_hook_exists() {
+    if [ -x "$HOOKS_DIR/precompact-seam-check.sh" ]; then
+        pass "precompact-seam-check.sh exists and is executable"
+    else
+        fail "precompact-seam-check.sh missing or not executable"
+    fi
+}
+
+test_precompact_silent_without_handoff_or_git_op() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # No .reviews/handoff.json, no .git — should exit 0 silently
+    local stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null)
+    local rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && [ -z "$stderr_out" ]; then
+        pass "precompact hook silent when no handoff and no git ops"
+    else
+        fail "precompact hook should be silent (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_silent_when_handoff_certified() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "CERTIFIED", "round": 2}
+JSON
+    CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>/dev/null
+    local rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ]; then
+        pass "precompact hook silent when handoff status is CERTIFIED"
+    else
+        fail "precompact hook blocked on CERTIFIED handoff (rc=$rc)"
+    fi
+}
+
+test_precompact_blocks_on_pending_review() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_REVIEW", "round": 1}
+JSON
+    local stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "HOLD" && echo "$stderr_out" | grep -q "PENDING_REVIEW"; then
+        pass "precompact hook blocks (rc=2) with HOLD + PENDING_REVIEW on pending review"
+    else
+        fail "precompact should block on PENDING_REVIEW (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_blocks_on_pending_recheck() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_RECHECK", "round": 2}
+JSON
+    local stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_RECHECK"; then
+        pass "precompact hook blocks (rc=2) with PENDING_RECHECK on pending recheck"
+    else
+        fail "precompact should block on PENDING_RECHECK (rc=$rc)"
+    fi
+}
+
+test_precompact_blocks_on_git_rebase_in_progress() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.git/rebase-merge"
+    echo "dummy" > "$tmpdir/.git/rebase-merge/head-name"
+    local stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "rebase"; then
+        pass "precompact hook blocks (rc=2) on in-progress rebase"
+    else
+        fail "precompact should block on rebase (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_blocks_on_git_merge_in_progress() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.git"
+    echo "abc123" > "$tmpdir/.git/MERGE_HEAD"
+    local stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "merge"; then
+        pass "precompact hook blocks (rc=2) on in-progress merge"
+    else
+        fail "precompact should block on merge (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_blocks_on_cherry_pick_in_progress() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.git"
+    echo "abc123" > "$tmpdir/.git/CHERRY_PICK_HEAD"
+    local stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "cherry-pick"; then
+        pass "precompact hook blocks (rc=2) on in-progress cherry-pick"
+    else
+        fail "precompact should block on cherry-pick (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_size_cap() {
+    # Worst case: all 4 blockers fire simultaneously (PENDING_RECHECK + rebase + merge + cherry-pick).
+    # Should still emit a token-efficient HOLD message.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews" "$tmpdir/.git/rebase-merge"
+    echo "dummy" > "$tmpdir/.git/rebase-merge/head-name"
+    echo "abc" > "$tmpdir/.git/MERGE_HEAD"
+    echo "def" > "$tmpdir/.git/CHERRY_PICK_HEAD"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_RECHECK", "round": 3}
+JSON
+    local size stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    size=$(printf '%s' "$stderr_out" | wc -c | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && [ "$size" -lt 1000 ]; then
+        pass "precompact hook stacked worst-case is bounded (${size} chars < 1000, rc=2)"
+    else
+        fail "precompact hook stacked worst-case exceeded cap or wrong rc (${size} chars, rc=$rc)"
+    fi
+}
+
 # ---- Effort auto-bump signal detection (ROADMAP #195) ----
 # Hook scans UserPromptSubmit payload for LOW-confidence / FAILED-repeatedly /
 # CONFUSED phrases; logs a signal; when ≥2 recent signals accumulate in a
@@ -912,6 +1061,15 @@ test_sdlc_hook_size_with_bump_firing
 test_tdd_pretool_size_cap
 test_model_effort_size_cap
 test_instructions_loaded_size_cap
+test_precompact_hook_exists
+test_precompact_silent_without_handoff_or_git_op
+test_precompact_silent_when_handoff_certified
+test_precompact_blocks_on_pending_review
+test_precompact_blocks_on_pending_recheck
+test_precompact_blocks_on_git_rebase_in_progress
+test_precompact_blocks_on_git_merge_in_progress
+test_precompact_blocks_on_cherry_pick_in_progress
+test_precompact_size_cap
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
 test_effort_bump_nudge_fires_on_2_recent_signals
