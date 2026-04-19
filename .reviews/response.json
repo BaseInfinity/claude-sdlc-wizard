@@ -1,12 +1,12 @@
 {
-  "review_id": "model-pin-opt-in-001",
+  "review_id": "allowed-tools-permissions-001",
   "round": 2,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
       "finding": "1",
       "action": "FIXED",
-      "summary": "CLAUDE_CODE_SDLC_WIZARD.md:881 autocompact table row changed from 'SDLC default (opus[1m])' to 'Opt-in SDLC setup (opus[1m])' with explicit '(see issue #198)' reference. Strengthened tests/test-doc-consistency.sh with a new grep-based regression test (test_wizard_doc_no_default_opus_1m_wording) that catches the exact anti-pattern — 'SDLC default (opus[1m])', 'default (opus[1m])', 'opus[1m] as default', 'opus[1m] is default'. Ran negative control: temporarily reverted the row, new test fails with 'Wizard doc contains contradictory default opus[1m] language'; restored, 22/22 pass."
+      "summary": "skills/update/SKILL.md Step 7.6 'both present' branch rewritten. Removed the contradictory 'union (dedup)' language. New instruction: 'append every entry from allowedTools to the end of permissions.allow (preserving order within each list), then drop the legacy allowedTools key. Do NOT dedup.' This matches the byte-for-byte preservation rule at the end of the section. Added regression test tests/test-cli.sh:test_update_skill_migration_is_non_destructive that (a) requires additive/preserving language, (b) requires explicit 'do not dedup' in the section, (c) rejects positive migration instructions containing 'dedup' like 'union the two lists (dedup)'. Negative control: reintroducing the old 'dedup' wording fails the new test; restored, 70/70 pass."
     }
   ]
 }
