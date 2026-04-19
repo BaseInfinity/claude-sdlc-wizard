@@ -236,7 +236,7 @@ test_instructions_hook_all_present() {
     printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
     chmod +x "$tmpdir/bin/claude" "$tmpdir/bin/npm" "$tmpdir/bin/codex"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if [ -z "$output" ]; then
         pass "instructions-loaded-check.sh silent when all files present"
@@ -652,7 +652,7 @@ test_update_notification_newer_available() {
     printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/npm"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "update available" && echo "$output" | grep -q "1.20.0" && echo "$output" | grep -q "1.22.0"; then
         pass "Shows update notification when newer version available"
@@ -672,7 +672,7 @@ test_update_notification_same_version() {
     printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "update available"; then
         fail "Should NOT show update notification when versions match, got: $output"
@@ -690,7 +690,7 @@ test_update_notification_npm_unavailable() {
     # Empty bin dir — npm not in PATH
     mkdir -p "$tmpdir/bin"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     local exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -q "update available"; then
@@ -710,7 +710,7 @@ test_update_notification_npm_fails() {
     printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/npm"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     local exit_code=$?
     rm -rf "$tmpdir"
     if [ "$exit_code" -eq 0 ] && ! echo "$output" | grep -q "update available"; then
@@ -731,7 +731,7 @@ test_update_notification_no_version_metadata() {
     printf '#!/bin/bash\necho "2.1.90 (Claude Code)"\n' > "$tmpdir/bin/claude"
     chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "Wizard.*update available"; then
         fail "Should NOT show wizard notification when SDLC.md has no version metadata, got: $output"
@@ -750,12 +750,95 @@ test_update_notification_mentions_update_wizard() {
     printf '#!/bin/bash\necho "1.22.0"\n' > "$tmpdir/bin/npm"
     chmod +x "$tmpdir/bin/npm"
     local output
-    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
     rm -rf "$tmpdir"
     if echo "$output" | grep -q "/update-wizard"; then
         pass "Update notification mentions /update-wizard"
     else
         fail "Update notification should mention /update-wizard, got: $output"
+    fi
+}
+
+# Test (ROADMAP #196): Loud staleness nudge when ≥3 minor versions behind.
+# User feedback 2026-04-18: the 1-line "update available" nudge is too easy
+# to skip — users went months without running /update. This test drives a
+# stronger, multi-line warning when the gap is material (≥3 minor versions).
+test_update_notification_loud_when_3_minor_behind() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.25.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    local ok=true
+    # Louder format must mention the exact delta (9 here) AND use stronger
+    # language than the one-line fallback. Require both an explicit "behind"
+    # count and a WARNING/!! marker so the nudge stands out.
+    echo "$output" | grep -qE '(9.*minor.*behind|behind.*9.*minor|9[[:space:]]*versions.*behind)' || ok=false
+    echo "$output" | grep -qE 'WARNING|!!|⚠|strongly recommend' || ok=false
+    echo "$output" | grep -q '/update-wizard' || ok=false
+    if [ "$ok" = true ]; then
+        pass "Loud nudge fires when ≥3 minor versions behind (1.25.0 → 1.34.0)"
+    else
+        fail "Expected loud '9 minor versions behind' nudge, got: $output"
+    fi
+}
+
+# Companion: mild nudge (1-2 minor behind) does NOT print the loud markers.
+# This ensures we don't over-warn on small gaps.
+test_update_notification_mild_when_2_minor_behind() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.32.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    local ok=true
+    # Must still mention the update is available
+    echo "$output" | grep -q "update available" || ok=false
+    # Must NOT include the loud markers
+    if echo "$output" | grep -qE 'minor.*behind|strongly recommend'; then
+        ok=false
+    fi
+    if [ "$ok" = true ]; then
+        pass "Mild nudge (no loud markers) for 2 minor versions behind"
+    else
+        fail "Expected mild one-line nudge for 2-minor gap, got: $output"
+    fi
+}
+
+# Cache: npm is only called once per 24h. On second invocation with a fresh
+# cache file, the hook must use the cached value instead of re-invoking npm.
+test_update_notification_uses_daily_cache() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.25.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin" "$tmpdir/cache"
+    # npm returns 1.34.0 on first call; on second call it would return
+    # nothing (we replace the binary to prove the cache is used).
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    # First run — populates cache
+    (cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" > /dev/null 2>/dev/null)
+    # Replace npm with one that fails — forces the hook to use the cache or skip
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    # Second run — should still see the loud nudge because cache is <24h old
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE 'minor.*behind'; then
+        pass "Second invocation uses daily cache (no re-fetch from npm)"
+    else
+        fail "Second invocation should use cached latest version, got: $output"
     fi
 }
 
@@ -765,6 +848,9 @@ test_update_notification_npm_unavailable
 test_update_notification_npm_fails
 test_update_notification_no_version_metadata
 test_update_notification_mentions_update_wizard
+test_update_notification_loud_when_3_minor_behind
+test_update_notification_mild_when_2_minor_behind
+test_update_notification_uses_daily_cache
 
 echo ""
 echo "--- Hook if-conditional tests (#68) ---"
