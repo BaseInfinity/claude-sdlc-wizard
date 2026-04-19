@@ -1,5 +1,16 @@
 # Roadmap
 
+## Next Up (v1.36.0 queue, priority-ordered 2026-04-19)
+
+1. **#215 — Tier 2 persist dead code** (P1, ~15 min). Closes a regression from #193. Change `ci.yml:1436` `if:` gate from `steps.check-baseline.outputs.should_simulate` → `steps.check-baseline.outputs.has_baseline`. Add a test that asserts gated expressions reference real step outputs.
+2. **#214 — Adaptive-thinking A/B Prove-It** (strategic, ~$12 API). Unblocks #213. Run 10× with adaptive-thinking, 10× with `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1`, compare 95% CI. Decision rule in the item.
+3. **#210 — Node 24 false-green** (P1, data integrity). `test-node24-compliance.sh` passes but `oven-sh/setup-bun` still runs on Node 20.
+4. **#211 — Tier 1 "11/10" score leak** (P1, data corruption). UI scenarios score 11 but `max_score` records 10.
+5. **#207 — Community feature-discovery scanner** (user priority). Reddit/HN/Discord scan for new CC features.
+6. **#216 — Repo rename** (`agentic-ai-sdlc-wizard` → `agentic-sdlc-wizard`, low-risk).
+
+Blocked: **#213** (ship degradation env vars by default) gates on #214 result.
+
 ## Pre-Distribution (ordered)
 
 | # | Item | Status |
