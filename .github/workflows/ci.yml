@@ -183,6 +183,9 @@ jobs:
       - name: Run community paths tests
         run: ./tests/test-community-paths.sh
 
+      - name: Run persist score history tests
+        run: ./tests/test-persist-score-history.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
@@ -670,17 +673,11 @@ jobs:
         if: |
           steps.check-baseline.outputs.should_simulate == 'true' &&
           github.event.pull_request.head.repo.full_name == github.repository
-        continue-on-error: true
         working-directory: pr-branch
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/score-history.jsonl
-          git diff --staged --quiet && exit 0
-          git commit -m "chore: record E2E score [skip ci]"
-          git push origin HEAD:refs/heads/"$PR_HEAD_REF"
+          bash scripts/persist-score-history.sh "$PR_HEAD_REF" tests/e2e/score-history.jsonl
 
       - name: Generate score trends report
         if: steps.check-baseline.outputs.should_simulate == 'true'
@@ -1440,17 +1437,11 @@ jobs:
         if: |
           steps.check-baseline.outputs.should_simulate == 'true' &&
           github.event.pull_request.head.repo.full_name == github.repository
-        continue-on-error: true
         working-directory: pr-branch
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/score-history.jsonl
-          git diff --staged --quiet && exit 0
-          git commit -m "chore: record E2E score [skip ci]"
-          git push origin HEAD:refs/heads/"$PR_HEAD_REF"
+          bash scripts/persist-score-history.sh "$PR_HEAD_REF" tests/e2e/score-history.jsonl
 
       - name: Generate score trends report (Tier 2)
         continue-on-error: true

@@ -3035,6 +3035,45 @@ test_ci_eval_extracts_critical_miss
 test_ci_score_history_no_silent_fail
 test_ci_no_score_commit_step
 
+# Test 176: ci.yml "Persist scores to PR branch" steps MUST call the shared script
+# and MUST NOT re-introduce continue-on-error: true (regression guard for PR #194
+# push race discovery — silent persist failures cause score-history.jsonl to stall).
+test_ci_persist_steps_use_script_not_silent() {
+    local CI_FILE="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$CI_FILE" ]; then fail "ci.yml not found"; return; fi
+
+    # Both persist steps must call the script
+    if python3 -c "
+import yaml, sys
+with open('$CI_FILE') as f:
+    wf = yaml.safe_load(f)
+found = 0
+for job_name, job in wf['jobs'].items():
+    if 'steps' not in job:
+        continue
+    for step in job['steps']:
+        if step.get('name', '') != 'Persist scores to PR branch':
+            continue
+        found += 1
+        run = step.get('run', '') or ''
+        if 'scripts/persist-score-history.sh' not in run:
+            print(f'persist step in {job_name} does not call scripts/persist-score-history.sh', file=sys.stderr)
+            sys.exit(1)
+        if step.get('continue-on-error', False):
+            print(f'persist step in {job_name} still has continue-on-error: true', file=sys.stderr)
+            sys.exit(1)
+if found < 2:
+    print(f'expected at least 2 persist steps, found {found}', file=sys.stderr)
+    sys.exit(1)
+" 2>/dev/null; then
+        pass "ci.yml 'Persist scores to PR branch' steps call shared script and do not swallow failures"
+    else
+        fail "ci.yml 'Persist scores to PR branch' regressed (missing script call or continue-on-error re-added)"
+    fi
+}
+
+test_ci_persist_steps_use_script_not_silent
+
 # --- Round 6: Review pipeline experiment (#27) ---
 
 # Test 181: AGENTS.md exists at repo root (Codex review guidelines)
