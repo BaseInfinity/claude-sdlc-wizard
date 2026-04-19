@@ -91,6 +91,79 @@ test_sdlc_hook_size() {
     fi
 }
 
+# ---- Hook token-cost caps (ROADMAP #203) ----
+# CC issue #50799 documents hidden SessionStart hook billing — hooks that
+# emit unbounded output silently eat user tokens. Every hook that writes
+# to stdout gets an explicit size cap here. A regression that grows a
+# hook's output (unintentional echo loop, bloated nudge copy, duplicate
+# warnings) must trip these tests rather than ship to consumers.
+
+# sdlc-prompt-check worst-case: bump block + baseline. Separate from
+# test_sdlc_hook_size (which asserts the no-bump baseline) so we know
+# the baseline is lean AND the worst-case is bounded.
+test_sdlc_hook_size_with_bump_firing() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    echo 'x' > "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    printf '%s\tlow\n%s\tfailed\n' "$((now - 60))" "$((now - 30))" > "$tmpdir/cache/effort-signals.log"
+    local size
+    size=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh") | wc -c | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "$size" -lt 1500 ]; then
+        pass "sdlc-prompt-check worst-case (bump+baseline) is bounded (${size} chars < 1500)"
+    else
+        fail "sdlc-prompt-check worst-case exceeded cap (${size} chars ≥ 1500) — regression in bump copy or baseline"
+    fi
+}
+
+test_tdd_pretool_size_cap() {
+    local size
+    size=$(echo '{"tool_input":{"file_path":"/src/foo.ts"}}' | "$HOOKS_DIR/tdd-pretool-check.sh" 2>/dev/null | wc -c | tr -d ' ')
+    if [ "$size" -lt 500 ]; then
+        pass "tdd-pretool-check output is bounded (${size} chars < 500)"
+    else
+        fail "tdd-pretool-check output exceeded cap (${size} chars ≥ 500)"
+    fi
+}
+
+test_model_effort_size_cap() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"high"}' > "$tmpdir/.claude/settings.json"
+    local size
+    size=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null | wc -c | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "$size" -lt 500 ]; then
+        pass "model-effort-check output is bounded (${size} chars < 500)"
+    else
+        fail "model-effort-check output exceeded cap (${size} chars ≥ 500)"
+    fi
+}
+
+test_instructions_loaded_size_cap() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.10.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin" "$tmpdir/cache"
+    # Stub npm → loud 24-minor-behind nudge fires
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local size
+    size=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null | wc -c | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "$size" -lt 3000 ]; then
+        pass "instructions-loaded-check worst-case (stale + loud nudge + all sub-checks) is bounded (${size} chars < 3000)"
+    else
+        fail "instructions-loaded-check worst-case exceeded cap (${size} chars ≥ 3000)"
+    fi
+}
+
 # ---- Effort auto-bump signal detection (ROADMAP #195) ----
 # Hook scans UserPromptSubmit payload for LOW-confidence / FAILED-repeatedly /
 # CONFUSED phrases; logs a signal; when ≥2 recent signals accumulate in a
@@ -802,6 +875,10 @@ test_sdlc_hook_keywords
 test_sdlc_hook_auto_invoke
 test_sdlc_hook_phases
 test_sdlc_hook_size
+test_sdlc_hook_size_with_bump_firing
+test_tdd_pretool_size_cap
+test_model_effort_size_cap
+test_instructions_loaded_size_cap
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
 test_effort_bump_nudge_fires_on_2_recent_signals
