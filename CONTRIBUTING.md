@@ -30,6 +30,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-api-feature-detection.sh && \
    ./tests/test-memory-audit-protocol.sh && \
    ./tests/test-community-paths.sh && \
+   ./tests/test-persist-score-history.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \
