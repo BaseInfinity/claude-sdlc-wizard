@@ -391,6 +391,7 @@ EOF
 
 test_precompact_self_heals_on_merged_pr() {
     # PENDING_RECHECK + pr_number set + gh says MERGED → implicit CERTIFIED → exit 0.
+    # Also asserts ZERO stderr on unblock — self-heal must be silent, not a nag.
     local tmpdir
     tmpdir=$(mktemp -d)
     mkdir -p "$tmpdir/.reviews"
@@ -401,10 +402,38 @@ JSON
     local rc=0 stderr_out
     stderr_out=$(PATH="$tmpdir/mockbin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
     rm -rf "$tmpdir"
-    if [ "$rc" -eq 0 ]; then
-        pass "precompact self-heals on PENDING_RECHECK when pr_number is merged (rc=0)"
+    if [ "$rc" -eq 0 ] && [ -z "$stderr_out" ]; then
+        pass "precompact self-heals silently on merged PR (rc=0, stderr empty)"
     else
-        fail "precompact should unblock when PR is merged (rc=$rc, stderr='$stderr_out')"
+        fail "precompact should unblock silently when PR is merged (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_blocks_when_gh_missing() {
+    # PENDING + pr_number + `gh` not on PATH → command -v gh fails → fallback to block.
+    # Distinct code path from gh-errors (which hits command -v success + gh exit !=0).
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews" "$tmpdir/minbin"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_REVIEW", "round": 1, "pr_number": 205}
+JSON
+    # Symlink only the bare utilities the hook needs — no gh.
+    for bin in grep sed head cat stat; do
+        if [ -x "/usr/bin/$bin" ]; then
+            ln -sf "/usr/bin/$bin" "$tmpdir/minbin/$bin"
+        elif [ -x "/bin/$bin" ]; then
+            ln -sf "/bin/$bin" "$tmpdir/minbin/$bin"
+        fi
+    done
+    local rc=0 stderr_out
+    # Isolated PATH with zero gh — forces command -v gh to fail.
+    stderr_out=$(PATH="$tmpdir/minbin" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_REVIEW"; then
+        pass "precompact falls back to block when gh missing from PATH (rc=2)"
+    else
+        fail "precompact should block when gh is unavailable (rc=$rc, stderr='$stderr_out')"
     fi
 }
 
@@ -1203,6 +1232,7 @@ test_precompact_self_heals_on_merged_pr
 test_precompact_still_blocks_on_open_pr
 test_precompact_blocks_when_no_pr_number
 test_precompact_blocks_when_gh_errors
+test_precompact_blocks_when_gh_missing
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
 test_effort_bump_nudge_fires_on_2_recent_signals
