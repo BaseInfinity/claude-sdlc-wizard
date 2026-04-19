@@ -239,6 +239,21 @@ The SDLC skill's CI feedback loops (`.claude/skills/sdlc/SKILL.md`) run during a
 - **Waits for CI**: No point reviewing broken code
 - **Label-driven re-review**: Add `needs-review` for fresh review
 
+## Local Codex Audit of CI Logs (Cross-Model)
+
+The GH `pr-review.yml` workflow uses Claude Opus 4.7. For adversarial diversity, the local shepherd loop runs a **second pass with Codex xhigh** against the CI logs themselves — not just the code. A second model catches things the first missed (silent test exclusions, degraded E2E scores on a green checkmark, warnings promoted to errors in a later version).
+
+```bash
+# After CI reports pass/fail:
+gh run view <RUN_ID> --log > /tmp/ci.log
+codex exec -c 'model_reasoning_effort="xhigh"' -s danger-full-access \
+  "Audit /tmp/ci.log for silent failures, skipped tests, degraded metrics, \
+   or warnings-that-should-be-errors. Green checkmark is necessary but not \
+   sufficient. List findings with severity." < /dev/null
+```
+
+**Cost:** one extra `codex exec` per PR (~30s, a few cents). **Value:** catches the "green but broken" class of bugs the GH reviewer misses because it reviews diffs, not runs. Documented in `skills/sdlc/SKILL.md` under "The full shepherd sequence" step 4.
+
 ## Release Workflow (`release.yml`)
 
 ### What It Does

@@ -538,10 +538,11 @@ Local tests pass -> Commit -> Push -> Watch CI
 1. Push changes to remote
 2. Watch CI: `gh pr checks --watch`
 3. Read CI logs — **pass or fail**: `gh run view <RUN_ID> --log` (not just `--log-failed`). Passing CI can still hide warnings, skipped steps, or degraded scores. Don't just check the green checkmark
-4. If CI fails → diagnose from logs, fix, push again (max 2 attempts)
-5. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
-6. Fix valid suggestions, push, iterate until clean
-7. Only then: explicit merge with `gh pr merge --squash`
+4. **Cross-model review the CI logs themselves** — pipe `gh run view <RUN_ID> --log` to a tmp file and run `codex exec -c 'model_reasoning_effort="xhigh"' -s danger-full-access` with a prompt like *"Audit this CI log for silent failures, skipped tests, degraded metrics, or warnings-that-should-be-errors. Green checkmark is necessary but not sufficient."* A second model catches things the first missed (e.g., a job that passed but degraded an E2E score by 30%, or a test that was silently excluded). Cheap — one extra `codex exec` per PR. **Run separately on Tier 1 quick-check AND Tier 2 5x evaluation logs** — they exercise different code paths, so a clean Tier 1 audit doesn't imply a clean Tier 2. Evidence from PR #206: Tier 1 audit found 3 P1s (Node 24 false-green, "11/10" score leak, E2E incomplete); Tier 2 audit TBD — value is measured by running both and comparing.
+5. If CI fails → diagnose from logs, fix, push again (max 2 attempts)
+6. If CI passes → read ALL review comments: `gh api repos/OWNER/REPO/pulls/PR/comments`
+7. Fix valid suggestions, push, iterate until clean
+8. Only then: explicit merge with `gh pr merge --squash`
 
 **Why this is non-negotiable:** PR #145 auto-merged a release before review feedback was read. CI reviewer found a P1 dead-code bug that shipped to main. The fix required a follow-up commit. Auto-merge cost more time than the shepherd loop would have taken.
 

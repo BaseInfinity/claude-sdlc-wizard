@@ -22,13 +22,24 @@ ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
 HOLD_REASONS=""
 
 # Check 1: Codex review mid-cycle
+# Self-heal: if handoff has a pr_number and gh reports that PR as MERGED,
+# the handoff is a stale artifact from a closed review — treat as implicit
+# CERTIFIED so a forgotten status field doesn't permanently block /compact.
 HANDOFF="$ROOT/.reviews/handoff.json"
 if [ -f "$HANDOFF" ]; then
     STATUS=$(grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' "$HANDOFF" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
     case "$STATUS" in
         PENDING_REVIEW|PENDING_RECHECK)
-            HOLD_REASONS="${HOLD_REASONS}  - Codex review is ${STATUS}. Round-1 evidence lives in this context — compacting now loses what round-2 needs to re-verify.
+            PR_NUMBER=$(grep -o '"pr_number"[[:space:]]*:[[:space:]]*[0-9][0-9]*' "$HANDOFF" 2>/dev/null | head -1 | grep -o '[0-9][0-9]*$')
+            HEALED=0
+            if [ -n "$PR_NUMBER" ] && command -v gh >/dev/null 2>&1; then
+                PR_STATE=$(gh pr view "$PR_NUMBER" --json state --jq .state 2>/dev/null)
+                [ "$PR_STATE" = "MERGED" ] && HEALED=1
+            fi
+            if [ "$HEALED" -ne 1 ]; then
+                HOLD_REASONS="${HOLD_REASONS}  - Codex review is ${STATUS}. Round-1 evidence lives in this context — compacting now loses what round-2 needs to re-verify.
     Resolve: wait for CERTIFIED (or escalate) before /compact."$'\n'
+            fi
             ;;
     esac
 fi
