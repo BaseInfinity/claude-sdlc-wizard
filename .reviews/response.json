@@ -1,12 +1,12 @@
 {
   "review_id": "allowed-tools-permissions-001",
-  "round": 2,
+  "round": 3,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
-      "finding": "1",
+      "finding": "1 (round 2 note)",
       "action": "FIXED",
-      "summary": "skills/update/SKILL.md Step 7.6 'both present' branch rewritten. Removed the contradictory 'union (dedup)' language. New instruction: 'append every entry from allowedTools to the end of permissions.allow (preserving order within each list), then drop the legacy allowedTools key. Do NOT dedup.' This matches the byte-for-byte preservation rule at the end of the section. Added regression test tests/test-cli.sh:test_update_skill_migration_is_non_destructive that (a) requires additive/preserving language, (b) requires explicit 'do not dedup' in the section, (c) rejects positive migration instructions containing 'dedup' like 'union the two lists (dedup)'. Negative control: reintroducing the old 'dedup' wording fails the new test; restored, 70/70 pass."
+      "summary": "Tightened tests/test-cli.sh:test_update_skill_migration_is_non_destructive so condition (3) also rejects destructive verbs beyond dedup: 'replace permissions.allow', 'overwrite permissions.allow', 'replace/overwrite list', 'clear permissions.allow', 'drop all entries', 'discard entries'. The 'drop the legacy allowedTools key' phrase is NOT matched (targeted anti-pattern list). Negative control: reintroducing 'replace permissions.allow with allowedTools' fails the test; reintroducing 'union the two lists (dedup)' still fails the test; both restore clean at 70/70."
     }
   ]
 }

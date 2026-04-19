@@ -1,27 +1,24 @@
 {
   "review_id": "allowed-tools-permissions-001",
   "status": "PENDING_RECHECK",
-  "round": 2,
-  "mission": "Move setup wizard guidance from top-level `allowedTools` to `permissions.allow` (issue #197). Root cause: when `allowedTools` is present in project `.claude/settings.json`, Claude Code silently disables its auto-mode classifier — same failure family as #198's model pin. Setup Step 9 now writes `permissions.allow` with an explicit anti-`allowedTools` warning. Update skill adds Step 7.6 migration with four branches; byte-for-byte preservation when migrating.",
-  "success": "Reviewer verifies round-1 finding #1 is resolved: Step 7.6 'both present' branch no longer contains contradictory dedup/preserve language. It now says 'append ... preserving order ... Do NOT dedup' matching the byte-for-byte rule. A new regression test at tests/test-cli.sh:test_update_skill_migration_is_non_destructive gates this. Also re-verifies all round-1 passes (a, c, d, e, f, g, h) still hold.",
-  "failure": "Reviewer misses that the 'append' rewrite has a subtle data-loss path if permissions.allow already contains an entry like `Bash(git *)` and allowedTools has `Bash(git:*)` — the appended copy stays but Claude Code might treat one as a shadow of the other. Reviewer doesn't sanity-check the negative control. Reviewer rubber-stamps the regression test without reading whether its regex actually rejects the anti-pattern.",
+  "round": 3,
+  "mission": "Move setup wizard guidance from top-level `allowedTools` to `permissions.allow` (issue #197). Setup Step 9 now writes `permissions.allow`. Update skill adds Step 7.6 migration with four branches. Byte-for-byte preservation on migrate; never clobber user data.",
+  "success": "Reviewer verifies round-2 note is resolved: tests/test-cli.sh:test_update_skill_migration_is_non_destructive now also fails on replace/overwrite semantics, not only on dedup wording. Runs negative control for both 'replace permissions.allow' and 'union ... dedup' wording, both fire. Re-verifies all prior passes hold.",
+  "failure": "Reviewer misses that the anti-pattern regex false-positives on benign text. Reviewer misses that 'drop the legacy allowedTools key' (the correct migration step) is not accidentally matched by the 'drop' pattern.",
   "files_changed": [
-    "skills/update/SKILL.md",
     "tests/test-cli.sh"
   ],
   "fixes_applied": [
-    "Finding 1 (P1): skills/update/SKILL.md Step 7.6 — 'both present' branch rewritten. Replaced 'union the two lists (dedup), drop allowedTools' with 'append every entry from allowedTools to the end of permissions.allow (preserving order within each list), then drop the legacy allowedTools key. Do NOT dedup.' Explicit rationale: duplicate entries might be intentional, and silent dedup violates the byte-for-byte preservation rule. Added tests/test-cli.sh:test_update_skill_migration_is_non_destructive as a regression guard. 70/70 test-cli.sh pass."
+    "Round-2 finding: tightened tests/test-cli.sh:test_update_skill_migration_is_non_destructive condition (3). Added anti-patterns for 'replace permissions.allow', 'overwrite permissions.allow', 'replace/overwrite list', 'clear permissions.allow', 'drop all entries', 'discard entries'. Targeted patterns — does NOT match the legitimate 'drop the legacy allowedTools key' instruction. Negative controls confirm both 'replace' and 'dedup' anti-patterns now trigger failure; restored, 70/70 pass."
   ],
-  "previous_score": 6,
+  "previous_score": 7,
   "verification_checklist": [
-    "(a) Read skills/update/SKILL.md Step 7.6 'both present' branch — confirm the new wording says 'append ... preserving order ... Do NOT dedup' and does NOT say 'union ... dedup' or 'dedup the list'.",
-    "(b) Verify the rewrite is internally consistent with the byte-for-byte rule at the end of Step 7.6. The 'both present' branch and the overall rule should not contradict.",
-    "(c) Read tests/test-cli.sh:test_update_skill_migration_is_non_destructive — walk through the three grep conditions. Confirm they collectively gate the regression: positive migration language with 'dedup' is rejected.",
-    "(d) Negative control yourself: reintroduce 'union the two lists (dedup)' into Step 7.6, rerun tests/test-cli.sh, confirm test_update_skill_migration_is_non_destructive fails. Restore.",
-    "(e) Run `bash tests/test-cli.sh`. Confirm 70/70 pass (was 69/69, +1 new test).",
-    "(f) Re-verify round-1 passes still hold: Step 9 recommends permissions.allow, no leftover live allowedTools guidance, merge-compat tests still pass."
+    "(a) Read tests/test-cli.sh:test_update_skill_migration_is_non_destructive condition (3). Verify the anti-pattern regex matches 'replace permissions.allow', 'overwrite permissions.allow', 'clear permissions.allow', 'drop all entries' — and does NOT match 'drop the legacy allowedTools key' (which is the correct behavior).",
+    "(b) Negative control: temporarily replace Step 7.6's 'append every entry ...' with 'replace permissions.allow with allowedTools', rerun bash tests/test-cli.sh, confirm test_update_skill_migration_is_non_destructive fails. Repeat with 'union the two lists (dedup)', confirm same. Restore.",
+    "(c) Run bash tests/test-cli.sh. Confirm 70/70 pass.",
+    "(d) Re-verify round-1/round-2 passes: Step 9 recommends permissions.allow; live doc refs updated; merge-compat tests still pass; Step 7.6 text unchanged from round-2 (only the test was strengthened)."
   ],
-  "review_instructions": "TARGETED RECHECK — not a full re-review. Verify the fix to finding #1 resolves the contradiction and the new test actually gates the regression. Evaluate if the 'append, no dedup' instruction is the right call (it is — dedup would silently remove user entries, which violates the mission's byte-for-byte rule). Do NOT raise new findings unless P0.",
+  "review_instructions": "TARGETED RECHECK. Verify the test regex is tight (gates the right things, does not false-positive). Do NOT raise new findings unless P0.",
   "preflight_path": ".reviews/preflight-allowed-tools-permissions-001.md",
   "artifact_path": ".reviews/"
 }

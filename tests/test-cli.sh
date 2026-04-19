@@ -911,31 +911,34 @@ test_update_skill_has_allowedtools_migration() {
     fi
 }
 
-# Test 39f (Codex round-1 finding #1): Step 7.6 "both present" branch must NOT
-# say "dedup" — that's destructive. A user could intentionally have duplicate
-# entries (e.g., same pattern with a comment nearby) and we must not silently
-# collapse them. The migration must use additive language: "append", "concat",
-# "preserve", "do not dedup".
+# Test 39f (Codex round-1 finding #1 + round-2 note): Step 7.6 "both present"
+# branch must NOT instruct any destructive/non-preserving operation. A user
+# could intentionally have duplicate entries, and we must not silently collapse
+# them or replace one list with the other. The migration must use additive
+# language: "append", "concat", "preserve", AND explicitly forbid the common
+# destructive verbs: dedup, replace, overwrite, drop entries.
 test_update_skill_migration_is_non_destructive() {
     local skill="$SCRIPT_DIR/../skills/update/SKILL.md"
     local step7_6
     step7_6=$(awk '/^### Step 7\.6/,/^### Step [0-9]+[^.]/' "$skill")
     local ok=true
-    # Must have additive/preserving language
-    echo "$step7_6" | grep -qiE 'preserve|append|byte.?for.?byte|do not dedup|not dedup|no dedup' || ok=false
-    # Must explicitly say the 'both present' branch does NOT dedup
+    # (1) Must have additive/preserving language
+    echo "$step7_6" | grep -qiE 'preserve|append|byte.?for.?byte' || ok=false
+    # (2) Must explicitly say 'do not dedup' (dedup is the quiet destructive path)
     echo "$step7_6" | grep -qiE 'do not dedup|not dedup|no dedup|without dedup' || ok=false
-    # Must NOT contain positive migration instruction with "dedup" — the only
-    # allowed use is an anti-pattern warning.
-    # Catch patterns like "union the two lists (dedup)" or "dedup the list" as
-    # positive instructions.
-    if echo "$step7_6" | grep -qiE 'union[^.]*dedup|dedup[^.]*drop|dedup the|dedup across'; then
+    # (3) Must NOT contain positive migration instructions using destructive verbs.
+    # Catch: "union ... dedup", "dedup the list", "replace permissions.allow",
+    # "overwrite permissions.allow", "drop all entries", "clear permissions.allow".
+    # Use a targeted anti-pattern list instead of a broad search so we don't
+    # false-positive on the "drop the legacy allowedTools key" phrase (that's
+    # dropping the *container*, which is correct).
+    if echo "$step7_6" | grep -qiE 'union[^.]*dedup|dedup[^.]*drop|dedup the|dedup across|replace[[:space:]]+(the[[:space:]]+)?permissions\.allow|overwrite[[:space:]]+(the[[:space:]]+)?permissions\.allow|replace[[:space:]]+(the[[:space:]]+)?(existing[[:space:]]+)?list|overwrite[[:space:]]+(the[[:space:]]+)?(existing[[:space:]]+)?list|clear[[:space:]]+permissions\.allow|drop[[:space:]]+all[[:space:]]+entries|discard[[:space:]]+(the[[:space:]]+)?entries'; then
         ok=false
     fi
     if [ "$ok" = true ]; then
-        pass "Update skill Step 7.6 migration is non-destructive (no dedup instruction)"
+        pass "Update skill Step 7.6 migration is non-destructive (no dedup/replace/overwrite)"
     else
-        fail "Update skill Step 7.6 must NOT instruct dedup during migration (Codex round-1 #1)"
+        fail "Update skill Step 7.6 must NOT instruct dedup/replace/overwrite during migration (Codex rounds 1+2)"
     fi
 }
 
