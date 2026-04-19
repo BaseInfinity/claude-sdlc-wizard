@@ -91,6 +91,200 @@ test_sdlc_hook_size() {
     fi
 }
 
+# ---- Effort auto-bump signal detection (ROADMAP #195) ----
+# Hook scans UserPromptSubmit payload for LOW-confidence / FAILED-repeatedly /
+# CONFUSED phrases; logs a signal; when ≥2 recent signals accumulate in a
+# 30-minute window, emits a loud /effort xhigh nudge so Claude escalates
+# BEFORE burning more budget at 'high' effort (user feedback memory:
+# "Dynamic effort bump is mandatory").
+
+test_effort_bump_logs_signal_on_low_phrase() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local payload='{"prompt":"I am stuck on this bug, tried twice and still failing"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+        pass "Low-confidence phrase in prompt logs a signal"
+    else
+        fail "Expected effort-signals.log entry after LOW/FAILED phrase"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_effort_bump_no_log_on_normal_prompt() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local payload='{"prompt":"add a new route for the health endpoint"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+        fail "Neutral prompt should not log signal"
+    else
+        pass "Neutral prompt does not log a signal"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_effort_bump_nudge_fires_on_2_recent_signals() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    printf '%s\tlow\n%s\tfailed\n' "$((now - 60))" "$((now - 30))" > "$tmpdir/cache/effort-signals.log"
+    local output
+    output=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh"))
+    rm -rf "$tmpdir"
+    # Require BOTH a loud marker AND the actionable /effort command — either
+    # alone is a weaker nudge that the user can gloss over.
+    if echo "$output" | grep -qE 'EFFORT BUMP|ESCALATE EFFORT' && echo "$output" | grep -qE '/effort[[:space:]]+xhigh'; then
+        pass "Bump nudge fires (loud marker + /effort xhigh) when 2 recent signals are logged"
+    else
+        fail "Expected bump nudge with marker + /effort xhigh, got: $output"
+    fi
+}
+
+test_effort_bump_silent_on_1_signal() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    printf '%s\tlow\n' "$((now - 60))" > "$tmpdir/cache/effort-signals.log"
+    local output
+    output=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh"))
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE '/effort[[:space:]]+xhigh|EFFORT BUMP'; then
+        fail "Bump nudge should not fire on a single signal"
+    else
+        pass "Single signal does not trigger bump nudge"
+    fi
+}
+
+# Codex round 1 (P1): bare "confused"/"tried twice"/"can't figure" substrings
+# fired on ambient/educational prompts like "How do I detect a CONFUSED state?"
+# Fix: patterns require first-person ownership. This test guards the regression.
+test_effort_bump_no_log_on_ambient_mention() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    # Codex round 1 & 2 findings: bare "confused" / "tried twice" / "low
+    # confidence" / "failed again" / "still failing" / "keeps failing" /
+    # "not sure why" all fired on educational prompts. Every generic phrase
+    # the reviewer flagged is tested here.
+    local ambient_prompts=(
+        '{"prompt":"How do I detect a CONFUSED state in a bash case statement?"}'
+        '{"prompt":"When would I use tried twice as a retry label?"}'
+        '{"prompt":"How should I name a low confidence badge in the UI?"}'
+        '{"prompt":"What does failed again mean in a retry log message?"}'
+        '{"prompt":"How do I detect still failing states in a test runner?"}'
+        '{"prompt":"What keeps failing mean for an idempotent job?"}'
+        '{"prompt":"not sure why the GPS chip needs a fallback — can you explain?"}'
+    )
+    local ok=true
+    local leak=""
+    local p
+    for p in "${ambient_prompts[@]}"; do
+        rm -rf "$tmpdir/cache"
+        echo "$p" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+        if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+            ok=false
+            leak="$p"
+            break
+        fi
+    done
+    rm -rf "$tmpdir"
+    if [ "$ok" = true ]; then
+        pass "Ambient/educational mentions of all 7 generic trigger words do not log a signal"
+    else
+        fail "Ambient prompt logged a signal (regression): $leak"
+    fi
+}
+
+# Codex round 1 (P1): hook emitted 'No such file or directory' on stderr when
+# HOME was unset or cache path pointed at a regular file. Redirection failure
+# leaked past `|| true`. Fix wraps the whole write in a { ... } 2>/dev/null
+# group. Regression test asserts stderr is empty on HOME=''.
+test_effort_bump_silent_stderr_on_unwritable_cache() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local stderr_file="$tmpdir/stderr"
+    local payload='{"prompt":"I am stuck on this"}'
+    # HOME unset → default cache dir becomes /.cache/sdlc-wizard (unwritable)
+    echo "$payload" | (cd "$tmpdir" && unset HOME; unset SDLC_WIZARD_CACHE_DIR; CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" >/dev/null 2>"$stderr_file")
+    local stderr_size
+    stderr_size=$(wc -c < "$stderr_file" | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "${stderr_size:-0}" -eq 0 ]; then
+        pass "Hook stderr is empty when cache path is unwritable"
+    else
+        fail "Hook leaked to stderr on unwritable cache (${stderr_size} bytes): $(cat "$stderr_file" 2>/dev/null)"
+    fi
+}
+
+# Codex round 1 (P2): log grew unbounded. Fix prunes entries >1h old on write.
+# Seed with many stale entries; invoke the hook once with a fresh signal;
+# assert the resulting file has far fewer lines than what was seeded.
+test_effort_bump_prunes_stale_log_entries() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    # Seed 100 stale entries (each > 1 hour old)
+    local base
+    base=$(( $(date +%s) - 7200 ))
+    local i=0
+    while [ $i -lt 100 ]; do
+        printf '%s\tlow\n' "$((base + i))" >> "$tmpdir/cache/effort-signals.log"
+        i=$((i + 1))
+    done
+    local before
+    before=$(wc -l < "$tmpdir/cache/effort-signals.log" | tr -d ' ')
+    # Trigger a fresh write (adds 1 line, prunes stale)
+    local payload='{"prompt":"I am stuck on this"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    local after
+    after=$(wc -l < "$tmpdir/cache/effort-signals.log" | tr -d ' ')
+    rm -rf "$tmpdir"
+    # Expect: stale entries dropped, fresh signal appended → final count ≤ 5
+    if [ "${before:-0}" -eq 100 ] && [ "${after:-0}" -le 5 ]; then
+        pass "Stale log entries (>1h old) are pruned on write (100 → ${after})"
+    else
+        fail "Log was not pruned (before=${before}, after=${after})"
+    fi
+}
+
+test_effort_bump_old_signals_ignored() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    # Both signals >30 min old — must be ignored
+    printf '%s\tlow\n%s\tfailed\n' "$((now - 3700))" "$((now - 2400))" > "$tmpdir/cache/effort-signals.log"
+    local output
+    output=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh"))
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE '/effort[[:space:]]+xhigh|EFFORT BUMP'; then
+        fail "Signals >30 min old should be ignored"
+    else
+        pass "Signals older than 30 min do not trigger bump nudge"
+    fi
+}
+
 # ---- tdd-pretool-check.sh tests ----
 
 # Test 6: Script exists and is executable
@@ -608,6 +802,14 @@ test_sdlc_hook_keywords
 test_sdlc_hook_auto_invoke
 test_sdlc_hook_phases
 test_sdlc_hook_size
+test_effort_bump_logs_signal_on_low_phrase
+test_effort_bump_no_log_on_normal_prompt
+test_effort_bump_nudge_fires_on_2_recent_signals
+test_effort_bump_silent_on_1_signal
+test_effort_bump_old_signals_ignored
+test_effort_bump_no_log_on_ambient_mention
+test_effort_bump_silent_stderr_on_unwritable_cache
+test_effort_bump_prunes_stale_log_entries
 test_tdd_hook_exists
 test_tdd_hook_src_warning
 test_tdd_hook_valid_json
