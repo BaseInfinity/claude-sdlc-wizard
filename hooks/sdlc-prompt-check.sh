@@ -34,10 +34,20 @@ fi
 if [ -n "$PROMPT_TEXT" ]; then
     LOWER=$(printf '%s' "$PROMPT_TEXT" | tr '[:upper:]' '[:lower:]')
     SIGNAL_REASON=""
-    # Trigger patterns require first-person ownership so educational/quoted
-    # mentions (e.g., "How do I detect a CONFUSED state?") don't fire.
+    # Every trigger requires first-person ownership or a structured-label
+    # form, so educational/quoted mentions ("How do I name a low confidence
+    # badge?", "What does 'failed again' mean?") don't fire.
     case "$LOWER" in
-        *"low confidence"*|*"i'm stuck"*|*"i am stuck"*|*"im stuck"*|*"i'm confused"*|*"i am confused"*|*"im confused"*|*"i tried twice"*|*"i've tried twice"*|*"ive tried twice"*|*"i can't figure"*|*"i cant figure"*|*"still failing"*|*"failed again"*|*"keeps failing"*|*"not sure why"*)
+        *"i'm stuck"*|*"i am stuck"*|*"im stuck"*|\
+        *"i'm confused"*|*"i am confused"*|*"im confused"*|\
+        *"i tried twice"*|*"i've tried twice"*|*"ive tried twice"*|\
+        *"i can't figure"*|*"i cant figure"*|\
+        *"i'm not sure why"*|*"i am not sure why"*|*"im not sure why"*|\
+        *"my confidence is low"*|*"my confidence: low"*|*"confidence: low"*|\
+        *"it's still failing"*|*"its still failing"*|\
+        *"it keeps failing"*|*"this keeps failing"*|\
+        *"it failed again"*|*"this failed again"*|\
+        *"failed twice"*|*"failed 2x"*)
             SIGNAL_REASON="low"
             ;;
     esac
