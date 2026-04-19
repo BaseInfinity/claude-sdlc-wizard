@@ -76,6 +76,7 @@ When Claude Code releases new features:
 .claude/
 ├── settings.json                  # Hook configuration
 ├── hooks/
+│   ├── _find-sdlc-root.sh        # Shared helper (sourced by other hooks, not a CC hook entrypoint)
 │   ├── sdlc-prompt-check.sh      # SDLC baseline
 │   ├── tdd-pretool-check.sh      # TDD reminder
 │   ├── instructions-loaded-check.sh  # Session start validation + effort/model

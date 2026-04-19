@@ -279,6 +279,7 @@ JSON
 }
 
 test_precompact_blocks_on_git_rebase_in_progress() {
+    # .git/rebase-merge/ — interactive rebase / rebase with merge strategy
     local tmpdir
     tmpdir=$(mktemp -d)
     mkdir -p "$tmpdir/.git/rebase-merge"
@@ -287,9 +288,26 @@ test_precompact_blocks_on_git_rebase_in_progress() {
     stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
     rm -rf "$tmpdir"
     if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "rebase"; then
-        pass "precompact hook blocks (rc=2) on in-progress rebase"
+        pass "precompact hook blocks (rc=2) on in-progress rebase-merge"
     else
-        fail "precompact should block on rebase (rc=$rc, stderr='$stderr_out')"
+        fail "precompact should block on rebase-merge (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_blocks_on_git_rebase_apply_in_progress() {
+    # .git/rebase-apply/ — non-interactive rebase / `git am` / patch-based rebase.
+    # Distinct code path from rebase-merge in the hook. Codex R1 caught the miss.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.git/rebase-apply"
+    echo "dummy" > "$tmpdir/.git/rebase-apply/head-name"
+    local stderr_out rc=0
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "rebase"; then
+        pass "precompact hook blocks (rc=2) on in-progress rebase-apply"
+    else
+        fail "precompact should block on rebase-apply (rc=$rc, stderr='$stderr_out')"
     fi
 }
 
@@ -1067,6 +1085,7 @@ test_precompact_silent_when_handoff_certified
 test_precompact_blocks_on_pending_review
 test_precompact_blocks_on_pending_recheck
 test_precompact_blocks_on_git_rebase_in_progress
+test_precompact_blocks_on_git_rebase_apply_in_progress
 test_precompact_blocks_on_git_merge_in_progress
 test_precompact_blocks_on_cherry_pick_in_progress
 test_precompact_size_cap

@@ -214,25 +214,27 @@ test_plugin_skills_exist() {
 
 test_plugin_hook_scripts_exist() {
     local ok=true
-    for script in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh; do
-        [ -f "$REPO_ROOT/hooks/$script" ] || ok=false
+    local missing=""
+    for script in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh model-effort-check.sh precompact-seam-check.sh; do
+        [ -f "$REPO_ROOT/hooks/$script" ] || { ok=false; missing="$missing $script"; }
     done
     if [ "$ok" = true ]; then
-        pass "All 3 hook scripts exist at hooks/"
+        pass "All 5 hook scripts exist at hooks/"
     else
-        fail "hooks/ should contain all 3 hook scripts"
+        fail "hooks/ missing scripts:$missing"
     fi
 }
 
 test_plugin_hook_scripts_executable() {
     local ok=true
-    for script in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh; do
-        [ -x "$REPO_ROOT/hooks/$script" ] || ok=false
+    local missing=""
+    for script in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh model-effort-check.sh precompact-seam-check.sh; do
+        [ -x "$REPO_ROOT/hooks/$script" ] || { ok=false; missing="$missing $script"; }
     done
     if [ "$ok" = true ]; then
-        pass "All 3 hook scripts are executable"
+        pass "All 5 hook scripts are executable"
     else
-        fail "Hook scripts in hooks/ should be executable"
+        fail "hooks/ non-executable:$missing"
     fi
 }
 
@@ -284,7 +286,7 @@ test_cli_installs_hooks_from_plugin_source() {
     local CLI="$REPO_ROOT/cli/bin/sdlc-wizard.js"
     (cd "$d" && node "$CLI" init > /dev/null 2>&1)
     local ok=true
-    for script in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh; do
+    for script in sdlc-prompt-check.sh tdd-pretool-check.sh instructions-loaded-check.sh model-effort-check.sh precompact-seam-check.sh; do
         local installed="$d/.claude/hooks/$script"
         local source="$REPO_ROOT/hooks/$script"
         [ -f "$installed" ] || { ok=false; continue; }

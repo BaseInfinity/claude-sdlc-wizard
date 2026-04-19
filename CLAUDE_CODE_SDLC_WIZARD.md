@@ -858,6 +858,8 @@ A **seam** is a point where losing conversational context is safe:
 
 The wizard's `PreCompact` hook (`hooks/precompact-seam-check.sh`) enforces this for **manual** `/compact` only — it reads `.reviews/handoff.json` and blocks with `HOLD` + exit 2 when status is `PENDING_REVIEW` / `PENDING_RECHECK`, and also blocks when a git rebase, merge, or cherry-pick is in progress. Auto-compact is **not** gated — blocking it could push past 100% context and lose everything. Requires Claude Code **v2.1.105+** (PreCompact event introduced 2026-04-13).
 
+**What's NOT checked:** in-progress TodoWrite tasks. Claude Code does not persist TodoWrite state to a file readable from a hook, so "finish the current todo first" is on you, not the hook. Watch the TodoWrite panel before you `/compact`.
+
 Override: resolve the blocker (certify the review, finish the rebase), or temporarily disable the hook in `.claude/settings.json`. Don't suppress the warning reflexively — the warning is the point.
 
 ### Autocompact Tuning

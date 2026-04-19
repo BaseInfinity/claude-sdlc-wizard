@@ -1,22 +1,22 @@
 {
-  "review_id": "hook-token-caps-001",
+  "review_id": "precompact-seam-001",
   "round": 2,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
-      "finding": "1 (P1) — instructions_loaded fixture is partial; cap of 3000 meaningless",
+      "finding": "1 (P1) — rebase-apply branch not covered by any test",
       "action": "FIXED",
-      "summary": "Rewrote test_instructions_loaded_size_cap (tests/test-hooks.sh:158) to stack all 7 emission branches: loud staleness (SDLC.md v1.10 + npm stub 1.34.0), cross-model review staleness (codex stub + .reviews/latest-review.md touched to 2026-03-01 + git repo with 6 commits), effort upgrade (jq + settings.local.json effortLevel=high), dual-install (proj/.claude/skills/update + fake $HOME/.claude/plugins-local/sdlc-wizard-wrap), API review nudge (weekly-api-update.yml + gh stub → 5), CC release nudge (weekly-update.yml + gh stub → 5), CC version check (claude stub 1.2.3 + npm stub 1.34.0). Cap tightened from <3000 to <1500. Negative control: 50-line echo bloat measures 4210 chars, now fails the test (previously passed at 1509)."
+      "summary": "Added test_precompact_blocks_on_git_rebase_apply_in_progress at tests/test-hooks.sh:296. Distinct fixture (`mkdir -p $tmpdir/.git/rebase-apply`, echo dummy > head-name) asserts rc=2 + stderr matches /rebase/i. Also renamed the existing rebase-merge test message for clarity. Hook suite count 105 → 106."
     },
     {
-      "finding": "2 (P1) — sdlc worst-case <1500 doesn't trip 50-line bloat at 1345",
+      "finding": "2 (P1) — CLI/plugin tests do not assert precompact-seam-check.sh is shipped",
       "action": "FIXED",
-      "summary": "Lowered test_sdlc_hook_size_with_bump_firing cap from <1500 to <1300 (tests/test-hooks.sh:108). Still above the observed 1220-char bump+baseline path (1.2× headroom) but below Codex's 50-line bloat-control measurement of 1345. Negative control confirmed: bloat now measures 4045 chars and fails the test."
+      "summary": "Updated test_creates_all_files (tests/test-cli.sh:76) to enumerate 11 files including precompact-seam-check.sh + model-effort-check.sh. Updated test_hooks_executable (tests/test-cli.sh:101) from checking 3 hooks to checking all 5. Updated test_plugin_hook_scripts_exist + test_plugin_hook_scripts_executable + test_cli_installs_hooks_from_plugin_source in tests/test-plugin.sh to iterate over the full 5-hook list. Now if a future PR ships a new hook in init.js without updating tests, the test loop catches the miss."
     },
     {
-      "finding": "3 (P1) — baseline test_sdlc_hook_size reads ambient $HOME/.cache",
+      "finding": "3 (P2) — docs misaligned (TodoWrite limitation, SDLC tree, negative-control magnitude)",
       "action": "FIXED",
-      "summary": "Wrapped test_sdlc_hook_size with SDLC_WIZARD_CACHE_DIR=$tmpdir/cache (tests/test-hooks.sh:82-95) so seeded signals in the real user cache never leak into the 'baseline' measurement. Verified by seeding 2 fresh signals into ~/.cache/sdlc-wizard/effort-signals.log and re-running: baseline measures 823 chars (pure no-bump path). Previously would have measured ~1045 chars and failed the <1000 assertion."
+      "summary": "(a) Added 'What's NOT checked' paragraph in CLAUDE_CODE_SDLC_WIZARD.md 'Compact at Seams' section calling out the TodoWrite limitation and telling users to watch the panel manually. (b) Added _find-sdlc-root.sh to the SDLC.md tree with annotation 'Shared helper (sourced by other hooks, not a CC hook entrypoint)' — now ls hooks/*.sh | wc -l (6) matches doc. (c) Replaced the specific 4793-char claim in ROADMAP.md with a reproducible range explanation: 'exact size depends on bloat line length (~1200 for one-word-per-line, ~4800 for nine-words-per-line). Both forms verify the cap gates runaway echo regressions.' This matches what any reviewer's repro will produce regardless of their bloat injection form."
     }
   ]
 }
