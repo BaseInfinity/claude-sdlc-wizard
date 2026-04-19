@@ -174,10 +174,27 @@ Skip this step if no branding assets or UI/content patterns detected.
 
 ### Step 9: Configure Tool Permissions
 
-Based on detected stack, suggest `allowedTools` entries for `.claude/settings.json`:
+Based on detected stack, suggest entries for `permissions.allow` in `.claude/settings.json`:
 - Package manager commands (npm, pnpm, yarn, cargo, go, pip, etc.)
 - Build/test commands
 - CI tools (gh)
+
+Write the shape as:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)"
+    ]
+  }
+}
+```
+
+**Do NOT write the deprecated top-level `allowedTools` array** (issue #197). Claude Code treats the presence of `allowedTools` in project settings as "user has explicitly scoped tool permissions" and silently disables its auto-mode classifier — same failure family as the model pin in #198. `permissions.allow` is the supported successor and does not trip the auto-mode gate.
 
 Present suggestions and let the user confirm.
 

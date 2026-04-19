@@ -1,27 +1,24 @@
 {
-  "review_id": "model-pin-opt-in-001",
+  "review_id": "allowed-tools-permissions-001",
   "status": "PENDING_RECHECK",
-  "round": 2,
-  "mission": "Flip `model: opus[1m]` + `env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` from unconditional wizard default to opt-in during setup Step 9.5. Root cause (issue #198): a top-level `model` tells Claude Code the user explicitly chose a model, which disables model auto-mode for the session and shows `auto mode is unavailable for your plan` in the status bar. Fix: ship template with no `model` and no `env`; setup skill Step 9.5 prompts [y/N] with default No; update skill adds a migration that detects the exact pre-#198 pair and asks remove/keep/later. User's explicit choice (any other model, any other autocompact value) is always preserved.",
-  "success": "Reviewer verifies round-1 finding #1 is resolved: the autocompact table at CLAUDE_CODE_SDLC_WIZARD.md:881 no longer contains the contradictory 'SDLC default (opus[1m])' phrasing, and tests/test-doc-consistency.sh now has a grep-based anti-pattern test that would catch the regression. Also re-verifies all round-1 passes (a, b, c, e, g, i) still hold.",
-  "failure": "Reviewer misses that the new grep anti-pattern is too loose and false-positives on benign phrases like 'default No' or 'default autocompact fires'. Reviewer misses that the table-cell phrasing was changed cosmetically but the surrounding paragraph still calls opus[1m] the default.",
+  "round": 3,
+  "mission": "Move setup wizard guidance from top-level `allowedTools` to `permissions.allow` (issue #197). Setup Step 9 now writes `permissions.allow`. Update skill adds Step 7.6 migration with four branches. Byte-for-byte preservation on migrate; never clobber user data.",
+  "success": "Reviewer verifies round-2 note is resolved: tests/test-cli.sh:test_update_skill_migration_is_non_destructive now also fails on replace/overwrite semantics, not only on dedup wording. Runs negative control for both 'replace permissions.allow' and 'union ... dedup' wording, both fire. Re-verifies all prior passes hold.",
+  "failure": "Reviewer misses that the anti-pattern regex false-positives on benign text. Reviewer misses that 'drop the legacy allowedTools key' (the correct migration step) is not accidentally matched by the 'drop' pattern.",
   "files_changed": [
-    "CLAUDE_CODE_SDLC_WIZARD.md",
-    "tests/test-doc-consistency.sh"
+    "tests/test-cli.sh"
   ],
   "fixes_applied": [
-    "Finding 1 (P1): CLAUDE_CODE_SDLC_WIZARD.md:881 — table row rewritten as 'Opt-in SDLC setup (opus[1m])' with explicit '(see issue #198)' pointer. New test tests/test-doc-consistency.sh:test_wizard_doc_no_default_opus_1m_wording uses a tightened regex (matches 'SDLC default (opus[1m])', 'default (opus[1m])', 'opus[1m] as/is default' — excludes 'default No' and 'default autocompact' which are legitimate uses of the word). Negative control confirmed: reverting line 881 fails the new test; restoring, 22/22 pass."
+    "Round-2 finding: tightened tests/test-cli.sh:test_update_skill_migration_is_non_destructive condition (3). Added anti-patterns for 'replace permissions.allow', 'overwrite permissions.allow', 'replace/overwrite list', 'clear permissions.allow', 'drop all entries', 'discard entries'. Targeted patterns — does NOT match the legitimate 'drop the legacy allowedTools key' instruction. Negative controls confirm both 'replace' and 'dedup' anti-patterns now trigger failure; restored, 70/70 pass."
   ],
   "previous_score": 7,
   "verification_checklist": [
-    "(a) Read CLAUDE_CODE_SDLC_WIZARD.md:881 — confirm the table row now says 'Opt-in SDLC setup (opus[1m])' and references issue #198, not 'SDLC default'.",
-    "(b) Read tests/test-doc-consistency.sh:test_wizard_doc_no_default_opus_1m_wording — walk through the regex. Confirm it flags the bad patterns but does NOT match legitimate uses of the word 'default' (e.g. 'default No' on line 917, 'default autocompact' on line 923).",
-    "(c) Run `bash tests/test-doc-consistency.sh`. Confirm 22/22 pass (was 21/21, +1 new test).",
-    "(d) Negative control yourself: `sed -i.bak 's|Opt-in SDLC setup (`opus\\[1m\\]`)|SDLC default (`opus[1m]`)|' CLAUDE_CODE_SDLC_WIZARD.md`, rerun the test suite, confirm test_wizard_doc_no_default_opus_1m_wording fails, restore from .bak.",
-    "(e) Grep the entire wizard doc for any remaining 'default.*opus\\[1m\\]' or 'opus\\[1m\\].*default' patterns. Confirm only legitimate references remain (e.g. 'default No', 'its default').",
-    "(f) Re-verify round-1 passes still hold: cli/templates/settings.json has no model/env, setup Step 9.5 is opt-in with default No, update Step 7.5 migration is non-destructive, tests 67/67 + 22/22 green."
+    "(a) Read tests/test-cli.sh:test_update_skill_migration_is_non_destructive condition (3). Verify the anti-pattern regex matches 'replace permissions.allow', 'overwrite permissions.allow', 'clear permissions.allow', 'drop all entries' — and does NOT match 'drop the legacy allowedTools key' (which is the correct behavior).",
+    "(b) Negative control: temporarily replace Step 7.6's 'append every entry ...' with 'replace permissions.allow with allowedTools', rerun bash tests/test-cli.sh, confirm test_update_skill_migration_is_non_destructive fails. Repeat with 'union the two lists (dedup)', confirm same. Restore.",
+    "(c) Run bash tests/test-cli.sh. Confirm 70/70 pass.",
+    "(d) Re-verify round-1/round-2 passes: Step 9 recommends permissions.allow; live doc refs updated; merge-compat tests still pass; Step 7.6 text unchanged from round-2 (only the test was strengthened)."
   ],
-  "review_instructions": "TARGETED RECHECK — not a full re-review. Verify the fix to finding #1 resolves the contradiction and the new test actually gates the regression (don't just trust test count). Evaluate if the tightened regex false-positives on legitimate doc language. Do NOT raise new findings unless P0.",
-  "preflight_path": ".reviews/preflight-model-pin-opt-in-001.md",
+  "review_instructions": "TARGETED RECHECK. Verify the test regex is tight (gates the right things, does not false-positive). Do NOT raise new findings unless P0.",
+  "preflight_path": ".reviews/preflight-allowed-tools-permissions-001.md",
   "artifact_path": ".reviews/"
 }

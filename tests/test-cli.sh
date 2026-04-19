@@ -876,6 +876,76 @@ test_update_skill_has_model_pin_migration() {
 test_setup_skill_step95_is_opt_in_default_no
 test_update_skill_has_model_pin_migration
 
+# Test 39d: Setup skill Step 9 must direct users to permissions.allow
+# (not allowedTools). Issue #197: allowedTools in project settings.json
+# silently disables Claude Code auto-mode, same failure family as #198.
+test_setup_skill_step9_writes_permissions_allow() {
+    local skill="$SCRIPT_DIR/../skills/setup/SKILL.md"
+    local step9
+    step9=$(awk '/^### Step 9: Configure Tool Permissions/,/^### Step 9\.5/' "$skill")
+    local ok=true
+    echo "$step9" | grep -qE 'permissions\.allow|"permissions"|permissions.*allow' || ok=false
+    # Step 9 must NOT instruct users to use allowedTools for new configs.
+    # Anti-patterns: "suggest allowedTools entries", "write ... allowedTools array".
+    # Allow: "Do NOT write ... allowedTools", "deprecated allowedTools" — warnings.
+    if echo "$step9" | grep -qiE 'suggest[^.]*allowedTools[^.]*entries|write the[[:space:]]+allowedTools'; then
+        ok=false
+    fi
+    if [ "$ok" = true ]; then
+        pass "Setup skill Step 9 directs users to permissions.allow (not allowedTools)"
+    else
+        fail "Setup skill Step 9 must write permissions.allow, not allowedTools (issue #197)"
+    fi
+}
+
+# Test 39e: Update skill has migration for allowedTools → permissions.allow
+test_update_skill_has_allowedtools_migration() {
+    local skill="$SCRIPT_DIR/../skills/update/SKILL.md"
+    local ok=true
+    grep -qiE 'allowedTools.*migration|migration.*allowedTools|allowedTools.*permissions\.allow|permissions\.allow.*allowedTools' "$skill" || ok=false
+    grep -qiE '#197|issue.*197' "$skill" || ok=false
+    if [ "$ok" = true ]; then
+        pass "Update skill has allowedTools → permissions.allow migration (issue #197)"
+    else
+        fail "Update skill needs a migration for users with allowedTools in settings (issue #197)"
+    fi
+}
+
+# Test 39f (Codex round-1 finding #1 + round-2 note): Step 7.6 "both present"
+# branch must NOT instruct any destructive/non-preserving operation. A user
+# could intentionally have duplicate entries, and we must not silently collapse
+# them or replace one list with the other. The migration must use additive
+# language: "append", "concat", "preserve", AND explicitly forbid the common
+# destructive verbs: dedup, replace, overwrite, drop entries.
+test_update_skill_migration_is_non_destructive() {
+    local skill="$SCRIPT_DIR/../skills/update/SKILL.md"
+    local step7_6
+    step7_6=$(awk '/^### Step 7\.6/,/^### Step [0-9]+[^.]/' "$skill")
+    local ok=true
+    # (1) Must have additive/preserving language
+    echo "$step7_6" | grep -qiE 'preserve|append|byte.?for.?byte' || ok=false
+    # (2) Must explicitly say 'do not dedup' (dedup is the quiet destructive path)
+    echo "$step7_6" | grep -qiE 'do not dedup|not dedup|no dedup|without dedup' || ok=false
+    # (3) Must NOT contain positive migration instructions using destructive verbs.
+    # Catch: "union ... dedup", "dedup the list", "replace permissions.allow",
+    # "overwrite permissions.allow", "drop all entries", "clear permissions.allow".
+    # Use a targeted anti-pattern list instead of a broad search so we don't
+    # false-positive on the "drop the legacy allowedTools key" phrase (that's
+    # dropping the *container*, which is correct).
+    if echo "$step7_6" | grep -qiE 'union[^.]*dedup|dedup[^.]*drop|dedup the|dedup across|replace[[:space:]]+(the[[:space:]]+)?permissions\.allow|overwrite[[:space:]]+(the[[:space:]]+)?permissions\.allow|replace[[:space:]]+(the[[:space:]]+)?(existing[[:space:]]+)?list|overwrite[[:space:]]+(the[[:space:]]+)?(existing[[:space:]]+)?list|clear[[:space:]]+permissions\.allow|drop[[:space:]]+all[[:space:]]+entries|discard[[:space:]]+(the[[:space:]]+)?entries'; then
+        ok=false
+    fi
+    if [ "$ok" = true ]; then
+        pass "Update skill Step 7.6 migration is non-destructive (no dedup/replace/overwrite)"
+    else
+        fail "Update skill Step 7.6 must NOT instruct dedup/replace/overwrite during migration (Codex rounds 1+2)"
+    fi
+}
+
+test_setup_skill_step9_writes_permissions_allow
+test_update_skill_has_allowedtools_migration
+test_update_skill_migration_is_non_destructive
+
 # Test 40: Merge preserves malformed env (array) — wizard no longer writes env unconditionally
 test_merge_malformed_env_array_left_alone() {
     local d
