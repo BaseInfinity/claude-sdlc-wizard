@@ -181,24 +181,37 @@ Based on detected stack, suggest `allowedTools` entries for `.claude/settings.js
 
 Present suggestions and let the user confirm.
 
-### Step 9.5: Context Window Configuration
+### Step 9.5: Context Window Configuration (Opt-In)
 
-The CLI ships `cli/templates/settings.json` with `"model": "opus[1m]"` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` (tuned for the 1M context window — compacts at ~300K). This is the SDLC wizard default. Confirm the installed values, or fall back to 200K if the user prefers:
+The CLI ships `cli/templates/settings.json` with **no** `model` or `env` pin by default. This preserves Claude Code's built-in model auto-selection (Sonnet for cheap tasks, Opus for hard ones) and the upstream autocompact threshold. Power users who want guaranteed 1M context can opt in during setup.
 
-- **1M default (`opus[1m]`):** Confirm `"model": "opus[1m]"` at top level and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: "30"` under `env`. Requires Claude Code v2.1.111+ for Opus 4.7.
-- **200K fallback (`opus`):** Edit `.claude/settings.json` — change `"model"` to `"opus"` and raise `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to `"75"` (otherwise `30%` of 200K compacts too early at 60K).
+**Why this is opt-in (issue #198):** A top-level `"model"` in `settings.json` tells Claude Code "the user has explicitly chosen a model" and disables auto-mode for the session. That is a real tradeoff — the pin is only worth it when you actually need the 1M headroom and want to lock to Opus 4.7.
 
-To fall back to 200K, edit `.claude/settings.json`:
+**Ask the user exactly once in Step 9.5:**
+
+> Pin the session to `opus[1m]` (Opus 4.7 with 1M context) and set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`?
+>
+> - **No (default):** Leaves auto-mode enabled. Claude Code picks the model per turn, compaction follows upstream defaults. Recommended for most users.
+> - **Yes:** Long SDLC sessions (plan → TDD → review → CI shepherd on one feature) regularly cross 100K tokens; the 1M window gives headroom and 30% autocompact fires at ~300K. Requires Claude Code v2.1.111+ and comfort with losing model auto-selection.
+>
+> `[y/N]`
+
+**If the user answers No (default):** Make no edits to `.claude/settings.json`. Auto-mode stays on. Done.
+
+**If the user answers Yes:** Edit `.claude/settings.json` and add both fields at the top level:
+
 ```json
 {
-  "model": "opus",
+  "model": "opus[1m]",
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
   }
 }
 ```
 
-For CI pipelines, consider `"60"` — short tasks benefit from compacting early.
+Mention the escape hatch either way:
+- To opt out later: remove the `model` line (and optionally the `env` block) from `.claude/settings.json`, or run `/model` and pick "Default (recommended)".
+- For CI pipelines with short tasks, consider `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=60` — compact early to stay fast.
 
 This is project-scoped and shared with the team via git.
 
