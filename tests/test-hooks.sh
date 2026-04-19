@@ -91,6 +91,103 @@ test_sdlc_hook_size() {
     fi
 }
 
+# ---- Effort auto-bump signal detection (ROADMAP #195) ----
+# Hook scans UserPromptSubmit payload for LOW-confidence / FAILED-repeatedly /
+# CONFUSED phrases; logs a signal; when ≥2 recent signals accumulate in a
+# 30-minute window, emits a loud /effort xhigh nudge so Claude escalates
+# BEFORE burning more budget at 'high' effort (user feedback memory:
+# "Dynamic effort bump is mandatory").
+
+test_effort_bump_logs_signal_on_low_phrase() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local payload='{"prompt":"I am stuck on this bug, tried twice and still failing"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+        pass "Low-confidence phrase in prompt logs a signal"
+    else
+        fail "Expected effort-signals.log entry after LOW/FAILED phrase"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_effort_bump_no_log_on_normal_prompt() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local payload='{"prompt":"add a new route for the health endpoint"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+        fail "Neutral prompt should not log signal"
+    else
+        pass "Neutral prompt does not log a signal"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_effort_bump_nudge_fires_on_2_recent_signals() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    printf '%s\tlow\n%s\tfailed\n' "$((now - 60))" "$((now - 30))" > "$tmpdir/cache/effort-signals.log"
+    local output
+    output=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh"))
+    rm -rf "$tmpdir"
+    # Require BOTH a loud marker AND the actionable /effort command — either
+    # alone is a weaker nudge that the user can gloss over.
+    if echo "$output" | grep -qE 'EFFORT BUMP|ESCALATE EFFORT' && echo "$output" | grep -qE '/effort[[:space:]]+xhigh'; then
+        pass "Bump nudge fires (loud marker + /effort xhigh) when 2 recent signals are logged"
+    else
+        fail "Expected bump nudge with marker + /effort xhigh, got: $output"
+    fi
+}
+
+test_effort_bump_silent_on_1_signal() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    printf '%s\tlow\n' "$((now - 60))" > "$tmpdir/cache/effort-signals.log"
+    local output
+    output=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh"))
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE '/effort[[:space:]]+xhigh|EFFORT BUMP'; then
+        fail "Bump nudge should not fire on a single signal"
+    else
+        pass "Single signal does not trigger bump nudge"
+    fi
+}
+
+test_effort_bump_old_signals_ignored() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    local now
+    now=$(date +%s)
+    # Both signals >30 min old — must be ignored
+    printf '%s\tlow\n%s\tfailed\n' "$((now - 3700))" "$((now - 2400))" > "$tmpdir/cache/effort-signals.log"
+    local output
+    output=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh"))
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE '/effort[[:space:]]+xhigh|EFFORT BUMP'; then
+        fail "Signals >30 min old should be ignored"
+    else
+        pass "Signals older than 30 min do not trigger bump nudge"
+    fi
+}
+
 # ---- tdd-pretool-check.sh tests ----
 
 # Test 6: Script exists and is executable
@@ -608,6 +705,11 @@ test_sdlc_hook_keywords
 test_sdlc_hook_auto_invoke
 test_sdlc_hook_phases
 test_sdlc_hook_size
+test_effort_bump_logs_signal_on_low_phrase
+test_effort_bump_no_log_on_normal_prompt
+test_effort_bump_nudge_fires_on_2_recent_signals
+test_effort_bump_silent_on_1_signal
+test_effort_bump_old_signals_ignored
 test_tdd_hook_exists
 test_tdd_hook_src_warning
 test_tdd_hook_valid_json
