@@ -1,32 +1,31 @@
 {
-  "review_id": "staleness-nudge-001",
+  "review_id": "hook-token-caps-001",
   "status": "PENDING_RECHECK",
   "round": 2,
-  "mission": "Strengthen session-start wizard staleness nudge (ROADMAP #196). User feedback: the mild one-line 'update available' note gets skipped week after week. Hook now emits a loud multi-line `!! WARNING ... N minor versions behind !!` when installed is ≥3 minor versions behind latest, keeps the mild one-liner for <3. Also adds 24h cache of the npm latest-version lookup to avoid per-session npm calls.",
-  "success": "Reviewer verifies (1) the cache logic correctly re-uses a <24h cache and refetches after expiry, on both macOS (`stat -f %m`) and Linux (`stat -c %Y`); (2) the loud nudge fires on any ≥3 minor gap including major bumps (computed delta=99 for major bump); (3) the mild nudge still fires at 1–2 minor gap; (4) the hook still always exits 0 and never blocks session start; (5) tests actually gate the behavior (negative controls prove the loud branch and the cache are both enforced).",
-  "failure": "Reviewer rubber-stamps 'tests pass'. Reviewer misses that the cache logic could return stale data forever if the cache file exists but is malformed (empty, whitespace, non-version string). Reviewer misses that awk `$2+0` silently coerces non-numeric minor fields (e.g. `1.alpha.0`) to 0, which could cause weird delta math. Reviewer misses that when `$HOME` is unset (CI edge case), the cache dir becomes `/.cache/sdlc-wizard/` — likely unwritable, but doesn't crash. Reviewer misses a leftover stat-format false-positive: `stat -f %m` on Linux prints the mode in octal rather than failing, so the macOS/Linux detect branch could pick the wrong code path on Linux with GNU stat.",
+  "mission": "ROADMAP #203 — add per-hook output-size caps in tests/test-hooks.sh so a regression that bloats any hook's stdout (runaway echo loop, duplicated warnings, unbounded nudge copy) fails tests instead of silently billing consumers. Motivated by CC issue #50799 (hidden SessionStart-hook billing) and sentiment research showing silent cache/token-cost blowups.",
+  "success": "Reviewer verifies (1) each cap has measured headroom above the current observed size (~2× for lean hooks, ~5× for the stacked instructions-loaded path); (2) negative control actually trips the target test — not a no-op tautology; (3) tests don't pollute each other via shared cache/state; (4) separation of baseline vs worst-case for sdlc-prompt-check is meaningful (existing <1000 baseline AND new <1500 with-bump).",
+  "failure": "Reviewer rubber-stamps 'tests pass'. Reviewer misses that the instructions-loaded fixture doesn't exercise all nudge branches — the actual worst case could exceed 3000 if all conditions stack. Reviewer misses that `test_sdlc_hook_size_with_bump_firing` seeds only 2 signals but never verifies what happens if a trigger-phrase match adds a 3rd signal on the same invocation. Reviewer misses that each size cap is a simple `<` assertion — a cap that's been hit could regress further without the test noticing (e.g., if observed goes 219→499, test still passes but the nudge is 2× bigger).",
   "files_changed": [
-    "hooks/instructions-loaded-check.sh",
     "tests/test-hooks.sh",
     "ROADMAP.md"
   ],
   "fixes_applied": [
-    "Strict semver gate SEMVER_RE='^[0-9]+\\.[0-9]+\\.[0-9]+$' validates INSTALLED_VERSION (hooks/instructions-loaded-check.sh:45), CACHE_CONTENT (~line 59), and NPM_RESULT (~line 68). Malformed cache / non-numeric versions never reach awk delta math",
-    "Three regression tests added in tests/test-hooks.sh: rejects_malformed_cache_junk, rejects_malformed_cache_whitespace, rejects_non_numeric_minor. Full suite 84/84. Negative control confirmed (reverting gate → all 3 fail)"
+    "(1) test_instructions_loaded_size_cap rewritten with stacked fixture exercising all 7 emission branches (loud staleness + cross-model staleness + effort upgrade + dual-install + API review + CC release + CC version). Cap tightened <3000 → <1500. Negative 50-line bloat now measures 4210 chars and fails (tests/test-hooks.sh:158).",
+    "(2) test_sdlc_hook_size_with_bump_firing cap tightened <1500 → <1300. Still covers observed 1220-char bump path with 1.2x headroom but fails 50-line bloat at 1345 (tests/test-hooks.sh:108).",
+    "(3) test_sdlc_hook_size wrapped with SDLC_WIZARD_CACHE_DIR=$tmpdir/cache so baseline cannot read ambient $HOME/.cache/sdlc-wizard signals; verified seeding 2 signals leaves baseline at 823 chars vs ~1045 before (tests/test-hooks.sh:82-95)."
   ],
-  "previous_score": 6,
+  "previous_score": 5,
   "verification_checklist": [
-    "(a) Read hooks/instructions-loaded-check.sh version block (~line 37-100). Confirm: cache file at $SDLC_WIZARD_CACHE_DIR/latest-version; stat-based mtime with macOS (`stat -f %m`) first and Linux (`stat -c %Y`) fallback; 86400s TTL; cache write is best-effort (mkdir and write both swallow errors).",
-    "(b) Verify the macOS/Linux stat detection is correct. `stat -f %m` on Linux (GNU coreutils) does NOT print the mode — it errors with 'invalid format' and returns non-zero. So the `if stat -f %m FILE > /dev/null 2>&1` check correctly falls through to `stat -c %Y` on Linux. Confirm by reading the conditional logic carefully.",
-    "(c) Walk through minor-delta calculation for several inputs: (i) 1.25.0 vs 1.34.0 → 9 (loud), (ii) 1.32.0 vs 1.34.0 → 2 (mild), (iii) 1.34.0 vs 1.34.0 → 0 (silent — the outer != guard short-circuits), (iv) 1.99.0 vs 2.0.0 → delta=99 via major-bump path (loud). Confirm each path is correct.",
-    "(d) Read the loud-nudge copy. Verify it: (i) mentions the exact delta count, (ii) shows both installed and latest versions, (iii) links /update-wizard, (iv) uses 'Strongly recommend' or similar urgency. The goal is that a user who has skipped the mild nudge for weeks can't easily skip this one.",
-    "(e) Run `bash tests/test-hooks.sh`. Confirm 81/81 pass. Walk through each of the 3 new tests — verify each is gated on an independently verifiable fact, not a tautology.",
-    "(f) Negative controls: (i) revert the loud branch (e.g., change `if [ \"$MINOR_DELTA\" -ge 3 ]; then` to `if false; then`). Confirm the loud test and the cache test both fail. (ii) revert the cache write (comment out the `printf ... > $VERSION_CACHE_FILE` line). Confirm the cache test fails but loud test still passes (since first fetch works).",
-    "(g) Verify existing tests are not polluted by the shared `~/.cache` path. All 6 existing update-notification tests + 3 new tests must pass `SDLC_WIZARD_CACHE_DIR` so they use per-test tmpdir caches.",
-    "(h) Hook safety: confirm the hook exits 0 on every path — never `set -e`, every failing command is OR'd or ignored. A malformed SDLC.md, unwritable HOME, missing npm, missing stat, broken cache file — none should block session start. Read each risky line.",
-    "(i) Sanity-check the 24h cache TTL is correct: 86400 seconds = 1 day. Confirm the TTL is long enough to avoid per-session npm calls (typical) but short enough to catch new releases within a day (desired). This matches ROADMAP #196's 'cached daily' requirement."
+    "(a) Read the 4 new tests in tests/test-hooks.sh (lines ~94-164). Confirm each test has: a real fixture, a real hook invocation, a `wc -c` measurement, a `-lt CAP` assertion, and pass/fail messages with the observed size.",
+    "(b) Run `bash tests/test-hooks.sh`. Confirm 96/96 pass. Walk through each new test's assertion.",
+    "(c) Negative controls: inject `for i in {1..50}; do echo bloat; done` at the top of each hook (one at a time). Confirm each injection fails the matching size_cap test. Restore, confirm 96/96.",
+    "(d) Cap tightness: read hooks/instructions-loaded-check.sh lines 85-98 (loud staleness nudge), 142-148 (dual-install), 170-172 (API review), 191-192 (CC update). Sum up a realistic worst-case. Is <3000 the right upper bound, or should it be tighter?",
+    "(e) Cap tightness: read hooks/sdlc-prompt-check.sh lines 52-57 (bump block) + lines 71-91 (baseline). Sum up. Is <1500 appropriate for 'bump firing'?",
+    "(f) Fixture isolation: confirm every new test uses `mktemp -d` and cleans up with `rm -rf`. No cross-test pollution.",
+    "(g) Separation of concerns: confirm `test_sdlc_hook_size` (<1000) still tests the BASELINE path and `test_sdlc_hook_size_with_bump_firing` tests the WORST CASE. They should not duplicate each other.",
+    "(h) Worst-case-of-worst-case: what if a test has a trigger-phrase match AND 2+ pre-seeded signals at the same time? The hook writes one more signal + emits the bump. Does the <1500 cap still hold? Rough math: 823 baseline + ~400 bump block + ~30 signal-line output = ~1253. Confirm no hidden stdout path."
   ],
-  "review_instructions": "Focus on (1) cache correctness across macOS/Linux, (2) delta math correctness including major bumps and malformed versions, (3) hook safety (must never block session start). Be strict on edge cases — this hook runs on EVERY session start. A subtle bug gets amplified across every consumer repo. Run the test suite yourself.",
-  "preflight_path": ".reviews/preflight-staleness-nudge-001.md",
+  "review_instructions": "Focus on (1) whether the caps are meaningful — not too tight (false positives on legitimate growth) and not too loose (allows regressions to ship), (2) negative control actually fails the target test, (3) fixtures exercise the REAL worst case, not a partial one. Be strict — this is the test that's supposed to catch hook-budget regressions.",
+  "preflight_path": ".reviews/preflight-hook-token-caps-001.md",
   "artifact_path": ".reviews/"
 }

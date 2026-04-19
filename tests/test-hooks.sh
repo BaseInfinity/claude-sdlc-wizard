@@ -80,10 +80,18 @@ test_sdlc_hook_phases() {
 
 # Test 5: Output is reasonably sized (< 1000 chars for token efficiency)
 test_sdlc_hook_size() {
+    # Isolate from ambient $HOME/.cache/sdlc-wizard so a seeded signals
+    # log (possible in any session that hit LOW/FAILED phrases) doesn't
+    # make the "baseline" test secretly exercise the bump block. Codex
+    # PR #203 round 1 repro: 2 seeded signals made this test measure
+    # 1045 chars instead of the true no-bump baseline.
+    local tmpdir
+    tmpdir=$(mktemp -d)
     local output
-    output=$("$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
+    output=$(SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" 2>/dev/null)
     local size
     size=$(echo "$output" | wc -c | tr -d ' ')
+    rm -rf "$tmpdir"
     if [ "$size" -lt 1000 ]; then
         pass "sdlc-prompt-check.sh output is token-efficient (${size} chars)"
     else
@@ -113,10 +121,10 @@ test_sdlc_hook_size_with_bump_firing() {
     local size
     size=$(echo '{"prompt":"continue"}' | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh") | wc -c | tr -d ' ')
     rm -rf "$tmpdir"
-    if [ "$size" -lt 1500 ]; then
-        pass "sdlc-prompt-check worst-case (bump+baseline) is bounded (${size} chars < 1500)"
+    if [ "$size" -lt 1300 ]; then
+        pass "sdlc-prompt-check worst-case (bump+baseline) is bounded (${size} chars < 1300)"
     else
-        fail "sdlc-prompt-check worst-case exceeded cap (${size} chars ≥ 1500) — regression in bump copy or baseline"
+        fail "sdlc-prompt-check worst-case exceeded cap (${size} chars ≥ 1300) — regression in bump copy or baseline"
     fi
 }
 
@@ -146,21 +154,46 @@ test_model_effort_size_cap() {
 }
 
 test_instructions_loaded_size_cap() {
+    # Stacked fixture: every emission branch in instructions-loaded-check.sh
+    # must fire simultaneously. Codex PR #203 round 1 pointed out the original
+    # fixture only exercised the loud-staleness branch (measured 557 chars,
+    # cap was 3000 — 50-line bloat at 1509 still passed). This rebuilt fixture
+    # stacks: loud staleness + cross-model review staleness + effort upgrade +
+    # dual-install + API review + CC release + CC version check.
     local tmpdir
     tmpdir=$(mktemp -d)
-    echo '<!-- SDLC Wizard Version: 1.10.0 -->' > "$tmpdir/SDLC.md"
-    touch "$tmpdir/TESTING.md"
+    local fakehome="$tmpdir/home"
+    local proj="$tmpdir/proj"
+    mkdir -p "$fakehome/.claude/plugins-local/sdlc-wizard-wrap"
+    mkdir -p "$proj/.claude/skills/update"
+    mkdir -p "$proj/.github/workflows"
+    mkdir -p "$proj/.reviews"
     mkdir -p "$tmpdir/bin" "$tmpdir/cache"
-    # Stub npm → loud 24-minor-behind nudge fires
-    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
-    chmod +x "$tmpdir/bin/npm"
+    echo '<!-- SDLC Wizard Version: 1.10.0 -->' > "$proj/SDLC.md"
+    echo 'testing' > "$proj/TESTING.md"
+    # Effort upgrade (jq + stale effort)
+    echo '{"effortLevel":"high"}' > "$proj/.claude/settings.local.json"
+    # API review nudge (weekly-api-update.yml + gh stub → 5 open)
+    echo 'name: weekly-api-update' > "$proj/.github/workflows/weekly-api-update.yml"
+    # CC release nudge (weekly-update.yml + gh stub → 5 open)
+    echo 'name: weekly-update' > "$proj/.github/workflows/weekly-update.yml"
+    # Cross-model review staleness (codex + .reviews/ + age>3d + commits>5)
+    touch -t 202603010000 "$proj/.reviews/latest-review.md"
+    (cd "$proj" && git init -q && git config user.email t@t.com && git config user.name t \
+        && for i in 1 2 3 4 5 6; do echo "$i" > "f$i.txt" && git add . && git commit -qm "c$i"; done)
+    # Stubs: npm (loud 24-minor nudge + CC version diff), gh (nudge counts),
+    # codex (presence), claude (CC version)
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm" && chmod +x "$tmpdir/bin/npm"
+    printf '#!/bin/bash\necho "5"\n' > "$tmpdir/bin/gh" && chmod +x "$tmpdir/bin/gh"
+    printf '#!/bin/bash\ntrue\n' > "$tmpdir/bin/codex" && chmod +x "$tmpdir/bin/codex"
+    printf '#!/bin/bash\necho "1.2.3"\n' > "$tmpdir/bin/claude" && chmod +x "$tmpdir/bin/claude"
     local size
-    size=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null | wc -c | tr -d ' ')
+    size=$(cd "$proj" && HOME="$fakehome" PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$proj" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null | wc -c | tr -d ' ')
     rm -rf "$tmpdir"
-    if [ "$size" -lt 3000 ]; then
-        pass "instructions-loaded-check worst-case (stale + loud nudge + all sub-checks) is bounded (${size} chars < 3000)"
+    if [ "$size" -lt 1500 ]; then
+        pass "instructions-loaded-check stacked worst-case (all 7 branches) is bounded (${size} chars < 1500)"
     else
-        fail "instructions-loaded-check worst-case exceeded cap (${size} chars ≥ 3000)"
+        fail "instructions-loaded-check stacked worst-case exceeded cap (${size} chars ≥ 1500)"
     fi
 }
 
