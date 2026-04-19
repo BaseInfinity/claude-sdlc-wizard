@@ -846,6 +846,22 @@ Two tools for managing context — use the right one:
 
 **Best practice:** Put persistent instructions in CLAUDE.md (survives both `/compact` and `/clear`), not in conversation.
 
+### Compact at Seams, Not Thresholds (PreCompact hook)
+
+**The threshold is the trigger, not the decision.** 25-30% remaining (~70% used) is the commonly-cited "sweet spot" but ignores *what you're doing* at that moment. Compacting mid-Codex-round loses the round-1 evidence and certify conditions that round-2 needs to re-verify. Compacting mid-rebase strands the operation without the context that was setting it up.
+
+A **seam** is a point where losing conversational context is safe:
+- Commit boundary (change persisted to git)
+- Codex `CERTIFIED` (review cycle closed)
+- PR merged (work shipped)
+- ROADMAP item marked DONE
+
+The wizard's `PreCompact` hook (`hooks/precompact-seam-check.sh`) enforces this for **manual** `/compact` only — it reads `.reviews/handoff.json` and blocks with `HOLD` + exit 2 when status is `PENDING_REVIEW` / `PENDING_RECHECK`, and also blocks when a git rebase, merge, or cherry-pick is in progress. Auto-compact is **not** gated — blocking it could push past 100% context and lose everything. Requires Claude Code **v2.1.105+** (PreCompact event introduced 2026-04-13).
+
+**What's NOT checked:** in-progress TodoWrite tasks. Claude Code does not persist TodoWrite state to a file readable from a hook, so "finish the current todo first" is on you, not the hook. Watch the TodoWrite panel before you `/compact`.
+
+Override: resolve the blocker (certify the review, finish the rebase), or temporarily disable the hook in `.claude/settings.json`. Don't suppress the warning reflexively — the warning is the point.
+
 ### Autocompact Tuning
 
 Override the default auto-compact threshold with environment variables. These are community-discovered settings referenced in upstream issues ([#34332](https://github.com/anthropics/claude-code/issues/34332), [#42375](https://github.com/anthropics/claude-code/issues/42375)) — not yet officially documented by Anthropic. For a rigorous benchmarking methodology to validate these thresholds, see [AUTOCOMPACT_BENCHMARK.md](AUTOCOMPACT_BENCHMARK.md).
@@ -1847,6 +1863,9 @@ The `permissions.allow` array is auto-generated based on your stack detected in 
 |------|---------------|---------|
 | `UserPromptSubmit` | Every message you send | Baseline SDLC reminder, skill auto-invoke |
 | `PreToolUse` | Before Claude edits files | TDD check: "Did you write the test first?" Uses `if` field to only fire on source files |
+| `InstructionsLoaded` | On first SDLC.md/CLAUDE.md load | Staleness nudges (wizard version, review-protocol reminders, CC release alerts) |
+| `SessionStart` | On `claude` startup | Detect stale effort setting / model upgrades |
+| `PreCompact` (manual only) | When user runs `/compact` | **Seam gate** — blocks manual compact when `.reviews/handoff.json` is `PENDING_REVIEW`/`PENDING_RECHECK` or a git rebase/merge/cherry-pick is in progress. Auto-compact is NOT gated (blocking it risks pushing past 100% context and losing everything). Requires Claude Code v2.1.105+ |
 
 ### How Skill Auto-Invoke Works
 
