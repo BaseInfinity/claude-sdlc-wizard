@@ -878,7 +878,7 @@ export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30
 
 | Use Case | AUTOCOMPACT % | Why |
 |----------|--------------|-----|
-| **SDLC default (`opus[1m]`)** | **30%** | **Fires at ~300K on 1M — right balance for plan + TDD + review sessions** |
+| **Opt-in SDLC setup (`opus[1m]`)** | **30%** | **Fires at ~300K on 1M — right balance for plan + TDD + review sessions. Paired with the opt-in `opus[1m]` pin (see issue #198)** |
 | General development (200K `opus`) | 75% | Leaves room for implementation after planning |
 | Complex refactors (200K `opus`) | 80% | Slightly more context before compaction |
 | CI pipelines | 60% | Short tasks, compact early to stay fast |

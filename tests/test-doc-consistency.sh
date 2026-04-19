@@ -334,6 +334,31 @@ test_wizard_doc_frames_opus_1m_as_opt_in() {
     fi
 }
 
+# Regression guard (Codex round 1 finding #1): the doc must NOT contain any
+# live phrase that calls opus[1m] the SDLC default. The prior test was too
+# loose — it only required opt-in language to exist somewhere in the doc,
+# so a contradictory "SDLC default (opus[1m])" table row slipped through.
+# This test greps for the anti-pattern directly.
+test_wizard_doc_no_default_opus_1m_wording() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    # Anti-patterns: assertions that opus[1m] IS the default.
+    # - "SDLC default (opus[1m])"  — table cell format
+    # - "default (opus[1m])" or "default (`opus[1m]`)"
+    # - "opus[1m] as (the/our) default"
+    # - "opus[1m] is (the/our) default"
+    # - "opus[1m] as default" (no article)
+    # Allowed: "default No", "default autocompact", "its default", where
+    # "default" refers to something other than opus[1m].
+    local hits
+    hits=$(grep -nE 'SDLC default[[:space:]]*\(`?opus\[1m\]|default[[:space:]]+\(`?opus\[1m\]`?\)|`?opus\[1m\]`?[[:space:]]+(as|is)([[:space:]]+(the|our|a))?[[:space:]]+default' "$DOC" || true)
+    if [ -z "$hits" ]; then
+        pass "Wizard doc has no live 'default opus[1m]' phrasing (issue #198)"
+    else
+        fail "Wizard doc contains contradictory 'default opus[1m]' language: $hits"
+    fi
+}
+
 test_sdlc_skill_recommends_opus_1m() {
     local SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
     if [ ! -f "$SKILL" ]; then fail "skills/sdlc/SKILL.md not found"; return; fi
@@ -455,6 +480,7 @@ test_wizard_doc_mentions_permissions_command() {
 
 test_wizard_doc_recommends_opus_1m
 test_wizard_doc_frames_opus_1m_as_opt_in
+test_wizard_doc_no_default_opus_1m_wording
 test_sdlc_skill_recommends_opus_1m
 test_cli_template_has_no_default_model_pin
 test_cli_template_has_no_default_autocompact
