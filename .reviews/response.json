@@ -1,12 +1,22 @@
 {
-  "review_id": "allowed-tools-permissions-001",
-  "round": 3,
+  "review_id": "staleness-nudge-001",
+  "round": 2,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
-      "finding": "1 (round 2 note)",
+      "finding": "1 (P1) — malformed cache accepted as valid",
       "action": "FIXED",
-      "summary": "Tightened tests/test-cli.sh:test_update_skill_migration_is_non_destructive so condition (3) also rejects destructive verbs beyond dedup: 'replace permissions.allow', 'overwrite permissions.allow', 'replace/overwrite list', 'clear permissions.allow', 'drop all entries', 'discard entries'. The 'drop the legacy allowedTools key' phrase is NOT matched (targeted anti-pattern list). Negative control: reintroducing 'replace permissions.allow with allowedTools' fails the test; reintroducing 'union the two lists (dedup)' still fails the test; both restore clean at 70/70."
+      "summary": "Added strict semver gate SEMVER_RE='^[0-9]+\\.[0-9]+\\.[0-9]+$' at hooks/instructions-loaded-check.sh:43. Cache content now validated before assignment: [[ \"$CACHE_CONTENT\" =~ $SEMVER_RE ]] at line ~59. 'junk', whitespace, and non-version strings are rejected and the hook falls through to npm. INSTALLED_VERSION is also gated (line 45) to suppress nudge entirely on corrupt SDLC.md."
+    },
+    {
+      "finding": "2 (P2) — awk coerces non-numeric minor to 0",
+      "action": "FIXED",
+      "summary": "Same SEMVER_RE applied to npm result at hooks/instructions-loaded-check.sh:~68. NPM_RESULT=$(npm view ...) is captured into a scratch var, validated against semver, and only assigned to LATEST_VERSION + persisted to cache if it passes. '1.alpha.0' never reaches the awk-based delta math."
+    },
+    {
+      "finding": "Regression coverage for malformed cache / non-numeric versions",
+      "action": "FIXED",
+      "summary": "Three new tests in tests/test-hooks.sh: test_update_notification_rejects_malformed_cache_junk, test_update_notification_rejects_malformed_cache_whitespace, test_update_notification_rejects_non_numeric_minor. Full suite: 84/84 pass. Negative control confirmed: reverting the semver gates to '[ -n ... ]' makes all three tests fail."
     }
   ]
 }

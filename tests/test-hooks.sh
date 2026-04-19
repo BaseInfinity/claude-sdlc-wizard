@@ -842,6 +842,90 @@ test_update_notification_uses_daily_cache() {
     fi
 }
 
+# Codex round 1 (P1): malformed cache contents (whitespace, non-version like
+# "junk") were being treated as valid, producing "Latest: junk" / bogus
+# "99 behind" output. Strict semver validation must reject non-x.y.z content
+# and fall back to npm.
+test_update_notification_rejects_malformed_cache_junk() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.25.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin" "$tmpdir/cache"
+    # Seed cache with garbage — must be ignored, npm must be called
+    printf 'junk' > "$tmpdir/cache/latest-version"
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    local ok=true
+    # Must NOT leak "junk" into output
+    if echo "$output" | grep -q 'junk'; then ok=false; fi
+    # Must fall back to npm and produce real 1.34.0 nudge
+    echo "$output" | grep -q '1.34.0' || ok=false
+    if [ "$ok" = true ]; then
+        pass "Malformed cache ('junk') is rejected and npm refetched"
+    else
+        fail "Expected malformed cache to be ignored, got: $output"
+    fi
+}
+
+test_update_notification_rejects_malformed_cache_whitespace() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.25.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin" "$tmpdir/cache"
+    # Whitespace-only cache contents — must be rejected
+    printf '   \n' > "$tmpdir/cache/latest-version"
+    printf '#!/bin/bash\necho "1.34.0"\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    # Must not print "99 behind" (which would indicate whitespace → major-bump delta)
+    if echo "$output" | grep -qE '99.*minor.*behind'; then
+        fail "Whitespace cache leaked through, got: $output"
+    else
+        pass "Whitespace-only cache is rejected"
+    fi
+}
+
+# Codex round 1 (P2): npm returning a non-numeric minor field (e.g.
+# "1.alpha.0") must not run delta math. awk '$2+0' silently coerces alpha
+# to 0, producing nonsense output. Strict semver gate must reject.
+test_update_notification_rejects_non_numeric_minor() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.25.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin"
+    # Stub returns non-numeric minor ONLY for the wizard package; anything
+    # else (e.g. the CC version check later in the hook) errors silently so
+    # we're only exercising the wizard-version path.
+    cat > "$tmpdir/bin/npm" <<'NPMEOF'
+#!/bin/bash
+if [[ "$*" == *"agentic-sdlc-wizard"* ]]; then
+    echo "1.alpha.0"
+else
+    exit 1
+fi
+NPMEOF
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    # Must not surface "1.alpha.0" to the user or compute a bogus delta
+    if echo "$output" | grep -q '1.alpha.0'; then
+        fail "Non-numeric version leaked to output, got: $output"
+    elif echo "$output" | grep -qE 'SDLC Wizard update available|minor.*behind'; then
+        fail "Expected silent skip on invalid npm response, got: $output"
+    else
+        pass "Non-numeric minor field (1.alpha.0) is rejected silently"
+    fi
+}
+
 test_update_notification_newer_available
 test_update_notification_same_version
 test_update_notification_npm_unavailable
@@ -851,6 +935,9 @@ test_update_notification_mentions_update_wizard
 test_update_notification_loud_when_3_minor_behind
 test_update_notification_mild_when_2_minor_behind
 test_update_notification_uses_daily_cache
+test_update_notification_rejects_malformed_cache_junk
+test_update_notification_rejects_malformed_cache_whitespace
+test_update_notification_rejects_non_numeric_minor
 
 echo ""
 echo "--- Hook if-conditional tests (#68) ---"

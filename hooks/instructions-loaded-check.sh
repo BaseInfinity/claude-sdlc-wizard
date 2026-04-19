@@ -39,14 +39,16 @@ fi
 # multi-line nudge when the gap is ≥3 minor versions — the one-liner gets
 # skipped after weeks of ignoring it (user feedback 2026-04-18).
 SDLC_MD="$PROJECT_DIR/SDLC.md"
+# Strict x.y.z semver — rejects whitespace, "junk", "1.alpha.0", etc.
+SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
 if [ -f "$SDLC_MD" ]; then
     INSTALLED_VERSION=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$SDLC_MD" | head -1 | sed 's/SDLC Wizard Version: //')
-    if [ -n "$INSTALLED_VERSION" ]; then
+    if [ -n "$INSTALLED_VERSION" ] && [[ "$INSTALLED_VERSION" =~ $SEMVER_RE ]]; then
         VERSION_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
         VERSION_CACHE_FILE="$VERSION_CACHE_DIR/latest-version"
         LATEST_VERSION=""
 
-        # Use cache if present and <24h old
+        # Use cache if present, <24h old, and contents are valid semver
         if [ -f "$VERSION_CACHE_FILE" ]; then
             if stat -f %m "$VERSION_CACHE_FILE" > /dev/null 2>&1; then
                 CACHE_MTIME=$(stat -f %m "$VERSION_CACHE_FILE")
@@ -55,14 +57,18 @@ if [ -f "$SDLC_MD" ]; then
             fi
             CACHE_AGE=$(( $(date +%s) - CACHE_MTIME ))
             if [ "$CACHE_AGE" -lt 86400 ]; then
-                LATEST_VERSION=$(cat "$VERSION_CACHE_FILE" 2>/dev/null) || LATEST_VERSION=""
+                CACHE_CONTENT=$(cat "$VERSION_CACHE_FILE" 2>/dev/null) || CACHE_CONTENT=""
+                if [[ "$CACHE_CONTENT" =~ $SEMVER_RE ]]; then
+                    LATEST_VERSION="$CACHE_CONTENT"
+                fi
             fi
         fi
 
-        # Fetch from npm if cache miss / stale
+        # Fetch from npm if cache miss / stale / malformed
         if [ -z "$LATEST_VERSION" ] && command -v npm > /dev/null 2>&1; then
-            LATEST_VERSION=$(npm view agentic-sdlc-wizard version 2>/dev/null) || LATEST_VERSION=""
-            if [ -n "$LATEST_VERSION" ]; then
+            NPM_RESULT=$(npm view agentic-sdlc-wizard version 2>/dev/null) || NPM_RESULT=""
+            if [[ "$NPM_RESULT" =~ $SEMVER_RE ]]; then
+                LATEST_VERSION="$NPM_RESULT"
                 mkdir -p "$VERSION_CACHE_DIR" 2>/dev/null || true
                 printf '%s' "$LATEST_VERSION" > "$VERSION_CACHE_FILE" 2>/dev/null || true
             fi

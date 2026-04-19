@@ -1,24 +1,32 @@
 {
-  "review_id": "allowed-tools-permissions-001",
+  "review_id": "staleness-nudge-001",
   "status": "PENDING_RECHECK",
-  "round": 3,
-  "mission": "Move setup wizard guidance from top-level `allowedTools` to `permissions.allow` (issue #197). Setup Step 9 now writes `permissions.allow`. Update skill adds Step 7.6 migration with four branches. Byte-for-byte preservation on migrate; never clobber user data.",
-  "success": "Reviewer verifies round-2 note is resolved: tests/test-cli.sh:test_update_skill_migration_is_non_destructive now also fails on replace/overwrite semantics, not only on dedup wording. Runs negative control for both 'replace permissions.allow' and 'union ... dedup' wording, both fire. Re-verifies all prior passes hold.",
-  "failure": "Reviewer misses that the anti-pattern regex false-positives on benign text. Reviewer misses that 'drop the legacy allowedTools key' (the correct migration step) is not accidentally matched by the 'drop' pattern.",
+  "round": 2,
+  "mission": "Strengthen session-start wizard staleness nudge (ROADMAP #196). User feedback: the mild one-line 'update available' note gets skipped week after week. Hook now emits a loud multi-line `!! WARNING ... N minor versions behind !!` when installed is ≥3 minor versions behind latest, keeps the mild one-liner for <3. Also adds 24h cache of the npm latest-version lookup to avoid per-session npm calls.",
+  "success": "Reviewer verifies (1) the cache logic correctly re-uses a <24h cache and refetches after expiry, on both macOS (`stat -f %m`) and Linux (`stat -c %Y`); (2) the loud nudge fires on any ≥3 minor gap including major bumps (computed delta=99 for major bump); (3) the mild nudge still fires at 1–2 minor gap; (4) the hook still always exits 0 and never blocks session start; (5) tests actually gate the behavior (negative controls prove the loud branch and the cache are both enforced).",
+  "failure": "Reviewer rubber-stamps 'tests pass'. Reviewer misses that the cache logic could return stale data forever if the cache file exists but is malformed (empty, whitespace, non-version string). Reviewer misses that awk `$2+0` silently coerces non-numeric minor fields (e.g. `1.alpha.0`) to 0, which could cause weird delta math. Reviewer misses that when `$HOME` is unset (CI edge case), the cache dir becomes `/.cache/sdlc-wizard/` — likely unwritable, but doesn't crash. Reviewer misses a leftover stat-format false-positive: `stat -f %m` on Linux prints the mode in octal rather than failing, so the macOS/Linux detect branch could pick the wrong code path on Linux with GNU stat.",
   "files_changed": [
-    "tests/test-cli.sh"
+    "hooks/instructions-loaded-check.sh",
+    "tests/test-hooks.sh",
+    "ROADMAP.md"
   ],
   "fixes_applied": [
-    "Round-2 finding: tightened tests/test-cli.sh:test_update_skill_migration_is_non_destructive condition (3). Added anti-patterns for 'replace permissions.allow', 'overwrite permissions.allow', 'replace/overwrite list', 'clear permissions.allow', 'drop all entries', 'discard entries'. Targeted patterns — does NOT match the legitimate 'drop the legacy allowedTools key' instruction. Negative controls confirm both 'replace' and 'dedup' anti-patterns now trigger failure; restored, 70/70 pass."
+    "Strict semver gate SEMVER_RE='^[0-9]+\\.[0-9]+\\.[0-9]+$' validates INSTALLED_VERSION (hooks/instructions-loaded-check.sh:45), CACHE_CONTENT (~line 59), and NPM_RESULT (~line 68). Malformed cache / non-numeric versions never reach awk delta math",
+    "Three regression tests added in tests/test-hooks.sh: rejects_malformed_cache_junk, rejects_malformed_cache_whitespace, rejects_non_numeric_minor. Full suite 84/84. Negative control confirmed (reverting gate → all 3 fail)"
   ],
-  "previous_score": 7,
+  "previous_score": 6,
   "verification_checklist": [
-    "(a) Read tests/test-cli.sh:test_update_skill_migration_is_non_destructive condition (3). Verify the anti-pattern regex matches 'replace permissions.allow', 'overwrite permissions.allow', 'clear permissions.allow', 'drop all entries' — and does NOT match 'drop the legacy allowedTools key' (which is the correct behavior).",
-    "(b) Negative control: temporarily replace Step 7.6's 'append every entry ...' with 'replace permissions.allow with allowedTools', rerun bash tests/test-cli.sh, confirm test_update_skill_migration_is_non_destructive fails. Repeat with 'union the two lists (dedup)', confirm same. Restore.",
-    "(c) Run bash tests/test-cli.sh. Confirm 70/70 pass.",
-    "(d) Re-verify round-1/round-2 passes: Step 9 recommends permissions.allow; live doc refs updated; merge-compat tests still pass; Step 7.6 text unchanged from round-2 (only the test was strengthened)."
+    "(a) Read hooks/instructions-loaded-check.sh version block (~line 37-100). Confirm: cache file at $SDLC_WIZARD_CACHE_DIR/latest-version; stat-based mtime with macOS (`stat -f %m`) first and Linux (`stat -c %Y`) fallback; 86400s TTL; cache write is best-effort (mkdir and write both swallow errors).",
+    "(b) Verify the macOS/Linux stat detection is correct. `stat -f %m` on Linux (GNU coreutils) does NOT print the mode — it errors with 'invalid format' and returns non-zero. So the `if stat -f %m FILE > /dev/null 2>&1` check correctly falls through to `stat -c %Y` on Linux. Confirm by reading the conditional logic carefully.",
+    "(c) Walk through minor-delta calculation for several inputs: (i) 1.25.0 vs 1.34.0 → 9 (loud), (ii) 1.32.0 vs 1.34.0 → 2 (mild), (iii) 1.34.0 vs 1.34.0 → 0 (silent — the outer != guard short-circuits), (iv) 1.99.0 vs 2.0.0 → delta=99 via major-bump path (loud). Confirm each path is correct.",
+    "(d) Read the loud-nudge copy. Verify it: (i) mentions the exact delta count, (ii) shows both installed and latest versions, (iii) links /update-wizard, (iv) uses 'Strongly recommend' or similar urgency. The goal is that a user who has skipped the mild nudge for weeks can't easily skip this one.",
+    "(e) Run `bash tests/test-hooks.sh`. Confirm 81/81 pass. Walk through each of the 3 new tests — verify each is gated on an independently verifiable fact, not a tautology.",
+    "(f) Negative controls: (i) revert the loud branch (e.g., change `if [ \"$MINOR_DELTA\" -ge 3 ]; then` to `if false; then`). Confirm the loud test and the cache test both fail. (ii) revert the cache write (comment out the `printf ... > $VERSION_CACHE_FILE` line). Confirm the cache test fails but loud test still passes (since first fetch works).",
+    "(g) Verify existing tests are not polluted by the shared `~/.cache` path. All 6 existing update-notification tests + 3 new tests must pass `SDLC_WIZARD_CACHE_DIR` so they use per-test tmpdir caches.",
+    "(h) Hook safety: confirm the hook exits 0 on every path — never `set -e`, every failing command is OR'd or ignored. A malformed SDLC.md, unwritable HOME, missing npm, missing stat, broken cache file — none should block session start. Read each risky line.",
+    "(i) Sanity-check the 24h cache TTL is correct: 86400 seconds = 1 day. Confirm the TTL is long enough to avoid per-session npm calls (typical) but short enough to catch new releases within a day (desired). This matches ROADMAP #196's 'cached daily' requirement."
   ],
-  "review_instructions": "TARGETED RECHECK. Verify the test regex is tight (gates the right things, does not false-positive). Do NOT raise new findings unless P0.",
-  "preflight_path": ".reviews/preflight-allowed-tools-permissions-001.md",
+  "review_instructions": "Focus on (1) cache correctness across macOS/Linux, (2) delta math correctness including major bumps and malformed versions, (3) hook safety (must never block session start). Be strict on edge cases — this hook runs on EVERY session start. A subtle bug gets amplified across every consumer repo. Run the test suite yourself.",
+  "preflight_path": ".reviews/preflight-staleness-nudge-001.md",
   "artifact_path": ".reviews/"
 }
