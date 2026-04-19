@@ -34,14 +34,71 @@ if [ -n "$MISSING" ]; then
     echo "Invoke Skill tool, skill=\"setup-wizard\" to generate them."
 fi
 
-# Version update check (non-blocking, best-effort)
+# Version update check (non-blocking, best-effort).
+# Fetches npm latest at most once per 24h (ROADMAP #196). Prints a stronger
+# multi-line nudge when the gap is ≥3 minor versions — the one-liner gets
+# skipped after weeks of ignoring it (user feedback 2026-04-18).
 SDLC_MD="$PROJECT_DIR/SDLC.md"
+# Strict x.y.z semver — rejects whitespace, "junk", "1.alpha.0", etc.
+SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
 if [ -f "$SDLC_MD" ]; then
     INSTALLED_VERSION=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$SDLC_MD" | head -1 | sed 's/SDLC Wizard Version: //')
-    if [ -n "$INSTALLED_VERSION" ] && command -v npm > /dev/null 2>&1; then
-        LATEST_VERSION=$(npm view agentic-sdlc-wizard version 2>/dev/null) || true
+    if [ -n "$INSTALLED_VERSION" ] && [[ "$INSTALLED_VERSION" =~ $SEMVER_RE ]]; then
+        VERSION_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
+        VERSION_CACHE_FILE="$VERSION_CACHE_DIR/latest-version"
+        LATEST_VERSION=""
+
+        # Use cache if present, <24h old, and contents are valid semver
+        if [ -f "$VERSION_CACHE_FILE" ]; then
+            if stat -f %m "$VERSION_CACHE_FILE" > /dev/null 2>&1; then
+                CACHE_MTIME=$(stat -f %m "$VERSION_CACHE_FILE")
+            else
+                CACHE_MTIME=$(stat -c %Y "$VERSION_CACHE_FILE" 2>/dev/null || echo 0)
+            fi
+            CACHE_AGE=$(( $(date +%s) - CACHE_MTIME ))
+            if [ "$CACHE_AGE" -lt 86400 ]; then
+                CACHE_CONTENT=$(cat "$VERSION_CACHE_FILE" 2>/dev/null) || CACHE_CONTENT=""
+                if [[ "$CACHE_CONTENT" =~ $SEMVER_RE ]]; then
+                    LATEST_VERSION="$CACHE_CONTENT"
+                fi
+            fi
+        fi
+
+        # Fetch from npm if cache miss / stale / malformed
+        if [ -z "$LATEST_VERSION" ] && command -v npm > /dev/null 2>&1; then
+            NPM_RESULT=$(npm view agentic-sdlc-wizard version 2>/dev/null) || NPM_RESULT=""
+            if [[ "$NPM_RESULT" =~ $SEMVER_RE ]]; then
+                LATEST_VERSION="$NPM_RESULT"
+                mkdir -p "$VERSION_CACHE_DIR" 2>/dev/null || true
+                printf '%s' "$LATEST_VERSION" > "$VERSION_CACHE_FILE" 2>/dev/null || true
+            fi
+        fi
+
         if [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ]; then
-            echo "SDLC Wizard update available: ${INSTALLED_VERSION} → ${LATEST_VERSION} (run /update-wizard)"
+            # Minor-version delta: 1.25.0 vs 1.34.0 → 9
+            INSTALLED_MINOR=$(echo "$INSTALLED_VERSION" | awk -F. '{print $2+0}')
+            LATEST_MINOR=$(echo "$LATEST_VERSION" | awk -F. '{print $2+0}')
+            INSTALLED_MAJOR=$(echo "$INSTALLED_VERSION" | awk -F. '{print $1+0}')
+            LATEST_MAJOR=$(echo "$LATEST_VERSION" | awk -F. '{print $1+0}')
+            MINOR_DELTA=0
+            if [ "$INSTALLED_MAJOR" = "$LATEST_MAJOR" ]; then
+                MINOR_DELTA=$(( LATEST_MINOR - INSTALLED_MINOR ))
+            else
+                # Major bump: treat as a very large delta
+                MINOR_DELTA=99
+            fi
+
+            if [ "$MINOR_DELTA" -ge 3 ]; then
+                echo ""
+                echo "!! WARNING: SDLC Wizard is ${MINOR_DELTA} minor versions behind !!"
+                echo "   Installed: ${INSTALLED_VERSION}"
+                echo "   Latest:    ${LATEST_VERSION}"
+                echo "   You're missing bug fixes and features shipped across ${MINOR_DELTA} releases."
+                echo "   Strongly recommend running /update-wizard before starting new work."
+                echo ""
+            else
+                echo "SDLC Wizard update available: ${INSTALLED_VERSION} → ${LATEST_VERSION} (run /update-wizard)"
+            fi
         fi
     fi
 fi
