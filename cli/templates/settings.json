@@ -1,8 +1,4 @@
 {
-  "model": "opus[1m]",
-  "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
-  },
   "hooks": {
     "UserPromptSubmit": [
       {

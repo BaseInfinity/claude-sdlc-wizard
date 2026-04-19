@@ -665,26 +665,27 @@ test_install_restart_messaging() {
 
 test_install_restart_messaging
 
-# Test 33: Template settings.json has env field with CLAUDE_AUTOCOMPACT_PCT_OVERRIDE
-test_template_has_autocompact_env() {
+# Test 33: Template settings.json has no top-level env defaults (opt-in via setup skill)
+# Rationale (issue #198): unconditionally writing env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30
+# makes sense on 1M context but compacts too aggressively on 200K (30% of 200K = 60K).
+# Since the model pin is now opt-in, the paired autocompact override is too.
+test_template_has_no_default_env() {
     local template="$SCRIPT_DIR/../cli/templates/settings.json"
-    local val
-    val=$(python3 -c "
-import json, sys
+    local has_env
+    has_env=$(python3 -c "
+import json
 with open('$template') as f:
-    data = json.load(f)
-env = data.get('env', {})
-print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+    print('yes' if 'env' in json.load(f) else 'no')
 " 2>/dev/null)
-    if [ "$val" = "30" ]; then
-        pass "Template settings.json has CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30"
+    if [ "$has_env" = "no" ]; then
+        pass "Template settings.json has no default env (opt-in via setup skill Step 9.5)"
     else
-        fail "Template settings.json should have env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30 (got: '$val')"
+        fail "Template settings.json should not have a default env block (issue #198)"
     fi
 }
 
-# Test 34: Init creates settings.json with env field on fresh install
-test_init_has_env_field() {
+# Test 34: Fresh init does NOT write env to settings.json (opt-in via setup skill)
+test_init_does_not_write_env() {
     local d
     d=$(make_temp)
     (cd "$d" && node "$CLI" init > /dev/null 2>&1)
@@ -692,18 +693,17 @@ test_init_has_env_field() {
     has_env=$(python3 -c "
 import json
 with open('$d/.claude/settings.json') as f:
-    data = json.load(f)
-print('yes' if 'env' in data and 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE' in data['env'] else 'no')
+    print('yes' if 'env' in json.load(f) else 'no')
 " 2>/dev/null)
-    if [ "$has_env" = "yes" ]; then
-        pass "Init creates settings.json with env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"
+    if [ "$has_env" = "no" ]; then
+        pass "Fresh init does not write env to settings.json (opt-in preserves auto-mode defaults)"
     else
-        fail "Init should create settings.json with env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"
+        fail "Fresh init should not write env block — user opts in via setup skill"
     fi
     rm -rf "$d"
 }
 
-# Test 35: Merge preserves existing env vars when adding wizard env
+# Test 35: Merge preserves existing env vars (wizard no longer adds AUTOCOMPACT — opt-in)
 test_merge_preserves_existing_env() {
     local d
     d=$(make_temp)
@@ -724,19 +724,19 @@ with open('$d/.claude/settings.json') as f:
     data = json.load(f)
 env = data.get('env', {})
 custom = env.get('MY_CUSTOM_VAR', '')
-wizard = env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', '')
-print(f'{custom}|{wizard}')
+has_autocompact = 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE' in env
+print(f'{custom}|{has_autocompact}')
 " 2>/dev/null)
-    if [ "$result" = "keep-me|30" ]; then
-        pass "Merge preserves existing env vars and adds wizard env"
+    if [ "$result" = "keep-me|False" ]; then
+        pass "Merge preserves user env var and does NOT add wizard AUTOCOMPACT (opt-in)"
     else
-        fail "Merge should preserve MY_CUSTOM_VAR and add AUTOCOMPACT (got: '$result')"
+        fail "Merge should preserve MY_CUSTOM_VAR and leave AUTOCOMPACT unset (got: '$result')"
     fi
     rm -rf "$d"
 }
 
-# Test 36: Merge adds wizard env to settings without env field
-test_merge_adds_env_to_existing_settings() {
+# Test 36: Merge does NOT add env block to settings without env field (opt-in)
+test_merge_does_not_add_env_to_existing_settings() {
     local d
     d=$(make_temp)
     mkdir -p "$d/.claude"
@@ -752,23 +752,20 @@ FIXTURE
 import json
 with open('$d/.claude/settings.json') as f:
     data = json.load(f)
-env = data.get('env', {})
 allowed = 'allowedTools' in data
-wizard = env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', '')
-print(f'{allowed}|{wizard}')
+has_env = 'env' in data
+print(f'{allowed}|{has_env}')
 " 2>/dev/null)
-    if [ "$result" = "True|30" ]; then
-        pass "Merge adds wizard env to settings without env field"
+    if [ "$result" = "True|False" ]; then
+        pass "Merge preserves allowedTools and does NOT add env block (opt-in)"
     else
-        fail "Merge should add env.AUTOCOMPACT and preserve allowedTools (got: '$result')"
+        fail "Merge should preserve allowedTools and not create an env block (got: '$result')"
     fi
     rm -rf "$d"
 }
 
 # Test 37: Merge does not overwrite user's existing autocompact value.
-# Use 50 as the fixture value — distinct from the 30 template default —
-# so this test actually proves "no overwrite" rather than coincidentally
-# matching the new default.
+# User may have opted in explicitly — never clobber their setting.
 test_merge_respects_user_autocompact() {
     local d
     d=$(make_temp)
@@ -797,9 +794,10 @@ print(data.get('env', {}).get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
     rm -rf "$d"
 }
 
-# Test 38: --force overwrites user's autocompact value back to default.
-# Fixture value 50 is distinct from the 30 template default.
-test_merge_force_resets_autocompact() {
+# Test 38: --force does NOT clobber user's autocompact value.
+# Template has no env defaults (opt-in), so there's nothing to reset TO.
+# User's explicit opt-in must survive --force.
+test_merge_force_preserves_user_autocompact() {
     local d
     d=$(make_temp)
     mkdir -p "$d/.claude"
@@ -819,10 +817,10 @@ with open('$d/.claude/settings.json') as f:
     data = json.load(f)
 print(data.get('env', {}).get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
 " 2>/dev/null)
-    if [ "$val" = "30" ]; then
-        pass "--force resets AUTOCOMPACT back to template default (30)"
+    if [ "$val" = "50" ]; then
+        pass "--force preserves user's explicit AUTOCOMPACT value (50)"
     else
-        fail "--force should reset AUTOCOMPACT to 30 (got: '$val')"
+        fail "--force should preserve user's AUTOCOMPACT=50 (got: '$val')"
     fi
     rm -rf "$d"
 }
@@ -841,8 +839,45 @@ test_setup_skill_references_settings_json() {
     fi
 }
 
-# Test 40: Merge handles malformed env (array) — replaces with wizard env
-test_merge_malformed_env_array() {
+# Test 39b: Setup skill Step 9.5 frames the opus[1m] pin as opt-in with default No
+# (issue #198). The key user-visible signals are: "opt-in", default "[y/N]" or
+# "Default: No" language, and an explicit note about auto-mode. Without these,
+# the wizard is still pushing the pin as the implicit default.
+test_setup_skill_step95_is_opt_in_default_no() {
+    local skill="$SCRIPT_DIR/../skills/setup/SKILL.md"
+    local step95
+    step95=$(awk '/^### Step 9.5/,/^### Step 10/' "$skill")
+    local ok=true
+    echo "$step95" | grep -qiE 'opt.?in|\[y/N\]|default.*no' || ok=false
+    echo "$step95" | grep -qiE 'auto.?mode|auto.?select' || ok=false
+    echo "$step95" | grep -q 'opus\[1m\]' || ok=false
+    if [ "$ok" = true ]; then
+        pass "Setup skill Step 9.5 frames opus[1m] as opt-in (default No, mentions auto-mode)"
+    else
+        fail "Setup skill Step 9.5 must frame opus[1m] pin as opt-in with default No + auto-mode note (issue #198)"
+    fi
+}
+
+# Test 39c: Update skill has a migration block for users with an existing
+# wizard-installed model: opus[1m] pin (from v1.31–1.33). Without this, users
+# who upgrade from the old default silently keep auto-mode disabled.
+test_update_skill_has_model_pin_migration() {
+    local skill="$SCRIPT_DIR/../skills/update/SKILL.md"
+    local ok=true
+    grep -qiE 'opus\[1m\].*migration|migration.*opus\[1m\]|model.*pin.*migration|migrate.*model.*pin' "$skill" || ok=false
+    grep -qiE '#198|issue.*198' "$skill" || ok=false
+    if [ "$ok" = true ]; then
+        pass "Update skill has model-pin migration block referencing issue #198"
+    else
+        fail "Update skill needs a migration block for pre-#198 users with opus[1m] pinned"
+    fi
+}
+
+test_setup_skill_step95_is_opt_in_default_no
+test_update_skill_has_model_pin_migration
+
+# Test 40: Merge preserves malformed env (array) — wizard no longer writes env unconditionally
+test_merge_malformed_env_array_left_alone() {
     local d
     d=$(make_temp)
     mkdir -p "$d/.claude"
@@ -858,22 +893,23 @@ FIXTURE
 import json
 with open('$d/.claude/settings.json') as f:
     data = json.load(f)
-env = data.get('env', {})
-if isinstance(env, dict):
-    print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+env = data.get('env')
+# Malformed env should be left untouched since template has nothing to merge in
+if isinstance(env, list) and env == ['not', 'an', 'object']:
+    print('PRESERVED')
 else:
-    print('NOT_OBJECT')
+    print(repr(env))
 " 2>/dev/null)
-    if [ "$val" = "30" ]; then
-        pass "Merge handles malformed env (array) — replaces with wizard env"
+    if [ "$val" = "PRESERVED" ]; then
+        pass "Merge leaves malformed env (array) untouched when template has no env"
     else
-        fail "Merge should replace malformed array env with wizard env (got: '$val')"
+        fail "Merge should not rewrite malformed env when template has no env (got: '$val')"
     fi
     rm -rf "$d"
 }
 
-# Test 41: Merge handles malformed env (string) — replaces with wizard env
-test_merge_malformed_env_string() {
+# Test 41: Merge preserves malformed env (string) — wizard no longer writes env unconditionally
+test_merge_malformed_env_string_left_alone() {
     local d
     d=$(make_temp)
     mkdir -p "$d/.claude"
@@ -889,68 +925,69 @@ FIXTURE
 import json
 with open('$d/.claude/settings.json') as f:
     data = json.load(f)
-env = data.get('env', {})
-if isinstance(env, dict):
-    print(env.get('CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', ''))
+env = data.get('env')
+if env == 'not-an-object':
+    print('PRESERVED')
 else:
-    print('NOT_OBJECT')
+    print(repr(env))
 " 2>/dev/null)
-    if [ "$val" = "30" ]; then
-        pass "Merge handles malformed env (string) — replaces with wizard env"
+    if [ "$val" = "PRESERVED" ]; then
+        pass "Merge leaves malformed env (string) untouched when template has no env"
     else
-        fail "Merge should replace malformed string env with wizard env (got: '$val')"
+        fail "Merge should not rewrite malformed env when template has no env (got: '$val')"
     fi
     rm -rf "$d"
 }
 
-test_merge_malformed_env_array
-test_merge_malformed_env_string
-test_template_has_autocompact_env
-test_init_has_env_field
+test_merge_malformed_env_array_left_alone
+test_merge_malformed_env_string_left_alone
+test_template_has_no_default_env
+test_init_does_not_write_env
 test_merge_preserves_existing_env
-test_merge_adds_env_to_existing_settings
+test_merge_does_not_add_env_to_existing_settings
 test_merge_respects_user_autocompact
-test_merge_force_resets_autocompact
+test_merge_force_preserves_user_autocompact
 test_setup_skill_references_settings_json
 
-# Model field merge tests — ensure opus[1m] default is delivered to fresh
-# installs and users upgrading from pre-model templates, while respecting
-# any explicit model a user has already configured.
+# Model field merge tests — issue #198 flipped opus[1m] from unconditional default
+# to opt-in during setup. Default template has NO model pin so Claude Code's
+# built-in model auto-selection stays enabled. The setup skill prompts the user
+# and writes the pin only if they explicitly opt in.
 
-test_template_has_model_opus_1m() {
+test_template_has_no_model_pin() {
     local template="$SCRIPT_DIR/../cli/templates/settings.json"
-    local val
-    val=$(python3 -c "
+    local has_model
+    has_model=$(python3 -c "
 import json
 with open('$template') as f:
-    print(json.load(f).get('model', ''))
+    print('yes' if 'model' in json.load(f) else 'no')
 " 2>/dev/null)
-    if [ "$val" = "opus[1m]" ]; then
-        pass "Template settings.json has model=opus[1m]"
+    if [ "$has_model" = "no" ]; then
+        pass "Template settings.json has no model pin (opt-in per issue #198)"
     else
-        fail "Template settings.json should have model='opus[1m]' (got: '$val')"
+        fail "Template settings.json should not have a default model pin (issue #198)"
     fi
 }
 
-test_fresh_init_writes_model_opus_1m() {
+test_fresh_init_does_not_write_model() {
     local d
     d=$(make_temp)
     (cd "$d" && node "$CLI" init > /dev/null 2>&1)
-    local val
-    val=$(python3 -c "
+    local has_model
+    has_model=$(python3 -c "
 import json
 with open('$d/.claude/settings.json') as f:
-    print(json.load(f).get('model', ''))
+    print('yes' if 'model' in json.load(f) else 'no')
 " 2>/dev/null)
-    if [ "$val" = "opus[1m]" ]; then
-        pass "Fresh init writes model=opus[1m] to settings.json"
+    if [ "$has_model" = "no" ]; then
+        pass "Fresh init does NOT write model to settings.json (auto-mode preserved)"
     else
-        fail "Fresh init should write model='opus[1m]' (got: '$val')"
+        fail "Fresh init should not write a model pin — it disables auto mode"
     fi
     rm -rf "$d"
 }
 
-test_merge_adds_model_when_missing() {
+test_merge_does_not_add_model_when_missing() {
     local d
     d=$(make_temp)
     mkdir -p "$d/.claude"
@@ -961,16 +998,16 @@ test_merge_adds_model_when_missing() {
 }
 FIXTURE
     (cd "$d" && node "$CLI" init > /dev/null 2>&1)
-    local val
-    val=$(python3 -c "
+    local has_model
+    has_model=$(python3 -c "
 import json
 with open('$d/.claude/settings.json') as f:
-    print(json.load(f).get('model', ''))
+    print('yes' if 'model' in json.load(f) else 'no')
 " 2>/dev/null)
-    if [ "$val" = "opus[1m]" ]; then
-        pass "Merge adds model=opus[1m] when absent from existing settings"
+    if [ "$has_model" = "no" ]; then
+        pass "Merge does NOT add model pin when absent (opt-in via setup skill)"
     else
-        fail "Merge should add model='opus[1m]' when missing (got: '$val')"
+        fail "Merge should not silently add a model pin — user opts in"
     fi
     rm -rf "$d"
 }
@@ -1000,7 +1037,9 @@ with open('$d/.claude/settings.json') as f:
     rm -rf "$d"
 }
 
-test_merge_force_resets_model() {
+# --force must NOT overwrite an existing user model pin either — template has
+# no model to reset to. User's explicit choice survives.
+test_merge_force_preserves_user_model() {
     local d
     d=$(make_temp)
     mkdir -p "$d/.claude"
@@ -1017,19 +1056,19 @@ import json
 with open('$d/.claude/settings.json') as f:
     print(json.load(f).get('model', ''))
 " 2>/dev/null)
-    if [ "$val" = "opus[1m]" ]; then
-        pass "--force resets model to template default (opus[1m])"
+    if [ "$val" = "sonnet" ]; then
+        pass "--force preserves user's explicit model (template has no model to reset to)"
     else
-        fail "--force should reset model to 'opus[1m]' (got: '$val')"
+        fail "--force should preserve user's model=sonnet (got: '$val')"
     fi
     rm -rf "$d"
 }
 
-test_template_has_model_opus_1m
-test_fresh_init_writes_model_opus_1m
-test_merge_adds_model_when_missing
+test_template_has_no_model_pin
+test_fresh_init_does_not_write_model
+test_merge_does_not_add_model_when_missing
 test_merge_respects_user_model
-test_merge_force_resets_model
+test_merge_force_preserves_user_model
 
 # === Marketplace Path Check Tests (#174) ===
 
