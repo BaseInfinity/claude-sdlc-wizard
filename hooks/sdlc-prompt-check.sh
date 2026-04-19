@@ -17,6 +17,46 @@ else
     exit 0
 fi
 
+# Effort auto-bump (ROADMAP #195). Watches this UserPromptSubmit payload for
+# LOW-confidence / FAILED-repeatedly / CONFUSED phrases, logs a timestamped
+# signal, and emits a loud '/effort xhigh' nudge when ≥2 signals land inside
+# a 30-minute window. Enforces the SDLC confidence table mid-session so
+# Claude stops burning budget at 'high' after confidence drops.
+EFFORT_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
+EFFORT_SIGNALS="$EFFORT_CACHE_DIR/effort-signals.log"
+PROMPT_TEXT=""
+if [ ! -t 0 ] && command -v jq > /dev/null 2>&1; then
+    STDIN_JSON=$(cat)
+    if [ -n "$STDIN_JSON" ]; then
+        PROMPT_TEXT=$(printf '%s' "$STDIN_JSON" | jq -r '.prompt // empty' 2>/dev/null) || PROMPT_TEXT=""
+    fi
+fi
+if [ -n "$PROMPT_TEXT" ]; then
+    LOWER=$(printf '%s' "$PROMPT_TEXT" | tr '[:upper:]' '[:lower:]')
+    SIGNAL_REASON=""
+    case "$LOWER" in
+        *"low confidence"*|*"i'm stuck"*|*"i am stuck"*|*"still failing"*|*"failed again"*|*"keeps failing"*|*"tried twice"*|*"not sure why"*|*"can't figure"*|*"confused"*)
+            SIGNAL_REASON="low"
+            ;;
+    esac
+    if [ -n "$SIGNAL_REASON" ]; then
+        mkdir -p "$EFFORT_CACHE_DIR" 2>/dev/null || true
+        printf '%s\t%s\n' "$(date +%s)" "$SIGNAL_REASON" >> "$EFFORT_SIGNALS" 2>/dev/null || true
+    fi
+fi
+if [ -f "$EFFORT_SIGNALS" ]; then
+    NOW=$(date +%s)
+    THRESH=$(( NOW - 1800 ))
+    RECENT=$(awk -v t="$THRESH" '$1+0 >= t' "$EFFORT_SIGNALS" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${RECENT:-0}" -ge 2 ]; then
+        echo ""
+        echo "!! EFFORT BUMP REQUIRED: ${RECENT} low-confidence signals in last 30 min !!"
+        echo "   Run /effort xhigh NOW — spinning at 'high' after confidence drops wastes budget."
+        echo "   (Auto-enforcement of the SDLC confidence table. ROADMAP #195.)"
+        echo ""
+    fi
+fi
+
 if [ ! -s "$PROJECT_DIR/SDLC.md" ] || [ ! -s "$PROJECT_DIR/TESTING.md" ]; then
     cat << 'SETUP'
 SETUP NOT COMPLETE: SDLC.md and/or TESTING.md are missing.
