@@ -110,6 +110,30 @@ NEVER overwrite settings.json. Instead:
 
 The CLI's `init --force` already has smart merge logic for settings.json. If the manual merge gets complicated, suggest: `npx agentic-sdlc-wizard init --force` (it preserves custom hooks).
 
+### Step 7.5: Model Pin Migration (Issue #198)
+
+Wizard versions 1.31.0–1.33.x unconditionally wrote `"model": "opus[1m]"` and `"env": { "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30" }` to `.claude/settings.json`. Issue #198 flipped that to opt-in because a top-level `model` disables Claude Code's auto-mode for the session.
+
+If the user is upgrading from a pre-#198 version, check their `.claude/settings.json`:
+
+1. **If `model` is `"opus[1m]"` and `env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is `"30"`** — this is likely the old wizard-installed pair, not an intentional user choice. Ask:
+
+   > Your `.claude/settings.json` pins `model: "opus[1m]"` with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`.
+   > This pair was the SDLC wizard default in 1.31.0–1.33.x, but it disables Claude Code's auto-mode (see issue #198).
+   >
+   > - **Remove the pin** (recommended for most users) — keeps auto-mode enabled, lets Claude Code pick the model per turn.
+   > - **Keep the pin** — you want guaranteed Opus 4.7 + 1M context, and you're OK giving up model auto-selection.
+   >
+   > Remove, keep, or decide later? `[r/k/l]`
+
+2. **If only one of the two fields matches** (e.g. `model: "opus[1m]"` but custom autocompact, or vice versa) — treat as intentional customization. Do not prompt.
+
+3. **If `model` is some other value** (e.g. `"sonnet"`, `"opus"`) — treat as user's explicit choice. Do not touch.
+
+4. **If neither field is set** — user is already on the new default. No action.
+
+When removing: edit the file in place, drop the `model` key (and the `env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` key if nothing else is in `env`, otherwise leave `env` alone). Never touch other keys the user added.
+
 ### Step 8: Apply Selected Changes
 
 For each file the user approved:
