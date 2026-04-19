@@ -148,8 +148,11 @@ print(count)
     fi
 }
 
-# Test 4: Persist step uses continue-on-error: true
-test_continue_on_error() {
+# Test 4: Persist steps MUST NOT swallow push failures
+# (PR #196: silent continue-on-error was the root cause of the 19-day
+# score-history stall — the shared script now handles transient races
+# internally, so genuine push failures must surface, not be hidden.)
+test_continue_on_error_removed() {
     local coe_count
     coe_count=$(python3 -c "
 import yaml
@@ -163,33 +166,24 @@ for job_name in ['e2e-quick-check', 'e2e-full-evaluation']:
                 count += 1
 print(count)
 ")
-    if [ "$coe_count" = "2" ]; then
-        pass "Both persist steps use continue-on-error: true"
+    if [ "$coe_count" = "0" ]; then
+        pass "Both persist steps have continue-on-error removed (silent failures surface)"
     else
-        fail "Expected 2 persist steps with continue-on-error, found $coe_count"
+        fail "Expected 0 persist steps with continue-on-error: true (silent failure regression), found $coe_count"
     fi
 }
 
-# Test 5: Persist step commit message contains [skip ci]
-test_skip_ci() {
-    local skip_count
-    skip_count=$(python3 -c "
-import yaml
-with open('$CI_YML') as f:
-    wf = yaml.safe_load(f)
-count = 0
-for job_name in ['e2e-quick-check', 'e2e-full-evaluation']:
-    for step in wf['jobs'][job_name]['steps']:
-        if 'Persist scores' in step.get('name', ''):
-            run_block = step.get('run', '')
-            if '[skip ci]' in run_block:
-                count += 1
-print(count)
-")
-    if [ "$skip_count" = "2" ]; then
-        pass "Both persist steps have [skip ci] in commit message"
+# Test 5: [skip ci] marker lives in the shared persist script, not inline
+test_skip_ci_in_script() {
+    local persist_script="$REPO_ROOT/scripts/persist-score-history.sh"
+    if [ ! -f "$persist_script" ]; then
+        fail "scripts/persist-score-history.sh not found"
+        return
+    fi
+    if grep -q "\[skip ci\]" "$persist_script"; then
+        pass "persist script commit message contains [skip ci]"
     else
-        fail "Expected 2 persist steps with [skip ci], found $skip_count"
+        fail "scripts/persist-score-history.sh missing [skip ci] marker in commit message"
     fi
 }
 
@@ -405,8 +399,8 @@ echo ""
 test_tier1_persist_step
 test_tier2_persist_step
 test_fork_guard
-test_continue_on_error
-test_skip_ci
+test_continue_on_error_removed
+test_skip_ci_in_script
 test_jsonl_schema
 test_cusum_integration
 test_adaptive_thinking_reference
