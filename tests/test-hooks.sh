@@ -168,6 +168,80 @@ test_effort_bump_silent_on_1_signal() {
     fi
 }
 
+# Codex round 1 (P1): bare "confused"/"tried twice"/"can't figure" substrings
+# fired on ambient/educational prompts like "How do I detect a CONFUSED state?"
+# Fix: patterns require first-person ownership. This test guards the regression.
+test_effort_bump_no_log_on_ambient_mention() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local payload='{"prompt":"How do I detect a CONFUSED state in a bash case statement, and when would I use tried twice as a retry label?"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+        fail "Ambient/educational mention of trigger words logged a signal"
+    else
+        pass "Ambient mention of 'confused'/'tried twice' does not log signal"
+    fi
+    rm -rf "$tmpdir"
+}
+
+# Codex round 1 (P1): hook emitted 'No such file or directory' on stderr when
+# HOME was unset or cache path pointed at a regular file. Redirection failure
+# leaked past `|| true`. Fix wraps the whole write in a { ... } 2>/dev/null
+# group. Regression test asserts stderr is empty on HOME=''.
+test_effort_bump_silent_stderr_on_unwritable_cache() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    local stderr_file="$tmpdir/stderr"
+    local payload='{"prompt":"I am stuck on this"}'
+    # HOME unset → default cache dir becomes /.cache/sdlc-wizard (unwritable)
+    echo "$payload" | (cd "$tmpdir" && unset HOME; unset SDLC_WIZARD_CACHE_DIR; CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/sdlc-prompt-check.sh" >/dev/null 2>"$stderr_file")
+    local stderr_size
+    stderr_size=$(wc -c < "$stderr_file" | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "${stderr_size:-0}" -eq 0 ]; then
+        pass "Hook stderr is empty when cache path is unwritable"
+    else
+        fail "Hook leaked to stderr on unwritable cache (${stderr_size} bytes): $(cat "$stderr_file" 2>/dev/null)"
+    fi
+}
+
+# Codex round 1 (P2): log grew unbounded. Fix prunes entries >1h old on write.
+# Seed with many stale entries; invoke the hook once with a fresh signal;
+# assert the resulting file has far fewer lines than what was seeded.
+test_effort_bump_prunes_stale_log_entries() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/cache"
+    # Seed 100 stale entries (each > 1 hour old)
+    local base
+    base=$(( $(date +%s) - 7200 ))
+    local i=0
+    while [ $i -lt 100 ]; do
+        printf '%s\tlow\n' "$((base + i))" >> "$tmpdir/cache/effort-signals.log"
+        i=$((i + 1))
+    done
+    local before
+    before=$(wc -l < "$tmpdir/cache/effort-signals.log" | tr -d ' ')
+    # Trigger a fresh write (adds 1 line, prunes stale)
+    local payload='{"prompt":"I am stuck on this"}'
+    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+    local after
+    after=$(wc -l < "$tmpdir/cache/effort-signals.log" | tr -d ' ')
+    rm -rf "$tmpdir"
+    # Expect: stale entries dropped, fresh signal appended → final count ≤ 5
+    if [ "${before:-0}" -eq 100 ] && [ "${after:-0}" -le 5 ]; then
+        pass "Stale log entries (>1h old) are pruned on write (100 → ${after})"
+    else
+        fail "Log was not pruned (before=${before}, after=${after})"
+    fi
+}
+
 test_effort_bump_old_signals_ignored() {
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -710,6 +784,9 @@ test_effort_bump_no_log_on_normal_prompt
 test_effort_bump_nudge_fires_on_2_recent_signals
 test_effort_bump_silent_on_1_signal
 test_effort_bump_old_signals_ignored
+test_effort_bump_no_log_on_ambient_mention
+test_effort_bump_silent_stderr_on_unwritable_cache
+test_effort_bump_prunes_stale_log_entries
 test_tdd_hook_exists
 test_tdd_hook_src_warning
 test_tdd_hook_valid_json

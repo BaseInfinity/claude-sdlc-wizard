@@ -34,14 +34,27 @@ fi
 if [ -n "$PROMPT_TEXT" ]; then
     LOWER=$(printf '%s' "$PROMPT_TEXT" | tr '[:upper:]' '[:lower:]')
     SIGNAL_REASON=""
+    # Trigger patterns require first-person ownership so educational/quoted
+    # mentions (e.g., "How do I detect a CONFUSED state?") don't fire.
     case "$LOWER" in
-        *"low confidence"*|*"i'm stuck"*|*"i am stuck"*|*"still failing"*|*"failed again"*|*"keeps failing"*|*"tried twice"*|*"not sure why"*|*"can't figure"*|*"confused"*)
+        *"low confidence"*|*"i'm stuck"*|*"i am stuck"*|*"im stuck"*|*"i'm confused"*|*"i am confused"*|*"im confused"*|*"i tried twice"*|*"i've tried twice"*|*"ive tried twice"*|*"i can't figure"*|*"i cant figure"*|*"still failing"*|*"failed again"*|*"keeps failing"*|*"not sure why"*)
             SIGNAL_REASON="low"
             ;;
     esac
     if [ -n "$SIGNAL_REASON" ]; then
-        mkdir -p "$EFFORT_CACHE_DIR" 2>/dev/null || true
-        printf '%s\t%s\n' "$(date +%s)" "$SIGNAL_REASON" >> "$EFFORT_SIGNALS" 2>/dev/null || true
+        # Group the write so redirection errors (e.g., unwritable HOME,
+        # cache-dir-is-a-file) land on /dev/null instead of leaking to stderr.
+        {
+            if mkdir -p "$EFFORT_CACHE_DIR" && [ -d "$EFFORT_CACHE_DIR" ]; then
+                # Prune entries older than 1h on every write to cap log size.
+                if [ -f "$EFFORT_SIGNALS" ]; then
+                    PRUNE_THRESH=$(( $(date +%s) - 3600 ))
+                    awk -v t="$PRUNE_THRESH" '$1+0 >= t' "$EFFORT_SIGNALS" > "${EFFORT_SIGNALS}.tmp" \
+                        && mv "${EFFORT_SIGNALS}.tmp" "$EFFORT_SIGNALS"
+                fi
+                printf '%s\t%s\n' "$(date +%s)" "$SIGNAL_REASON" >> "$EFFORT_SIGNALS"
+            fi
+        } 2>/dev/null || true
     fi
 fi
 if [ -f "$EFFORT_SIGNALS" ]; then
