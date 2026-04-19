@@ -62,9 +62,12 @@ fi
 
 git commit -q -m "chore: record E2E score [skip ci]"
 
+PUSH_ERR=$(mktemp -t persist-push-err.XXXXXX)
+trap 'rm -f "$PUSH_ERR"' EXIT
+
 attempt=1
 while [ "$attempt" -le "$MAX_RETRIES" ]; do
-    if git push "$REMOTE" HEAD:refs/heads/"$PR_HEAD_REF" 2>/tmp/persist-push-err; then
+    if git push "$REMOTE" HEAD:refs/heads/"$PR_HEAD_REF" 2>"$PUSH_ERR"; then
         echo "score persisted to $PR_HEAD_REF on attempt $attempt"
         exit 0
     fi
@@ -72,9 +75,9 @@ while [ "$attempt" -le "$MAX_RETRIES" ]; do
     # Match only non-fast-forward markers. Bare "rejected" also covers
     # pre-receive / branch-protection rejections which are NOT recoverable
     # by rebase and must NOT be retried.
-    if ! grep -qE '\(fetch first\)|\(non-fast-forward\)' /tmp/persist-push-err; then
+    if ! grep -qE '\(fetch first\)|\(non-fast-forward\)' "$PUSH_ERR"; then
         echo "push failed with non-race error (not a non-fast-forward):" >&2
-        cat /tmp/persist-push-err >&2
+        cat "$PUSH_ERR" >&2
         exit 1
     fi
 
@@ -86,6 +89,8 @@ while [ "$attempt" -le "$MAX_RETRIES" ]; do
     # commit on top of the remote head.
     if git rebase -q FETCH_HEAD; then
         attempt=$((attempt + 1))
+        # Small jitter to reduce thundering-herd with concurrent CI runs.
+        if [ "$attempt" -le "$MAX_RETRIES" ]; then sleep $((RANDOM % 2 + 1)); fi
         continue
     fi
 
@@ -97,8 +102,9 @@ while [ "$attempt" -le "$MAX_RETRIES" ]; do
     git add "$HISTORY_FILE"
     git commit -q -m "chore: record E2E score [skip ci]"
     attempt=$((attempt + 1))
+    if [ "$attempt" -le "$MAX_RETRIES" ]; then sleep $((RANDOM % 2 + 1)); fi
 done
 
 echo "persist failed after $MAX_RETRIES attempts" >&2
-cat /tmp/persist-push-err >&2 2>/dev/null || true
+cat "$PUSH_ERR" >&2 2>/dev/null || true
 exit 1
