@@ -176,14 +176,37 @@ test_effort_bump_no_log_on_ambient_mention() {
     tmpdir=$(mktemp -d)
     echo '<!-- SDLC Wizard Version: 1.33.0 -->' > "$tmpdir/SDLC.md"
     touch "$tmpdir/TESTING.md"
-    local payload='{"prompt":"How do I detect a CONFUSED state in a bash case statement, and when would I use tried twice as a retry label?"}'
-    echo "$payload" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
-    if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
-        fail "Ambient/educational mention of trigger words logged a signal"
-    else
-        pass "Ambient mention of 'confused'/'tried twice' does not log signal"
-    fi
+    # Codex round 1 & 2 findings: bare "confused" / "tried twice" / "low
+    # confidence" / "failed again" / "still failing" / "keeps failing" /
+    # "not sure why" all fired on educational prompts. Every generic phrase
+    # the reviewer flagged is tested here.
+    local ambient_prompts=(
+        '{"prompt":"How do I detect a CONFUSED state in a bash case statement?"}'
+        '{"prompt":"When would I use tried twice as a retry label?"}'
+        '{"prompt":"How should I name a low confidence badge in the UI?"}'
+        '{"prompt":"What does failed again mean in a retry log message?"}'
+        '{"prompt":"How do I detect still failing states in a test runner?"}'
+        '{"prompt":"What keeps failing mean for an idempotent job?"}'
+        '{"prompt":"not sure why the GPS chip needs a fallback — can you explain?"}'
+    )
+    local ok=true
+    local leak=""
+    local p
+    for p in "${ambient_prompts[@]}"; do
+        rm -rf "$tmpdir/cache"
+        echo "$p" | (cd "$tmpdir" && CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/sdlc-prompt-check.sh" > /dev/null)
+        if [ -f "$tmpdir/cache/effort-signals.log" ] && [ -s "$tmpdir/cache/effort-signals.log" ]; then
+            ok=false
+            leak="$p"
+            break
+        fi
+    done
     rm -rf "$tmpdir"
+    if [ "$ok" = true ]; then
+        pass "Ambient/educational mentions of all 7 generic trigger words do not log a signal"
+    else
+        fail "Ambient prompt logged a signal (regression): $leak"
+    fi
 }
 
 # Codex round 1 (P1): hook emitted 'No such file or directory' on stderr when
