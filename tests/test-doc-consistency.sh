@@ -300,16 +300,16 @@ test_readme_no_hardcoded_criteria_count() {
 test_readme_no_hardcoded_criteria_count
 
 # ────────────────────────────────────────────
-# Recommended Model Consistency (opus[1m])
+# Recommended Model Consistency (opus[1m] — opt-in per issue #198)
 # ────────────────────────────────────────────
 
 echo ""
-echo "--- Recommended Model (opus[1m]) ---"
+echo "--- Recommended Model (opus[1m], opt-in) ---"
 
-# Wizard recommends opus[1m] as the default model for SDLC sessions.
-# These tests ensure the recommendation is surfaced consistently across docs + templates.
-# Pricing claims in the docs themselves are kept generic ("verify current rates") —
-# these tests assert presence of the opus[1m] reference, not any specific pricing language.
+# Wizard recommends opus[1m] for power users but does NOT pin it by default
+# (issue #198: a top-level model disables Claude Code auto-mode). These tests
+# ensure the recommendation is surfaced in docs for discovery, while the CLI
+# template and repo settings leave the pin opt-in via setup Step 9.5.
 
 test_wizard_doc_recommends_opus_1m() {
     local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
@@ -318,6 +318,44 @@ test_wizard_doc_recommends_opus_1m() {
         pass "CLAUDE_CODE_SDLC_WIZARD.md references opus[1m]"
     else
         fail "CLAUDE_CODE_SDLC_WIZARD.md missing opus[1m] recommendation"
+    fi
+}
+
+# After #198, the wizard doc must frame opus[1m] as opt-in (not "default").
+# Guard against regression: someone re-writes the doc to call it the default again.
+test_wizard_doc_frames_opus_1m_as_opt_in() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    # Must mention opt-in / auto-mode / #198 somewhere in the 1M section.
+    if grep -qiE 'opt.?in.*opus\[1m\]|opus\[1m\].*opt.?in|issue.*198|auto.?mode.*disable|disable.*auto.?mode' "$DOC"; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md frames opus[1m] as opt-in (not silent default)"
+    else
+        fail "Wizard doc must frame opus[1m] as opt-in + mention auto-mode impact (issue #198)"
+    fi
+}
+
+# Regression guard (Codex round 1 finding #1): the doc must NOT contain any
+# live phrase that calls opus[1m] the SDLC default. The prior test was too
+# loose — it only required opt-in language to exist somewhere in the doc,
+# so a contradictory "SDLC default (opus[1m])" table row slipped through.
+# This test greps for the anti-pattern directly.
+test_wizard_doc_no_default_opus_1m_wording() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    # Anti-patterns: assertions that opus[1m] IS the default.
+    # - "SDLC default (opus[1m])"  — table cell format
+    # - "default (opus[1m])" or "default (`opus[1m]`)"
+    # - "opus[1m] as (the/our) default"
+    # - "opus[1m] is (the/our) default"
+    # - "opus[1m] as default" (no article)
+    # Allowed: "default No", "default autocompact", "its default", where
+    # "default" refers to something other than opus[1m].
+    local hits
+    hits=$(grep -nE 'SDLC default[[:space:]]*\(`?opus\[1m\]|default[[:space:]]+\(`?opus\[1m\]`?\)|`?opus\[1m\]`?[[:space:]]+(as|is)([[:space:]]+(the|our|a))?[[:space:]]+default' "$DOC" || true)
+    if [ -z "$hits" ]; then
+        pass "Wizard doc has no live 'default opus[1m]' phrasing (issue #198)"
+    else
+        fail "Wizard doc contains contradictory 'default opus[1m]' language: $hits"
     fi
 }
 
@@ -331,56 +369,57 @@ test_sdlc_skill_recommends_opus_1m() {
     fi
 }
 
-test_cli_template_sets_opus_1m_model() {
+# Template settings.json must NOT pin model (issue #198 — opt-in via setup skill)
+test_cli_template_has_no_default_model_pin() {
     local TPL="$REPO_ROOT/cli/templates/settings.json"
     if [ ! -f "$TPL" ]; then fail "cli/templates/settings.json not found"; return; fi
-    local model
-    model=$(jq -r '.model // empty' "$TPL" 2>/dev/null)
-    if [ "$model" = "opus[1m]" ]; then
-        pass "cli/templates/settings.json model = opus[1m]"
+    local has_model
+    has_model=$(jq 'has("model")' "$TPL" 2>/dev/null)
+    if [ "$has_model" = "false" ]; then
+        pass "cli/templates/settings.json has no default model pin (issue #198 — opt-in)"
     else
-        fail "cli/templates/settings.json model should be 'opus[1m]', got: '$model'"
+        fail "cli/templates/settings.json must not pin a default model (disables auto-mode)"
     fi
 }
 
-test_cli_template_autocompact_tuned_for_1m() {
+# Template must NOT ship a default autocompact value either — paired with the
+# model pin since 30% is 1M-tuned. Users opt into both together in Step 9.5.
+test_cli_template_has_no_default_autocompact() {
     local TPL="$REPO_ROOT/cli/templates/settings.json"
     if [ ! -f "$TPL" ]; then fail "cli/templates/settings.json not found"; return; fi
-    local pct
-    pct=$(jq -r '.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE // empty' "$TPL" 2>/dev/null)
-    # On 1M models the default auto-compact fires too early (~76K).
-    # Values of 30 (= 300K) or lower are 1M-tuned; >=75 is the old 200K default.
-    if [ -n "$pct" ] && [ "$pct" -le 30 ] 2>/dev/null; then
-        pass "cli/templates/settings.json autocompact tuned for 1M (PCT=$pct)"
+    local has_env
+    has_env=$(jq 'has("env")' "$TPL" 2>/dev/null)
+    if [ "$has_env" = "false" ]; then
+        pass "cli/templates/settings.json has no default env (paired opt-in with model pin)"
     else
-        fail "cli/templates/settings.json CLAUDE_AUTOCOMPACT_PCT_OVERRIDE should be <=30 for 1M default, got: '$pct'"
+        fail "cli/templates/settings.json must not ship a default env block (issue #198)"
     fi
 }
 
-# Setup skill must describe 1M as the default (not the 200K/75 fallback).
-# Regression guard against Codex round-1 finding #2: skills/setup/SKILL.md
-# contradicted the CLI template by calling 75/200K the default.
-test_setup_skill_describes_1m_default() {
+# Setup skill Step 9.5 must still reference opus[1m] so the user can discover
+# it during the opt-in prompt — just without calling it the default.
+test_setup_skill_mentions_opus_1m_in_optin_prompt() {
     local SKILL="$REPO_ROOT/skills/setup/SKILL.md"
     if [ ! -f "$SKILL" ]; then fail "skills/setup/SKILL.md not found"; return; fi
     if grep -qE 'opus\[1m\]' "$SKILL"; then
-        pass "skills/setup/SKILL.md references opus[1m]"
+        pass "skills/setup/SKILL.md references opus[1m] (opt-in prompt in Step 9.5)"
     else
-        fail "skills/setup/SKILL.md missing opus[1m] — Step 9.5 must describe 1M as the default"
+        fail "skills/setup/SKILL.md must name opus[1m] in the Step 9.5 opt-in prompt"
     fi
 }
 
-# Repo's tracked .claude/settings.json must match the template it ships.
-# Regression guard against Codex round-1 finding #2.
-test_repo_settings_match_template_autocompact() {
+# Repo's tracked .claude/settings.json must match the template it ships —
+# after #198, neither should contain a model or env block.
+test_repo_settings_match_template_no_model_pin() {
     local SETTINGS="$REPO_ROOT/.claude/settings.json"
     if [ ! -f "$SETTINGS" ]; then fail ".claude/settings.json not found"; return; fi
-    local pct
-    pct=$(jq -r '.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE // empty' "$SETTINGS" 2>/dev/null)
-    if [ "$pct" = "30" ]; then
-        pass ".claude/settings.json autocompact matches template (30)"
+    local has_model has_env
+    has_model=$(jq 'has("model")' "$SETTINGS" 2>/dev/null)
+    has_env=$(jq 'has("env")' "$SETTINGS" 2>/dev/null)
+    if [ "$has_model" = "false" ] && [ "$has_env" = "false" ]; then
+        pass ".claude/settings.json matches template (no model pin, no default env)"
     else
-        fail ".claude/settings.json CLAUDE_AUTOCOMPACT_PCT_OVERRIDE should match template (30), got: '$pct'"
+        fail ".claude/settings.json must not pin model/env (has_model=$has_model has_env=$has_env)"
     fi
 }
 
@@ -440,11 +479,13 @@ test_wizard_doc_mentions_permissions_command() {
 }
 
 test_wizard_doc_recommends_opus_1m
+test_wizard_doc_frames_opus_1m_as_opt_in
+test_wizard_doc_no_default_opus_1m_wording
 test_sdlc_skill_recommends_opus_1m
-test_cli_template_sets_opus_1m_model
-test_cli_template_autocompact_tuned_for_1m
-test_setup_skill_describes_1m_default
-test_repo_settings_match_template_autocompact
+test_cli_template_has_no_default_model_pin
+test_cli_template_has_no_default_autocompact
+test_setup_skill_mentions_opus_1m_in_optin_prompt
+test_repo_settings_match_template_no_model_pin
 test_hooks_recommend_opus_1m_alias
 test_setup_skill_mentions_less_permission_prompts
 test_wizard_doc_mentions_less_permission_prompts

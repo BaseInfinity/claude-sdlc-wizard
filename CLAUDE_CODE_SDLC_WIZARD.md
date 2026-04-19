@@ -855,7 +855,9 @@ Override the default auto-compact threshold with environment variables. These ar
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Trigger compaction at this % of context capacity (1-100) | ~95% |
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | Override context capacity in tokens (useful for 1M models) | Model default |
 
-**Recommended:** The SDLC Wizard CLI sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` and `"model": "opus[1m]"` in `.claude/settings.json` by default (tuned for the 1M context window — compacts at ~300K). To customize, edit `.claude/settings.json`:
+**Opt-in (issue #198):** The SDLC Wizard CLI ships `.claude/settings.json` with **no** `model` or `env` pin so Claude Code's auto-mode stays enabled. The setup skill's Step 9.5 asks whether to opt into `"model": "opus[1m]"` + `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` (tuned for the 1M window — compacts at ~300K). Default answer is **No**. Pinning the model at the top level tells Claude Code you've explicitly chosen a model and turns off per-turn model auto-selection — a real tradeoff, so we ask. Power users who want guaranteed Opus 4.7 + 1M context answer yes.
+
+To opt in by hand, edit `.claude/settings.json`:
 
 ```json
 {
@@ -876,7 +878,7 @@ export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30
 
 | Use Case | AUTOCOMPACT % | Why |
 |----------|--------------|-----|
-| **SDLC default (`opus[1m]`)** | **30%** | **Fires at ~300K on 1M — right balance for plan + TDD + review sessions** |
+| **Opt-in SDLC setup (`opus[1m]`)** | **30%** | **Fires at ~300K on 1M — right balance for plan + TDD + review sessions. Paired with the opt-in `opus[1m]` pin (see issue #198)** |
 | General development (200K `opus`) | 75% | Leaves room for implementation after planning |
 | Complex refactors (200K `opus`) | 80% | Slightly more context before compaction |
 | CI pipelines | 60% | Short tasks, compact early to stay fast |
@@ -892,31 +894,33 @@ The thresholds above are community consensus — not empirically validated. For 
 
 ### 1M vs 200K Context Window
 
-Claude Code supports both 200K and 1M context windows. **Default to `opus[1m]` for SDLC work** — the 1M headroom is free until you actually use it.
+Claude Code supports both 200K and 1M context windows. **`opus[1m]` is an opt-in power-user pin** — ask yourself whether you actually need the headroom before setting it, because pinning the model at the top level disables Claude Code's auto-mode (see issue #198).
 
-| | 200K Context (`opus`) | 1M Context (`opus[1m]`) **← default** |
+| | 200K Context (default / auto-mode) | 1M Context (`opus[1m]`, opt-in) |
 |---|---|---|
-| **Best for** | Short one-off tasks | Normal SDLC cycles + multi-feature work |
+| **Best for** | Most work — auto-mode picks Sonnet/Opus per turn | Multi-feature / long plan+TDD+review cycles where a single session really crosses 100K+ |
 | **Typical usage** | 50-80K tokens per task | 50-80K typical, up to 200K+ for complex workflows |
 | **Cost** | Standard pricing | Anthropic currently lists the 1M window at standard pricing across the full context for supported Opus/Sonnet models — **verify current rates at [docs.anthropic.com/pricing](https://docs.anthropic.com/)** before assuming no premium |
-| **Auto-compact** | Default 95% works well | Fires at ~76K by default ([issue #34332](https://github.com/anthropics/claude-code/issues/34332)) — **tune to 30%** |
-| **Suggested override** | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` |
+| **Auto-mode** | **Enabled** — Claude Code chooses model per turn | **Disabled** — top-level `model` tells CC you've chosen explicitly |
+| **Auto-compact** | Default ~95% works well | Fires at ~76K by default ([issue #34332](https://github.com/anthropics/claude-code/issues/34332)) — pair with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` |
+| **Suggested override (if you pin)** | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` |
 
-**Why `opus[1m]` as default:**
-- **Long SDLC sessions accumulate context fast** — plan → TDD → review → CI shepherd on a single feature regularly crosses 100K tokens
-- **Safety margin against autocompact loss** — cheaper to have headroom than to re-read files after a forced compact
-- **At time of writing, Anthropic lists 1M context at standard pricing for supported Opus/Sonnet models.** Verify current rates for your plan before relying on this — see [docs.anthropic.com/pricing](https://docs.anthropic.com/)
+**Why `opus[1m]` is opt-in (issue #198):**
+- **Pinning disables auto-mode.** Max-plan users pay for Claude Code's per-turn model selection (Sonnet for cheap tasks, Opus for hard ones, plus weekly-limit smoothing). A top-level `model` gives that up.
+- **The 1M headroom has to earn it.** If your typical session stays under 150K, you're giving up auto-mode for headroom you're not using.
+- **Power users who want guaranteed Opus 4.7 + 1M** — go ahead, it's a real win for long shepherding sessions. Just make it a conscious choice, not a silent default.
 
-**Set it up:** `/model opus[1m]` in your session, or set `"model": "opus[1m]"` in `.claude/settings.json`. The CLI template ships with this default. Requires Claude Code v2.1.111+ for Opus 4.7.
+**Opt in when:** you routinely cross 100K tokens in a single session (plan → TDD → review → CI shepherd on one feature), you want Opus 4.7 specifically (not Sonnet), and you're OK losing auto-mode.
 
-**Fall back to `opus` (200K) when:**
-- Your plan or organization charges higher rates for long-context prompts (check your billing)
-- You're doing genuinely short one-off tasks and want slightly faster responses
-- Your team has cost controls that flag >200K prompts
+**Stay on auto-mode (default) when:** you're unsure, your work is mixed short/long, or you want Claude Code to do the model math for you.
+
+**How to opt in:** run `/model opus[1m]` in your session (transient), or set `"model": "opus[1m]"` in `.claude/settings.json` (persistent). Requires Claude Code v2.1.111+ for Opus 4.7. The setup wizard's Step 9.5 also asks once, with default No.
+
+**How to opt out:** remove the `model` line from `.claude/settings.json`, or run `/model` and pick "Default (recommended)".
 
 **Cost awareness:** Larger windows let you consume more tokens in one session, and total cost always scales with tokens consumed regardless of tier. Use `/cost` to monitor — a 900K-token session is meaningfully more expensive than an 80K one even at standard rates.
 
-**Autocompact pairing (important):** If you default to `opus[1m]`, also set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` — otherwise CC's default autocompact fires at ~76K and destroys the headroom you're paying for. The CLI template sets this automatically.
+**Autocompact pairing (important):** If you opt into `opus[1m]`, also set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` — otherwise CC's default autocompact fires at ~76K and destroys the headroom you're paying for. Step 9.5 writes both together when you opt in.
 
 ---
 
