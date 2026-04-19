@@ -403,7 +403,7 @@ The `if` field on individual hook handlers filters by tool name AND arguments us
 | `matcher` | Group (all hooks in array) | Tool name only | Regex (`Write\|Edit`) |
 | `if` | Individual handler | Tool name + arguments | Permission rule (`Edit(src/**)`) |
 
-**Pattern examples:** `Edit(*.ts)`, `Write(src/**)`, `Bash(git *)`. Same syntax as `allowedTools` in settings.json.
+**Pattern examples:** `Edit(*.ts)`, `Write(src/**)`, `Bash(git *)`. Same syntax as `permissions.allow` in settings.json.
 
 **Only works on tool-use events:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`. Adding `if` to non-tool events prevents the hook from running.
 
@@ -1304,7 +1304,7 @@ Feature branches still recommended for solo devs (keeps main clean, easy rollbac
 **CI monitoring detail:**
 > "Should Claude monitor CI checks after pushing and auto-diagnose failures? (y/n)"
 
-- **Yes** → Enable CI feedback loop in SDLC skill, add `gh` CLI to allowedTools
+- **Yes** → Enable CI feedback loop in SDLC skill, add `gh` CLI to `permissions.allow`
 - **No** → Skip CI monitoring steps (Claude still runs local tests, just doesn't watch CI)
 
 **CI review feedback question (only if CI monitoring is enabled):**
@@ -1369,7 +1369,7 @@ Claude scans for:
 │   ├── .github/workflows/deploy*.yml     → GitHub Actions deploy
 │   └── package.json scripts (deploy:*)   → npm deploy scripts
 │
-├── Tool permissions (for allowedTools):
+├── Tool permissions (for permissions.allow):
 │   ├── package.json           → Bash(npm *), Bash(node *), Bash(npx *)
 │   ├── pnpm-lock.yaml         → Bash(pnpm *)
 │   ├── yarn.lock              → Bash(yarn *)
@@ -1763,18 +1763,20 @@ Create `.claude/settings.json`:
 ```json
 {
   "verbosity": "medium",
-  "allowedTools": [
-    "Read",
-    "Edit",
-    "Write",
-    "Glob",
-    "Grep",
-    "Task",
-    "Bash(npm *)",
-    "Bash(node *)",
-    "Bash(npx *)",
-    "Bash(gh *)"
-  ],
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Task",
+      "Bash(npm *)",
+      "Bash(node *)",
+      "Bash(npx *)",
+      "Bash(gh *)"
+    ]
+  },
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -1804,7 +1806,7 @@ Create `.claude/settings.json`:
 
 ### Allowed Tools (Adaptive)
 
-The `allowedTools` array is auto-generated based on your stack detected in Step 0.4.
+The `permissions.allow` array is auto-generated based on your stack detected in Step 0.4. (Historical note: pre-#197 guidance used a top-level `allowedTools` array — that form silently disables Claude Code auto-mode, so the wizard writes `permissions.allow` now.)
 
 | If Detected | Tools Added |
 |-------------|-------------|
