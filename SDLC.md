@@ -7,8 +7,8 @@
 
 | Property | Value |
 |----------|-------|
-| Wizard Version | 1.34.0 |
-| Last Updated | 2026-04-17 |
+| Wizard Version | 1.35.0 |
+| Last Updated | 2026-04-19 |
 | Claude Code Baseline | v2.1.111+ (required for Opus 4.7 / `opus[1m]`) |
 | Recommended Model | `opus[1m]` (Opus 4.7, 1M context) — run `/model opus[1m]` |
 | Recommended Effort | `max` (preferred) / `xhigh` (floor) — run `/effort max` |
