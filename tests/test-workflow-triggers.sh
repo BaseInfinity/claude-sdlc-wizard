@@ -3272,6 +3272,21 @@ test_skill_no_autofix_bot() {
     fi
 }
 
+# Test: ci.yml must compute max_score from eval output, not hardcode it.
+# Regresses ROADMAP #211 — UI scenarios score 11/11 but score-history.jsonl
+# recorded max_score=10, causing PR comments to show "11/10" (confusing and
+# breaks downstream analytics that rely on max_score being accurate).
+test_ci_max_score_not_hardcoded() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+    local HARDCODED
+    HARDCODED=$(grep -cE "argjson[[:space:]]+max_score[[:space:]]+[0-9]+" "$WORKFLOW" || true)
+    if [ "$HARDCODED" -gt 0 ]; then
+        fail "ci.yml hardcodes --argjson max_score to a literal number ($HARDCODED instance(s)) — should read from eval result"
+    else
+        pass "ci.yml does not hardcode --argjson max_score (reads from eval result)"
+    fi
+}
+
 # Test: every steps.<id>.outputs.<name> reference in ci.yml points at a real output
 # Regresses ROADMAP #215 — Tier 2 "Persist scores to PR branch" step gated on
 # steps.check-baseline.outputs.should_simulate, but the Tier 2 check-baseline
@@ -3349,6 +3364,7 @@ test_self_heal_simulation_deleted
 test_architecture_no_self_heal
 test_cicd_no_tier2_autofix
 test_skill_no_autofix_bot
+test_ci_max_score_not_hardcoded
 test_ci_gated_expressions_reference_real_outputs
 
 echo ""
