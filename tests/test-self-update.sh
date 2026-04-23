@@ -28,7 +28,7 @@ echo ""
 
 # Test 1: Wizard contains raw CHANGELOG URL
 test_changelog_url() {
-    if grep -q "raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md" "$WIZARD"; then
+    if grep -q "raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/CHANGELOG.md" "$WIZARD"; then
         pass "Wizard contains raw CHANGELOG URL"
     else
         fail "Wizard should contain raw.githubusercontent.com CHANGELOG URL"
@@ -37,7 +37,7 @@ test_changelog_url() {
 
 # Test 2: Wizard contains raw wizard URL
 test_wizard_url() {
-    if grep -q "raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md" "$WIZARD"; then
+    if grep -q "raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md" "$WIZARD"; then
         pass "Wizard contains raw wizard URL"
     else
         fail "Wizard should contain raw.githubusercontent.com wizard URL"
@@ -182,7 +182,7 @@ test_multi_phase_flow() {
 
 # Test 13: CHANGELOG URL returns valid content from live repo
 test_changelog_url_live() {
-    local url="https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md"
+    local url="https://raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/CHANGELOG.md"
     local content
     content=$(curl -sf --max-time 10 "$url" 2>/dev/null) || {
         pass "SKIPPED (offline): CHANGELOG URL live fetch"
@@ -197,7 +197,7 @@ test_changelog_url_live() {
 
 # Test 14: Wizard URL returns valid content from live repo
 test_wizard_url_live() {
-    local url="https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md"
+    local url="https://raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md"
     local content
     content=$(curl -sf --max-time 10 "$url" 2>/dev/null) || {
         pass "SKIPPED (offline): Wizard URL live fetch"

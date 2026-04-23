@@ -1,12 +1,12 @@
 {
   "name": "sdlc-wizard",
-  "version": "1.36.0",
+  "version": "1.36.1",
   "description": "SDLC enforcement for AI agents — TDD, planning, self-review, CI shepherd",
   "author": {
     "name": "Stefan Ayala",
     "url": "https://github.com/BaseInfinity"
   },
-  "repository": "https://github.com/BaseInfinity/agentic-ai-sdlc-wizard",
+  "repository": "https://github.com/BaseInfinity/claude-sdlc-wizard",
   "license": "MIT",
   "keywords": ["sdlc", "tdd", "code-quality", "ai-agent", "developer-tools"]
 }

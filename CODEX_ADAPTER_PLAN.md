@@ -428,7 +428,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST=$(gh release view --repo BaseInfinity/agentic-ai-sdlc-wizard --json tagName -q .tagName 2>/dev/null || echo "unknown")
+          LATEST=$(gh release view --repo BaseInfinity/claude-sdlc-wizard --json tagName -q .tagName 2>/dev/null || echo "unknown")
           CURRENT=$(cat UPSTREAM_VERSION 2>/dev/null || echo "none")
 
           if [ "$LATEST" = "unknown" ]; then
@@ -444,7 +444,7 @@ jobs:
                 --title "Upstream sync: sdlc-wizard $LATEST" \
                 --body "sdlc-wizard released **$LATEST** (adapter is based on **$CURRENT**).
 
-          Review [release notes](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/releases/tag/$LATEST) and translate applicable changes to Codex format.
+          Review [release notes](https://github.com/BaseInfinity/claude-sdlc-wizard/releases/tag/$LATEST) and translate applicable changes to Codex format.
 
           After adapting, update \`UPSTREAM_VERSION\` to \`$LATEST\`." \
                 --label "upstream-sync"

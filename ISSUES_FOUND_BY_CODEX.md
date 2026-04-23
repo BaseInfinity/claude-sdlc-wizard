@@ -1016,8 +1016,8 @@ All findings below have been addressed:
 
 - Evidence:
   - `README.md:86-89` tells users to fetch `https://raw.githubusercontent.com/BaseInfinity/sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md`
-  - The repo remote is `BaseInfinity/agentic-ai-sdlc-wizard`
-  - `CLAUDE_CODE_SDLC_WIZARD.md:2922-2923` uses the `BaseInfinity/agentic-ai-sdlc-wizard` slug
+  - The repo remote is `BaseInfinity/claude-sdlc-wizard`
+  - `CLAUDE_CODE_SDLC_WIZARD.md:2922-2923` uses the `BaseInfinity/claude-sdlc-wizard` slug
 - Why this matters:
   - This is the first real installation path in the repo README.
   - A wrong raw URL is a first-impression failure and can send users to the wrong resource immediately.

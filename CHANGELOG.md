@@ -4,6 +4,19 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.36.1] - 2026-04-23
+
+### Changed
+
+- **Repo renamed `agentic-ai-sdlc-wizard` → `claude-sdlc-wizard`.** Matches sibling pattern (`codex-sdlc-wizard`, future `opencode-sdlc-wizard`). GitHub auto-redirects old URLs for git + web. **npm package name unchanged** (`agentic-sdlc-wizard`) — brand-neutral, safer re: Anthropic trademark guidelines, and avoids disruptive npm rename.
+- **Slug migration across docs/tests/configs.** All repo-internal references to the old slug updated: `README.md`, `CLAUDE_CODE_SDLC_WIZARD.md`, `CONTRIBUTING.md`, `ROADMAP.md`, `package.json` `repository.url`, raw GitHub URL fetches in `tests/test-self-update.sh`, CI workflow references. GitHub handles the redirect transparently but keeping internal references in sync prevents future drift.
+- **`npm pkg fix` applied to `package.json`.** Normalizes `bin` path (drops leading `./`), `repository.url` form (`git+https://...`). Resolves `npm warn` messages surfaced during v1.36.0 publish.
+
+### Process
+
+- Codex cross-model review on the slug-migration + `npm pkg fix` PR.
+- Release workflow `workflow_dispatch` fallback added in v1.36.0 via PR #221 proved its worth on v1.36.0 publish (tag-push trigger didn't fire; manual dispatch unblocked). Kept as permanent safety net.
+
 ## [1.36.0] - 2026-04-23
 
 ### Added
