@@ -936,7 +936,7 @@ Claude Code supports both 200K and 1M context windows. **`opus[1m]` is an opt-in
 
 **How to opt out:** remove the `model` line from `.claude/settings.json`, or run `/model` and pick "Default (recommended)".
 
-**Cost awareness:** Larger windows let you consume more tokens in one session, and total cost always scales with tokens consumed regardless of tier. Use `/cost` to monitor — a 900K-token session is meaningfully more expensive than an 80K one even at standard rates.
+**Cost awareness:** Larger windows let you consume more tokens in one session, and total cost always scales with tokens consumed regardless of tier. Use `/usage` to monitor (aliases: `/cost`, `/stats`) — a 900K-token session is meaningfully more expensive than an 80K one even at standard rates.
 
 **Autocompact pairing (important):** If you opt into `opus[1m]`, also set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` — otherwise CC's default autocompact fires at ~76K and destroys the headroom you're paying for. Step 9.5 writes both together when you opt in.
 
@@ -3363,7 +3363,7 @@ Practical techniques to reduce token consumption without sacrificing quality.
 
 | Tool | What It Shows | When to Use |
 |------|---------------|-------------|
-| `/cost` | Session total: USD, API time, code changes | After a session to review spend |
+| `/usage` | Session total: USD, API time, code changes (aliases: `/cost`, `/stats`) | After a session to review spend |
 | `/context` | What's consuming context window space | When hitting context limits |
 | Status line | Real-time `cost.total_cost_usd` + token counts | Continuous monitoring |
 
