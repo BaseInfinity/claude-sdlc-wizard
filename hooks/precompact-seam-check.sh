@@ -22,19 +22,40 @@ ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
 HOLD_REASONS=""
 
 # Check 1: Codex review mid-cycle
-# Self-heal: if handoff has a pr_number and gh reports that PR as MERGED,
-# the handoff is a stale artifact from a closed review — treat as implicit
-# CERTIFIED so a forgotten status field doesn't permanently block /compact.
+# Self-heal paths (ordered by preference):
+#   (a) #209: handoff has pr_number + gh reports PR MERGED → implicit CERTIFIED (silent)
+#   (b) #229: handoff has no pr_number but mtime > SDLC_HANDOFF_STALE_DAYS days
+#       → implicit CERTIFIED with WARN (the handoff predates #209 or was never
+#       PR-linked; blocking forever over a forgotten artifact is worse UX than
+#       the bug we're preventing). Default threshold: 14 days.
 HANDOFF="$ROOT/.reviews/handoff.json"
+STALE_DAYS="${SDLC_HANDOFF_STALE_DAYS:-14}"
+STALE_WARN=""
 if [ -f "$HANDOFF" ]; then
     STATUS=$(grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' "$HANDOFF" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
     case "$STATUS" in
         PENDING_REVIEW|PENDING_RECHECK)
             PR_NUMBER=$(grep -o '"pr_number"[[:space:]]*:[[:space:]]*[0-9][0-9]*' "$HANDOFF" 2>/dev/null | head -1 | grep -o '[0-9][0-9]*$')
             HEALED=0
-            if [ -n "$PR_NUMBER" ] && command -v gh >/dev/null 2>&1; then
-                PR_STATE=$(gh pr view "$PR_NUMBER" --json state --jq .state 2>/dev/null)
-                [ "$PR_STATE" = "MERGED" ] && HEALED=1
+            if [ -n "$PR_NUMBER" ]; then
+                # Path (a): PR-linked self-heal (#209). Applies regardless of mtime —
+                # an OPEN PR with old mtime is still a live review.
+                if command -v gh >/dev/null 2>&1; then
+                    PR_STATE=$(gh pr view "$PR_NUMBER" --json state --jq .state 2>/dev/null)
+                    [ "$PR_STATE" = "MERGED" ] && HEALED=1
+                fi
+            else
+                # Path (b): stale-handoff auto-expire (#229). Only when no pr_number
+                # — we must not short-circuit PR-linked reviews.
+                MTIME=$(stat -f %m "$HANDOFF" 2>/dev/null || stat -c %Y "$HANDOFF" 2>/dev/null)
+                if [ -n "$MTIME" ]; then
+                    NOW=$(date +%s)
+                    AGE_DAYS=$(( (NOW - MTIME) / 86400 ))
+                    if [ "$AGE_DAYS" -ge "$STALE_DAYS" ]; then
+                        HEALED=1
+                        STALE_WARN="WARN: handoff.json is ${STATUS} and ${AGE_DAYS}d old with no pr_number — treating as stale CERTIFIED (override: set SDLC_HANDOFF_STALE_DAYS or close out the review)."
+                    fi
+                fi
             fi
             if [ "$HEALED" -ne 1 ]; then
                 HOLD_REASONS="${HOLD_REASONS}  - Codex review is ${STATUS}. Round-1 evidence lives in this context — compacting now loses what round-2 needs to re-verify.
@@ -72,4 +93,7 @@ if [ -n "$HOLD_REASONS" ]; then
     exit 2
 fi
 
+# Stale-handoff unblock: emit a one-line WARN so the user knows the hook
+# self-healed over an abandoned PENDING artifact (but still allow /compact).
+[ -n "$STALE_WARN" ] && echo "$STALE_WARN" >&2
 exit 0
