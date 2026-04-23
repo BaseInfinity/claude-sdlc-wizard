@@ -692,7 +692,7 @@ jobs:
             | PHASE_A_FAILED | New CC version breaks SDLC enforcement | Don't upgrade |
 
             ---
-            *Statistical methodology: 5 trials, 95% CI, overlapping CI comparison*
+            *Scoring methodology: 1 simulation per phase, then scored 5× by the judge (judge-consistency band, not independent-trial CI). ROADMAP #226 tracks migration to true N-independent-trial scoring.*
 
   scan-community:
     runs-on: ubuntu-latest
@@ -1143,12 +1143,14 @@ jobs:
 
             ### E2E Test Results
 
-            | Phase | Score (95% CI) |
+            | Phase | Score (judge-CI band over 5 re-scorings of 1 run) |
             |-------|----------------|
             | Baseline | ${{ steps.baseline.outputs.ci }} |
             | With Changes | ${{ steps.candidate.outputs.ci }} |
 
             ### Verdict: **${{ steps.verdict.outputs.verdict }}**
+
+            > **Caveat:** The CI band above measures **judge consistency** (5 re-scorings of a single simulation transcript), not **execution variance** (which would require 5 independent simulations). See ROADMAP #226 for the migration to true N-trial scoring.
 
             - **IMPROVED**: Community patterns significantly improve SDLC scores
             - **STABLE**: No significant difference (safe to merge if patterns are useful)
@@ -1405,7 +1407,7 @@ jobs:
           # Append dynamic values safely via printf (no shell expansion)
           PRETTY_PATHS=$(echo "$OVERLAP_PATHS" | jq -r '.[]' 2>/dev/null | paste -sd ', ' - || echo "$OVERLAP_PATHS")
           printf '\n**Overlapping features:** %s\n' "$PRETTY_PATHS" >> /tmp/prove-it-comment.md
-          printf '\n| Variant | Score (95%% CI) |\n' >> /tmp/prove-it-comment.md
+          printf '\n| Variant | Score (judge-CI band, 5 re-scorings of 1 run — see ROADMAP #226) |\n' >> /tmp/prove-it-comment.md
           printf '|---------|----------------|\n' >> /tmp/prove-it-comment.md
           printf '| With Custom Features (baseline) | %s |\n' "$BASELINE_CI" >> /tmp/prove-it-comment.md
           printf '| Native Only (candidate) | %s |\n' "$CANDIDATE_CI" >> /tmp/prove-it-comment.md
