@@ -19,7 +19,7 @@ Then start (or restart) Claude Code — type `/exit` then `claude` to reload hoo
 
 **curl (no npm install needed):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/install.sh | bash
 ```
 
 **Homebrew:**
@@ -36,7 +36,7 @@ gh sdlc-wizard init
 
 **From GitHub (no npm registry needed):**
 ```bash
-npx github:BaseInfinity/agentic-ai-sdlc-wizard init
+npx github:BaseInfinity/claude-sdlc-wizard init
 ```
 
 **Install CLI globally:**
@@ -258,5 +258,5 @@ PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for evaluation methodology a
 Three ways to report bugs, request features, or ask questions:
 
 - **In-session:** run `/feedback` inside any Claude Code session using this wizard — auto-fills context and redacts secrets before filing
-- **Issue templates:** [bug report](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/issues/new?template=bug_report.md), [feature request](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/issues/new?template=feature_request.md), [question](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/issues/new?template=question.md)
-- **Discussions:** open-ended conversations at [github.com/BaseInfinity/agentic-ai-sdlc-wizard/discussions](https://github.com/BaseInfinity/agentic-ai-sdlc-wizard/discussions)
+- **Issue templates:** [bug report](https://github.com/BaseInfinity/claude-sdlc-wizard/issues/new?template=bug_report.md), [feature request](https://github.com/BaseInfinity/claude-sdlc-wizard/issues/new?template=feature_request.md), [question](https://github.com/BaseInfinity/claude-sdlc-wizard/issues/new?template=question.md)
+- **Discussions:** open-ended conversations at [github.com/BaseInfinity/claude-sdlc-wizard/discussions](https://github.com/BaseInfinity/claude-sdlc-wizard/discussions)
