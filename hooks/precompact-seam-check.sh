@@ -47,15 +47,24 @@ if [ -f "$HANDOFF" ]; then
             else
                 # Path (b): stale-handoff auto-expire (#229). Only when no pr_number
                 # — we must not short-circuit PR-linked reviews.
-                MTIME=$(stat -f %m "$HANDOFF" 2>/dev/null || stat -c %Y "$HANDOFF" 2>/dev/null)
-                if [ -n "$MTIME" ]; then
-                    NOW=$(date +%s)
-                    AGE_DAYS=$(( (NOW - MTIME) / 86400 ))
-                    if [ "$AGE_DAYS" -ge "$STALE_DAYS" ]; then
-                        HEALED=1
-                        STALE_WARN="WARN: handoff.json is ${STATUS} and ${AGE_DAYS}d old with no pr_number — treating as stale CERTIFIED (override: set SDLC_HANDOFF_STALE_DAYS or close out the review)."
-                    fi
-                fi
+                # Try GNU stat first (Linux: `-c %Y` gives mtime, BSD stat errors out
+                # so `||` fires). Then BSD stat (macOS: `-f %m` gives mtime). The
+                # reverse order fails on Linux because `stat -f` on GNU means
+                # `--file-system` and dumps filesystem info to stdout (non-error).
+                MTIME=$(stat -c %Y "$HANDOFF" 2>/dev/null || stat -f %m "$HANDOFF" 2>/dev/null)
+                # Numeric guard: if stat fails both flavors or returns junk, skip
+                # the stale-check entirely and fall through to HOLD (safe default).
+                case "$MTIME" in
+                    ''|*[!0-9]*) ;;
+                    *)
+                        NOW=$(date +%s)
+                        AGE_DAYS=$(( (NOW - MTIME) / 86400 ))
+                        if [ "$AGE_DAYS" -ge "$STALE_DAYS" ]; then
+                            HEALED=1
+                            STALE_WARN="WARN: handoff.json is ${STATUS} and ${AGE_DAYS}d old with no pr_number — treating as stale CERTIFIED (override: set SDLC_HANDOFF_STALE_DAYS or close out the review)."
+                        fi
+                        ;;
+                esac
             fi
             if [ "$HEALED" -ne 1 ]; then
                 HOLD_REASONS="${HOLD_REASONS}  - Codex review is ${STATUS}. Round-1 evidence lives in this context — compacting now loses what round-2 needs to re-verify.
