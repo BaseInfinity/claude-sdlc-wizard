@@ -503,6 +503,102 @@ EOF
     fi
 }
 
+# ---- Stale-handoff auto-expire (ROADMAP #229) ----
+# The self-heal in #209 only works when handoff.json has a pr_number field.
+# Reviews written before #209 (or ad-hoc reviews not tied to a PR) lack that
+# field — their PENDING_* status blocks every future /compact forever until
+# someone manually flips it. Discovered live-fire 2026-04-23 when the hook
+# blocked a session-end compact because the precompact-seam-001 review
+# (which SHIPPED the hook itself) had no pr_number.
+#
+# Fix: if PENDING_* AND no pr_number AND mtime older than SDLC_HANDOFF_STALE_DAYS
+# (default 14), treat as implicit CERTIFIED and emit a one-line WARN (not HOLD).
+# Threshold is env-overridable for test determinism and power-user tuning.
+
+test_precompact_unblocks_stale_pending_without_pr_number() {
+    # PENDING_RECHECK + no pr_number + mtime 4 months old → unblock with WARN.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_RECHECK", "round": 2}
+JSON
+    # Age the file: POSIX touch -t YYYYMMDDhhmm, 2026-01-01 ~ 4 months before test date.
+    touch -t 202601010000 "$tmpdir/.reviews/handoff.json"
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && echo "$stderr_out" | grep -qi "stale"; then
+        pass "precompact unblocks (rc=0) stale PENDING handoff without pr_number, emits WARN"
+    else
+        fail "precompact should unblock stale PENDING without pr_number (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_still_blocks_fresh_pending_without_pr_number() {
+    # Regression guard: fresh (just-created) PENDING + no pr_number → BLOCK.
+    # We do NOT want stale-expire to short-circuit genuine in-flight reviews.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_REVIEW", "round": 1}
+JSON
+    # File mtime is "now" (just created) → age 0 days, far below 14-day threshold.
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_REVIEW"; then
+        pass "precompact still blocks fresh PENDING without pr_number (no premature expire)"
+    else
+        fail "precompact should block fresh PENDING (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_stale_with_pr_number_prefers_self_heal() {
+    # Stale mtime but pr_number present → hook prefers the #209 self-heal path
+    # (query gh for PR state), not the stale-expire branch. If PR is OPEN, still
+    # block — the review is live, age is irrelevant. Proves the two paths don't
+    # fight: pr_number takes priority over mtime.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_REVIEW", "round": 1, "pr_number": 999}
+JSON
+    touch -t 202601010000 "$tmpdir/.reviews/handoff.json"
+    _precompact_mock_gh "$tmpdir/mockbin" "OPEN"
+    local rc=0 stderr_out
+    stderr_out=$(PATH="$tmpdir/mockbin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_REVIEW" && ! echo "$stderr_out" | grep -qi "stale"; then
+        pass "precompact with pr_number uses self-heal path (blocks on OPEN PR, ignores mtime)"
+    else
+        fail "precompact should prefer pr_number self-heal over stale-expire (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_stale_threshold_override() {
+    # SDLC_HANDOFF_STALE_DAYS=0 → every PENDING without pr_number is "stale".
+    # Covers the env-override code path and lets power users tune their own
+    # threshold without editing the hook.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_RECHECK", "round": 2}
+JSON
+    # File is fresh. With SDLC_HANDOFF_STALE_DAYS=0, even age=0 counts as stale.
+    local rc=0 stderr_out
+    stderr_out=$(SDLC_HANDOFF_STALE_DAYS=0 CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && echo "$stderr_out" | grep -qi "stale"; then
+        pass "precompact respects SDLC_HANDOFF_STALE_DAYS override (0 = always stale)"
+    else
+        fail "precompact should honor stale-days override (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
 # ---- Effort auto-bump signal detection (ROADMAP #195) ----
 # Hook scans UserPromptSubmit payload for LOW-confidence / FAILED-repeatedly /
 # CONFUSED phrases; logs a signal; when ≥2 recent signals accumulate in a
@@ -1233,6 +1329,10 @@ test_precompact_still_blocks_on_open_pr
 test_precompact_blocks_when_no_pr_number
 test_precompact_blocks_when_gh_errors
 test_precompact_blocks_when_gh_missing
+test_precompact_unblocks_stale_pending_without_pr_number
+test_precompact_still_blocks_fresh_pending_without_pr_number
+test_precompact_stale_with_pr_number_prefers_self_heal
+test_precompact_stale_threshold_override
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
 test_effort_bump_nudge_fires_on_2_recent_signals
