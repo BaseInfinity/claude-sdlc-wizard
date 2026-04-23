@@ -16,8 +16,9 @@ tests/e2e/.cache/
 .claude/settings.local.json
 
 # Session-local / tool cruft (prevents accidental `git add -A` sweeps)
-.playwright-mcp/
-anthropic-sonnet-*.png
-awesome-claude-code-subagents/
+# Anchored to repo root so future legitimate assets at nested paths are not hidden.
+/.playwright-mcp/
+/anthropic-sonnet-*.png
+/awesome-claude-code-subagents/
 scripts/__pycache__/
-~/
+/~/
