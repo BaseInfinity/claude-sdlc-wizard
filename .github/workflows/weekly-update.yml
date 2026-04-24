@@ -1,8 +1,14 @@
 name: Weekly Update
 
+# NOTE: cron disabled as of ROADMAP #212 (Option 1). This workflow has 9
+# `anthropics/claude-code-action@v1` blocks that burn API credits every run.
+# Full migration to local-shepherd-based simulation is tracked as a #212
+# follow-up. Until then: manual-only via workflow_dispatch, and only when
+# you have API credit budget.
+
 on:
-  schedule:
-    - cron: '0 9 * * 1'
+  # schedule disabled — see note above. Manual via workflow_dispatch only.
+  # - cron: '0 9 * * 1'
   workflow_dispatch:
 
 permissions:

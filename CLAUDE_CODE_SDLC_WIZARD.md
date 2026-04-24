@@ -1107,8 +1107,10 @@ For Claude to be effective at SDLC enforcement, your project should have these d
 1. Go to: `Settings > Branches > Add rule`
 2. Branch name pattern: `main` (or `master`)
 3. Enable the settings above (solo or team, as appropriate)
-4. Add required status checks: `validate`, `e2e-quick-check`
+4. Add required status checks: `validate` (E2E is advisory — see note below)
 5. Save changes
+
+> **Note (ROADMAP #212 Option 1, April 2026):** We no longer require `e2e-quick-check` as a blocking check. It burned Anthropic API credits on every PR, and branch protection pinned to GitHub Actions made local-maintainer check-run satisfaction impossible. E2E now runs advisory-only via `tests/e2e/local-shepherd.sh` on the maintainer's Max subscription. See `ROADMAP.md` #212 for the full rationale.
 
 **How to enable (CLI — solo dev):**
 ```bash
@@ -1116,7 +1118,7 @@ gh api repos/OWNER/REPO/branches/main/protection --method PUT --input - << 'EOF'
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["validate", "e2e-quick-check"]
+    "contexts": ["validate"]
   },
   "enforce_admins": false,
   "required_pull_request_reviews": null,
@@ -1131,7 +1133,7 @@ gh api repos/OWNER/REPO/branches/main/protection --method PUT --input - << 'EOF'
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["validate", "e2e-quick-check"]
+    "contexts": ["validate"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": {
