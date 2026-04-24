@@ -117,7 +117,7 @@ All notable changes to the SDLC Wizard.
   - `run_init_split` test helper captures stdout/stderr separately with explicit exit code
   - 9 new CLI tests, 5 new hook tests; Codex xhigh 4-round review: 9/10 CERTIFIED
 - Model/effort upgrade detection at session start (#179, #180)
-  - SessionStart hook nudges when configured `effortLevel` is below `xhigh` recommendation
+  - SessionStart hook nudges when configured `effortLevel` is below `xhigh` (wording superseded by #217 on 2026-04-24: `max` preferred, `xhigh` floor)
   - Reads `.claude/settings.local.json` → `.claude/settings.json` → `$HOME/.claude/settings.json` precedence
   - Non-blocking (`exit 0`); asks Claude to compare recommended model against its own system prompt
   - `claude-opus-4-6` defaults bumped to `claude-opus-4-7` in `pr-review.yml`, `evaluate.sh`, `sdp-score.sh`, `pairwise-compare.sh`
@@ -137,7 +137,7 @@ All notable changes to the SDLC Wizard.
   - Default: opus-4-7 + xhigh (matches CC's new default)
   - 3 new tests (39 total model-comparison tests)
 - `xhigh` effort level documented in wizard (#178)
-  - New effort table: high → xhigh (recommended for coding) → max
+  - New effort table: high → xhigh → max (xhigh was called "recommended for coding" here; superseded by #217 on 2026-04-24: `max` is preferred, `xhigh` is the floor)
   - Opus 4.7 changes: stricter effort adherence, budget_tokens deprecated, 64k+ max_tokens guidance
 - Benchmark ceiling effect audit documented in wizard
   - Cross-model audit (Codex GPT-5.4, xhigh) rated benchmark 2/10 NOT CERTIFIED

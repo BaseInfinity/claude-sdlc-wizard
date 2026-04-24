@@ -1,12 +1,19 @@
 #!/bin/bash
-# SessionStart hook — nudges user when effort level is below recommended
-# and tells Claude the recommended model so it can compare against its own
-# CC does NOT expose the model to hooks, so model nudge relies on Claude
-# seeing this output and comparing against its system prompt
-# Non-blocking: always exits 0
+# SessionStart hook — effort/model nudge.
+#
+# Behavior (per ROADMAP #217):
+#   effort=max    -> silent (preferred default, above floor)
+#   effort=xhigh  -> silent (minimum floor on Opus 4.7)
+#   effort=high|medium|low (or unset) -> LOUD WARNING:
+#     Opus 4.7 needs xhigh floor for SDLC compliance (TDD, self-review, deep reasoning).
+#     Recommends `/effort max`. Also reminds about recommended model `opus[1m]`.
+#
+# CC does not expose the current model to hooks, so the model nudge is emitted as
+# guidance for Claude to compare against its own system prompt.
+#
+# Non-blocking: always exits 0.
 
 RECOMMENDED_MODEL="opus[1m]"
-RECOMMENDED_EFFORT="xhigh"
 
 # Drain stdin (SessionStart sends JSON but model field isn't in it)
 cat > /dev/null
@@ -27,17 +34,29 @@ for f in "$project_dir/.claude/settings.local.json" "$project_dir/.claude/settin
     fi
 done
 
-nudge=""
+# At or above floor — silent.
+case "$effort" in
+    max|xhigh)
+        exit 0
+        ;;
+esac
 
-if [ -n "$effort" ] && [ "$effort" != "$RECOMMENDED_EFFORT" ]; then
-    nudge="effort: $effort → $RECOMMENDED_EFFORT (run: /effort $RECOMMENDED_EFFORT)"
+# Below floor OR unset — LOUD warning.
+# Note: test_model_effort_size_cap asserts output < 500 chars. Keep copy terse.
+if [ -z "$effort" ]; then
+    effort_display="unset"
+else
+    effort_display="$effort"
 fi
 
-if [ -n "$nudge" ]; then
-    echo "Upgrade available:"
-    echo "  $nudge"
-    echo "  recommended model: $RECOMMENDED_MODEL (run: /model $RECOMMENDED_MODEL)"
-    echo "  (Claude: compare recommended model against your current model — nudge user if different)"
-fi
+echo "=============================================================================="
+echo " WARNING: effort '$effort_display' breaks SDLC compliance on Opus 4.7."
+echo " Below xhigh = shallow reasoning, skipped TDD, dropped self-review."
+echo ""
+echo " Run: /effort max    (preferred, full SDLC compliance)"
+echo " Or:  /effort xhigh  (minimum floor)"
+echo ""
+echo " recommended model: $RECOMMENDED_MODEL (run: /model $RECOMMENDED_MODEL)"
+echo "=============================================================================="
 
 exit 0

@@ -123,23 +123,10 @@ if command -v codex > /dev/null 2>&1 && [ -d "$PROJECT_DIR/.reviews" ]; then
     fi
 fi
 
-# Model/effort upgrade check (non-blocking, best-effort)
-RECOMMENDED_MODEL="opus[1m]"
-RECOMMENDED_EFFORT="xhigh"
-if command -v jq > /dev/null 2>&1; then
-    EFFORT=""
-    PROJ="${CLAUDE_PROJECT_DIR:-$PROJECT_DIR}"
-    for f in "$PROJ/.claude/settings.local.json" "$PROJ/.claude/settings.json" "$HOME/.claude/settings.json"; do
-        if [ -f "$f" ]; then
-            val=$(jq -r '.effortLevel // empty' "$f" 2>/dev/null)
-            if [ -n "$val" ]; then EFFORT="$val"; break; fi
-        fi
-    done
-    if [ -n "$EFFORT" ] && [ "$EFFORT" != "$RECOMMENDED_EFFORT" ]; then
-        echo "Upgrade available: effort $EFFORT → $RECOMMENDED_EFFORT (run: /effort $RECOMMENDED_EFFORT)"
-        echo "Recommended model: $RECOMMENDED_MODEL (run: /model $RECOMMENDED_MODEL)"
-    fi
-fi
+# Model/effort upgrade check is delegated to hooks/model-effort-check.sh
+# (single source of truth per ROADMAP #217). Don't duplicate the logic here —
+# this hook and model-effort-check.sh both fire on SessionStart, so two checks
+# would double-print the nudge and risk drifting out of sync.
 
 # Dual-channel install check (#181) — nudge when CLI skills + Claude plugin both present
 if [ -d "$PROJECT_DIR/.claude/skills/update" ]; then
