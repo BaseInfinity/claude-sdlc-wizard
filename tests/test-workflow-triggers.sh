@@ -2057,18 +2057,22 @@ test_trivial_pr_excludes_critical_paths() {
     fi
 }
 
-# Test 128: pr-review.yml CI wait checks e2e-quick-check, not just validate
+# Test 128: INVERTED per ROADMAP #212 Option 1 — pr-review.yml now gates ONLY
+# on validate (e2e is advisory, no longer required). Test asserts the old wait
+# loop is GONE, not present.
 test_ci_wait_includes_e2e() {
     local WORKFLOW="$REPO_ROOT/.github/workflows/pr-review.yml"
     if [ ! -f "$WORKFLOW" ]; then
         fail "pr-review.yml not found"
         return
     fi
-
-    if grep -A 40 'Wait for CI to complete' "$WORKFLOW" | grep -q 'e2e-quick-check'; then
-        pass "pr-review.yml waits for e2e-quick-check (not just validate)"
+    # The WAIT LOOP (not the explanatory comment) must not gate on e2e-quick-check.
+    # We look for the actual failure branch: `if [ "$E2E" = "failure" ]` or
+    # a success/empty check containing E2E. Both were removed.
+    if grep -qE '\$E2E.*failure|E2E.*success.*empty' "$WORKFLOW"; then
+        fail "pr-review.yml wait loop STILL checks e2e — should only check validate per #212 Option 1"
     else
-        fail "pr-review.yml only waits for validate, misses e2e-quick-check signal"
+        pass "pr-review.yml wait loop only checks validate (e2e is advisory per #212 Option 1)"
     fi
 }
 
