@@ -1,42 +1,8 @@
 {
-  "review_id": "precompact-seam-001",
-  "status": "PENDING_RECHECK",
-  "round": 2,
-  "mission": "ROADMAP #208 — add a PreCompact hook that blocks manual /compact when we're mid-cycle (Codex review PENDING, git rebase/merge/cherry-pick in flight). Auto-compact is deliberately NOT gated — blocking it risks pushing past 100% context. Motivated by user 2026-04-19: 'compacting between discrete units (end of a cycle, after a commit) rather than mid-unit' matters more than the % threshold. Requires CC v2.1.105+.",
-  "success": "Reviewer verifies (1) hook correctly detects every documented seam-violation class (PENDING_REVIEW, PENDING_RECHECK, rebase-merge, rebase-apply, MERGE_HEAD, CHERRY_PICK_HEAD); (2) hook correctly stays silent on CERTIFIED status and on missing-handoff/missing-git; (3) hook exits 2 with HOLD stderr (not stdout) so CC recognizes it as a block; (4) 9 tests each cover a distinct behavior with real invocations (no tautologies); (5) negative control actually trips size_cap; (6) registration parity between .claude/settings.json, cli/templates/settings.json, hooks/hooks.json; (7) matcher is 'manual' everywhere (never '*' or 'auto'); (8) docs match behavior.",
-  "failure": "Reviewer rubber-stamps 'tests pass' without checking (a) that grep status-parsing is robust to whitespace/quoting variants, (b) that rebase-apply branch is actually covered by a test (only rebase-merge is in the fixture today), (c) that the heredoc `} >&2` produces the intended newline structure, (d) that `|| rc=$?` correctly captures the hook's exit code under set -e, (e) that TodoWrite-in-progress limitation is honestly documented rather than hand-waved, (f) that auto-compact is NOT accidentally gated (a bug where matcher gets reset to '*' would silently cause the worst-case scenario of losing context past 100%).",
-  "files_changed": [
-    "hooks/precompact-seam-check.sh",
-    "hooks/hooks.json",
-    ".claude/settings.json",
-    "cli/templates/settings.json",
-    "cli/init.js",
-    "CLAUDE_CODE_SDLC_WIZARD.md",
-    "SDLC.md",
-    "ROADMAP.md",
-    "tests/test-hooks.sh",
-    "tests/test-cli.sh",
-    "tests/test-plugin.sh"
-  ],
-  "fixes_applied": [
-    "(1) Added test_precompact_blocks_on_git_rebase_apply_in_progress — distinct fixture for .git/rebase-apply/ (tests/test-hooks.sh:296). Hook suite 105 → 106 tests.",
-    "(2) tests/test-cli.sh:76 enumerates 11 files incl. precompact-seam-check.sh + model-effort-check.sh. tests/test-cli.sh:101 checks all 5 hooks executable. tests/test-plugin.sh 3-hook loops at :217, :229, :287 expanded to full 5-hook list. Now future shipped hooks can't silently miss test coverage.",
-    "(3a) Added 'What's NOT checked' TodoWrite-limitation paragraph to CLAUDE_CODE_SDLC_WIZARD.md 'Compact at Seams' section. (3b) Added _find-sdlc-root.sh to SDLC.md tree with helper annotation. (3c) ROADMAP.md #208 replaced 4793-char claim with reproducible range explanation."
-  ],
-  "previous_score": 7,
-  "verification_checklist": [
-    "(a) Read hooks/precompact-seam-check.sh. Confirm it: (1) guards stdin with [ ! -t 0 ], (2) uses CLAUDE_PROJECT_DIR with $PWD fallback, (3) parses handoff.json status via grep (NOT jq — no dep), (4) checks exactly: rebase-merge, rebase-apply, MERGE_HEAD, CHERRY_PICK_HEAD, (5) emits HOLD to stderr via `} >&2` block, (6) exits 2 on any blocker or 0 otherwise.",
-    "(b) Run the 9 precompact tests (grep precompact tests/test-hooks.sh | wc -l). Confirm each has real fixture setup, real hook invocation, real assertion. Look for tautologies — any test that would pass even with the hook stubbed to `exit 0`.",
-    "(c) Negative control: copy precompact-seam-check.sh to /tmp/bloat.sh, inject `for i in $(seq 1 50); do echo bloat >&2; done` after the shebang, run the size_cap test against it. Confirm it fails at ~4000+ chars ≥ 1000.",
-    "(d) Matcher parity: grep '\"matcher\"' in .claude/settings.json, cli/templates/settings.json, hooks/hooks.json. All three MUST show `\"matcher\": \"manual\"` — never `*`, `\"auto\"`, or omitted. A wildcard matcher here is a P0 because it would gate auto-compact and potentially crash sessions past 100% context.",
-    "(e) Grep robustness: manually construct handoff.json with `{\"status\":\"PENDING_REVIEW\"}` (no spaces), `{ \"status\" : \"PENDING_REVIEW\" }` (extra spaces), and `{\"status\": \"pending_review\"}` (lowercase). Run the hook against each. Should block on first two, not third.",
-    "(f) Git state edge cases: what if .git exists but is a file (submodule)? What if CLAUDE_PROJECT_DIR is set to a non-existent dir? Hook should not crash/hang.",
-    "(g) Version floor: confirm CLAUDE_CODE_SDLC_WIZARD.md, SDLC.md, and the hook's comment all cite v2.1.105+ as the PreCompact requirement. Mismatch = user confusion.",
-    "(h) Docs vs behavior: the wizard doc says TodoWrite state is NOT checked and explains why. Confirm the hook actually does NOT check it. If the doc claims something the hook doesn't do, that's a lie-in-docs bug.",
-    "(i) Event parity count: test_hooks_json_five_events + test_settings_json both expect 5. Confirm both pass. If CLI or plugin form only has 4, new installs won't get the hook.",
-    "(j) Hook count in SDLC.md tree matches: `ls hooks/*.sh | wc -l` should equal hooks listed in SDLC.md. One script missing from the tree = drift surface."
-  ],
-  "review_instructions": "Focus on (1) the auto-compact-blocking P0 (matcher parity — `manual` in ALL THREE places, never a wildcard), (2) whether the 9 tests actually gate what they claim (look for tautologies that would pass with `exit 0`), (3) grep-based status parsing edge cases, (4) test-isolation (do any tests share state or read ambient $HOME?). Be strict — assume bugs may be present until proven otherwise.",
-  "preflight_path": ".reviews/preflight-precompact-seam-001.md",
-  "artifact_path": ".reviews/"
+  "review_id": "roadmap-231-phase1-001",
+  "status": "CERTIFIED",
+  "round": 3,
+  "closed_at": "2026-04-24",
+  "pr_number": null,
+  "note": "CERTIFIED 9/10 round 3. Round 1 was 7/10 (2 findings), round 2 was 8/10 (1 finding — broke a test assertion I changed the wording of), round 3 CERTIFIED. Non-blocking notes: ROADMAP.md:278 (#212 historical scope) + :328 (March live-fire audit table) still mention monthly-research — both are historical records, intentionally preserved."
 }

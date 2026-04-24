@@ -203,8 +203,7 @@ sdlc-wizard/
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml                 # Validation & tests
-│   │   ├── weekly-update.yml      # Version check + community scan
-│   │   ├── monthly-research.yml   # Deep research & trends
+│   │   ├── weekly-update.yml      # Version check + community scan (cron disabled; #212/#231)
 │   │   └── pr-review.yml          # AI code review
 │   ├── prompts/
 │   │   ├── analyze-release.md     # Release analysis prompt

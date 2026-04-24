@@ -6,8 +6,7 @@
 |----------|---------|---------|
 | `ci.yml` | PR | Validation, tests, E2E evaluation |
 | `ci.yml` | Push to main | Validation only |
-| `weekly-update.yml` | Weekly (Mondays 9 AM UTC) + manual | Check for Claude Code updates + community scan |
-| `monthly-research.yml` | Monthly (1st, 11 AM UTC) + manual | Deep research and trends |
+| `weekly-update.yml` | Manual only (cron disabled per #212; full migration tracked in #231) | Check for Claude Code updates + community scan |
 | `pr-review.yml` | PR opened/ready/labeled | AI code review |
 | `release.yml` | Tag push (`v*`) | Publish to npm + create GitHub Release |
 
@@ -186,17 +185,11 @@ The weekly-update pipeline doubles as plugin/feature discovery automation:
 
 No separate marketplace registry exists for Claude Code — the LLM-driven release analysis approach captures all feature information from release notes.
 
-## Monthly Research Workflow (`monthly-research.yml`)
+## Monthly Research Workflow — REMOVED (ROADMAP #231 Phase 1)
 
-### What It Does
-- Deep research into AI coding agent trends
-- Academic papers, major announcements
-- Creates issue with trend report and recommendations
-- E2E tests research-suggested improvements (Tier 2)
+The `monthly-research.yml` workflow was deleted on 2026-04-24. Over its lifetime it produced **zero merged artifacts in 30d** while burning $11-23/month in Anthropic API. The "perplexity-as-CI" pattern was a poor fit: research questions are better asked inline in a Claude Code session with full repo context than batched into a scheduled LLM call.
 
-### Runs On
-- Monthly schedule: 11 AM UTC on the 1st (`cron: '0 11 1 * *'`)
-- Manual trigger also available (workflow_dispatch)
+**If you want periodic research:** open a Claude Code session and ask. No workflow replacement was shipped — the session-start nudge hook (`instructions-loaded-check.sh`) surfaces open PRs and stale state, which covers the "reminder" role without scheduled API burn.
 
 ## CI Fix Model — Local Shepherd
 
@@ -302,7 +295,7 @@ Workflows require the GitHub Actions environment (secrets, runner context, `clau
 
 | Secret | Used By | Purpose |
 |--------|---------|---------|
-| `ANTHROPIC_API_KEY` | weekly-update, monthly-research, ci, pr-review | Claude API access |
+| `ANTHROPIC_API_KEY` | weekly-update, ci, pr-review | Claude API access (monthly-research removed per #231 Phase 1) |
 | `NPM_TOKEN` | release | npm publish authentication |
 | `GITHUB_TOKEN` | All workflows | Auto-provided by GitHub |
 
@@ -322,7 +315,7 @@ permissions:
   pull-requests: write # For sticky PR comments
 ```
 
-**Other workflows** (pr-review, weekly-update, monthly-research):
+**Other workflows** (pr-review, weekly-update):
 
 ```yaml
 permissions:
