@@ -46,9 +46,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.36.1
+Latest:    1.37.0
 
 What changed:
+- [1.37.0] `monthly-research.yml` workflow deleted (ROADMAP #231 Phase 1) — 0 merged artifacts in 30d while burning $11-23/month; research happens inline now. `model-effort-check.sh` loud WARNING below xhigh (#217) — max preferred, xhigh floor; duplicate effort nudge in `instructions-loaded-check.sh` removed; single source of truth. Both changes Codex-certified.
 - [1.36.1] Repo renamed `agentic-ai-sdlc-wizard` → `claude-sdlc-wizard` (matches sibling pattern; npm package unchanged); `npm pkg fix` metadata cleanup; slug migration across docs/tests/configs
 - [1.36.0] CC 2.1.118 `/usage` canonical + aliases, Tier 2 dead-gate fix (#215), score-history max_score correctness (#211), setup-bun regression guard (#210), post-mortem learnings (#220-222), GPT-5.5 adoption plan (#223), MCP-tool hooks + #198 re-verify in backlog (#218/#219)
 - [1.35.0] PreCompact seam gate + self-heal (#208/#209), effort auto-bump on LOW/FAILED/CONFUSED (#195), wizard staleness nudge (#196), Codex CI-log audit pattern, ...
