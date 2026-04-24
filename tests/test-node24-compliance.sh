@@ -104,6 +104,19 @@ test_no_gh_release_action() {
     fi
 }
 
+# Test 7.5: No workflow uses oven-sh/setup-bun (ROADMAP #210)
+# setup-bun's internal JS runs on Node 20; GitHub Actions emits a real
+# Node 20 deprecation warning per run even when the workflow YAML is clean.
+# This is a defensive regression guard — verified empty on 2026-04-23.
+test_no_oven_sh_setup_bun() {
+    if grep -rq 'oven-sh/setup-bun' "$WORKFLOW_DIR"; then
+        fail "Found oven-sh/setup-bun — runs on Node 20, will emit deprecation warning (use manual bun install or Node-24-native alt)"
+        grep -rn 'oven-sh/setup-bun' "$WORKFLOW_DIR" | head -3
+    else
+        pass "No workflows use oven-sh/setup-bun"
+    fi
+}
+
 # --- Node Version Tests ---
 
 # Test 8: No workflow specifies node-version: '20' or node-version: 20
@@ -172,6 +185,7 @@ test_no_create_pr_v7
 test_no_sticky_comment_v2
 test_no_hide_comment_action
 test_no_gh_release_action
+test_no_oven_sh_setup_bun
 test_no_node_version_20
 test_checkout_v5_present
 test_setup_node_v5_present
