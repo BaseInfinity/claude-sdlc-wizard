@@ -642,9 +642,13 @@ jobs:
           RESULT_FILE="${RUNNER_TEMP:-/tmp}/eval-result-candidate.json"
           if [ -f "$RESULT_FILE" ]; then
             CRIT=$(jq -c '.criteria // {}' "$RESULT_FILE" 2>/dev/null || echo "{}")
+            MAX_SCORE=$(jq -r '.max_score // 10' "$RESULT_FILE" 2>/dev/null)
           else
             CRIT="{}"
+            MAX_SCORE=10
           fi
+          # Guard against non-numeric (e.g. null) so --argjson doesn't choke.
+          case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
 
           # Use numeric types for SDP fields (--argjson, avoid name "result")
           SDP_ADJ="${{ steps.eval-candidate.outputs.sdp_score }}"
@@ -661,13 +665,13 @@ jobs:
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg scenario "$SCENARIO" \
             --argjson score "${SCORE:-0}" \
-            --argjson max_score 10 \
+            --argjson max_score "$MAX_SCORE" \
             --argjson criteria "$CRIT" \
             --argjson sdp "$SDP_JSON" \
             '{timestamp: $ts, scenario: $scenario, score: $score, max_score: $max_score, criteria: $criteria, sdp: $sdp}' \
             >> tests/e2e/score-history.jsonl
 
-          echo "Score recorded: $SCORE for $SCENARIO"
+          echo "Score recorded: $SCORE / $MAX_SCORE for $SCENARIO"
 
       - name: Persist scores to PR branch
         if: |
@@ -1408,9 +1412,12 @@ jobs:
           RESULT_FILE="${RUNNER_TEMP:-/tmp}/eval-result-candidate.json"
           if [ -f "$RESULT_FILE" ]; then
             CRIT=$(jq -c '.criteria // {}' "$RESULT_FILE" 2>/dev/null || echo "{}")
+            MAX_SCORE=$(jq -r '.max_score // 10' "$RESULT_FILE" 2>/dev/null)
           else
             CRIT="{}"
+            MAX_SCORE=10
           fi
+          case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
 
           SDP_ADJ="${{ steps.eval-candidate.outputs.sdp_score }}"
           SDP_EXT="${{ steps.eval-candidate.outputs.sdp_external }}"
@@ -1425,13 +1432,13 @@ jobs:
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg scenario "$SCENARIO" \
             --argjson score "${SCORE:-0}" \
-            --argjson max_score 10 \
+            --argjson max_score "$MAX_SCORE" \
             --argjson criteria "$CRIT" \
             --argjson sdp "$SDP_JSON" \
             '{timestamp: $ts, scenario: $scenario, score: $score, max_score: $max_score, criteria: $criteria, sdp: $sdp}' \
             >> tests/e2e/score-history.jsonl
 
-          echo "Score recorded: $SCORE for $SCENARIO (Tier 2)"
+          echo "Score recorded: $SCORE / $MAX_SCORE for $SCENARIO (Tier 2)"
 
       - name: Persist scores to PR branch
         if: |
