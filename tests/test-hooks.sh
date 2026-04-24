@@ -578,6 +578,27 @@ JSON
     fi
 }
 
+test_precompact_stale_threshold_invalid_falls_back() {
+    # SDLC_HANDOFF_STALE_DAYS="foo" (typo/invalid) must NOT leak bash
+    # arithmetic error to stderr. Hook silently falls back to default 14 and
+    # behaves as if no override was set. Caught by Codex P2 review of PR #227.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_REVIEW", "round": 1}
+JSON
+    # Fresh file + invalid env var + default-14-threshold → still blocks cleanly.
+    local rc=0 stderr_out
+    stderr_out=$(SDLC_HANDOFF_STALE_DAYS=foo CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_REVIEW" && ! echo "$stderr_out" | grep -qi "integer expression"; then
+        pass "precompact silently ignores invalid SDLC_HANDOFF_STALE_DAYS (no shell error leaked)"
+    else
+        fail "precompact should tolerate bad env var without shell noise (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
 test_precompact_stale_threshold_override() {
     # SDLC_HANDOFF_STALE_DAYS=0 → every PENDING without pr_number is "stale".
     # Covers the env-override code path and lets power users tune their own
@@ -1332,6 +1353,7 @@ test_precompact_blocks_when_gh_missing
 test_precompact_unblocks_stale_pending_without_pr_number
 test_precompact_still_blocks_fresh_pending_without_pr_number
 test_precompact_stale_with_pr_number_prefers_self_heal
+test_precompact_stale_threshold_invalid_falls_back
 test_precompact_stale_threshold_override
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
