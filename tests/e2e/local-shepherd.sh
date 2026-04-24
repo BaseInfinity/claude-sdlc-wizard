@@ -106,7 +106,9 @@ echo "PR #$PR_NUMBER → scenario: $SCENARIO_NAME" >&2
 # any of them without a matching CI change creates a silent score-drift risk.
 # The parity-audit test (tests/test-local-shepherd.sh) diffs these against
 # the CI block to catch drift.
-PARITY_MODEL="claude-opus-4-7"
+# Model is NOT pinned explicitly — CI relies on action default (Opus 4.7),
+# so shepherd does too. If Anthropic changes the default, both paths shift
+# together.
 PARITY_MAX_TURNS=55
 PARITY_ALLOWED_TOOLS='Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task'
 
@@ -152,13 +154,12 @@ PROMPT_FILE="$TMPRUN/parity-prompt.txt"
 } > "$PROMPT_FILE"
 PARITY_PROMPT=$(cat "$PROMPT_FILE")
 
-echo "Running simulation: model=$PARITY_MODEL, max-turns=$PARITY_MAX_TURNS" >&2
+echo "Running simulation: max-turns=$PARITY_MAX_TURNS" >&2
 # LS-002: hard-fail on claude error. Previously `|| true` swallowed failures,
 # so a crashed sim still produced score=0 as if it had completed. Now a
 # non-zero claude exit propagates to the shepherd's exit.
 set +e
 claude --print \
-    --model "$PARITY_MODEL" \
     --max-turns "$PARITY_MAX_TURNS" \
     --allowedTools "$PARITY_ALLOWED_TOOLS" \
     --add-dir "tests/e2e" \
@@ -263,16 +264,34 @@ HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid 2>/dev/nul
 CONCLUSION="success"
 if [ "$SCORE" -lt 5 ]; then CONCLUSION="failure"; fi
 
-if [ -n "$HEAD_SHA" ]; then
-    gh api "repos/$REPO_NWO/check-runs" \
-        --method POST \
-        --field "name=e2e-local-shepherd" \
-        --field "head_sha=$HEAD_SHA" \
-        --field "status=completed" \
-        --field "conclusion=$CONCLUSION" \
-        --field "output[title]=E2E Shepherd: $SCORE/$MAX_SCORE ($SCENARIO_NAME)" \
-        --field "output[summary]=Local-Max E2E simulation for PR #$PR_NUMBER scored $SCORE/$MAX_SCORE on scenario \`$SCENARIO_NAME\`. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)." \
-        >/dev/null 2>&1 || echo "Warning: check-run POST failed (non-fatal)" >&2
+if [ -z "$HEAD_SHA" ]; then
+    echo "Error: could not resolve PR head SHA for check-run POST" >&2
+    exit 1
+fi
+# LS-002: check-run POST failure is hard-fail. If branch protection is
+# waiting on e2e-local-shepherd, a silent warning isn't enough — we must
+# surface that the gate was never satisfied. Set SDLC_SHEPHERD_SOFT_FAIL=1
+# to downgrade to a warning (for debugging).
+set +e
+gh api "repos/$REPO_NWO/check-runs" \
+    --method POST \
+    --field "name=e2e-local-shepherd" \
+    --field "head_sha=$HEAD_SHA" \
+    --field "status=completed" \
+    --field "conclusion=$CONCLUSION" \
+    --field "output[title]=E2E Shepherd: $SCORE/$MAX_SCORE ($SCENARIO_NAME)" \
+    --field "output[summary]=Local-Max E2E simulation for PR #$PR_NUMBER scored $SCORE/$MAX_SCORE on scenario \`$SCENARIO_NAME\`. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)." \
+    >"$TMPRUN/checkrun.out" 2>"$TMPRUN/checkrun.err"
+CHECKRUN_RC=$?
+set -e
+if [ "$CHECKRUN_RC" -ne 0 ]; then
+    if [ "${SDLC_SHEPHERD_SOFT_FAIL:-0}" = "1" ]; then
+        echo "Warning: check-run POST failed (rc=$CHECKRUN_RC) — continuing in soft-fail mode" >&2
+    else
+        echo "Error: check-run POST failed (rc=$CHECKRUN_RC)" >&2
+        [ -s "$TMPRUN/checkrun.err" ] && sed -n '1,5p' "$TMPRUN/checkrun.err" >&2
+        exit 1
+    fi
 fi
 
 # ---- Post PR comment ----
