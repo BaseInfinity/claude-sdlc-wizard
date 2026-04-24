@@ -14,6 +14,15 @@
 #       → finish in-progress git operation first
 # Allow otherwise.
 
+# Token-bloat fix: when both project + plugin register this hook, plugin yields.
+# Use parameter expansion (not `dirname`) so the PATH-restricted gh-missing test
+# still works — bash builtin `${var%/*}` is always available.
+HOOK_DIR="${BASH_SOURCE[0]%/*}"
+[ "$HOOK_DIR" = "${BASH_SOURCE[0]}" ] && HOOK_DIR="."
+# shellcheck disable=SC1091
+source "$HOOK_DIR/_find-sdlc-root.sh"
+dedupe_plugin_or_project "${BASH_SOURCE[0]}" || { [ ! -t 0 ] && cat > /dev/null; exit 0; }
+
 [ ! -t 0 ] && INPUT=$(cat) || INPUT=""
 
 # Determine project root: prefer $CLAUDE_PROJECT_DIR, fall back to cwd
