@@ -425,20 +425,24 @@ test_repo_settings_match_template_no_model_pin() {
 
 # Hooks must nudge users toward the recommended alias, not the API id.
 # Regression guard against Codex round-1 finding #3.
+# Post-#217 (2026-04-24): the effort/model nudge is centralized in
+# model-effort-check.sh — instructions-loaded-check.sh no longer duplicates it,
+# so we only require the alias in the single source of truth.
 test_hooks_recommend_opus_1m_alias() {
     local H1="$REPO_ROOT/hooks/model-effort-check.sh"
-    local H2="$REPO_ROOT/hooks/instructions-loaded-check.sh"
-    local ok=1
-    for h in "$H1" "$H2"; do
-        if [ ! -f "$h" ]; then fail "$h not found"; ok=0; continue; fi
-        if ! grep -qE 'RECOMMENDED_MODEL="opus\[1m\]"' "$h"; then
-            fail "$(basename "$h") should set RECOMMENDED_MODEL=\"opus[1m]\""
-            ok=0
-        fi
-    done
-    if [ "$ok" = "1" ]; then
-        pass "Both session-start hooks recommend opus[1m]"
+    if [ ! -f "$H1" ]; then fail "$H1 not found"; return; fi
+    if ! grep -qE 'RECOMMENDED_MODEL="opus\[1m\]"' "$H1"; then
+        fail "model-effort-check.sh should set RECOMMENDED_MODEL=\"opus[1m]\""
+        return
     fi
+    # instructions-loaded-check.sh must NOT re-declare the variable (would
+    # reintroduce the #217 duplicate-nudge bug).
+    local H2="$REPO_ROOT/hooks/instructions-loaded-check.sh"
+    if [ -f "$H2" ] && grep -qE 'RECOMMENDED_MODEL=' "$H2"; then
+        fail "instructions-loaded-check.sh declares RECOMMENDED_MODEL — must delegate to model-effort-check.sh per #217"
+        return
+    fi
+    pass "model-effort-check.sh is single source of truth for opus[1m] alias (#217)"
 }
 
 # Setup skill must point users at /less-permission-prompts so they can
