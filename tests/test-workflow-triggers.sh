@@ -53,21 +53,8 @@ test_daily_update_deleted() {
     fi
 }
 
-# Test 3: Monthly workflow has workflow_dispatch trigger
-test_monthly_dispatch() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "Monthly workflow file not found"
-        return
-    fi
-
-    if grep -q "workflow_dispatch:" "$WORKFLOW"; then
-        pass "Monthly workflow has workflow_dispatch trigger"
-    else
-        fail "Monthly workflow missing workflow_dispatch trigger"
-    fi
-}
+# Test 3: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_dispatch() { pass "test_monthly_dispatch n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 4: Weekly-update workflow has active schedule trigger
 test_weekly_update_has_schedule() {
@@ -101,19 +88,8 @@ test_weekly_community_deleted() {
     fi
 }
 
-# Test 36: Monthly workflow has active schedule trigger (Item 23 Phase 3)
-test_monthly_has_schedule() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    # ROADMAP #212 Option 1: cron disabled (API-burning). See weekly test above.
-    if grep -qE '^\s*#\s*- cron:' "$WORKFLOW"; then
-        pass "monthly-research cron is disabled (ROADMAP #212 Option 1)"
-    elif grep -qE '^\s*- cron:' "$WORKFLOW"; then
-        fail "monthly-research cron is ENABLED — reconfirm API budget or keep disabled per #212"
-    else
-        pass "monthly-research has no cron trigger"
-    fi
-}
+# Test 36: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_has_schedule() { pass "test_monthly_has_schedule n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 5: State file path is valid in weekly-update workflow
 test_state_file_path() {
@@ -875,174 +851,16 @@ test_weekly_update_creates_issues
 test_weekly_update_uses_create_pr
 
 # ============================================
-# Monthly-Research Workflow Input Validation Tests
+# Monthly-Research Workflow Input Validation Tests — DELETED
 # ============================================
-# Same class of bugs as daily-update and weekly-community.
-
-# Test 61: monthly-research must NOT use 'prompt_file' (not a valid action input)
-test_monthly_no_prompt_file_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        with_block = step.get('with', {})
-        if 'prompt_file' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/monthly_prompt_file_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/monthly_prompt_file_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/monthly_prompt_file_check.txt | head -1 | sed 's/FOUND://')
-        fail "monthly-research uses 'prompt_file' input in step '$STEP' — not a valid claude-code-action input"
-    else
-        pass "monthly-research does not use invalid 'prompt_file' input"
-    fi
-}
-
-# Test 62: monthly-research must NOT use 'direct_prompt' (not a valid action input)
-test_monthly_no_direct_prompt_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        with_block = step.get('with', {})
-        if 'direct_prompt' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/monthly_direct_prompt_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/monthly_direct_prompt_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/monthly_direct_prompt_check.txt | head -1 | sed 's/FOUND://')
-        fail "monthly-research uses 'direct_prompt' input in step '$STEP' — not a valid claude-code-action input"
-    else
-        pass "monthly-research does not use invalid 'direct_prompt' input"
-    fi
-}
-
-# Test 63: monthly-research must NOT use 'model' as a top-level action input
-test_monthly_no_model_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        uses = step.get('uses', '')
-        with_block = step.get('with', {})
-        if 'claude-code-action' in uses and 'model' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/monthly_model_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/monthly_model_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/monthly_model_check.txt | head -1 | sed 's/FOUND://')
-        fail "monthly-research uses 'model' as action input in step '$STEP' — not a valid claude-code-action input"
-    else
-        pass "monthly-research does not use invalid 'model' action input"
-    fi
-}
-
-# Test 64: monthly-research must NOT use 'allowed_tools' as action input (use claude_args)
-test_monthly_no_allowed_tools_input() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        with_block = step.get('with', {})
-        if 'allowed_tools' in with_block:
-            print('FOUND:' + step.get('name', 'unnamed'))
-" > /tmp/monthly_allowed_tools_check.txt 2>&1
-
-    if grep -q "FOUND:" /tmp/monthly_allowed_tools_check.txt; then
-        STEP=$(grep "FOUND:" /tmp/monthly_allowed_tools_check.txt | head -1 | sed 's/FOUND://')
-        fail "monthly-research uses 'allowed_tools' input in step '$STEP' — use claude_args --allowedTools instead"
-    else
-        pass "monthly-research does not use invalid 'allowed_tools' input"
-    fi
-}
-
-# Test 65: monthly-research must NOT reference outputs.response
-test_monthly_no_outputs_response() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    content = f.read()
-if 'outputs.response' in content:
-    print('FOUND')
-" > /tmp/monthly_outputs_response_check.txt 2>&1
-
-    if grep -q "FOUND" /tmp/monthly_outputs_response_check.txt; then
-        fail "monthly-research references 'outputs.response' — claude-code-action@v1 has no response output"
-    else
-        pass "monthly-research does not reference non-existent 'outputs.response'"
-    fi
-}
-
-# Test 66: monthly-research must extract research result from execution output file
-test_monthly_extracts_from_output_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        run = step.get('run', '')
-        name = step.get('name', '').lower()
-        if 'claude-execution-output.json' in run and ('research' in name or 'extract' in name or 'save' in name):
-            print('READS_OUTPUT_FILE')
-" > /tmp/monthly_output_file_check.txt 2>&1
-
-    if grep -q "READS_OUTPUT_FILE" /tmp/monthly_output_file_check.txt; then
-        pass "monthly-research extracts research result from execution output file"
-    else
-        fail "monthly-research does not read claude-execution-output.json for research result"
-    fi
-}
+# Tests 61-66: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1.
+# Keep function names as stubs so any external callers referencing them pass.
+test_monthly_no_prompt_file_input()   { pass "test_monthly_no_prompt_file_input n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
+test_monthly_no_direct_prompt_input() { pass "test_monthly_no_direct_prompt_input n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
+test_monthly_no_model_input()         { pass "test_monthly_no_model_input n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
+test_monthly_no_allowed_tools_input() { pass "test_monthly_no_allowed_tools_input n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
+test_monthly_no_outputs_response()    { pass "test_monthly_no_outputs_response n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
+test_monthly_extracts_from_output_file() { pass "test_monthly_extracts_from_output_file n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 test_monthly_no_prompt_file_input
 test_monthly_no_direct_prompt_input
@@ -1230,41 +1048,8 @@ test_origin_fallback_in_parse() {
     fi
 }
 
-# Test 71: monthly-research e2e-test triggers on notable research
-test_monthly_e2e_triggers_on_notable() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    # has_updates should NOT depend solely on .recommended_wizard_updates
-    # because Claude may structure output without that exact key
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-jobs = wf.get('jobs', {})
-research_job = jobs.get('deep-research', {})
-outputs = research_job.get('outputs', {})
-has_updates = str(outputs.get('has_updates', ''))
-# Should NOT reference updates_count alone (fragile)
-# Should use nothing_notable or a broader condition
-if 'nothing_notable' in has_updates:
-    print('USES_NOTHING_NOTABLE')
-elif 'updates_count' in has_updates:
-    print('USES_UPDATES_COUNT')
-else:
-    print('UNKNOWN')
-" > /tmp/monthly_trigger_check.txt 2>&1
-
-    if grep -q "USES_NOTHING_NOTABLE" /tmp/monthly_trigger_check.txt; then
-        pass "monthly-research e2e-test triggers on notable research (robust)"
-    else
-        fail "monthly-research e2e-test triggers on updates_count (fragile — depends on exact JSON key name)"
-    fi
-}
+# Test 71: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_e2e_triggers_on_notable() { pass "test_monthly_e2e_triggers_on_notable n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 72: ci.yml uses upload-artifact for score data in both tiers
 test_ci_score_upload_artifact_both_tiers() { pass "test_ci_score_upload_artifact_both_tiers n/a per #212 Option 1 (ci.yml e2e jobs removed)"; }
@@ -1303,26 +1088,10 @@ _unused_test_ci_max_turns_sufficient() {
 test_tier1_regression_threshold() { pass "tier1-regression-threshold test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
 
 # ============================================
-# Monthly-Research Permission Tests
+# Monthly-Research Permission Tests — DELETED
 # ============================================
-# Ensure monthly-research has the permissions its
-# e2e-test job needs (creates PRs via peter-evans/create-pull-request).
-
-# Test 77: monthly-research has pull-requests: write permission
-test_monthly_has_pr_write_permission() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    if grep -q 'pull-requests: write' "$WORKFLOW"; then
-        pass "monthly-research has pull-requests: write permission"
-    else
-        fail "monthly-research missing pull-requests: write permission (e2e-test creates PRs)"
-    fi
-}
+# Test 77: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_has_pr_write_permission() { pass "test_monthly_has_pr_write_permission n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 test_monthly_has_pr_write_permission
 test_tier1_regression_threshold
@@ -1527,23 +1296,8 @@ test_weekly_update_copies_wizard_after_apply() {
     fi
 }
 
-# Test 94: monthly-research.yml copies modified wizard into fixture after apply step
-test_monthly_copies_wizard_after_apply() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    # After "Apply research recommendations" step, there must be a step that
-    # copies .claude/ files into the test fixture before candidate simulation
-    if grep -A 40 "Apply research recommendations" "$WORKFLOW" | grep -q "cp.*\.claude.*fixtures/test-repo"; then
-        pass "monthly-research.yml copies wizard into fixture after apply step"
-    else
-        fail "monthly-research.yml does NOT copy applied changes into test fixture (baseline == candidate, comparison useless)"
-    fi
-}
+# Test 94: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_copies_wizard_after_apply() { pass "test_monthly_copies_wizard_after_apply n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 95: weekly-update.yml cleans stale output before Phase B simulation
 test_weekly_update_cleans_output_before_phase_b() {
@@ -1563,22 +1317,8 @@ test_weekly_update_cleans_output_before_phase_b() {
     fi
 }
 
-# Test 96: monthly-research.yml cleans stale output before candidate simulation
-test_monthly_cleans_output_before_candidate() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "monthly-research.yml not found"
-        return
-    fi
-
-    # Between baseline eval and candidate sim, stale output file must be removed
-    if grep -B 20 "Run candidate simulation" "$WORKFLOW" | grep -q "rm.*claude-execution-output"; then
-        pass "monthly-research.yml cleans stale output before candidate sim"
-    else
-        fail "monthly-research.yml does NOT clean stale output before candidate sim (candidate eval reads baseline data on failure)"
-    fi
-}
+# Test 96: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_cleans_output_before_candidate() { pass "test_monthly_cleans_output_before_candidate n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 97: README uses count-free workflow language (hardcoded counts drift — #102)
 test_readme_workflow_count_accurate() {
@@ -1727,16 +1467,8 @@ test_bare_weekly_update_analysis() {
     fi
 }
 
-# Test 110: monthly-research.yml deep research step uses --bare
-test_bare_monthly_research() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if sed -n '/name: Run deep research with Claude/,/name:/p' "$WORKFLOW" | grep -q '\-\-bare'; then
-        pass "monthly-research.yml deep research step uses --bare"
-    else
-        fail "monthly-research.yml 'Run deep research with Claude' should use --bare"
-    fi
-}
+# Test 110: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_bare_monthly_research() { pass "test_bare_monthly_research n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 111: ci.yml E2E simulation steps do NOT use --bare (negative test)
 test_no_bare_ci_simulations() {
@@ -1825,16 +1557,8 @@ test_no_working_directory_weekly() {
     fi
 }
 
-# Test 115: No working_directory input in monthly-research
-test_no_working_directory_monthly() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-
-    if grep -q 'working_directory:' "$WORKFLOW"; then
-        fail "monthly-research.yml should not use working_directory (invalid claude-code-action input)"
-    else
-        pass "monthly-research.yml has no invalid working_directory input"
-    fi
-}
+# Test 115: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_no_working_directory_monthly() { pass "test_no_working_directory_monthly n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 116: Simulation max-turns >= 35 in weekly-update (was 30, ci.yml uses 55)
 test_weekly_sim_max_turns() {
@@ -1858,27 +1582,8 @@ test_weekly_sim_max_turns() {
     fi
 }
 
-# Test 117: Simulation max-turns >= 35 in monthly-research
-test_monthly_sim_max_turns() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-    local min_turns=35
-    local all_ok=true
-
-    while IFS= read -r line; do
-        local turns
-        turns=$(echo "$line" | grep -oE '[0-9]+')
-        if [ -n "$turns" ] && [ "$turns" -lt "$min_turns" ]; then
-            all_ok=false
-            break
-        fi
-    done < <(grep 'max-turns' "$WORKFLOW")
-
-    if [ "$all_ok" = "true" ]; then
-        pass "monthly-research.yml simulation --max-turns >= $min_turns"
-    else
-        fail "monthly-research.yml has --max-turns < $min_turns (too low, causes error_max_turns)"
-    fi
-}
+# Test 117: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_sim_max_turns() { pass "test_monthly_sim_max_turns n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 test_scan_community_push_nonblocking
 test_no_working_directory_weekly
@@ -2204,8 +1909,8 @@ test_competitive_audit_no_stale_counts() {
 }
 
 # Test 136: AUTO_SELF_UPDATE.md "Who Gets What" section uses current cadence
-# The roadmap history items mention "daily" in past tense (DONE items) — that's fine.
-# The active "Who Gets What" section should say "weekly/monthly", not "daily/weekly/monthly".
+# History items mention "daily" in past tense (DONE items) — that's fine.
+# Monthly was removed per ROADMAP #231 Phase 1; active section should mention weekly-update only.
 test_auto_self_update_no_daily() {
     local PLAN="$REPO_ROOT/plans/AUTO_SELF_UPDATE.md"
     if [ ! -f "$PLAN" ]; then
@@ -2213,11 +1918,13 @@ test_auto_self_update_no_daily() {
         return
     fi
 
-    # Check the "Who Gets What" / "Our auto-workflows" line specifically
-    if grep -q 'auto-workflows.*(weekly/monthly)' "$PLAN"; then
-        pass "AUTO_SELF_UPDATE.md 'Who Gets What' uses current cadence (weekly/monthly)"
+    # After #231 Phase 1: monthly-research removed. Live "Who Gets What" must not
+    # describe monthly as active (no bare "weekly/monthly" cadence pair) and must
+    # reference "weekly-update" explicitly.
+    if grep -q 'auto-workflows.*weekly-update' "$PLAN" && ! grep -q 'auto-workflows.*(weekly/monthly)' "$PLAN"; then
+        pass "AUTO_SELF_UPDATE.md 'Who Gets What' uses current cadence (weekly-update only post #231 Phase 1)"
     else
-        fail "AUTO_SELF_UPDATE.md 'Who Gets What' has stale cadence (expected weekly/monthly)"
+        fail "AUTO_SELF_UPDATE.md 'Who Gets What' stale — should reference weekly-update only (monthly-research removed per #231 Phase 1)"
     fi
 }
 
@@ -2644,15 +2351,8 @@ test_weekly_has_actions_write() {
     fi
 }
 
-# Test 185: monthly-research.yml has actions: write permission
-test_monthly_has_actions_write() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-    if grep -q 'actions: write' "$WORKFLOW"; then
-        pass "monthly-research.yml has actions: write permission (needed for CI dispatch)"
-    else
-        fail "monthly-research.yml missing actions: write permission (gh workflow run returns 403)"
-    fi
-}
+# Test 185: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_has_actions_write() { pass "test_monthly_has_actions_write n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 # Test 186: weekly-update.yml dispatches CI after auto-update PR creation
 test_weekly_dispatches_ci_after_update_pr() {
@@ -2665,15 +2365,8 @@ test_weekly_dispatches_ci_after_update_pr() {
     fi
 }
 
-# Test 187: monthly-research.yml dispatches CI after PR creation
-test_monthly_dispatches_ci_after_pr() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
-    if grep -q 'gh workflow run ci.yml' "$WORKFLOW"; then
-        pass "monthly-research.yml dispatches CI after PR creation"
-    else
-        fail "monthly-research.yml should dispatch CI after PR creation (GITHUB_TOKEN PRs don't trigger pull_request events)"
-    fi
-}
+# Test 187: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
+test_monthly_dispatches_ci_after_pr() { pass "test_monthly_dispatches_ci_after_pr n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
 test_weekly_has_actions_write
 test_monthly_has_actions_write
