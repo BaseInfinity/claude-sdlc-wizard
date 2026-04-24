@@ -8,6 +8,9 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HOOK_DIR/_find-sdlc-root.sh"
 
+# Token-bloat fix: when both project + plugin register this hook, plugin yields.
+dedupe_plugin_or_project "${BASH_SOURCE[0]}" || exit 0
+
 # CWD walk-up finds nearest SDLC project (#173: silent exit for non-SDLC dirs)
 if find_sdlc_root; then
     PROJECT_DIR="$SDLC_ROOT"
