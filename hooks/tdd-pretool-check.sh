@@ -2,6 +2,15 @@
 # PreToolUse hook - TDD enforcement before editing source files
 # Fires before Write/Edit/MultiEdit tools
 
+# Token-bloat fix: when both project + plugin register this hook, plugin yields.
+# Parameter-expansion-safe (no `dirname` dep): `%/*` strips trailing `/file`.
+# Fallback `.` when BASH_SOURCE has no slash (direct invocation `bash hook.sh`).
+HOOK_DIR="${BASH_SOURCE[0]%/*}"
+[ "$HOOK_DIR" = "${BASH_SOURCE[0]}" ] && HOOK_DIR="."
+# shellcheck disable=SC1091
+source "$HOOK_DIR/_find-sdlc-root.sh"
+dedupe_plugin_or_project "${BASH_SOURCE[0]}" || exit 0
+
 # Read the tool input (JSON with file_path, content, etc.)
 TOOL_INPUT=$(cat)
 

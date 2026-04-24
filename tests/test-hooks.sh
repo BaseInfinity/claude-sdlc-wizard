@@ -1849,7 +1849,13 @@ test_instructions_hook_cwd_walkup() {
     local tmpdir
     tmpdir=$(mktemp -d)
     mkdir -p "$tmpdir/project/src"
-    echo '<!-- SDLC Wizard Version: 1.29.0 -->' > "$tmpdir/project/SDLC.md"
+    # Use the CURRENT wizard version from package.json so the staleness nudge
+    # (≥3 minor behind = loud warning) never fires. Version drift between
+    # test fixture + current release was a foot-gun pre-fix (the loud nudge
+    # contains "missing" which spuriously triggered the negative grep below).
+    local current_version
+    current_version=$(grep -oE '"version":\s*"[0-9.]+"' "$SCRIPT_DIR/../package.json" | grep -oE '[0-9.]+')
+    echo "<!-- SDLC Wizard Version: ${current_version} -->" > "$tmpdir/project/SDLC.md"
     echo "# Testing" > "$tmpdir/project/TESTING.md"
     # Mock npm/claude/codex to prevent version check output
     mkdir -p "$tmpdir/bin"
@@ -2120,6 +2126,208 @@ test_settings_has_session_start_hook
 test_model_effort_check_nested_cwd
 test_model_effort_check_local_overrides_project
 test_instructions_loaded_no_duplicate_effort_nudge
+
+# ROADMAP token-bloat audit: prevent 2× per-prompt hook print when both
+# project (.claude/settings.json) and plugin (hooks.json) register the same
+# hook (e.g., the wizard's own dogfood + locally-installed plugin).
+# Helper: dedupe_plugin_or_project — plugin invocation yields if project also
+# registers the same hook. Project always wins; consumer plugin-only installs
+# still fire normally.
+test_dedupe_plugin_yields_to_project() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"$CLAUDE_PROJECT_DIR/hooks/sdlc-prompt-check.sh"}]}]}}' > "$tmpdir/.claude/settings.json"
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    local fake_plugin_path="/Users/somebody/.claude/plugins-local/sdlc-wizard-wrap/plugins/sdlc-wizard/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$fake_plugin_path" "$tmpdir"; then
+        fail "plugin invocation should yield (return 1) when project settings.json registers same hook"
+    else
+        pass "plugin invocation yields to project registration (no double-print)"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_dedupe_plugin_proceeds_when_no_project_registration() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    # No .claude/settings.json — consumer plugin-only install
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    local fake_plugin_path="/Users/somebody/.claude/plugins-local/sdlc-wizard-wrap/plugins/sdlc-wizard/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$fake_plugin_path" "$tmpdir"; then
+        pass "plugin proceeds when no project settings.json (consumer plugin-only)"
+    else
+        fail "plugin should proceed when no project registration exists"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_dedupe_plugin_proceeds_when_project_settings_unrelated() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    # Project settings.json exists but doesn't register THIS hook
+    echo '{"hooks":{"PostToolUse":[{"hooks":[{"command":"some-other-hook.sh"}]}]}}' > "$tmpdir/.claude/settings.json"
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    local fake_plugin_path="/Users/somebody/.claude/plugins-local/sdlc-wizard-wrap/plugins/sdlc-wizard/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$fake_plugin_path" "$tmpdir"; then
+        pass "plugin proceeds when project settings exists but doesn't register this hook"
+    else
+        fail "plugin should proceed when project settings doesn't reference this hook by name"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_dedupe_project_invocation_always_proceeds() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"sdlc-prompt-check.sh"}]}]}}' > "$tmpdir/.claude/settings.json"
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    local non_plugin_path="/Users/somebody/myrepo/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$non_plugin_path" "$tmpdir"; then
+        pass "project (non-plugin) invocation always proceeds regardless of settings"
+    else
+        fail "non-plugin invocation should never yield"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_dedupe_recognizes_plugins_cache_path() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"hooks":{"UserPromptSubmit":[{"hooks":[{"command":"sdlc-prompt-check.sh"}]}]}}' > "$tmpdir/.claude/settings.json"
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    # Marketplace install path uses /plugins/cache/ instead of /plugins-local/
+    local fake_cache_path="/Users/somebody/.claude/plugins/cache/sdlc-wizard-local/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$fake_cache_path" "$tmpdir"; then
+        fail "marketplace plugin path (/plugins/cache/) should also yield"
+    else
+        pass "marketplace plugin path (/plugins/cache/) yields to project"
+    fi
+    rm -rf "$tmpdir"
+}
+
+# DEDUPE-001 regression (Codex round 1): helper must not depend on `basename`.
+# Uses parameter expansion so it survives PATH-restricted test environments.
+test_dedupe_works_with_path_restricted() {
+    # Static-analysis test (Codex DEDUPE-001): the dedupe helper must NOT call
+    # external `basename` — it must use parameter expansion `${path##*/}`.
+    # Direct PATH-restriction simulation is unreliable on macOS (Gatekeeper
+    # kills cp'd /usr/bin/grep), so we verify the property statically: the
+    # helper's source code uses parameter expansion and contains no basename.
+    local helper="$HOOKS_DIR/_find-sdlc-root.sh"
+    local fails=0
+    # Match a basename invocation in CODE (not in comments): grep non-comment
+    # lines for `$(basename` or backtick-basename subshell forms.
+    if /usr/bin/grep -vE '^\s*#' "$helper" | /usr/bin/grep -qE '\$\(basename|`basename' 2>/dev/null; then
+        fails=$((fails + 1))
+        echo "  helper still calls external 'basename' command" >&2
+    fi
+    if ! /usr/bin/grep -q 'script_path##\*/' "$helper" 2>/dev/null; then
+        fails=$((fails + 1))
+        echo "  helper missing parameter-expansion form '\${script_path##*/}'" >&2
+    fi
+    if [ "$fails" -eq 0 ]; then
+        pass "dedupe helper uses parameter expansion, no external 'basename' (PATH-restricted safe)"
+    else
+        fail "dedupe helper has $fails parameter-expansion regressions (#DEDUPE-001)"
+    fi
+}
+
+# DEDUPE-002 regression (Codex round 1): script-name match must be scoped to
+# `"command"` JSON entries, not anywhere in settings.json. Otherwise a hook
+# basename appearing in `permissions.allow` falsely triggers yield.
+test_dedupe_does_not_match_basename_in_permissions() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    # settings.json mentions "sdlc-prompt-check.sh" only in permissions.allow,
+    # NOT in any hook command registration.
+    cat > "$tmpdir/.claude/settings.json" <<'JSON'
+{
+  "permissions": {
+    "allow": ["Bash(./hooks/sdlc-prompt-check.sh *)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {"hooks": [{"command": "some-other-hook.sh"}]}
+    ]
+  }
+}
+JSON
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    local fake_plugin_path="/Users/x/.claude/plugins-local/sdlc-wizard-wrap/plugins/sdlc-wizard/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$fake_plugin_path" "$tmpdir"; then
+        pass "dedupe ignores script name in permissions.allow (project does not register the hook)"
+    else
+        fail "dedupe falsely yielded — script name in permissions.allow should not count as registration"
+    fi
+    rm -rf "$tmpdir"
+}
+
+# DEDUPE-002 positive: still yields when the basename appears in a real
+# `"command"` registration (the legitimate dual-install scenario).
+test_dedupe_matches_command_field_only() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    cat > "$tmpdir/.claude/settings.json" <<'JSON'
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {"hooks": [{"command": "$CLAUDE_PROJECT_DIR/hooks/sdlc-prompt-check.sh"}]}
+    ]
+  }
+}
+JSON
+    # shellcheck disable=SC1090
+    source "$HOOKS_DIR/_find-sdlc-root.sh"
+    local fake_plugin_path="/Users/x/.claude/plugins-local/sdlc-wizard-wrap/plugins/sdlc-wizard/hooks/sdlc-prompt-check.sh"
+    if dedupe_plugin_or_project "$fake_plugin_path" "$tmpdir"; then
+        fail "dedupe should yield when basename appears in a hook \"command\" registration"
+    else
+        pass "dedupe matches \"command\" field correctly (legitimate dual-install yields)"
+    fi
+    rm -rf "$tmpdir"
+}
+
+# DEDUPE-003 regression: hook scripts must source helper correctly even when
+# invoked directly from the hooks/ directory (BASH_SOURCE[0] has no slash).
+test_dedupe_hook_direct_invocation_no_slash() {
+    # Run sdlc-prompt-check.sh via bash from inside hooks/ where BASH_SOURCE[0]
+    # is just the filename — the no-slash fallback to "." must source helper.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo "# SDLC" > "$tmpdir/SDLC.md"
+    echo "# Testing" > "$tmpdir/TESTING.md"
+    local rc=0 stderr_out
+    stderr_out=$(cd "$HOOKS_DIR" && CLAUDE_PROJECT_DIR="$tmpdir" bash -c './sdlc-prompt-check.sh </dev/null' 2>&1) || rc=$?
+    rm -rf "$tmpdir"
+    # Expect rc=0 AND no "No such file or directory" for _find-sdlc-root.sh
+    if [ "$rc" -eq 0 ] && ! echo "$stderr_out" | grep -q 'No such file'; then
+        pass "hook handles direct invocation with no-slash BASH_SOURCE (sources helper via . fallback)"
+    else
+        fail "hook failed direct invocation (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_dedupe_plugin_yields_to_project
+test_dedupe_plugin_proceeds_when_no_project_registration
+test_dedupe_plugin_proceeds_when_project_settings_unrelated
+test_dedupe_project_invocation_always_proceeds
+test_dedupe_recognizes_plugins_cache_path
+test_dedupe_works_with_path_restricted
+test_dedupe_does_not_match_basename_in_permissions
+test_dedupe_matches_command_field_only
+test_dedupe_hook_direct_invocation_no_slash
 
 echo ""
 echo "--- SDLC enforcement gap audit ---"
