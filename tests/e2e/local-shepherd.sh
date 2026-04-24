@@ -58,7 +58,7 @@ EOF
 PR_NUMBER="$1"
 
 # Dependency checks
-for bin in claude gh jq; do
+for bin in claude gh jq git; do
     command -v "$bin" >/dev/null 2>&1 || { echo "Error: $bin CLI not found on PATH" >&2; exit 1; }
 done
 
@@ -69,6 +69,23 @@ IS_FORK=$(gh pr view "$PR_NUMBER" --json headRepository --jq '.headRepository.is
 if [ "$IS_FORK" = "true" ]; then
     echo "Abort: PR #$PR_NUMBER is from a fork. Local shepherd only runs same-repo PRs (Codex P0 trust boundary). Fork PRs stay on the CI-API path." >&2
     exit 2
+fi
+
+# HEAD-SHA verification (Codex LS-001 P0): the shepherd scores + posts a
+# check-run against the PR's head SHA from GitHub. If the local worktree is
+# on a different commit, we would certify the wrong code as passing. Require
+# the user to check out the PR branch first (`gh pr checkout $PR`).
+PR_HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid 2>/dev/null)
+LOCAL_HEAD_SHA=$(git rev-parse HEAD 2>/dev/null)
+if [ -z "$PR_HEAD_SHA" ] || [ -z "$LOCAL_HEAD_SHA" ]; then
+    echo "Error: could not resolve HEAD SHAs (pr=$PR_HEAD_SHA local=$LOCAL_HEAD_SHA)" >&2
+    exit 1
+fi
+if [ "${SDLC_SHEPHERD_SKIP_SHA_CHECK:-0}" != "1" ] && [ "$PR_HEAD_SHA" != "$LOCAL_HEAD_SHA" ]; then
+    echo "Error: local HEAD ($LOCAL_HEAD_SHA) does not match PR #$PR_NUMBER head ($PR_HEAD_SHA)." >&2
+    echo "       Check out the PR branch first:  gh pr checkout $PR_NUMBER" >&2
+    echo "       Or set SDLC_SHEPHERD_SKIP_SHA_CHECK=1 (not recommended)." >&2
+    exit 1
 fi
 
 # Evaluator still hits Anthropic API (ROADMAP #228 will migrate).
@@ -84,12 +101,11 @@ SCENARIO_FILE=$(select_scenario "$SCENARIOS_DIR" "$PR_NUMBER")
 SCENARIO_NAME=$(basename "$SCENARIO_FILE" .md)
 echo "PR #$PR_NUMBER → scenario: $SCENARIO_NAME" >&2
 
-# Extract the task text (between '## Task' and the next '## ' header).
-TASK=$(sed -n '/^## Task$/,/^## /p' "$SCENARIO_FILE" | grep -v '^##' | head -40)
-
-# ---- Parity with CI (.github/workflows/ci.yml:327-358) ----
+# ---- Parity with CI (.github/workflows/ci.yml:327-361) ----
 # These values MUST match what `claude-code-action@v1` uses in CI. Changing
 # any of them without a matching CI change creates a silent score-drift risk.
+# The parity-audit test (tests/test-local-shepherd.sh) diffs these against
+# the CI block to catch drift.
 PARITY_MODEL="claude-opus-4-7"
 PARITY_MAX_TURNS=55
 PARITY_ALLOWED_TOOLS='Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task'
@@ -98,44 +114,109 @@ TMPRUN=$(mktemp -d)
 trap 'rm -rf "$TMPRUN"' EXIT
 OUTPUT_FILE="$TMPRUN/claude-execution-output.json"
 
+# Relative scenario path, fixtures working dir — match CI prompt structure
+# (pr-branch is CI artifact path; locally we use repo-root relative).
+REL_SCENARIO="tests/e2e/scenarios/$SCENARIO_NAME.md"
+FIXTURES_REL="tests/e2e/fixtures/test-repo"
+
+# Full prompt — byte-equivalent to .github/workflows/ci.yml:338-361 modulo
+# the pr-branch/ prefix that only exists in CI's checked-out-artifact layout.
+# bash 3.2 on macOS has a heredoc-in-$() parsing bug when the body contains
+# backticks (even inside a 'PROMPT'-quoted delimiter), so we write the prompt
+# to a temp file line-by-line and read it back. Ugly but bash-3.2 safe.
+PROMPT_FILE="$TMPRUN/parity-prompt.txt"
+{
+    printf '%s\n' "You are running an E2E SDLC simulation. Your goal is to complete a coding task"
+    printf '%s\n' "while demonstrating proper SDLC practices."
+    printf '%s\n' ""
+    printf '%s\n' "Working directory: $FIXTURES_REL"
+    printf '%s\n' "Scenario file: $REL_SCENARIO"
+    printf '%s\n' ""
+    printf '%s\n' "STEPS:"
+    printf '%s\n' "1. Read the scenario file to understand the task and complexity"
+    printf '%s\n' "2. Use TodoWrite or TaskCreate to track your work"
+    printf '%s\n' '3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"'
+    printf '%s\n' "4. For medium/hard tasks, plan your approach before coding (outline steps in a message)"
+    printf '%s\n' "5. Follow TDD: write/update tests FIRST, verify they fail, then implement"
+    printf '6. Run %cnpm test%c to verify all tests pass\n' 96 96
+    printf '%s\n' "7. Self-review: use Read to read back the files you modified, check for issues"
+    printf '%s\n' ""
+    printf '%s\n' "IMPORTANT:"
+    printf '%s\n' "- You MUST use TodoWrite or TaskCreate (scored by automated checks)"
+    printf '%s\n' '- You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)'
+    printf '%s\n' "- Write or edit test files BEFORE implementation files (TDD RED phase is scored)"
+    printf '%s\n' "- You MUST self-review by using Read on files you modified before finishing (scored by automated checks)"
+    printf '%s\n' "- All files you need are in the working directory — do not search elsewhere"
+    printf '%s\n' "- Be efficient with your turns — execute, don't just plan"
+    printf '%s\n' "- Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead"
+} > "$PROMPT_FILE"
+PARITY_PROMPT=$(cat "$PROMPT_FILE")
+
 echo "Running simulation: model=$PARITY_MODEL, max-turns=$PARITY_MAX_TURNS" >&2
+# LS-002: hard-fail on claude error. Previously `|| true` swallowed failures,
+# so a crashed sim still produced score=0 as if it had completed. Now a
+# non-zero claude exit propagates to the shepherd's exit.
+set +e
 claude --print \
     --model "$PARITY_MODEL" \
     --max-turns "$PARITY_MAX_TURNS" \
     --allowedTools "$PARITY_ALLOWED_TOOLS" \
+    --add-dir "tests/e2e" \
     --output-format json \
-    "$TASK" > "$OUTPUT_FILE" 2>"$TMPRUN/claude.err" || true
-
-# ---- Score ----
-# Evaluator may fail in restricted environments (network, credits) — proceed
-# with score=0 so provenance-only tests can still verify the score-history
-# append.
-SCORE=0
-MAX_SCORE=10
-CRIT='{}'
-if [ -x "$EVALUATOR" ] && [ -s "$OUTPUT_FILE" ]; then
-    # Capture evaluator output separately so a failed evaluator (non-zero
-    # exit after partial stdout write) doesn't corrupt EVAL_JSON with the
-    # `|| echo '{}'` fallback concatenated to actual JSON.
-    set +e
-    EVAL_JSON=$("$EVALUATOR" "$SCENARIO_FILE" "$OUTPUT_FILE" --json 2>"$TMPRUN/eval.err")
-    EVAL_RC=$?
-    set -e
-    if [ "$EVAL_RC" -ne 0 ] || [ -z "$EVAL_JSON" ]; then
-        EVAL_JSON='{}'
-    fi
-    # Validate JSON; if jq rejects, fall back to empty object.
-    if ! echo "$EVAL_JSON" | jq empty 2>/dev/null; then
-        EVAL_JSON='{}'
-    fi
-    SCORE=$(echo "$EVAL_JSON" | jq -r '.score // 0' 2>/dev/null)
-    MAX_SCORE=$(echo "$EVAL_JSON" | jq -r '.max_score // 10' 2>/dev/null)
-    CRIT=$(echo "$EVAL_JSON" | jq -c '.criteria // {}' 2>/dev/null)
-    # Guard against non-numeric or empty values from unusual evaluator output.
-    case "$SCORE" in ''|*[!0-9]*) SCORE=0 ;; esac
-    case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
-    [ -z "$CRIT" ] && CRIT='{}'
+    "$PARITY_PROMPT" > "$OUTPUT_FILE" 2>"$TMPRUN/claude.err"
+CLAUDE_RC=$?
+set -e
+if [ "$CLAUDE_RC" -ne 0 ]; then
+    echo "Error: claude simulation failed (rc=$CLAUDE_RC)" >&2
+    [ -s "$TMPRUN/claude.err" ] && sed -n '1,5p' "$TMPRUN/claude.err" >&2
+    exit 1
 fi
+
+# ---- Score (LS-002: hard-fail on evaluator error) ----
+# Previously the evaluator's non-zero exit silently became score=0/10 + an
+# empty criteria object, indistinguishable from a real failing simulation.
+# Now evaluator failures propagate: the shepherd exits 1 and nothing is
+# appended to score-history. Set SDLC_SHEPHERD_SOFT_FAIL=1 to restore the
+# old permissive behavior (useful for smoke testing, not for CI).
+if [ ! -x "$EVALUATOR" ]; then
+    echo "Error: evaluator not executable at $EVALUATOR" >&2
+    exit 1
+fi
+if [ ! -s "$OUTPUT_FILE" ]; then
+    echo "Error: simulation output is empty — cannot evaluate" >&2
+    exit 1
+fi
+
+set +e
+EVAL_JSON=$("$EVALUATOR" "$SCENARIO_FILE" "$OUTPUT_FILE" --json 2>"$TMPRUN/eval.err")
+EVAL_RC=$?
+set -e
+if [ "$EVAL_RC" -ne 0 ]; then
+    if [ "${SDLC_SHEPHERD_SOFT_FAIL:-0}" = "1" ]; then
+        echo "Warning: evaluator rc=$EVAL_RC — continuing in soft-fail mode" >&2
+        EVAL_JSON='{}'
+    else
+        echo "Error: evaluator failed (rc=$EVAL_RC)" >&2
+        [ -s "$TMPRUN/eval.err" ] && sed -n '1,5p' "$TMPRUN/eval.err" >&2
+        exit 1
+    fi
+fi
+# Validate JSON; if jq rejects (e.g., stdout mixed with stderr), hard-fail
+# unless soft-fail is on.
+if ! echo "$EVAL_JSON" | jq empty 2>/dev/null; then
+    if [ "${SDLC_SHEPHERD_SOFT_FAIL:-0}" = "1" ]; then
+        EVAL_JSON='{}'
+    else
+        echo "Error: evaluator emitted non-JSON output" >&2
+        exit 1
+    fi
+fi
+SCORE=$(echo "$EVAL_JSON" | jq -r '.score // 0' 2>/dev/null)
+MAX_SCORE=$(echo "$EVAL_JSON" | jq -r '.max_score // 10' 2>/dev/null)
+CRIT=$(echo "$EVAL_JSON" | jq -c '.criteria // {}' 2>/dev/null)
+case "$SCORE" in ''|*[!0-9]*) SCORE=0 ;; esac
+case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
+[ -z "$CRIT" ] && CRIT='{}'
 
 # ---- Provenance (Codex P1 #5 on #212 plan) ----
 HOST_OS=$(uname -s 2>/dev/null || echo "unknown")
