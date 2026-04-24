@@ -192,12 +192,14 @@ test_shepherd_calls_claude_with_parity_flags() {
     local invocation
     invocation=$(cat "$claude_log" 2>/dev/null)
     rm -rf "$tmpdir"
-    # Must have ALL parity flags:
+    # Must have ALL parity flags. NOTE: no --model — CI doesn't pin it either
+    # (relies on action default), so shepherd doesn't pin it. Both shift
+    # together if Anthropic changes the default.
     if echo "$invocation" | grep -q -- '--max-turns 55' && \
        echo "$invocation" | grep -q -- '--allowedTools' && \
-       echo "$invocation" | grep -q -- '--model claude-opus-4-7' && \
+       echo "$invocation" | grep -q -- '--add-dir' && \
        echo "$invocation" | grep -q -- '--output-format json'; then
-        pass "shepherd invokes claude with parity flags (--max-turns 55, --allowedTools, --model, --output-format json)"
+        pass "shepherd invokes claude with parity flags (--max-turns 55, --allowedTools, --add-dir, --output-format json)"
     else
         fail "claude invocation missing parity flags. Got: '$invocation'"
     fi
@@ -393,6 +395,56 @@ EOF
     fi
 }
 
+test_shepherd_exits_1_on_checkrun_failure() {
+    # LS-002 P0 round 3: check-run POST failure used to be a non-fatal warning
+    # that left rc=0. Codex correctly flagged this — branch protection waiting
+    # on e2e-local-shepherd would never be satisfied, and the user wouldn't
+    # know. Must hard-fail rc=1 on check-run error.
+    local tmpdir bindir evaluator
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    evaluator="$tmpdir/mock-evaluator.sh"
+    # Mock gh that fails on `api` (check-run POST) but succeeds on `pr view`.
+    mkdir -p "$bindir"
+    cat > "$bindir/gh" <<'EOF'
+#!/bin/bash
+case "$1 $2" in
+    "pr view")
+        case "$*" in
+            *isFork*) echo "false" ;;
+            *headRefOid*) echo "abcd1234" ;;
+            *) echo "{}" ;;
+        esac
+        ;;
+    "api repos"*|"api /repos"*)
+        echo "HTTP 403 — mock check-run POST failure" >&2
+        exit 1
+        ;;
+    *) echo "{}" ;;
+esac
+EOF
+    chmod +x "$bindir/gh"
+    _mock_git "$bindir"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":8,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$evaluator"
+    local rc=0
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 >/dev/null 2>&1 || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 1 ]; then
+        pass "shepherd exits 1 on check-run POST failure (gate not satisfied)"
+    else
+        fail "check-run POST failure must be hard-fail (rc=$rc)"
+    fi
+}
+
 test_shepherd_prompt_matches_ci_yml() {
     # LS-003 P1: shepherd's embedded prompt must be byte-compatible with CI's
     # inline prompt at .github/workflows/ci.yml:338-361. If either drifts,
@@ -432,6 +484,7 @@ test_shepherd_dry_run_skips_side_effects
 test_shepherd_aborts_on_sha_mismatch
 test_shepherd_exits_1_on_claude_failure
 test_shepherd_exits_1_on_evaluator_failure
+test_shepherd_exits_1_on_checkrun_failure
 test_shepherd_prompt_matches_ci_yml
 
 echo ""
