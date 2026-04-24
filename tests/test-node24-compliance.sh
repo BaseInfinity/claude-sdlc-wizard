@@ -104,6 +104,45 @@ test_no_gh_release_action() {
     fi
 }
 
+# Test 7.5: No workflow uses oven-sh/setup-bun (ROADMAP #210)
+# setup-bun's internal JS runs on Node 20; GitHub Actions emits a real
+# Node 20 deprecation warning per run even when the workflow YAML is clean.
+# This is a defensive regression guard — verified empty on 2026-04-23.
+test_no_oven_sh_setup_bun() {
+    if grep -rq 'oven-sh/setup-bun' "$WORKFLOW_DIR"; then
+        fail "Found oven-sh/setup-bun — runs on Node 20, will emit deprecation warning (use manual bun install or Node-24-native alt)"
+        grep -rn 'oven-sh/setup-bun' "$WORKFLOW_DIR" | head -3
+    else
+        pass "No workflows use oven-sh/setup-bun"
+    fi
+}
+
+# Test 7.5-nc: Committed negative control for test_no_oven_sh_setup_bun.
+# Codex review (2026-04-23, batch-code-prs-214-216-217) raised P2 for missing
+# in-repo proof that the grep actually catches the banned pattern. This test
+# writes a temp file under an isolated fixture dir with the banned string,
+# runs the exact same grep, asserts it catches, then tears down. Proves the
+# regex would fire if setup-bun ever reappears in a real workflow.
+test_no_oven_sh_setup_bun_negative_control() {
+    local fixture
+    fixture=$(mktemp -d 2>/dev/null || mktemp -d -t setup-bun-nc)
+    # Simulate a workflow file using the banned action.
+    cat > "$fixture/fake-workflow.yml" <<'YAML'
+name: fake
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: oven-sh/setup-bun@v1
+YAML
+    if grep -rq 'oven-sh/setup-bun' "$fixture"; then
+        pass "Negative control: grep catches oven-sh/setup-bun when present (regex works)"
+    else
+        fail "Negative control FAILED — grep did not catch a known setup-bun reference; regex broken"
+    fi
+    rm -rf "$fixture"
+}
+
 # --- Node Version Tests ---
 
 # Test 8: No workflow specifies node-version: '20' or node-version: 20
@@ -172,6 +211,8 @@ test_no_create_pr_v7
 test_no_sticky_comment_v2
 test_no_hide_comment_action
 test_no_gh_release_action
+test_no_oven_sh_setup_bun
+test_no_oven_sh_setup_bun_negative_control
 test_no_node_version_20
 test_checkout_v5_present
 test_setup_node_v5_present
