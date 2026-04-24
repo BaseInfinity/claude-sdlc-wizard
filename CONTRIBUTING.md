@@ -31,6 +31,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-memory-audit-protocol.sh && \
    ./tests/test-community-paths.sh && \
    ./tests/test-persist-score-history.sh && \
+   ./tests/test-local-shepherd.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \
@@ -167,6 +168,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/test-docs-usability.sh
 ./tests/test-model-comparison.sh
 ./tests/test-degradation-detection.sh
+./tests/test-local-shepherd.sh
 ./tests/e2e/run-simulation.sh
 ./tests/e2e/test-deterministic-checks.sh
 ./tests/e2e/test-scenario-rotation.sh

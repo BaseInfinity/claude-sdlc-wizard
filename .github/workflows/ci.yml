@@ -186,6 +186,9 @@ jobs:
       - name: Run persist score history tests
         run: ./tests/test-persist-score-history.sh
 
+      - name: Run local shepherd tests
+        run: ./tests/test-local-shepherd.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
