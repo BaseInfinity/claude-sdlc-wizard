@@ -189,6 +189,12 @@ jobs:
       - name: Run local shepherd tests
         run: ./tests/test-local-shepherd.sh
 
+      - name: Run repo complexity tests (#233)
+        run: ./tests/test-repo-complexity.sh
+
+      - name: Run prompt-hook-fires-once tests (#224)
+        run: ./tests/test-prompt-hook-fires-once.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
