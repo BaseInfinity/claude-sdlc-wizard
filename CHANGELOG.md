@@ -4,6 +4,33 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.36.0] - 2026-04-23
+
+### Added
+
+- **Regression test: every ci.yml `steps.X.outputs.Y` reference must resolve** (#214 / ROADMAP #215). Python+PyYAML test walks ci.yml, builds per-job map of step_id → emitted outputs (handles `NAME=val` and heredoc `NAME<<EOF`), and flags any dead gate. Caught #215's original bug and guards against re-introduction.
+- **Regression test: no `oven-sh/setup-bun` in workflows** (#217 / ROADMAP #210). Defensive guard against Node 20 deprecation reintroduction. Committed negative control writes a tmp fixture with the banned pattern, asserts grep catches it, tears down — proves the regex is live-fire correct.
+- **ROADMAP #218** — evaluate CC 2.1.118 `type: "mcp_tool"` hook capability (Prove-It gated).
+- **ROADMAP #219** — re-verify #198 model-pin guidance against CC 2.1.117 restart-persistence behavior.
+- **ROADMAP #220** — token-spike anomaly detection (from Anthropic 2026-04-23 post-mortem).
+- **ROADMAP #221** — fold post-mortem lessons into wizard docs (explicit effort / extended-thinking+caching+idle gotcha / verbosity-cap audit).
+- **ROADMAP #222** — prompt-compounding audit harness (A/B each of ~40 prompt-injection sites).
+- **ROADMAP #223** — adopt GPT-5.5 in review-tier guidance after calibration (standard $5/$30 is Codex-usable ceiling; Pro $30/$180 is ChatGPT-only, reserve for release-blocker one-offs).
+
+### Fixed
+
+- **Tier 2 persist-scores dead gate** (#214 / ROADMAP #215). The Tier 2 "Persist scores to PR branch" step was gated on `steps.check-baseline.outputs.should_simulate`, but the Tier 2 `check-baseline` only emits `has_baseline`. The step had been silently dead, so `score-history.jsonl` never got appended from Tier 2 runs. One-word fix (`should_simulate` → `has_baseline`) plus the new cross-job output-parser regression test.
+- **`score-history.jsonl` `max_score` correctness** (#216 / ROADMAP #211). Both Tier 1 and Tier 2 hardcoded `--argjson max_score 10`, causing UI scenarios (which score out of 11 via design_system bonus) to record `11/10` — nonsensical and breaking downstream analytics. Both sites now read `MAX_SCORE` from the eval result file; shell `case` statement guards non-numeric inputs; regression test grep-asserts no hardcoded literal remains.
+- **CC 2.1.118 `/cost` → `/usage` doc rename** (#209). Claude Code 2.1.118 consolidated `/cost` and `/stats` into `/usage` with aliases preserved. Wizard docs and test-self-update now use `/usage` as canonical (alias note inline).
+
+### Docs
+
+- Roadmap entries for all additions above (#218-223), plus minor wording correction to #221(c) post-Codex review (attributes 3% drop to broader length-limit prompt change, not a single sentence).
+
+### Process
+
+- Codex cross-model review run on every PR in the v1.36.0 batch (3 code PRs: 10/10 + 10/10 + 8/10; 4 doc/roadmap PRs: 10/10 + 10/10 + 7/10→fixed + 9/10). Shepherd-loop discipline re-enforced after a process miss mid-cycle — logged as feedback memory `feedback_shepherd_loop_per_pr.md`.
+
 ## [1.35.0] - 2026-04-19
 
 ### Added
