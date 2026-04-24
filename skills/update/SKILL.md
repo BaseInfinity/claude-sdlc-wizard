@@ -35,7 +35,7 @@ Also note the completed steps from `<!-- Completed Steps: ... -->`.
 
 Use WebFetch to fetch the CHANGELOG:
 ```
-https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CHANGELOG.md
+https://raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/CHANGELOG.md
 ```
 
 Extract the latest version from the first `## [X.X.X]` line.
@@ -46,9 +46,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.36.0
+Latest:    1.36.1
 
 What changed:
+- [1.36.1] Repo renamed `agentic-ai-sdlc-wizard` → `claude-sdlc-wizard` (matches sibling pattern; npm package unchanged); `npm pkg fix` metadata cleanup; slug migration across docs/tests/configs
 - [1.36.0] CC 2.1.118 `/usage` canonical + aliases, Tier 2 dead-gate fix (#215), score-history max_score correctness (#211), setup-bun regression guard (#210), post-mortem learnings (#220-222), GPT-5.5 adoption plan (#223), MCP-tool hooks + #198 re-verify in backlog (#218/#219)
 - [1.35.0] PreCompact seam gate + self-heal (#208/#209), effort auto-bump on LOW/FAILED/CONFUSED (#195), wizard staleness nudge (#196), Codex CI-log audit pattern, ...
 - [1.34.0] API feature detection shepherd for Claude releases, Memory Audit Protocol with 7 verified lessons (+2 caught-and-retracted), /less-permission-prompts surfaced, ...
@@ -81,7 +82,7 @@ This reports each managed file as MATCH, CUSTOMIZED, MISSING, or DRIFT. Present 
 
 Use WebFetch to fetch the latest wizard:
 ```
-https://raw.githubusercontent.com/BaseInfinity/agentic-ai-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
+https://raw.githubusercontent.com/BaseInfinity/claude-sdlc-wizard/main/CLAUDE_CODE_SDLC_WIZARD.md
 ```
 
 This is the source of truth for all templates, hooks, skills, and step registry.
