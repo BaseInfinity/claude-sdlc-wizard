@@ -688,12 +688,12 @@ test_cicd_token_tracking() {
     fi
 }
 
-# Wizard documents /cost command for session monitoring
+# Wizard documents /usage command for session monitoring (formerly /cost; CC 2.1.118 renamed with aliases)
 test_wizard_cost_command() {
-    if grep -q "/cost" "$WIZARD"; then
-        pass "Wizard documents /cost command"
+    if grep -q "/usage" "$WIZARD"; then
+        pass "Wizard documents /usage command"
     else
-        fail "Wizard should document /cost command for session monitoring"
+        fail "Wizard should document /usage command for session monitoring"
     fi
 }
 

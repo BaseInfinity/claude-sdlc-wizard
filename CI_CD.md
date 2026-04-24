@@ -130,7 +130,7 @@ CI-level token tracking was removed in PR #33 — `claude-code-action@v1` does n
 - `--effort low|medium|high` controls thinking token consumption
 
 **Available tracking (outside CI):**
-- `/cost` command shows session totals (USD, API time, code changes)
+- `/usage` command shows session totals (USD, API time, code changes). Aliases: `/cost`, `/stats` (legacy names still work)
 - Status line JSON provides real-time `cost.total_cost_usd` and per-request token counts
 - OpenTelemetry export (`CLAUDE_CODE_ENABLE_TELEMETRY=1`) sends per-request `cost_usd`, `input_tokens`, `output_tokens` to any OTLP backend
 
