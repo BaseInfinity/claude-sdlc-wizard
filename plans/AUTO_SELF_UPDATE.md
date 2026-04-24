@@ -1,7 +1,8 @@
 # Auto Self-Update Plan
 
-> Status: IMPLEMENTED & VALIDATED - See `.github/workflows/`
+> Status: IMPLEMENTED (with in-progress migration) — See `.github/workflows/`
 > Last Validated: 2026-02-02 (E2E workflow fix - proper Claude simulation before evaluation)
+> **2026-04-24 (ROADMAP #231 Phase 1):** `monthly-research.yml` deleted. `weekly-update.yml` cron disabled. Full migration to local-Max shepherd tracked in ROADMAP #231 Phases 2-4.
 
 ## Overview
 
@@ -9,7 +10,7 @@ A self-evolving system that keeps the wizard in sync with Claude Code updates an
 
 ## Unified Workflow Pattern
 
-Both auto-update workflows now follow the same pattern:
+The auto-update workflow (just `weekly-update` post #231 Phase 1; `monthly-research` was deleted) follows this pattern:
 
 ```
 Detect something new → Suggest changes → Test with E2E → Create PR with results
@@ -18,7 +19,8 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 | Workflow | Detects | Suggests Changes To | Tests | Output |
 |----------|---------|---------------------|-------|--------|
 | **weekly-update** | New CC version + community patterns | N/A (Phase A) or SDLC docs (Phase B) + community patterns | Regression/Improvement + pattern testing | PR with scores |
-| **monthly-research** | Research trends | SDLC docs based on trends | Do trends improve us? | PR with scores |
+
+> **Historical (pre-2026-04-24):** `monthly-research` covered trend research → SDLC doc suggestions. Removed per ROADMAP #231 Phase 1 (zero merged artifacts in 30d, "perplexity-as-CI" antipattern). Research now happens inline in a Claude Code session.
 
 ### Two-Phase Version Testing
 
@@ -45,7 +47,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 | **Tier 2 (Full)** | 5x | High (95% CI) | ~$2.50 |
 
 **Who Gets What:**
-- **Our auto-workflows** (weekly/monthly): Tier 1 + Tier 2 always
+- **Our auto-workflows** (weekly-update only; monthly-research removed per #231 Phase 1): Tier 1 + Tier 2 always
 - **External PRs**: Tier 1 only (Tier 2 on request via `merge-ready` label)
 
 ## What's Implemented
@@ -56,11 +58,8 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 - **Action:** Creates PR for updates (relevance shown in title) + digest issue for notable community findings
 - **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2, community pattern testing (Tier 2)
 
-### Monthly Research Deep Dive (`.github/workflows/monthly-research.yml`)
-- **Trigger:** Monthly schedule (1st, 11 AM UTC) + manual dispatch
-- **Checks:** Academic papers, major announcements, deep community analysis
-- **Action:** Creates issue with trend report and recommendations
-- **E2E Testing:** Baseline vs with-changes comparison (Tier 2)
+### Monthly Research Deep Dive — REMOVED (ROADMAP #231 Phase 1, 2026-04-24)
+The `.github/workflows/monthly-research.yml` workflow (deep research → issue → Tier 2 E2E) was deleted. Research now happens inline in a Claude Code session when the maintainer wants it.
 
 ### PR Code Review (`.github/workflows/pr-review.yml`)
 - **Trigger:** All PRs
@@ -76,11 +75,11 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Trigger | Workflow | What It Does |
 |---------|----------|--------------|
-| Weekly (Mondays 9 AM UTC) | weekly-update.yml | Check releases + scan community → PR/Issue |
-| Monthly (1st, 11 AM UTC) | monthly-research.yml | Deep research → Issue |
+| Manual (cron disabled per #212/#231) | weekly-update.yml | Check releases + scan community → PR/Issue |
 | On PR | ci.yml | Run tests + E2E eval |
 | On PR | pr-review.yml | AI code review |
-| On CI fail / review findings | ci-self-heal.yml | Auto-fix loop |
+
+> **Historical:** `monthly-research.yml` (monthly cron) removed per ROADMAP #231 Phase 1. `ci-self-heal.yml` deprecated — local shepherd replaces it.
 
 ## Who Gets What on PR
 
@@ -96,7 +95,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 |----------|--------|-----|
 | Official sources | Weekly | Batched with community scan, saves API costs |
 | Community sources | Weekly | Less urgent, more noise, digest format |
-| Deep research | Monthly | Papers/trends don't change daily |
+| Deep research | ~~Monthly~~ Inline (removed per #231 Phase 1) | Monthly cron produced zero merged artifacts; research happens in a Claude Code session now |
 | State storage | Files in repo | Simple, transparent, version-controlled |
 | Analysis | Claude API | Nuanced understanding of wizard philosophy |
 | PR threshold | All updates | Human decides relevance, not automation |
@@ -108,11 +107,10 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 ```
 .github/
 ├── workflows/
-│   ├── weekly-update.yml     # Version check + community scan
-│   ├── monthly-research.yml  # Deep research and trends
+│   ├── weekly-update.yml     # Version check + community scan (cron disabled per #212/#231)
 │   ├── ci.yml                # Tests + E2E evaluation
-│   ├── ci-self-heal.yml      # Auto-fix loop (CI + review)
 │   └── pr-review.yml         # AI code review
+# historical (removed): monthly-research.yml (#231 Phase 1), ci-self-heal.yml (local shepherd replaces)
 ├── prompts/
 │   ├── analyze-release.md    # Claude prompt for release analysis
 │   └── analyze-community.md  # Claude prompt for community scan
@@ -1117,12 +1115,13 @@ When the weekly-update workflow detects a new Claude Code feature that overlaps 
 
 > Status: DONE — merged daily-update + weekly-community into weekly-update.yml
 
-### Result (2 auto-update workflows)
+### Result (1 auto-update workflow; monthly removed per #231 Phase 1)
 
 | Workflow | Schedule | Cost |
 |----------|----------|------|
-| `weekly-update.yml` | Weekly (Mondays 9 AM UTC) | ~$2.50/week |
-| `monthly-research.yml` | Monthly (1st, 11 AM UTC) | ~$0.50/month |
+| `weekly-update.yml` | Manual only (cron disabled per #212/#231) | ~$2.50/run when dispatched |
+
+> **Historical:** `monthly-research.yml` (~$0.50/month) deleted 2026-04-24 per ROADMAP #231 Phase 1 — zero merged artifacts in 30d.
 
 **The merged weekly workflow does:**
 1. Check for new Claude Code releases since last check

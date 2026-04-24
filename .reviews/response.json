@@ -1,22 +1,12 @@
 {
-  "review_id": "precompact-seam-001",
-  "round": 2,
+  "review_id": "roadmap-231-phase1-001",
+  "round": 3,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
-      "finding": "1 (P1) — rebase-apply branch not covered by any test",
+      "finding": "1 (recheck) — Test 136 in tests/test-workflow-triggers.sh broke because the doc fix changed 'auto-workflows (weekly/monthly)' to 'auto-workflows weekly-update only'",
       "action": "FIXED",
-      "summary": "Added test_precompact_blocks_on_git_rebase_apply_in_progress at tests/test-hooks.sh:296. Distinct fixture (`mkdir -p $tmpdir/.git/rebase-apply`, echo dummy > head-name) asserts rc=2 + stderr matches /rebase/i. Also renamed the existing rebase-merge test message for clarity. Hook suite count 105 → 106."
-    },
-    {
-      "finding": "2 (P1) — CLI/plugin tests do not assert precompact-seam-check.sh is shipped",
-      "action": "FIXED",
-      "summary": "Updated test_creates_all_files (tests/test-cli.sh:76) to enumerate 11 files including precompact-seam-check.sh + model-effort-check.sh. Updated test_hooks_executable (tests/test-cli.sh:101) from checking 3 hooks to checking all 5. Updated test_plugin_hook_scripts_exist + test_plugin_hook_scripts_executable + test_cli_installs_hooks_from_plugin_source in tests/test-plugin.sh to iterate over the full 5-hook list. Now if a future PR ships a new hook in init.js without updating tests, the test loop catches the miss."
-    },
-    {
-      "finding": "3 (P2) — docs misaligned (TodoWrite limitation, SDLC tree, negative-control magnitude)",
-      "action": "FIXED",
-      "summary": "(a) Added 'What's NOT checked' paragraph in CLAUDE_CODE_SDLC_WIZARD.md 'Compact at Seams' section calling out the TodoWrite limitation and telling users to watch the panel manually. (b) Added _find-sdlc-root.sh to the SDLC.md tree with annotation 'Shared helper (sourced by other hooks, not a CC hook entrypoint)' — now ls hooks/*.sh | wc -l (6) matches doc. (c) Replaced the specific 4793-char claim in ROADMAP.md with a reproducible range explanation: 'exact size depends on bloat line length (~1200 for one-word-per-line, ~4800 for nine-words-per-line). Both forms verify the cap gates runaway echo regressions.' This matches what any reviewer's repro will produce regardless of their bloat injection form."
+      "summary": "Updated tests/test-workflow-triggers.sh test_auto_self_update_no_daily (lines 1911-1927) to match the post-#231-Phase-1 wording. New assertion: plan must mention 'auto-workflows.*weekly-update' AND must NOT mention the legacy '(weekly/monthly)' cadence pair. Rationale: monthly-research removed per #231 Phase 1, so the test should enforce the new reality rather than the pre-delete wording. Also fixed the related 'Both auto-update workflows' line at plans/AUTO_SELF_UPDATE.md:13 (non-blocking note from round 2). Verification: `bash tests/test-workflow-triggers.sh` → 165/165 PASS."
     }
   ]
 }
