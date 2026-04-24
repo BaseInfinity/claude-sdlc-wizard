@@ -981,6 +981,36 @@ Don't add `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — Sonnet's 1M window has different
 - Sonnet 4.6 will drop some fine-grained self-review moves (it's fast, less deliberate). The Opus reviewer catches them — but you'll see more "fix in round 2" cycles compared to Opus-coder runs.
 - Mixed-mode disables auto-mode (same as flagship pin). The Sonnet pin is per-session — to switch back, remove the `model` line.
 
+### Verifying Prompt-Hook-Fires-Once (roadmap #224)
+
+CC 2.1.118 shipped a fix for `prompt` hooks double-firing when an agent-hook verifier subagent itself made tool calls. The bug would manifest as duplicate `SDLC BASELINE` injections per `UserPromptSubmit` — context bloat plus possible confusion. The dual-channel (project + plugin) double-print is already handled by `dedupe_plugin_or_project` in v1.37.1; this section is the runtime check for the *CC-internal* double-fire case.
+
+`hooks/sdlc-prompt-check.sh` ships an opt-in instrumentation: when the env var `SDLC_HOOK_FIRE_LOG` is set, every post-dedupe invocation appends one tab-separated record (`<unix-ts>\t<pid>\tsdlc-prompt-check`) to that log. Counting lines per prompt tells you whether CC fired the hook once or twice.
+
+**Maintainer procedure (real session):**
+
+```bash
+# 1. Pick a fresh log path
+export SDLC_HOOK_FIRE_LOG="$(mktemp /tmp/sdlc-fire-log.XXXXXX)"
+
+# 2. Restart Claude Code so the env propagates into spawned hooks
+#    (or set it in your shell rc / .envrc and start a fresh session)
+
+# 3. Run a normal SDLC session — including any task that triggers a verifier
+#    subagent (e.g., /code-review, /sdlc with multi-step planning)
+
+# 4. After N user prompts, count log lines:
+wc -l "$SDLC_HOOK_FIRE_LOG"
+#    Expect: N lines. >N indicates the CC double-fire bug regressed.
+
+# 5. Optional: tail the log live in another terminal to watch each fire:
+tail -f "$SDLC_HOOK_FIRE_LOG"
+```
+
+The instrumentation is opt-in — when the env var is unset, no log is written and no overhead is added. Unwritable log paths fail silently so a bad `SDLC_HOOK_FIRE_LOG` value never crashes the hook.
+
+**Regression test:** `tests/test-prompt-hook-fires-once.sh` covers the instrumentation contract (counter increments per invocation, opt-in semantics, log line shape, output stability, unwritable-path tolerance). It does *not* spawn Claude Code — that's a maintainer-runtime check by design. The test asserts the recording mechanism works so the maintainer's real-session count is trustworthy.
+
 ---
 
 ## Example Workflow (End-to-End)
