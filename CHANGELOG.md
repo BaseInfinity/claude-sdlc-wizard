@@ -8,6 +8,8 @@ All notable changes to the SDLC Wizard.
 
 ### Added
 
+- **Prompt-hook-fires-once instrumentation** — ROADMAP #224. `hooks/sdlc-prompt-check.sh` now records one tab-separated record (`<ts>\t<pid>\tsdlc-prompt-check`) per post-dedupe invocation when the opt-in env var `SDLC_HOOK_FIRE_LOG` is set. Maintainer can count lines per user prompt to verify CC 2.1.118's double-fire fix in real sessions; >1 line per prompt indicates regression. Unwritable paths fail silently. Procedure documented in `CLAUDE_CODE_SDLC_WIZARD.md` → "Verifying Prompt-Hook-Fires-Once". 6 regression tests in `tests/test-prompt-hook-fires-once.sh` cover the instrumentation contract (counter increments, opt-in semantics, log shape, output stability, error tolerance).
+
 - **Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer)** — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic classifies repos as `simple` or `complex` from filesystem signals (LOC, test count, hook count, workflow count, plus stakes flag for `.env` / `secrets/` / `credentials/`). Setup skill Step 9.5 expanded from binary y/N into a 3-way prompt:
   - **`[N]`** No pin (default, recommended for most repos) — preserves Claude Code auto-mode
   - **`[m]`** Mixed-mode pin `model: "sonnet[1m]"` — suggested for `simple` tier; coder runs on Sonnet, cross-model reviewer always stays at flagship (Opus 4.7 / gpt-5.5 xhigh)
