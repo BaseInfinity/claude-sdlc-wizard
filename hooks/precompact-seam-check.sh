@@ -29,7 +29,15 @@ HOLD_REASONS=""
 #       PR-linked; blocking forever over a forgotten artifact is worse UX than
 #       the bug we're preventing). Default threshold: 14 days.
 HANDOFF="$ROOT/.reviews/handoff.json"
-STALE_DAYS="${SDLC_HANDOFF_STALE_DAYS:-14}"
+# Validate SDLC_HANDOFF_STALE_DAYS as non-negative integer. Anything else
+# (empty, "foo", "-3", "10.5") silently falls back to 14 — we don't want a
+# typo in the user's env to leak a bash arithmetic error to stderr every
+# time the hook runs (caught by Codex P2 review of PR #227).
+STALE_DAYS_RAW="${SDLC_HANDOFF_STALE_DAYS:-14}"
+case "$STALE_DAYS_RAW" in
+    ''|*[!0-9]*) STALE_DAYS=14 ;;
+    *) STALE_DAYS="$STALE_DAYS_RAW" ;;
+esac
 STALE_WARN=""
 if [ -f "$HANDOFF" ]; then
     STATUS=$(grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' "$HANDOFF" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
