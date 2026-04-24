@@ -2030,13 +2030,96 @@ test_model_effort_check_local_overrides_project() {
     fi
 }
 
+# Test: effort=max is silent (preferred; above the floor, no nudge needed)
+# Per ROADMAP #217: xhigh is the floor, max is preferred. Anything at-or-above the
+# floor should produce no output.
+test_model_effort_check_max_is_silent() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    echo '{"effortLevel":"max"}' > "$tmpdir/.claude/settings.json"
+    local output
+    output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ -z "$output" ]; then
+        pass "model-effort-check.sh silent when effort=max (preferred, above floor)"
+    else
+        fail "model-effort-check.sh should be silent when effort=max, got: $output"
+    fi
+}
+
+# Test: below-xhigh produces LOUD warning mentioning SDLC compliance + /effort max
+# Per ROADMAP #217: below-xhigh breaks SDLC compliance on Opus 4.7 (shallow reasoning,
+# skipped TDD, dropped self-review). Hook must produce a distinguishable WARNING that
+# recommends /effort max (not just the soft "upgrade available" nudge).
+test_model_effort_check_below_xhigh_loud_warning() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local fails=0
+    for bad_effort in high medium low; do
+        mkdir -p "$tmpdir/.claude"
+        echo "{\"effortLevel\":\"$bad_effort\"}" > "$tmpdir/.claude/settings.json"
+        local output
+        output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir" "$HOOKS_DIR/model-effort-check.sh" 2>/dev/null)
+        # Must contain: WARNING marker, SDLC mention, explicit /effort max recommendation
+        if ! echo "$output" | grep -q 'WARNING'; then
+            fails=$((fails+1))
+            echo "  [$bad_effort] missing WARNING marker: $output" >&2
+        fi
+        if ! echo "$output" | grep -qi 'SDLC'; then
+            fails=$((fails+1))
+            echo "  [$bad_effort] missing SDLC mention: $output" >&2
+        fi
+        if ! echo "$output" | grep -q '/effort max'; then
+            fails=$((fails+1))
+            echo "  [$bad_effort] missing '/effort max' recommendation: $output" >&2
+        fi
+        rm -rf "$tmpdir/.claude"
+    done
+    rm -rf "$tmpdir"
+    if [ "$fails" -eq 0 ]; then
+        pass "model-effort-check.sh produces LOUD WARNING + SDLC + /effort max for high/medium/low"
+    else
+        fail "model-effort-check.sh LOUD warning has $fails missing markers across high/medium/low"
+    fi
+}
+
+# Regression test (ROADMAP #217): instructions-loaded-check.sh must NOT emit its
+# own effort/model nudge. The duplicate check used the old xhigh-as-recommended
+# logic, so effort=max produced a false "Upgrade available" nudge. Single source
+# of truth is hooks/model-effort-check.sh.
+test_instructions_loaded_no_duplicate_effort_nudge() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    mkdir -p "$tmpdir/.claude"
+    # Effort=max should be silent; the duplicate in instructions-loaded used to
+    # flag it as needing upgrade to xhigh, which is backwards post-#217.
+    echo '{"effortLevel":"max"}' > "$tmpdir/.claude/settings.json"
+    # instructions-loaded-check needs SDLC.md to proceed past its own gate
+    echo "# SDLC" > "$tmpdir/SDLC.md"
+    echo "# Testing" > "$tmpdir/TESTING.md"
+    local output
+    output=$(echo '{}' | CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -q 'Upgrade available: effort'; then
+        fail "instructions-loaded-check.sh emitted stale 'Upgrade available: effort' nudge — should delegate to model-effort-check.sh (#217)"
+    elif echo "$output" | grep -q 'effort.*→.*xhigh'; then
+        fail "instructions-loaded-check.sh recommends xhigh — stale per #217 (max is preferred, xhigh is floor)"
+    else
+        pass "instructions-loaded-check.sh does not duplicate effort/model nudge (delegated to model-effort-check.sh per #217)"
+    fi
+}
+
 test_model_effort_check_exists
 test_model_effort_check_stale_effort
 test_model_effort_check_silent_when_current
+test_model_effort_check_max_is_silent
+test_model_effort_check_below_xhigh_loud_warning
 test_model_effort_check_no_stdin
 test_settings_has_session_start_hook
 test_model_effort_check_nested_cwd
 test_model_effort_check_local_overrides_project
+test_instructions_loaded_no_duplicate_effort_nudge
 
 echo ""
 echo "--- SDLC enforcement gap audit ---"
