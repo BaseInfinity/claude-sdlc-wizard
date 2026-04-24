@@ -3272,12 +3272,28 @@ test_skill_no_autofix_bot() {
     fi
 }
 
+# Test: ci.yml must compute max_score from eval output, not hardcode it.
+# Regresses ROADMAP #211 — UI scenarios score 11/11 but score-history.jsonl
+# recorded max_score=10, causing PR comments to show "11/10" (confusing and
+# breaks downstream analytics that rely on max_score being accurate).
+test_ci_max_score_not_hardcoded() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+    local HARDCODED
+    HARDCODED=$(grep -cE "argjson[[:space:]]+max_score[[:space:]]+[0-9]+" "$WORKFLOW" || true)
+    if [ "$HARDCODED" -gt 0 ]; then
+        fail "ci.yml hardcodes --argjson max_score to a literal number ($HARDCODED instance(s)) — should read from eval result"
+    else
+        pass "ci.yml does not hardcode --argjson max_score (reads from eval result)"
+    fi
+}
+
 test_ci_self_heal_deleted
 test_ci_no_self_heal_simulation_step
 test_self_heal_simulation_deleted
 test_architecture_no_self_heal
 test_cicd_no_tier2_autofix
 test_skill_no_autofix_bot
+test_ci_max_score_not_hardcoded
 
 echo ""
 echo "=== Results ==="
