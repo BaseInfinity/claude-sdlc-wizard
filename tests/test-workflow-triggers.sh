@@ -3287,6 +3287,77 @@ test_ci_max_score_not_hardcoded() {
     fi
 }
 
+# Test: every steps.<id>.outputs.<name> reference in ci.yml points at a real output
+# Regresses ROADMAP #215 — Tier 2 "Persist scores to PR branch" step gated on
+# steps.check-baseline.outputs.should_simulate, but the Tier 2 check-baseline
+# never emits should_simulate — so the step was silently dead (regression from #193).
+test_ci_gated_expressions_reference_real_outputs() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "ci.yml not found"
+        return
+    fi
+
+    if python3 - "$WORKFLOW" <<'PYEOF'
+import re, sys, yaml
+
+path = sys.argv[1]
+with open(path) as fh:
+    wf = yaml.safe_load(fh)
+
+broken = []
+OUT_RE = re.compile(r'echo\s+"?([A-Za-z_][A-Za-z0-9_]*)(=|<<)')
+REF_RE = re.compile(r'steps\.([A-Za-z0-9_-]+)\.outputs\.([A-Za-z0-9_-]+)')
+
+for job_name, job in (wf.get('jobs') or {}).items():
+    steps = job.get('steps') or []
+    emitted = {}
+    for step in steps:
+        sid = step.get('id')
+        if not sid:
+            continue
+        run = step.get('run') or ''
+        names = set()
+        # If the step writes to $GITHUB_OUTPUT anywhere, scan every `echo "name=..."`
+        # or `echo "name<<EOF"` in the run block — they're outputs (possibly inside
+        # a { ... } >> $GITHUB_OUTPUT block, possibly direct redirect).
+        if '$GITHUB_OUTPUT' in run:
+            for line in run.splitlines():
+                m = OUT_RE.search(line)
+                if m:
+                    names.add(m.group(1))
+        # Multiple steps can share the same id across branches of conditional setup;
+        # union the outputs so a later emitter counts.
+        emitted.setdefault(sid, set()).update(names)
+
+    def scan(val, where):
+        if isinstance(val, str):
+            for sid, name in REF_RE.findall(val):
+                if sid in emitted and name not in emitted[sid]:
+                    broken.append(f"{job_name}:{where} -> steps.{sid}.outputs.{name} (step emits: {sorted(emitted[sid]) or 'nothing'})")
+        elif isinstance(val, dict):
+            for k, v in val.items():
+                scan(v, f"{where}.{k}")
+        elif isinstance(val, list):
+            for i, v in enumerate(val):
+                scan(v, f"{where}[{i}]")
+
+    for idx, step in enumerate(steps):
+        scan(step, f"step[{idx}]({step.get('name') or step.get('id') or '?'})")
+
+if broken:
+    print("Dead-gate or mismatched output references in ci.yml:", file=sys.stderr)
+    for b in broken:
+        print(f"  - {b}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+    then
+        pass "All ci.yml steps.<id>.outputs.<name> refs resolve to real outputs"
+    else
+        fail "ci.yml has dead-gate steps.<id>.outputs.<name> refs"
+    fi
+}
+
 test_ci_self_heal_deleted
 test_ci_no_self_heal_simulation_step
 test_self_heal_simulation_deleted
@@ -3294,6 +3365,7 @@ test_architecture_no_self_heal
 test_cicd_no_tier2_autofix
 test_skill_no_autofix_bot
 test_ci_max_score_not_hardcoded
+test_ci_gated_expressions_reference_real_outputs
 
 echo ""
 echo "=== Results ==="

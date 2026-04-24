@@ -1442,7 +1442,7 @@ jobs:
 
       - name: Persist scores to PR branch
         if: |
-          steps.check-baseline.outputs.should_simulate == 'true' &&
+          steps.check-baseline.outputs.has_baseline == 'true' &&
           github.event.pull_request.head.repo.full_name == github.repository
         working-directory: pr-branch
         env:
