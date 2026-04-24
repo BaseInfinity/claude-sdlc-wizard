@@ -3,6 +3,7 @@
 
 const { version } = require('../../package.json');
 const { init, check } = require('../init');
+const { detectComplexity } = require('../lib/repo-complexity');
 
 const args = process.argv.slice(2);
 
@@ -12,7 +13,8 @@ const flags = {
   json: args.includes('--json'),
 };
 
-const command = args.find((a) => !a.startsWith('--'));
+const positional = args.filter((a) => !a.startsWith('--'));
+const command = positional[0];
 
 if (args.includes('--version') || args.includes('-v')) {
   console.log(version);
@@ -24,13 +26,14 @@ if (args.includes('--help') || args.includes('-h') || !command) {
   agentic-sdlc-wizard v${version}
 
   Usage:
-    sdlc-wizard init [options]    Install SDLC wizard into current directory
-    sdlc-wizard check [options]   Check installation health and updates
+    sdlc-wizard init [options]               Install SDLC wizard into current directory
+    sdlc-wizard check [options]              Check installation health and updates
+    sdlc-wizard complexity [path]            Print mixed-mode tier heuristic (roadmap #233)
 
   Options:
     --force       Overwrite existing files (init only)
     --dry-run     Preview changes without writing (init only)
-    --json        Output as JSON (check only)
+    --json        Output as JSON (check / complexity)
     --version     Show version
     --help        Show this help
   `.trim());
@@ -54,6 +57,16 @@ if (command === 'init') {
   } catch (err) {
     console.error(`Error: ${err.message}`);
     process.exit(1);
+  }
+} else if (command === 'complexity') {
+  try {
+    const target = positional[1] || process.cwd();
+    const result = detectComplexity(target);
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    process.exit(0);
+  } catch (err) {
+    console.error(`Error: ${err.message}`);
+    process.exit(2);
   }
 } else {
   console.error(`Unknown command: ${command}`);

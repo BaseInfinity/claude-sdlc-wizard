@@ -230,6 +230,8 @@ PLANNING -> DOCS -> TDD RED -> TDD GREEN -> Tests Pass -> Self-Review
 
 **The core insight:** The review PROTOCOL is universal across domains. Only the review INSTRUCTIONS change. Code review is the default template below. For non-code domains (research, persuasion, medical content), adapt the `review_instructions` and `verification_checklist` fields while keeping the same handoff/dialogue/convergence loop.
 
+**Reviewer always at the flagship tier (roadmap #233):** if the project pins `model: "sonnet[1m]"` (mixed-mode) or any non-flagship coder, the cross-model reviewer **still runs at the flagship**: `codex exec -c 'model_reasoning_effort="xhigh"'` (gpt-5.5) or an Opus 4.7 max equivalent. The whole point of mixed-mode is that adversarial review catches Sonnet's blind spots — weakening the reviewer leg defeats the savings. Don't downscale the review just because the coder is downscaled.
+
 ### Step 0: Write Preflight Self-Review Doc
 
 Before submitting to an external reviewer, document what YOU already checked. This is proven to reduce reviewer findings to 0-1 per round (evidence: anticheat repo preflight discipline).
