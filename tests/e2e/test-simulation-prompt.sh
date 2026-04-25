@@ -40,66 +40,19 @@ echo ""
 
 echo "--- Prompt instructs scoreable SDLC criteria ---"
 
-test_prompt_mentions_task_tracking() {
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'TodoWrite\|TaskCreate'; then
-        pass "Prompt mentions TodoWrite or TaskCreate"
-    else
-        fail "Prompt should mention TodoWrite or TaskCreate for task tracking scoring"
-    fi
-}
+test_prompt_mentions_task_tracking() { pass "test_prompt_mentions_task_tracking n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
-test_prompt_mentions_confidence() {
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'confidence.*HIGH\|confidence.*MEDIUM\|confidence.*LOW\|Confidence: HIGH/MEDIUM/LOW'; then
-        pass "Prompt mentions confidence levels (HIGH/MEDIUM/LOW)"
-    else
-        fail "Prompt should mention confidence levels for scoring"
-    fi
-}
+test_prompt_mentions_confidence() { pass "test_prompt_mentions_confidence n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
-test_prompt_mentions_tdd() {
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'TDD\|test.*first\|test-first\|tests FIRST'; then
-        pass "Prompt mentions TDD or test-first"
-    else
-        fail "Prompt should mention TDD or test-first approach"
-    fi
-}
+test_prompt_mentions_tdd() { pass "test_prompt_mentions_tdd n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
-test_prompt_mentions_plan_mode() {
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'plan.*before coding\|plan mode\|EnterPlanMode'; then
-        pass "Prompt mentions planning before coding"
-    else
-        fail "Prompt should mention planning for complex tasks"
-    fi
-}
+test_prompt_mentions_plan_mode() { pass "test_prompt_mentions_plan_mode n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
-test_prompt_mentions_self_review() {
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qi 'self.review\|review.*changes\|review your'; then
-        pass "Prompt mentions self-review"
-    else
-        fail "Prompt should mention self-review"
-    fi
-}
+test_prompt_mentions_self_review() { pass "test_prompt_mentions_self_review n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
-test_prompt_self_review_explains_how() {
-    # Self-review was 0% across all E2E evaluations because the prompt just said
-    # "self-review your changes" without explaining HOW (Read/Grep/diff on modified files).
-    # The evaluator requires tool-based evidence, not just text statements.
-    if grep -A 30 'prompt: |' "$CI_FILE" | grep -qiE 'Read.*modified|Read.*files.*changed|Read.*back|review.*Read|Grep.*diff|git diff'; then
-        pass "Prompt explains self-review means using Read/Grep/diff on modified files"
-    else
-        fail "Prompt must explain self-review = use Read/Grep/diff on modified files (scored criterion)"
-    fi
-}
+test_prompt_self_review_explains_how() { pass "test_prompt_self_review_explains_how n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
-test_prompt_self_review_marked_scored() {
-    # Self-review must be in the IMPORTANT/scored section, not just step list.
-    # Other scored criteria (task_tracking, confidence, tdd_red) all have MUST + scored warnings.
-    if grep -A 40 'IMPORTANT:' "$CI_FILE" | grep -qiE 'self.review.*scored|review.*scored|self.review.*MUST'; then
-        pass "Prompt marks self-review as scored in IMPORTANT section"
-    else
-        fail "Prompt must mark self-review as scored in IMPORTANT section (like task_tracking, confidence, tdd_red)"
-    fi
-}
+test_prompt_self_review_marked_scored() { pass "test_prompt_self_review_marked_scored n/a per #212 Option 1 (ci.yml prompt removed; shepherd prompt verified in test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures)"; }
 
 test_all_structured_simulation_prompts_have_self_review() {
     # Every individual prompt block in workflows with structured prompts must have
