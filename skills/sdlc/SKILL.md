@@ -42,9 +42,16 @@ TodoWrite([
   { content: "Cross-model review (if configured — see below)", status: "pending", activeForm: "Running cross-model review" },
   { content: "Scope guard: only changes related to task? No legacy/fallback code left?", status: "pending", activeForm: "Checking scope and legacy code" },
   // CI FEEDBACK LOOP (if CI monitoring enabled in setup - skip if no CI)
+  // NOTE (meta-repo only, ROADMAP #212 Option 1, 2026-04-24): this repo no
+  // longer runs e2e simulation in CI. Only `validate` blocks merge. For E2E
+  // signal on a PR, checkout the PR locally and run:
+  //   bash tests/e2e/local-shepherd.sh <PR>
+  // which scores on Max subscription and posts an advisory check-run.
+  // Consumer repos still use their own CI as configured.
   { content: "Commit and push to remote", status: "pending", activeForm: "Pushing to remote" },
   { content: "Watch CI - fix failures, iterate until green (max 2x)", status: "pending", activeForm: "Watching CI" },
   { content: "Read CI review - implement valid suggestions, iterate until clean", status: "pending", activeForm: "Addressing CI review feedback" },
+  { content: "Meta-repo only: run local shepherd if PR needs E2E score (optional)", status: "pending", activeForm: "Running local shepherd" },
   { content: "Post-deploy verification (if deploy task — see Deployment Tasks)", status: "pending", activeForm: "Verifying deployment" },
   // FINAL
   { content: "Present summary: changes, tests, CI status", status: "pending", activeForm: "Presenting final summary" },

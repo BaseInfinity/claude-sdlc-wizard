@@ -60,8 +60,8 @@ This repository uses the SDLC Wizard to enforce:
 To verify SDLC compliance:
 
 1. **Manual check**: Start new Claude session, observe hook output
-2. **E2E test**: Run `./tests/e2e/run-simulation.sh`
-3. **PR review**: Non-trivial PRs trigger AI code review workflow after CI passes
+2. **E2E test (advisory)**: `gh pr checkout <PR>` then `bash tests/e2e/local-shepherd.sh <PR>` — scores the PR on your Max subscription, posts PR comment + check-run. **Advisory-only since ROADMAP #212 Option 1 (2026-04-24); not a required merge check**. The legacy `tests/e2e/run-simulation.sh` is still runnable locally but has no CI role.
+3. **PR review**: Non-trivial PRs trigger AI code review workflow after `validate` passes (e2e is no longer a required check)
 
 ## Updating the Wizard
 
