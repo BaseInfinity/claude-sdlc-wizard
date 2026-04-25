@@ -110,6 +110,28 @@ Layer 1: PHILOSOPHY
 | **Pre-tool TDD hooks** | Before source edits, a hook reminds Claude to write tests first. CI scoring checks whether it actually followed TDD |
 | **Self-evolving loop** | Weekly/monthly external research + local CI shepherd loop — you approve, the system gets better |
 
+## Optional: Cross-Model Review (Codex)
+
+Claude can't grade its own homework. Have a **different AI from a different company** review Claude's work — different training, different blind spots, different biases. We use OpenAI's Codex CLI, and it's **three commands to set up**:
+
+```bash
+npm i -g @openai/codex
+export OPENAI_API_KEY=sk-...
+codex --version   # confirm ready
+```
+
+That's it. Codex picks up your OpenAI account's best available model automatically — **if you have GPT-5.5, it uses GPT-5.5; otherwise GPT-5.4**. No model config needed.
+
+**How to use it:** after Claude's self-review passes, write a one-file mission brief and run:
+
+```bash
+codex exec -c 'model_reasoning_effort="xhigh"' -s danger-full-access \
+  -o .reviews/latest-review.md \
+  "Read .reviews/handoff.json and review per the checklist. Output findings + CERTIFIED or NOT CERTIFIED."
+```
+
+`xhigh` reasoning is **non-negotiable** — lower settings miss subtle bugs. See [CLAUDE_CODE_SDLC_WIZARD.md](CLAUDE_CODE_SDLC_WIZARD.md#cross-model-review-loop-optional) for the full protocol (handoff format, round-2 dialogue loop, preflight docs). Real-world: this catches P0/P1 issues in 2-3 out of 10 reviews that Claude's self-review rated as clean.
+
 ## How It Works
 
 **Think Iron Man:** Jarvis is nothing without Tony Stark. Tony Stark is still Tony Stark. But together? They make Iron Man. This SDLC is your suit - you build it over time, improve it for your needs, and it makes you both better.
