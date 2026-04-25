@@ -37,8 +37,19 @@ echo ""
 
 echo "--- Score Persistence ---"
 
-# Test 1: ci.yml has persist step after Tier 1 score recording
-test_tier1_persist_step() {
+# Tests 1-4 REWORKED for ROADMAP #212 Option 1: ci.yml's e2e-quick-check and
+# e2e-full-evaluation jobs were removed. Score persistence now happens locally
+# via tests/e2e/local-shepherd.sh. The CUSUM/JSONL/schema tests below still
+# run against the JSONL file + the shared persist-score-history.sh script.
+# Stubbing Tests 1-4 — the ci.yml-job-structure checks are no longer meaningful.
+
+test_tier1_persist_step() { pass "tier1-persist-step test n/a (ci.yml e2e jobs removed per #212 Option 1; shepherd handles persistence)"; }
+test_tier2_persist_step() { pass "tier2-persist-step test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
+test_fork_guard() { pass "fork-guard test n/a (ci.yml e2e jobs removed; shepherd has its own fork-abort at local-shepherd.sh:78)"; }
+test_continue_on_error_removed() { pass "continue-on-error-removed test n/a (ci.yml persist steps removed per #212 Option 1)"; }
+
+# Keep the old function defs as no-ops so they don't shadow the stubs above.
+_unused_old_test_tier1_persist_step() {
     # The persist step must appear AFTER score recording (~line 648) and
     # BEFORE the upload artifact step. We verify by checking that the step
     # name exists in the e2e-quick-check job section (lines 225-960ish)
@@ -82,8 +93,7 @@ else:
     fi
 }
 
-# Test 2: ci.yml has persist step after Tier 2 score recording
-test_tier2_persist_step() {
+_unused_old_test_tier2_persist_step() {
     local tier2_section
     tier2_section=$(python3 -c "
 import yaml, json
@@ -123,8 +133,7 @@ else:
     fi
 }
 
-# Test 3: Persist step has same-repo fork guard
-test_fork_guard() {
+_unused_old_test_fork_guard() {
     # Both persist steps must guard against fork PRs with:
     # github.event.pull_request.head.repo.full_name == github.repository
     local persist_steps
@@ -152,7 +161,7 @@ print(count)
 # (PR #196: silent continue-on-error was the root cause of the 19-day
 # score-history stall — the shared script now handles transient races
 # internally, so genuine push failures must surface, not be hidden.)
-test_continue_on_error_removed() {
+_unused_old_test_continue_on_error_removed() {
     local coe_count
     coe_count=$(python3 -c "
 import yaml

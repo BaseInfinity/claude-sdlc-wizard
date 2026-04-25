@@ -78,10 +78,15 @@ test_weekly_update_has_schedule() {
         return
     fi
 
-    if grep -q "schedule:" "$WORKFLOW" && grep -q "cron:" "$WORKFLOW"; then
-        pass "weekly-update.yml has active schedule with cron trigger"
+    # ROADMAP #212 Option 1: cron is intentionally commented out — workflow
+    # still burns API credits (9 claude-code-action blocks), migration is
+    # ROADMAP #231. Manual via workflow_dispatch is the current policy.
+    if grep -qE '^\s*#\s*- cron:' "$WORKFLOW"; then
+        pass "weekly-update.yml cron is disabled (ROADMAP #212 Option 1, migration tracked as #231)"
+    elif grep -qE '^\s*- cron:' "$WORKFLOW"; then
+        fail "weekly-update.yml cron is ENABLED — either intentionally re-enable with API budget confirmed, or keep disabled per #212"
     else
-        fail "weekly-update.yml missing schedule trigger"
+        pass "weekly-update.yml has no cron trigger"
     fi
 }
 
@@ -100,10 +105,13 @@ test_weekly_community_deleted() {
 test_monthly_has_schedule() {
     WORKFLOW="$REPO_ROOT/.github/workflows/monthly-research.yml"
 
-    if grep -q "schedule:" "$WORKFLOW" && grep -q "cron:" "$WORKFLOW"; then
-        pass "Monthly workflow has active schedule with cron trigger"
+    # ROADMAP #212 Option 1: cron disabled (API-burning). See weekly test above.
+    if grep -qE '^\s*#\s*- cron:' "$WORKFLOW"; then
+        pass "monthly-research cron is disabled (ROADMAP #212 Option 1)"
+    elif grep -qE '^\s*- cron:' "$WORKFLOW"; then
+        fail "monthly-research cron is ENABLED — reconfirm API budget or keep disabled per #212"
     else
-        fail "Monthly workflow missing schedule trigger (should have cron for Item 23)"
+        pass "monthly-research has no cron trigger"
     fi
 }
 
@@ -222,44 +230,12 @@ test_yaml_validity() {
 # These tests ensure the bootstrapping logic in ci.yml
 # is not accidentally removed or broken.
 
-# Test 11: CI has bootstrapping detection step
-test_e2e_bootstrapping_detection() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found"
-        return
-    fi
-
-    if grep -q "check-baseline" "$WORKFLOW" && \
-       grep -q "has_baseline" "$WORKFLOW"; then
-        pass "CI has bootstrapping detection step"
-    else
-        fail "CI missing bootstrapping detection (check-baseline + has_baseline)"
-    fi
-}
-
-# Test 12: Baseline steps are conditional on has_baseline
-test_e2e_conditional_baseline() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if grep -q "if:.*has_baseline.*true" "$WORKFLOW"; then
-        pass "Baseline steps are conditional on has_baseline"
-    else
-        fail "Baseline steps not properly conditional on has_baseline"
-    fi
-}
-
-# Test 13: Bootstrapping is handled in compare step
-test_e2e_bootstrapping_handling() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if grep -q "is_bootstrapping" "$WORKFLOW"; then
-        pass "Compare step handles bootstrapping case"
-    else
-        fail "Compare step missing bootstrapping handling (is_bootstrapping)"
-    fi
-}
+# Tests 11-13: DELETED — bootstrapping/baseline logic lived in ci.yml's
+# e2e-quick-check + e2e-full-evaluation jobs, removed as part of ROADMAP #212
+# Option 1. See ROADMAP #230 for shepherd baseline/candidate follow-up.
+test_e2e_bootstrapping_detection() { pass "e2e-bootstrapping test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
+test_e2e_conditional_baseline() { pass "e2e-conditional-baseline test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
+test_e2e_bootstrapping_handling() { pass "e2e-bootstrapping-handling test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
 
 # ============================================
 # CI Label Trigger Tests
@@ -283,18 +259,8 @@ test_ci_labeled_trigger() {
     fi
 }
 
-# Test 15: e2e-quick-check is guarded from labeled events
-test_quick_check_labeled_guard() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    # The e2e-quick-check job should skip on labeled events
-    # Look for the guard condition near the e2e-quick-check job
-    if sed -n '/e2e-quick-check:/,/steps:/p' "$WORKFLOW" | grep -q "labeled"; then
-        pass "e2e-quick-check is guarded from labeled events"
-    else
-        fail "e2e-quick-check missing guard for labeled events"
-    fi
-}
+# Test 15: DELETED — e2e-quick-check job removed per ROADMAP #212 Option 1.
+test_quick_check_labeled_guard() { pass "quick-check-labeled-guard test n/a (e2e-quick-check job removed per #212 Option 1)"; }
 
 # Test 16: cleanup-old-comments is guarded from labeled events
 test_cleanup_labeled_guard() {
@@ -370,37 +336,11 @@ test_pr_review_synchronize_condition() {
 # These tests ensure Claude simulations have access
 # to the tools that scenarios actually need.
 
-# Test 20: CI allowedTools excludes plan mode tools (they loop in headless CI)
-test_ci_allowed_tools_no_plan_mode() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found"
-        return
-    fi
-
-    if grep "allowedTools" "$WORKFLOW" | grep -q "EnterPlanMode\|ExitPlanMode"; then
-        fail "CI allowedTools should NOT include EnterPlanMode/ExitPlanMode (loops in headless CI)"
-    else
-        pass "CI allowedTools excludes plan mode tools (headless-safe)"
-    fi
-}
-
-# Test 21: CI allowedTools includes task tracking tools (needed for scoring)
-test_ci_allowed_tools_task_tracking() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found"
-        return
-    fi
-
-    if grep "allowedTools" "$WORKFLOW" | grep -q "TaskCreate"; then
-        pass "CI allowedTools includes TaskCreate"
-    else
-        fail "CI allowedTools missing TaskCreate (8/10 scenarios score on task tracking)"
-    fi
-}
+# Tests 20-21: DELETED — ci.yml no longer has claude-code-action calls per
+# ROADMAP #212 Option 1. allowedTools parity is now enforced on the local
+# shepherd (tests/test-local-shepherd.sh::test_shepherd_calls_claude_with_parity_flags).
+test_ci_allowed_tools_no_plan_mode() { pass "ci-allowedTools-no-plan-mode test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
+test_ci_allowed_tools_task_tracking() { pass "ci-allowedTools-task-tracking test n/a (parity enforced on shepherd instead)"; }
 
 # Test 30: ci.yml has workflow_dispatch trigger
 test_ci_workflow_dispatch() {
@@ -476,131 +416,19 @@ test_ci_max_turns_sufficient
 # These tests ensure cosmetic CI steps (PR comments)
 # don't fail the build, while the real quality gate does.
 
-# Test 42: "Build quick check comment message" has continue-on-error
-test_quick_check_comment_continue_on_error() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+# Tests 42-45: DELETED — ci.yml no longer has quick-check comment steps or
+# Fail-on-regression steps per ROADMAP #212 Option 1 (e2e jobs removed).
+# Shepherd has its own continue-on-error behavior (tests in test-local-shepherd.sh).
+test_quick_check_comment_continue_on_error() { pass "quick-check-comment-continue-on-error test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
+test_quick_check_post_comment_continue_on_error() { pass "quick-check-post-comment-continue-on-error test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
+test_fail_on_regression_no_continue_on_error() { pass "fail-on-regression test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
 
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found (needed for continue-on-error test)"
-        return
-    fi
+# Tests 45-46: DELETED — CRITERIA safety tested inline when ci.yml had LLM
+# evidence output. ci.yml no longer passes LLM output to bash; shepherd
+# handles its own comment safety.
+test_criteria_not_inline_expanded() { pass "criteria-not-inline-expanded test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
 
-    # Check that the "Build quick check comment message" step has continue-on-error: true
-    if grep -A 5 "Build quick check comment message" "$WORKFLOW" | grep -q "continue-on-error: true"; then
-        pass "Build quick check comment message has continue-on-error: true"
-    else
-        fail "Build quick check comment message missing continue-on-error: true (cosmetic step can fail the build)"
-    fi
-}
-
-# Test 43: "Comment quick check results on PR" has continue-on-error
-test_quick_check_post_comment_continue_on_error() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found (needed for continue-on-error test)"
-        return
-    fi
-
-    # Check that the "Comment quick check results on PR" step has continue-on-error: true
-    if grep -A 2 "Comment quick check results on PR" "$WORKFLOW" | grep -q "continue-on-error: true"; then
-        pass "Comment quick check results on PR has continue-on-error: true"
-    else
-        fail "Comment quick check results on PR missing continue-on-error: true (cosmetic step can fail the build)"
-    fi
-}
-
-# Test 44: "Fail on regression" does NOT have continue-on-error
-test_fail_on_regression_no_continue_on_error() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found (needed for quality gate test)"
-        return
-    fi
-
-    # The quality gate must NOT have continue-on-error
-    if grep -A 2 "Fail on regression" "$WORKFLOW" | grep -q "continue-on-error"; then
-        fail "Fail on regression has continue-on-error (quality gate would be bypassed!)"
-    else
-        pass "Fail on regression does NOT have continue-on-error (quality gate intact)"
-    fi
-}
-
-# ============================================
-# CI Comment Safety Tests
-# ============================================
-# These tests ensure untrusted LLM output (criteria evidence)
-# is NOT assigned via ${{ }} inline in bash (backtick injection).
-
-# Test 45: CRITERIA is passed via env block, not inline ${{ }} in bash
-test_criteria_not_inline_expanded() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found (needed for criteria safety test)"
-        return
-    fi
-
-    # Check that CRITERIA is NOT set via inline ${{ }} in a bash variable assignment
-    # Bad:  CRITERIA="${{ steps.eval-candidate.outputs.criteria }}"
-    # Good: env: CRITERIA: ${{ steps.eval-candidate.outputs.criteria }}
-    if grep -E 'CRITERIA="\$\{\{' "$WORKFLOW"; then
-        fail "CRITERIA uses inline \${{ }} expansion (backticks in LLM evidence text execute as commands)"
-    else
-        pass "CRITERIA is not inline-expanded in bash (safe from backtick injection)"
-    fi
-}
-
-# Test 46: Comment-building steps use env block for untrusted outputs
-test_comment_steps_use_env_block() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "CI workflow file not found (needed for env block test)"
-        return
-    fi
-
-    # Both "Build quick check comment message" and "Build full evaluation comment message"
-    # should have an env: block that includes CRITERIA
-    QUICK_HAS_ENV=false
-    FULL_HAS_ENV=false
-
-    # Use python for reliable multi-line YAML parsing
-    python3 -c "
-import yaml, sys
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        name = step.get('name', '')
-        env = step.get('env', {})
-        if 'Build quick check comment message' in name:
-            if 'CRITERIA' in env:
-                print('QUICK_ENV_OK')
-        if 'Build full evaluation comment message' in name:
-            if 'CRITERIA' in env:
-                print('FULL_ENV_OK')
-" > /tmp/env_check_result.txt 2>&1
-
-    if grep -q "QUICK_ENV_OK" /tmp/env_check_result.txt; then
-        QUICK_HAS_ENV=true
-    fi
-    if grep -q "FULL_ENV_OK" /tmp/env_check_result.txt; then
-        FULL_HAS_ENV=true
-    fi
-
-    if [ "$QUICK_HAS_ENV" = true ] && [ "$FULL_HAS_ENV" = true ]; then
-        pass "Both comment-building steps pass CRITERIA via env block (safe)"
-    else
-        if [ "$QUICK_HAS_ENV" = false ]; then
-            fail "Quick check comment step missing CRITERIA in env block"
-        fi
-        if [ "$FULL_HAS_ENV" = false ]; then
-            fail "Full evaluation comment step missing CRITERIA in env block"
-        fi
-    fi
-}
+test_comment_steps_use_env_block() { pass "comment-steps-use-env-block test n/a (ci.yml e2e jobs removed per #212 Option 1)"; }
 
 test_criteria_not_inline_expanded
 test_comment_steps_use_env_block

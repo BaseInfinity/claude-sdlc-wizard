@@ -138,32 +138,29 @@ jobs:
           CI_PASSED="false"
 
           # Wait up to 10 minutes for CI
+          # ROADMAP #212: e2e-quick-check was removed from ci.yml. We now
+          # gate PR review only on `validate` — E2E happens locally via
+          # tests/e2e/local-shepherd.sh and is advisory, not a required check.
           for i in {1..20}; do
-            # Single API call for all check runs, extract both conclusions
             CHECK_RUNS=$(gh api \
               repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs 2>/dev/null || echo '{"check_runs":[]}')
 
             VALIDATE=$(echo "$CHECK_RUNS" | jq -r '[.check_runs[] | select(.name == "validate") | .conclusion // "pending"] | first // "pending"' 2>/dev/null)
             [ -z "$VALIDATE" ] && VALIDATE="pending"
 
-            E2E=$(echo "$CHECK_RUNS" | jq -r '[.check_runs[] | select(.name == "e2e-quick-check") | .conclusion // "pending"] | first // empty' 2>/dev/null)
-            # E2E empty = check not triggered (only runs for bot/owner PRs)
-
-            # Either check failed → skip review
-            if [ "$VALIDATE" = "failure" ] || [ "$E2E" = "failure" ]; then
-              echo "CI failed (validate=$VALIDATE, e2e=$E2E), skipping review"
+            if [ "$VALIDATE" = "failure" ]; then
+              echo "CI validate failed, skipping review"
               echo "ci_passed=false" >> $GITHUB_OUTPUT
               exit 0
             fi
 
-            # validate must pass; e2e-quick-check must pass OR not exist (doesn't run for all PRs)
-            if [ "$VALIDATE" = "success" ] && { [ "$E2E" = "success" ] || [ -z "$E2E" ]; }; then
-              echo "CI passed (validate=$VALIDATE, e2e=${E2E:-not-triggered}), proceeding with review"
+            if [ "$VALIDATE" = "success" ]; then
+              echo "CI validate passed, proceeding with review"
               CI_PASSED="true"
               break
             fi
 
-            echo "CI still running (attempt $i/20, validate=$VALIDATE, e2e=${E2E:-not-triggered}), waiting 30s..."
+            echo "CI still running (attempt $i/20, validate=$VALIDATE), waiting 30s..."
             sleep 30
           done
 
