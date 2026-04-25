@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.37.1] - 2026-04-24
+
+### Fixed
+
+- **Dual-channel hook 2× print** (token-bloat audit, ROADMAP item 8, PR #241). When both the project's `.claude/settings.json` AND a locally-installed wizard plugin (`~/.claude/plugins-local/` or `~/.claude/plugins/cache/`) registered the same hook, both fired per event — `SDLC BASELINE` block printed twice per `UserPromptSubmit`, ~300 tokens doubled per prompt. Fix: `dedupe_plugin_or_project()` helper in `hooks/_find-sdlc-root.sh`. Plugin invocation yields if project also registers the same hook by name (project always wins). Wired into all 5 hooks (sdlc-prompt-check, instructions-loaded-check, tdd-pretool-check, model-effort-check, precompact-seam-check). Consumer plugin-only installs still fire normally. Codex 2-round: 100/100 CERTIFIED. 9 new dedupe tests + 1 stale-fixture fix (test_instructions_hook_cwd_walkup now reads current version dynamically from package.json so it doesn't drift past the staleness-nudge threshold on each release).
+
 ## [1.37.0] - 2026-04-24
 
 ### Changed
