@@ -1,12 +1,14 @@
 {
-  "review_id": "roadmap-231-phase1-001",
-  "round": 3,
+  "review_id": "mixed-mode-tier-001",
+  "round": 4,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
-      "finding": "1 (recheck) — Test 136 in tests/test-workflow-triggers.sh broke because the doc fix changed 'auto-workflows (weekly/monthly)' to 'auto-workflows weekly-update only'",
+      "finding": "1",
+      "severity": "P1",
       "action": "FIXED",
-      "summary": "Updated tests/test-workflow-triggers.sh test_auto_self_update_no_daily (lines 1911-1927) to match the post-#231-Phase-1 wording. New assertion: plan must mention 'auto-workflows.*weekly-update' AND must NOT mention the legacy '(weekly/monthly)' cadence pair. Rationale: monthly-research removed per #231 Phase 1, so the test should enforce the new reality rather than the pre-delete wording. Also fixed the related 'Both auto-update workflows' line at plans/AUTO_SELF_UPDATE.md:13 (non-blocking note from round 2). Verification: `bash tests/test-workflow-triggers.sh` → 165/165 PASS."
+      "summary": "Test harness false-green eliminated. (a) `invoke_hook` now wraps execution in a subshell that cd's into WORKSPACE before invoking the hook, so _find-sdlc-root.sh's pwd walk-up resolves the workspace's SDLC.md (not the repo root's). (b) Added `invoke_hook_uninstrumented` companion. (c) test_instrumentation_doesnt_break_output replaced 'contains SDLC BASELINE' substring check with byte-identical diff between instrumented and non-instrumented output — any stdout/stderr leak from the instrumentation block now fails. Verified: bash tests/test-prompt-hook-fires-once.sh from /tmp = 6/6 PASS.",
+      "verify_at": "tests/test-prompt-hook-fires-once.sh invoke_hook + invoke_hook_uninstrumented helpers, test_instrumentation_doesnt_break_output diff assertion"
     }
   ]
 }
