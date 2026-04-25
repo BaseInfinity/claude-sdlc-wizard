@@ -4,6 +4,27 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.37.0] - 2026-04-24
+
+### Changed
+
+- **`monthly-research.yml` workflow deleted** (ROADMAP #231 Phase 1, PR #235). 519 lines + 4 claude-code-action steps removed. Zero merged artifacts in 30d while burning $11-23/month in Anthropic API. Research now happens inline in a Claude Code session, not on a scheduled cron. All 17 `test_monthly_*` assertions in `tests/test-workflow-triggers.sh` stubbed with `n/a per #231 Phase 1` pattern (165/165 tests still green). Live docs (CI_CD.md, ARCHITECTURE.md, plans/AUTO_SELF_UPDATE.md) mark monthly-research REMOVED; historical audit tables intentionally preserved. Codex cross-model review: 3-round, 9/10 CERTIFIED.
+
+- **`model-effort-check.sh` loud WARNING below xhigh** (ROADMAP #217, PR #236). Closed the coherence gap between the docs (`max` preferred, `xhigh` floor) and the hook behavior. Previously the hook treated any effort ≠ xhigh as "upgrade available" — including `max` (the preferred default), which was backwards. New behavior:
+  - `effort=max` or `xhigh` → silent (at or above floor)
+  - `effort=high/medium/low` or unset → LOUD WARNING block: `WARNING` marker, SDLC compliance mention, `/effort max` primary recommendation, `/effort xhigh` floor alternative, `opus[1m]` model reminder
+  - Removed duplicate effort/model check from `instructions-loaded-check.sh` — single source of truth is now `model-effort-check.sh`. Regression test asserts the dupe doesn't come back.
+  - 2 new TDD tests + 1 regression test. Updated `test_hooks_recommend_opus_1m_alias` for single-source-of-truth. 119/119 hook tests pass.
+  - Codex cross-model review: 3-round, 10/10 CERTIFIED.
+
+### Roadmap
+
+- **#232 added**: `/update-wizard` should mimic `claude update` UX — detect stale npm CLI and offer to refresh before applying in-session file updates. User call-out 2026-04-24.
+
+### Removed
+
+- `.github/workflows/monthly-research.yml` (519 lines, 2 API blocks, 0 merged artifacts in 30d).
+
 ## [1.36.1] - 2026-04-23
 
 ### Changed
