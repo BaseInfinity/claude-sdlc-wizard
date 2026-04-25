@@ -23,7 +23,7 @@ All notable changes to the SDLC Wizard.
 
 ### Removed
 
-- `.github/workflows/monthly-research.yml` (519 lines, 2 API blocks, 0 merged artifacts in 30d).
+- `.github/workflows/monthly-research.yml` (519 lines, 4 claude-code-action steps, 0 merged artifacts in 30d).
 
 ## [1.36.1] - 2026-04-23
 
