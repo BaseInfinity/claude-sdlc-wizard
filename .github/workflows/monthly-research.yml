@@ -1,8 +1,12 @@
 name: Monthly Research Deep Dive
 
+# NOTE: cron disabled as of ROADMAP #212 (Option 1). This workflow uses
+# `anthropics/claude-code-action@v1` — API credits. Until full migration to
+# local-shepherd-based research runs (follow-up to #212), run manually only.
+
 on:
-  schedule:
-    - cron: '0 11 1 * *'  # 11 AM UTC on 1st of month
+  # schedule disabled — see note above. Manual via workflow_dispatch only.
+  # - cron: '0 11 1 * *'
   workflow_dispatch:
 
 permissions:

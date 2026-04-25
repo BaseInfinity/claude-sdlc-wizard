@@ -445,11 +445,11 @@ EOF
     fi
 }
 
-test_shepherd_prompt_matches_ci_yml() {
-    # LS-003 P1: shepherd's embedded prompt must be byte-compatible with CI's
-    # inline prompt at .github/workflows/ci.yml:338-361. If either drifts,
-    # parity is broken and scores diverge.
-    local ci_file="$REPO_ROOT/.github/workflows/ci.yml"
+test_shepherd_prompt_has_required_signatures() {
+    # Originally LS-003 P1 (parity with ci.yml). After ROADMAP #212 Option 1
+    # removed the e2e jobs from ci.yml, parity with a deleted block is moot.
+    # Keep the test — assert shepherd itself has the required signature lines,
+    # so that if someone guts the prompt, tests fail.
     local miss=""
     for sig in \
         "You are running an E2E SDLC simulation" \
@@ -459,16 +459,14 @@ test_shepherd_prompt_matches_ci_yml() {
         if ! grep -qF "$sig" "$SHEPHERD"; then
             miss="$miss|missing-in-shepherd: $sig"
         fi
-        if ! grep -qF "$sig" "$ci_file"; then
-            miss="$miss|missing-in-ci.yml: $sig"
-        fi
     done
     if ! grep -qF -- "--add-dir" "$SHEPHERD"; then miss="$miss|shepherd missing --add-dir"; fi
-    if ! grep -qF -- "--add-dir pr-branch/tests/e2e" "$ci_file"; then miss="$miss|ci.yml missing --add-dir"; fi
+    if ! grep -qF -- "--max-turns" "$SHEPHERD"; then miss="$miss|shepherd missing --max-turns"; fi
+    if ! grep -qF -- "--allowedTools" "$SHEPHERD"; then miss="$miss|shepherd missing --allowedTools"; fi
     if [ -z "$miss" ]; then
-        pass "shepherd prompt + flags match ci.yml signature lines"
+        pass "shepherd embeds all required prompt signature lines + parity flags"
     else
-        fail "prompt/flag parity drift:$miss"
+        fail "shepherd prompt drift:$miss"
     fi
 }
 
@@ -485,7 +483,7 @@ test_shepherd_aborts_on_sha_mismatch
 test_shepherd_exits_1_on_claude_failure
 test_shepherd_exits_1_on_evaluator_failure
 test_shepherd_exits_1_on_checkrun_failure
-test_shepherd_prompt_matches_ci_yml
+test_shepherd_prompt_has_required_signatures
 
 echo ""
 echo "=== Results ==="
