@@ -1,0 +1,66 @@
+# Known slash commands the wizard already accounts for.
+# tests/e2e/scan-community.sh dedupes against this list when surfacing
+# new community-mentioned commands. Lines starting with # are comments.
+# One command per line, with leading slash.
+#
+# Updating: when a new wizard skill or CC release adds a slash command,
+# append it here so the scanner stops flagging it as a candidate. The
+# scanner output's "candidates" field is meant for triage of NEW commands;
+# anything below is either already shipped or already documented.
+
+# Wizard skills (skills/*)
+/sdlc
+/setup
+/update
+/feedback
+
+# Wizard-companion skills / commands (Claude Code native or shipped via plugins)
+/code-review
+/less-permission-prompts
+/claude-automation-recommender
+/schedule
+/ultrareview
+
+# Claude Code native commands (as of CC 2.1.118)
+/help
+/clear
+/model
+/effort
+/usage
+/cost
+/stats
+/compact
+/resume
+/init
+/mcp
+/plugin
+/agents
+/hooks
+/permissions
+/sandbox
+/fast
+/exit
+/login
+/logout
+/doctor
+/install
+/uninstall
+/settings
+
+# Common false-positives (URL paths, code-snippets, etc. that look like commands but aren't)
+/dev
+/usr
+/var
+/tmp
+/etc
+/bin
+/lib
+/opt
+/home
+/root
+/proc
+/sys
+/run
+/mnt
+/media
+/srv

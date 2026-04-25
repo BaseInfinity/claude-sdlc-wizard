@@ -1,8 +1,37 @@
 {
-  "review_id": "roadmap-231-phase1-001",
-  "status": "CERTIFIED",
-  "round": 3,
-  "closed_at": "2026-04-24",
-  "pr_number": null,
-  "note": "CERTIFIED 9/10 round 3. Round 1 was 7/10 (2 findings), round 2 was 8/10 (1 finding — broke a test assertion I changed the wording of), round 3 CERTIFIED. Non-blocking notes: ROADMAP.md:278 (#212 historical scope) + :328 (March live-fire audit table) still mention monthly-research — both are historical records, intentionally preserved."
+  "review_id": "community-scanner-001",
+  "status": "PENDING_REVIEW",
+  "round": 1,
+  "mission": "v1.39.0 ships ROADMAP #207 community feature-discovery scanner. New tests/e2e/scan-community.sh extracts /[a-z][a-z0-9-]* slash-command mentions from transcript text (Reddit / HN / Discord / CC GH Discussions) and emits any not in tests/e2e/known-slash-commands.txt as candidates with count + sample context. Replaces the deleted-in-#231 CI scan-community job (zero merged artifacts in 30d, $2-5/run) with a maintainer-runnable offline scan. Aligns with #231 Phase 3 plan.",
+  "success": "(1) Scanner correctly detects unknown /slash-commands in input text. (2) Allowlist (wizard skills + CC native + URL-path false positives) filters known commands out of candidates. (3) Output is valid JSON with scan_date, input_files, candidates[]. (4) Multi-file aggregation, stdin input, dedup + count, sample-context all work. (5) Length-≥4 filter drops /a /ab style noise. (6) No new external dependencies; tests pass deterministically.",
+  "failure": "Scanner misses real new commands (false negatives) or floods output with false positives (regex too permissive, allowlist incomplete). Allowlist file format is fragile (comments break parsing). Sample-context truncation drops the slash-command itself. Path traversal / shell injection via filename arg. Output schema drifts from what the maintainer can pipe through jq. Allowlist comparison is case-sensitive on a case-insensitive corpus.",
+  "files_changed": [
+    "tests/e2e/scan-community.sh",
+    "tests/e2e/known-slash-commands.txt",
+    "tests/test-community-scanner.sh",
+    "CLAUDE_CODE_SDLC_WIZARD.md",
+    "CHANGELOG.md",
+    "SDLC.md",
+    "package.json",
+    ".claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json"
+  ],
+  "fixes_applied": [],
+  "previous_score": null,
+  "verification_checklist": [
+    "(a) tests/e2e/scan-community.sh awk regex: '/[a-z][a-z0-9-]*' length-≥4 filter. Confirm /a, /ab, /a1 don't surface. Confirm hyphenated commands like /code-review do match (the hyphen is in the char class).",
+    "(b) Allowlist comparison is case-insensitive: scanner lowercases both the matched token AND the allowlist entries. Verify /Help and /HELP both filter out.",
+    "(c) Path-prefix false positives (URL paths) filtered: confirm /dev /usr /var /tmp /etc /bin /lib /opt /home /root /proc /sys /run /mnt /media /srv are all in the allowlist (a real CC feature could collide with one — that's an accepted tradeoff documented in the doc section).",
+    "(d) tests/test-community-scanner.sh: 11 tests cover detection, allowlist filter (CC native + wizard skills), dedup + count, empty-input, JSON shape, stdin, multi-file aggregation, sample-context. Verify all 11 pass and there are no false greens (e.g., a test that passes regardless of scanner correctness).",
+    "(e) Scanner shell-safety: filename args are passed via for-loop with double-quoted '$arg', no eval, no $() on user input. Allowlist + matches are written to mktemp-created temp files in $TMPDIR.",
+    "(f) Output JSON shape: top-level scan_date, input_files (array), candidates (array of {slash, count, sample}). Matches the documented shape in CLAUDE_CODE_SDLC_WIZARD.md → 'Community Feature-Discovery Scanner'.",
+    "(g) CLAUDE_CODE_SDLC_WIZARD.md doc section accurately describes the maintainer procedure (capture transcripts → run scanner → triage `jq .candidates`). No claims that don't hold (e.g. don't claim it auto-uploads to GitHub).",
+    "(h) Allowlist file format: '#' comments and blank lines respected. Verify scanner's grep -vE '^[[:space:]]*(#|$)' filters them correctly without dropping commands.",
+    "(i) Version bump 1.38.0 → 1.39.0 in 5 files: package.json, plugin.json, marketplace.json, SDLC.md (2 occurrences in frontmatter + table), CLAUDE_CODE_SDLC_WIZARD.md (2 occurrences in version comments at top + bottom). Verify no live 1.38.0 references remain (CHANGELOG entry [1.38.0] is historical and stays).",
+    "(j) CHANGELOG.md [1.39.0] entry positioned correctly above [1.38.0]. Doesn't accidentally mention #233 or #224 (those shipped in 1.38.0)."
+  ],
+  "review_instructions": "You are reviewing v1.39.0 of the SDLC Wizard. The diff introduces a community feature-discovery scanner — a bash script that grep's transcript text for /slash-command mentions, dedupes against an allowlist file, and emits a JSON digest of unknown candidates. Be strict. Specifically check: (1) regex correctness (false positives + false negatives, length filter, case handling, hyphen handling); (2) allowlist file format and parsing; (3) shell safety (no injection, no path traversal); (4) test coverage independence (no false greens); (5) doc section accuracy; (6) version-bump consistency. Output each finding with: ID (1, 2, ...), severity (P0/P1/P2), file:line evidence, and a 'certify condition'. End with score (1-10) and CERTIFIED or NOT CERTIFIED.",
+  "preflight_path": ".reviews/preflight-community-scanner-001.md",
+  "artifact_path": ".reviews/community-scanner-001/",
+  "pr_number": null
 }
