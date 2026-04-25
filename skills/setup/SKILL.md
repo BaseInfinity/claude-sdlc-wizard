@@ -198,24 +198,45 @@ Write the shape as:
 
 Present suggestions and let the user confirm.
 
-### Step 9.5: Context Window Configuration (Opt-In)
+### Step 9.5: Context Window + Mixed-Mode Configuration (Opt-In)
 
-The CLI ships `cli/templates/settings.json` with **no** `model` or `env` pin by default. This preserves Claude Code's built-in model auto-selection (Sonnet for cheap tasks, Opus for hard ones) and the upstream autocompact threshold. Power users who want guaranteed 1M context can opt in during setup.
+The CLI ships `cli/templates/settings.json` with **no** `model` or `env` pin by default. This preserves Claude Code's built-in model auto-selection (Sonnet for cheap tasks, Opus for hard ones) and the upstream autocompact threshold. Power users can opt into a pin during setup; mixed-mode users (Sonnet coder + Opus reviewer) can pin Sonnet here too.
 
-**Why this is opt-in (issue #198):** A top-level `"model"` in `settings.json` tells Claude Code "the user has explicitly chosen a model" and disables auto-mode for the session. That is a real tradeoff — the pin is only worth it when you actually need the 1M headroom and want to lock to Opus 4.7.
+**Why this is opt-in (issue #198):** A top-level `"model"` in `settings.json` tells Claude Code "the user has explicitly chosen a model" and disables auto-mode for the session. That is a real tradeoff — pinning is only worth it when you actually need the 1M headroom or you've decided mixed-mode tier-splitting is better than per-turn auto-selection.
+
+**Run the complexity heuristic first (roadmap #233):**
+
+```bash
+npx agentic-sdlc-wizard complexity .
+```
+
+The output is JSON: `{ tier: "simple" | "complex", score, signals }`. Use the result to suggest a default in the prompt below — do NOT override the user's choice. The heuristic flags any `.env` / `secrets/` / `credentials/` at any depth as a stakes signal that forces `complex` regardless of size.
 
 **Ask the user exactly once in Step 9.5:**
 
-> Pin the session to `opus[1m]` (Opus 4.7 with 1M context) and set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`?
+> Detected repo complexity: **{tier}** ({score}, signals: {loc, tests, hooks, workflows, stakes-flag if any}).
 >
-> - **No (default):** Leaves auto-mode enabled. Claude Code picks the model per turn, compaction follows upstream defaults. Recommended for most users.
-> - **Yes:** Long SDLC sessions (plan → TDD → review → CI shepherd on one feature) regularly cross 100K tokens; the 1M window gives headroom and 30% autocompact fires at ~300K. Requires Claude Code v2.1.111+ and comfort with losing model auto-selection.
+> How do you want to configure the model for this repo?
 >
-> `[y/N]`
+> - **[N] No pin (default, recommended for most repos):** Leaves auto-mode enabled. Claude Code picks the model per turn. Compaction follows upstream defaults. Simplest, lowest friction.
+> - **[m] Mixed-mode** *(suggested for **simple** tier — roadmap #233):* Pins `model: "sonnet[1m]"` for the coder (Sonnet 4.6 with 1M context). The cross-model review layer (Codex / external reviewer) **always stays at the flagship** (Opus 4.7 max or gpt-5.5 xhigh) regardless. Saves cost/quota on simple repos; reviewer catches what Sonnet misses. Requires comfort with losing per-turn auto-selection.
+> - **[f] Flagship full** *(suggested for **complex** / stakes-flagged tier):* Pins `model: "opus[1m]"` (Opus 4.7 with 1M context) and sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`. Long SDLC sessions cross 100K tokens regularly; the 1M window gives headroom and 30% autocompact fires at ~300K. Requires Claude Code v2.1.111+.
+>
+> `[N/m/f]`
 
-**If the user answers No (default):** Make no edits to `.claude/settings.json`. Auto-mode stays on. Done.
+**If the user answers `N` (default):** Make no edits to `.claude/settings.json`. Auto-mode stays on. Done.
 
-**If the user answers Yes:** Edit `.claude/settings.json` and add both fields at the top level:
+**If the user answers `m` (mixed-mode):** Edit `.claude/settings.json` and add:
+
+```json
+{
+  "model": "sonnet[1m]"
+}
+```
+
+Do NOT add `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` for Sonnet — Sonnet's 1M window has different compaction characteristics than Opus; let the upstream default ride. Tell the user explicitly: "Cross-model reviews still run at the flagship — `codex exec -c 'model_reasoning_effort=\"xhigh\"'` (gpt-5.5) or any future Opus-tier reviewer. Mixed-mode is coder-only."
+
+**If the user answers `f` (flagship):** Edit `.claude/settings.json` and add both fields at the top level:
 
 ```json
 {
@@ -226,9 +247,10 @@ The CLI ships `cli/templates/settings.json` with **no** `model` or `env` pin by 
 }
 ```
 
-Mention the escape hatch either way:
+Mention the escape hatch in all three cases:
 - To opt out later: remove the `model` line (and optionally the `env` block) from `.claude/settings.json`, or run `/model` and pick "Default (recommended)".
-- For CI pipelines with short tasks, consider `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=60` — compact early to stay fast.
+- To switch tiers later: edit `.claude/settings.json` and replace the `model` value, or re-run `/setup-wizard` Step 9.5.
+- For CI pipelines with short tasks (flagship only), consider `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=60` — compact early to stay fast.
 
 This is project-scoped and shared with the team via git.
 

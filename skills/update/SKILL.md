@@ -46,9 +46,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.37.1
+Latest:    1.38.0
 
 What changed:
+- [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default.
 - [1.37.1] Token-bloat fix: dedupe 2× SDLC BASELINE print when both project + plugin register the same hook (~300 tokens doubled per prompt). 5 hooks gain `dedupe_plugin_or_project()` helper. Codex 2-round 100/100.
 - [1.37.0] `monthly-research.yml` workflow deleted (ROADMAP #231 Phase 1) — 0 merged artifacts in 30d while burning $11-23/month; research happens inline now. `model-effort-check.sh` loud WARNING below xhigh (#217) — max preferred, xhigh floor; duplicate effort nudge in `instructions-loaded-check.sh` removed; single source of truth. Both changes Codex-certified.
 - [1.36.1] Repo renamed `agentic-ai-sdlc-wizard` → `claude-sdlc-wizard` (matches sibling pattern; npm package unchanged); `npm pkg fix` metadata cleanup; slug migration across docs/tests/configs
@@ -133,9 +134,11 @@ If the user is upgrading from a pre-#198 version, check their `.claude/settings.
 
 2. **If only one of the two fields matches** (e.g. `model: "opus[1m]"` but custom autocompact, or vice versa) — treat as intentional customization. Do not prompt.
 
-3. **If `model` is some other value** (e.g. `"sonnet"`, `"opus"`) — treat as user's explicit choice. Do not touch.
+3. **If `model` is `"sonnet[1m]"` (mixed-mode tier, roadmap #233, v1.38.0+)** — treat as user's explicit mixed-mode choice. Do not prompt; this is the supported mixed-mode pin. Mention in the upgrade summary: "Detected mixed-mode tier (Sonnet coder + flagship reviewer). Cross-model review still uses Opus / gpt-5.5 — see CLAUDE_CODE_SDLC_WIZARD.md → 'Mixed-Mode Tier'."
 
-4. **If neither field is set** — user is already on the new default. No action.
+4. **If `model` is some other value** (e.g. `"sonnet"`, `"opus"`) — treat as user's explicit choice. Do not touch.
+
+5. **If neither field is set** — user is already on the new default. No action.
 
 When removing: edit the file in place, drop the `model` key (and the `env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` key if nothing else is in `env`, otherwise leave `env` alone). Never touch other keys the user added.
 

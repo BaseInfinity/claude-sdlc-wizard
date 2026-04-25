@@ -4,6 +4,18 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.38.0] - 2026-04-24
+
+### Added
+
+- **Prompt-hook-fires-once instrumentation** — ROADMAP #224. `hooks/sdlc-prompt-check.sh` now records one tab-separated record (`<ts>\t<pid>\tsdlc-prompt-check`) per post-dedupe invocation when the opt-in env var `SDLC_HOOK_FIRE_LOG` is set. Maintainer can count lines per user prompt to verify CC 2.1.118's double-fire fix in real sessions; >1 line per prompt indicates regression. Unwritable paths fail silently. Procedure documented in `CLAUDE_CODE_SDLC_WIZARD.md` → "Verifying Prompt-Hook-Fires-Once". 6 regression tests in `tests/test-prompt-hook-fires-once.sh` cover the instrumentation contract (counter increments, opt-in semantics, log shape, output stability, error tolerance).
+
+- **Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer)** — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic classifies repos as `simple` or `complex` from filesystem signals (LOC, test count, hook count, workflow count, plus stakes flag for `.env` / `secrets/` / `credentials/`). Setup skill Step 9.5 expanded from binary y/N into a 3-way prompt:
+  - **`[N]`** No pin (default, recommended for most repos) — preserves Claude Code auto-mode
+  - **`[m]`** Mixed-mode pin `model: "sonnet[1m]"` — suggested for `simple` tier; coder runs on Sonnet, cross-model reviewer always stays at flagship (Opus 4.7 / gpt-5.5 xhigh)
+  - **`[f]`** Flagship pin `model: "opus[1m]"` + `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` — suggested for `complex` / stakes-flagged tier; current pre-#233 default
+  Stakes flag (`.env` / `secrets/` / `credentials/`) forces `complex` regardless of size and detects at any depth (e.g. `config/.env`, `app/secrets/`); the coder is doing security-relevant work and the saving isn't worth the risk. Heuristic outputs are advisory — the user always picks the final tier. New `tests/test-repo-complexity.sh` (11 tests) with six fixture repos (`tests/fixtures/complexity/{simple,complex,stakes,nested-stakes,boundary-simple,boundary-complex}-repo`) covers tier classification, nested stakes detection, threshold-boundary cases (29 tests = simple, 30 = complex), JSON shape, missing-dir error path, and the `npx agentic-sdlc-wizard complexity` CLI subcommand. Cross-model review section in `skills/sdlc/SKILL.md` explicitly notes the reviewer **always** runs at flagship regardless of coder pin — weakening the review leg defeats the savings. Update skill Step 7.5 recognizes `sonnet[1m]` as a valid mixed-mode pin (no migration prompt). Wizard doc gets a new "Mixed-Mode Tier" subsection documenting the split, when to use each tier, the prove-it gate (pair-test on 3+ simple repos before recommending mixed-mode as default), and tradeoffs. **Reconciles with #198:** mixed-mode is opt-in per-project via Step 9.5; no-pin remains the default.
+
 ## [1.37.1] - 2026-04-24
 
 ### Fixed
