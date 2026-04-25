@@ -4,6 +4,14 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.39.0] - 2026-04-24
+
+### Added
+
+- **Dead plugin registration cleanup in /update-wizard** (Step 7.7). When a wizard-installed plugin marketplace in `~/.claude/settings.json` points to a directory that no longer exists (rename, disable, or removal), every Claude Code session emits `UserPromptSubmit hook error: Failed to run: Plugin directory does not exist: ...` until cleaned up. New step detects entries in `extraKnownMarketplaces` matching `sdlc-wizard*` whose `source.path` is missing, plus the corresponding `enabledPlugins["sdlc-wizard@<marketplace>"]` flag, and offers cleanup with a backup. Scope-guarded to wizard installs only — never touches third-party plugin registrations. Lives in update-skill (not setup) because dead registrations only appear after install when something disables or removes the plugin directory; update is the natural drift-detection seam.
+
+- **Community feature-discovery scanner** — ROADMAP #207. New `tests/e2e/scan-community.sh` script extracts `/[a-z][a-z0-9-]*` slash-command mentions from transcript text (Reddit, HN, Discord, CC GitHub Discussions exports) and emits any not in the `tests/e2e/known-slash-commands.txt` allowlist. Output is JSON with `scan_date`, `input_files`, and `candidates: [{slash, count, sample}]` for triage. Maintainer pulls transcripts manually (per ROADMAP #231 Phase 3 plan: "scan-community → port to tests/e2e/scan-community.sh; maintainer runs weekly on Max"); the scanner itself is offline + deterministic. Allowlist seeded with wizard skills (`/sdlc`, `/setup`, `/update`, `/feedback`, `/code-review`, `/less-permission-prompts`, `/claude-automation-recommender`, `/schedule`, `/ultrareview`), CC native commands as of 2.1.118 (`/help`, `/clear`, `/model`, `/effort`, `/usage`, `/cost`, `/stats`, `/compact`, `/resume`, `/init`, `/mcp`, `/plugin`, `/agents`, `/hooks`, `/permissions`, `/sandbox`, `/fast`, `/exit`, `/login`, `/logout`, `/doctor`, `/install`, `/uninstall`, `/settings`), plus common URL-path false positives (`/dev`, `/usr`, `/var`, `/tmp`, `/etc`, `/bin`, `/lib`, `/opt`, `/home`, `/root`, `/proc`, `/sys`, `/run`, `/mnt`, `/media`, `/srv`). Length-≥4 filter drops `/a`, `/ab` style noise. New `tests/test-community-scanner.sh` (11 tests) covers detection, allowlist filtering (CC native + wizard skills), dedup + count, empty-input edge case, JSON shape, stdin input, multi-file aggregation, and sample-context inclusion. Procedure documented in `CLAUDE_CODE_SDLC_WIZARD.md` → "Community Feature-Discovery Scanner". Complements aistupidlevel.info degradation signal and CC changelog diffs — three signals together cover official + community feature surface.
+
 ## [1.38.0] - 2026-04-24
 
 ### Added

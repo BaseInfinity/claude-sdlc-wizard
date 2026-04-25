@@ -46,10 +46,11 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.38.0
+Latest:    1.39.0
 
 What changed:
-- [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default.
+- [1.39.0] Community feature-discovery scanner — ROADMAP #207. `tests/e2e/scan-community.sh` extracts unknown `/slash-command` mentions from transcript text (Reddit / HN / Discord exports), dedupes against `tests/e2e/known-slash-commands.txt` allowlist, emits JSON digest of candidates with count + sample. Replaces the deleted CI scan-community job (per #231 Phase 3) with a maintainer-runnable offline scan. 11 quality tests.
+- [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default. Plus ROADMAP #224 prompt-hook-fires-once instrumentation (opt-in `SDLC_HOOK_FIRE_LOG`).
 - [1.37.1] Token-bloat fix: dedupe 2× SDLC BASELINE print when both project + plugin register the same hook (~300 tokens doubled per prompt). 5 hooks gain `dedupe_plugin_or_project()` helper. Codex 2-round 100/100.
 - [1.37.0] `monthly-research.yml` workflow deleted (ROADMAP #231 Phase 1) — 0 merged artifacts in 30d while burning $11-23/month; research happens inline now. `model-effort-check.sh` loud WARNING below xhigh (#217) — max preferred, xhigh floor; duplicate effort nudge in `instructions-loaded-check.sh` removed; single source of truth. Both changes Codex-certified.
 - [1.36.1] Repo renamed `agentic-ai-sdlc-wizard` → `claude-sdlc-wizard` (matches sibling pattern; npm package unchanged); `npm pkg fix` metadata cleanup; slug migration across docs/tests/configs
@@ -165,6 +166,54 @@ If the user's `.claude/settings.json` has a top-level `allowedTools` array, offe
 4. **If neither is present** — no action.
 
 When migrating: preserve every entry byte-for-byte; only the container key changes. Do not reorder, dedup, or expand wildcards. Other top-level keys (hooks, env, model, custom user fields) are never touched.
+
+### Step 7.7: Dead Plugin Registration Cleanup (Global Settings)
+
+Wizard installs sometimes leave dead plugin registrations in the user's **global** `~/.claude/settings.json` after the underlying plugin directory is renamed, disabled, or removed. Symptom: every Claude Code session emits `UserPromptSubmit hook error: Failed to run: Plugin directory does not exist: <path> ... run /plugin to reinstall`. The error is harmless but bleeds into every prompt across every project until cleaned up.
+
+This step is **global-settings-only** (`~/.claude/settings.json`, not the project's `.claude/settings.json`). The update skill normally avoids global settings; this is the one exception, and only when the plugin marketplace name matches an exact wizard-owned identifier.
+
+**Wizard-owned marketplace allowlist** (exact match, no wildcard — wildcards risk eating third-party plugins like `sdlc-wizard-tools` if such a thing ever ships):
+
+- `sdlc-wizard-local`
+- `sdlc-wizard-wrap`
+
+If `cli/init.js` later registers additional wizard marketplace names, append them to this list verbatim.
+
+**Detection:**
+
+1. Read `~/.claude/settings.json` and parse as JSON.
+2. For each `extraKnownMarketplaces[key]` where `key` is in the allowlist above:
+   - Verify `entry.source.source === "directory"` AND `typeof entry.source.path === "string"`. If either guard fails, skip — not the shape the wizard installs (matches the type-check at `cli/init.js`).
+   - Resolve the `source.path` (expand `~` if literal). If the resolved path **does not exist** on disk, mark the marketplace **dead**.
+3. For every dead marketplace `<name>`, look for `enabledPlugins["sdlc-wizard@<name>"]` — also flag for removal.
+4. Repeat for **all** allowlist entries; collect the full set of dead `(marketplace, enabledPlugins)` pairs before prompting. Multiple dead registrations are common (e.g. both `sdlc-wizard-local` and `sdlc-wizard-wrap` if the user reinstalled twice).
+
+**Cleanup (always ask first, all-or-nothing per user response):**
+
+> Your `~/.claude/settings.json` references wizard plugin marketplaces that don't exist on disk:
+>
+> - `extraKnownMarketplaces.sdlc-wizard-local.source.path` → `<resolved-path>` (missing)
+> - `enabledPlugins["sdlc-wizard@sdlc-wizard-local"]` is `true`
+> - (list all dead pairs from detection)
+>
+> This causes `Plugin directory does not exist` errors on every prompt in every Claude Code session until cleaned up.
+>
+> Drop the listed entries from `~/.claude/settings.json`? `[y/N]`
+
+If the user says yes:
+1. **Back up with timestamp**: `cp ~/.claude/settings.json ~/.claude/settings.json.bak.$(date +%Y%m%dT%H%M%S)` so two cleanups on the same day don't overwrite each other's backups.
+2. **Build a single `jq` filter** that drops every dead marketplace and every dead `enabledPlugins` key in one pass: `jq 'del(.enabledPlugins["sdlc-wizard@sdlc-wizard-local"]) | del(.extraKnownMarketplaces["sdlc-wizard-local"]) | del(.enabledPlugins["sdlc-wizard@sdlc-wizard-wrap"]) | del(.extraKnownMarketplaces["sdlc-wizard-wrap"])'` (include only the keys actually marked dead in detection).
+3. Write to a temp file, validate with `jq empty` (round-trip parse), only then replace `~/.claude/settings.json` with `mv`. If validation fails, restore from the backup.
+4. **Formatting note**: `jq` rewrites the whole file and normalizes formatting. The wizard does NOT preserve comments, trailing commas, or other JSONC features — Claude Code's `settings.json` is strict JSON, so this is safe today, but say so to the user. If they care about preserving the exact diff, give them the manual `del()` filter and let them decide whether to apply it.
+
+If the user says no: skip silently. Some users have a recovery plan (re-enable the renamed dir, reinstall, etc.).
+
+**Idempotency:** Re-running Step 7.7 after a successful cleanup must be a no-op. Detection only flags marketplaces whose `source.path` is missing AND whose name is in the allowlist; both must be true, so a clean settings.json reports zero dead pairs.
+
+**Scope guard:** only touch entries whose marketplace name matches the exact allowlist. Third-party plugin registrations (`legal@knowledge-work-plugins`, `claude-md-management@claude-plugins-official`, etc.) and unrelated `sdlc`-prefixed marketplaces (e.g. `danielscholl/claude-sdlc`) are never the wizard's business. Path-existence alone never qualifies a marketplace for cleanup — only allowlist + missing-path together do.
+
+**Why this lives in the update skill, not setup:** setup runs once at install time, when the plugin paths are valid by definition. Dead registrations only appear later, when something disables/renames/deletes the plugin directory. Update is the natural seam to detect drift and offer cleanup.
 
 ### Step 8: Apply Selected Changes
 
