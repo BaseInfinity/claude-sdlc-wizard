@@ -46,10 +46,11 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.38.0
+Latest:    1.39.0
 
 What changed:
-- [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default.
+- [1.39.0] Community feature-discovery scanner — ROADMAP #207. `tests/e2e/scan-community.sh` extracts unknown `/slash-command` mentions from transcript text (Reddit / HN / Discord exports), dedupes against `tests/e2e/known-slash-commands.txt` allowlist, emits JSON digest of candidates with count + sample. Replaces the deleted CI scan-community job (per #231 Phase 3) with a maintainer-runnable offline scan. 11 quality tests.
+- [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default. Plus ROADMAP #224 prompt-hook-fires-once instrumentation (opt-in `SDLC_HOOK_FIRE_LOG`).
 - [1.37.1] Token-bloat fix: dedupe 2× SDLC BASELINE print when both project + plugin register the same hook (~300 tokens doubled per prompt). 5 hooks gain `dedupe_plugin_or_project()` helper. Codex 2-round 100/100.
 - [1.37.0] `monthly-research.yml` workflow deleted (ROADMAP #231 Phase 1) — 0 merged artifacts in 30d while burning $11-23/month; research happens inline now. `model-effort-check.sh` loud WARNING below xhigh (#217) — max preferred, xhigh floor; duplicate effort nudge in `instructions-loaded-check.sh` removed; single source of truth. Both changes Codex-certified.
 - [1.36.1] Repo renamed `agentic-ai-sdlc-wizard` → `claude-sdlc-wizard` (matches sibling pattern; npm package unchanged); `npm pkg fix` metadata cleanup; slug migration across docs/tests/configs

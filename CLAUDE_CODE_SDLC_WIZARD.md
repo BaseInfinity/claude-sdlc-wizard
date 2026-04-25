@@ -981,6 +981,52 @@ Don't add `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — Sonnet's 1M window has different
 - Sonnet 4.6 will drop some fine-grained self-review moves (it's fast, less deliberate). The Opus reviewer catches them — but you'll see more "fix in round 2" cycles compared to Opus-coder runs.
 - Mixed-mode disables auto-mode (same as flagship pin). The Sonnet pin is per-session — to switch back, remove the `model` line.
 
+### Community Feature-Discovery Scanner (roadmap #207)
+
+The weekly-update workflow watches Anthropic's official changelog + GitHub releases, but new CC slash-commands (e.g. a hypothetical `/insights`) often surface FIRST on Reddit, HN, or Discord weeks before they hit the changelog. `tests/e2e/scan-community.sh` ports the community-scan job out of CI (deleted per ROADMAP #231) into a maintainer-runnable script: pull transcripts manually, pipe through the scanner, triage the digest.
+
+**What it does:** extracts every `/[a-z][a-z0-9-]*` mention (length ≥ 4) from input text, dedupes against `tests/e2e/known-slash-commands.txt`, and emits a JSON digest with each unknown slash-command's count and one sample line for context.
+
+**Maintainer procedure:**
+
+```bash
+# 1. Capture transcripts. Save Reddit threads, HN comments, Discord exports,
+#    or CC GH Discussions to plain-text files. The scanner doesn't care about
+#    formatting — just the raw text.
+mkdir -p /tmp/community-scan-$(date +%Y-%m-%d)
+cd /tmp/community-scan-*
+# (paste / curl content into reddit.txt, hn.txt, discord.txt, etc.)
+
+# 2. Run the scanner. Multiple files are aggregated into one digest.
+bash /path/to/sdlc-wizard/tests/e2e/scan-community.sh *.txt > digest.json
+
+# 3. Triage. Anything in `candidates` is a slash-command the wizard's
+#    allowlist doesn't recognize — could be a new CC native command, a
+#    third-party plugin, or pure noise.
+jq '.candidates' digest.json
+```
+
+**Output shape:**
+
+```json
+{
+  "scan_date": "2026-04-24",
+  "input_files": ["reddit.txt", "hn.txt"],
+  "candidates": [
+    { "slash": "/insights", "count": 3, "sample": "Did you all see /insights in CC 2.2..." },
+    { "slash": "/newthing",  "count": 1, "sample": "I tried /newthing on a long session..." }
+  ]
+}
+```
+
+**Updating the allowlist:** when triage confirms a candidate is real and the wizard now accounts for it (either as a wizard skill or by documenting CC's native command), append it to `tests/e2e/known-slash-commands.txt` so the next scan stops surfacing it. The file is the single source of truth — no rebuild, no migration.
+
+**Why offline + deterministic:** the previous CI-based scan-community job burned $2-5/run via claude-code-action calls and produced one merged community-pattern PR in 30 days (ROADMAP #231 Phase 1 audit). Replacing it with a local regex scan + maintainer triage gives the same signal at zero API cost; the original `.github/prompts/analyze-community.md` prompt still exists for the LLM-summarization layer if a maintainer wants narrative analysis on top.
+
+**Regression test:** `tests/test-community-scanner.sh` covers detection of new commands, allowlist filtering (CC native + wizard skills), dedup + count behavior, empty-input edge case, JSON shape, stdin input, multi-file aggregation, and sample-context inclusion (11 tests). The fixtures under `tests/fixtures/community-scanner/` are seeded with `/newthing`, `/alpha`, `/beta`, `/gamma` mock mentions; if the scanner regresses the test fails on the missed slash.
+
+---
+
 ### Verifying Prompt-Hook-Fires-Once (roadmap #224)
 
 CC 2.1.118 shipped a fix for `prompt` hooks double-firing when an agent-hook verifier subagent itself made tool calls. The bug would manifest as duplicate `SDLC BASELINE` injections per `UserPromptSubmit` — context bloat plus possible confusion. The dual-channel (project + plugin) double-print is already handled by `dedupe_plugin_or_project` in v1.37.1; this section is the runtime check for the *CC-internal* double-fire case.
@@ -2786,7 +2832,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.38.0 -->
+<!-- SDLC Wizard Version: 1.39.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3848,7 +3894,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.38.0 -->
+<!-- SDLC Wizard Version: 1.39.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
