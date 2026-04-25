@@ -46,10 +46,11 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.39.0
+Latest:    1.39.1
 
 What changed:
-- [1.39.0] Community feature-discovery scanner — ROADMAP #207. `tests/e2e/scan-community.sh` extracts unknown `/slash-command` mentions from transcript text (Reddit / HN / Discord exports), dedupes against `tests/e2e/known-slash-commands.txt` allowlist, emits JSON digest of candidates with count + sample. Replaces the deleted CI scan-community job (per #231 Phase 3) with a maintainer-runnable offline scan. 11 quality tests.
+- [1.39.1] Step 7.7 hoist — dead-plugin cleanup now runs even when wizard versions match. Previously `/update-wizard` exited at "you're up to date" before reaching Step 7.7, so users on the latest wizard with a stale `~/.claude/settings.json` plugin registration were never offered cleanup. New `tests/test-update-skill-step-7-7.sh` (8 quality tests) guards the ordering.
+- [1.39.0] Community feature-discovery scanner — ROADMAP #207. `tests/e2e/scan-community.sh` extracts unknown `/slash-command` mentions from transcript text (Reddit / HN / Discord exports), dedupes against `tests/e2e/known-slash-commands.txt` allowlist, emits JSON digest of candidates with count + sample. Replaces the deleted CI scan-community job (per #231 Phase 3) with a maintainer-runnable offline scan. 14 quality tests.
 - [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default. Plus ROADMAP #224 prompt-hook-fires-once instrumentation (opt-in `SDLC_HOOK_FIRE_LOG`).
 - [1.37.1] Token-bloat fix: dedupe 2× SDLC BASELINE print when both project + plugin register the same hook (~300 tokens doubled per prompt). 5 hooks gain `dedupe_plugin_or_project()` helper. Codex 2-round 100/100.
 - [1.37.0] `monthly-research.yml` workflow deleted (ROADMAP #231 Phase 1) — 0 merged artifacts in 30d while burning $11-23/month; research happens inline now. `model-effort-check.sh` loud WARNING below xhigh (#217) — max preferred, xhigh floor; duplicate effort nudge in `instructions-loaded-check.sh` removed; single source of truth. Both changes Codex-certified.
@@ -69,9 +70,12 @@ What changed:
 - [1.24.0] Hook if conditionals, autocompact tuning + 1M/200K guidance, tdd_red fix, ...
 ```
 
-**If versions match:** Say "You're up to date! (version X.X.X)" and stop.
+**If versions match:** Step 7.7 (global plugin-registration cleanup) is independent of wizard file versions — it must run even when the user is already up-to-date. The `check-only` flag still gates whether cleanup is *applied*:
 
-**If user passed `check-only`:** Stop here after showing what changed. Do not apply anything.
+- **Without `check-only`**: Run Step 7.7 in normal mode (detect, prompt, apply) before stopping. Then say "You're up to date! (version X.X.X)" and stop. Do not run Steps 4–10; only Step 7.7 fires on match.
+- **With `check-only`**: Run Step 7.7 in detection-only mode — report any dead plugin registrations found, but do NOT prompt the user and do NOT mutate `~/.claude/settings.json`. Then say "You're up to date! (version X.X.X)" and stop.
+
+**If user passed `check-only` and versions don't match:** Stop after showing what changed. Do not apply anything (file updates, settings cleanup, version bumps).
 
 ### Step 4: Run Drift Detection
 
@@ -214,6 +218,10 @@ If the user says no: skip silently. Some users have a recovery plan (re-enable t
 **Scope guard:** only touch entries whose marketplace name matches the exact allowlist. Third-party plugin registrations (`legal@knowledge-work-plugins`, `claude-md-management@claude-plugins-official`, etc.) and unrelated `sdlc`-prefixed marketplaces (e.g. `danielscholl/claude-sdlc`) are never the wizard's business. Path-existence alone never qualifies a marketplace for cleanup — only allowlist + missing-path together do.
 
 **Why this lives in the update skill, not setup:** setup runs once at install time, when the plugin paths are valid by definition. Dead registrations only appear later, when something disables/renames/deletes the plugin directory. Update is the natural seam to detect drift and offer cleanup.
+
+**Runs regardless of version match:** Step 7.7 is global-settings hygiene, not file-update logic. It must run even when the wizard version on disk matches npm latest (per Step 3's match-branch instruction). A user can be on the latest wizard and still have a stale plugin registration from a previous install; gating Step 7.7 on version mismatch would silently leave that error firing on every prompt forever. If a future edit to Step 3 changes the match-branch flow, it must continue to invoke Step 7.7 before stopping.
+
+**`check-only` precedence:** If the user passed `check-only` (whether versions match or not), Step 7.7 runs in detection-only mode: report dead plugin registrations if found, do NOT prompt the user, do NOT execute the jq cleanup, do NOT touch `~/.claude/settings.json`. The check-only contract takes precedence over the cleanup contract — a `check-only` invocation must never mutate state.
 
 ### Step 8: Apply Selected Changes
 

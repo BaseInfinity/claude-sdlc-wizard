@@ -1023,7 +1023,7 @@ jq '.candidates' digest.json
 
 **Why offline + deterministic:** the previous CI-based scan-community job burned $2-5/run via claude-code-action calls and produced one merged community-pattern PR in 30 days (ROADMAP #231 Phase 1 audit). Replacing it with a local regex scan + maintainer triage gives the same signal at zero API cost; the original `.github/prompts/analyze-community.md` prompt still exists for the LLM-summarization layer if a maintainer wants narrative analysis on top.
 
-**Regression test:** `tests/test-community-scanner.sh` covers detection of new commands, allowlist filtering (CC native + wizard skills), dedup + count behavior, empty-input edge case, JSON shape, stdin input, multi-file aggregation, and sample-context inclusion (11 tests). The fixtures under `tests/fixtures/community-scanner/` are seeded with `/newthing`, `/alpha`, `/beta`, `/gamma` mock mentions; if the scanner regresses the test fails on the missed slash.
+**Regression test:** `tests/test-community-scanner.sh` covers detection of new commands, allowlist filtering (CC native + wizard skills), dedup + count behavior, empty-input edge case, JSON shape, stdin input, multi-file aggregation, sample-context inclusion, long-line sample window, case-insensitive extraction, and dash-leading filenames (14 tests). The fixtures under `tests/fixtures/community-scanner/` are seeded with `/newthing`, `/alpha`, `/beta`, `/gamma` mock mentions; if the scanner regresses the test fails on the missed slash.
 
 ---
 
@@ -2832,7 +2832,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.39.0 -->
+<!-- SDLC Wizard Version: 1.39.1 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3839,7 +3839,7 @@ Claude fetches from these URLs (via WebFetch):
 ```
 If no version comment exists, treat as `0.0.0`.
 
-**Step 2: Fetch CHANGELOG first** from the CHANGELOG URL above. Parse all entries between user's installed version and the latest version. Show the user what changed. If versions match, say "You're up to date!" and stop.
+**Step 2: Fetch CHANGELOG first** from the CHANGELOG URL above. Parse all entries between user's installed version and the latest version. Show the user what changed. If versions match, run the global plugin-registration cleanup (see the `/update-wizard` skill's Step 7.7 — `~/.claude/settings.json` hygiene is independent of file versions and must run even when up-to-date), then say "You're up to date!" and stop.
 
 **Step 3: Fetch full wizard and compare.** For each wizard step, check if the user already has it:
 
@@ -3894,7 +3894,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.39.0 -->
+<!-- SDLC Wizard Version: 1.39.1 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
