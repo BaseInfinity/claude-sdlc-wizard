@@ -32,6 +32,8 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-community-paths.sh && \
    ./tests/test-persist-score-history.sh && \
    ./tests/test-local-shepherd.sh && \
+   ./tests/test-repo-complexity.sh && \
+   ./tests/test-prompt-hook-fires-once.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \

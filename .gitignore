@@ -4,6 +4,9 @@ node_modules/
 # E2E test artifacts
 tests/e2e/.cache/
 
+# Generated test fixtures (rebuilt by tests/test-repo-complexity.sh on each run)
+tests/fixtures/complexity/
+
 # Claude Code local state
 .claude/plans/
 

@@ -12,6 +12,18 @@ source "$HOOK_DIR/_find-sdlc-root.sh"
 # plugin paths even when the script is sourced or invoked via aliases.
 dedupe_plugin_or_project "${BASH_SOURCE[0]}" || exit 0
 
+# Roadmap #224: opt-in fires-once instrumentation. CC 2.1.118 shipped a fix for
+# prompt hooks double-firing when a verifier subagent itself made tool calls.
+# When SDLC_HOOK_FIRE_LOG is set, append one tab-separated record per real
+# invocation (post-dedupe). Maintainer can compare line count against prompt
+# count to verify the CC fix in real sessions. See CLAUDE_CODE_SDLC_WIZARD.md →
+# "Verifying Prompt-Hook-Fires-Once" for the procedure.
+if [ -n "${SDLC_HOOK_FIRE_LOG:-}" ]; then
+    {
+        printf '%s\t%s\tsdlc-prompt-check\n' "$(date +%s)" "$$" >> "$SDLC_HOOK_FIRE_LOG"
+    } 2>/dev/null || true
+fi
+
 # CWD walk-up finds nearest SDLC project (#173: silent exit for non-SDLC dirs)
 if find_sdlc_root; then
     PROJECT_DIR="$SDLC_ROOT"

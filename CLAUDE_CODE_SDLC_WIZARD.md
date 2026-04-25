@@ -940,6 +940,77 @@ Claude Code supports both 200K and 1M context windows. **`opus[1m]` is an opt-in
 
 **Autocompact pairing (important):** If you opt into `opus[1m]`, also set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` — otherwise CC's default autocompact fires at ~76K and destroys the headroom you're paying for. Step 9.5 writes both together when you opt in.
 
+### Mixed-Mode Tier (Sonnet coder + Opus reviewer, roadmap #233)
+
+For trivial / blank / config-only / CRUD-style repos, full Opus 4.7 on every turn is overkill on the coder leg. The **mixed-mode tier** pins `model: "sonnet[1m]"` for in-session work while keeping the cross-model review layer (Codex / external reviewer) at the flagship — so the reviewer still catches what Sonnet missed.
+
+**The split:**
+
+| Layer | Mixed-mode tier | Flagship tier |
+|-------|----------------|---------------|
+| Coder (in-session CC) | `model: "sonnet[1m]"` | `model: "opus[1m]"` |
+| Cross-model reviewer (Codex etc.) | gpt-5.5 xhigh (or Opus 4.7 max via Bash) | gpt-5.5 xhigh (or Opus 4.7 max via Bash) |
+| Effort floor (CC session) | xhigh; max preferred | xhigh; max preferred |
+
+The reviewer always stays at flagship — the whole point of mixed-mode is that adversarial review catches Sonnet's blind spots, so weakening the review leg defeats the savings.
+
+**When mixed-mode is the right call:**
+- Repo is small (LOC < 10K), few tests (< 30), few hooks (< 5), few workflows (< 5), no `.env` / secrets handling
+- You're on API billing (not Max subscription) and 2× cost on simple repos actually matters
+- Tasks are predominantly mechanical — typo fixes, config tweaks, small CRUD endpoints
+- You're running the SDLC Wizard's setup flow against a sibling repo where the coder doesn't need flagship reasoning
+
+**When to stay flagship:**
+- Stakes-flagged repo: anywhere `.env` / `secrets/` / `credentials/` exists. Force flagship even if LOC is tiny — leaks are catastrophic
+- Architecture work, debugging non-obvious bugs, security review, anything where the *coder's* judgment matters as much as the reviewer's
+- Long shepherd sessions (plan → TDD → review → CI loop) — they cross 100K tokens regularly and Opus 4.7 fits the window better in a single thread
+
+**Auto-detection:** the setup wizard runs `cli/lib/repo-complexity.js` against the target repo and suggests the tier. Stakes flag (`.env` / `secrets/`) forces complex regardless of size. The user always picks the final answer — the heuristic is a hint, not a gate.
+
+**How to opt in (manual):**
+```json
+{
+  "model": "sonnet[1m]"
+}
+```
+Don't add `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — Sonnet's 1M window has different compaction characteristics than Opus's; let upstream defaults ride until we benchmark.
+
+**Prove-It Gate (#233 acceptance criterion):** mixed-mode ships only if pair-tested on 3+ simple repos shows Sonnet-coder + Opus-reviewer produces ≥ same SDLC scores as full-Opus baseline. The first version of the heuristic ships v1.38.0; pair-test results land in CHANGELOG before recommending mixed-mode as the default for any tier.
+
+**Tradeoffs (be honest):**
+- Sonnet 4.6 will drop some fine-grained self-review moves (it's fast, less deliberate). The Opus reviewer catches them — but you'll see more "fix in round 2" cycles compared to Opus-coder runs.
+- Mixed-mode disables auto-mode (same as flagship pin). The Sonnet pin is per-session — to switch back, remove the `model` line.
+
+### Verifying Prompt-Hook-Fires-Once (roadmap #224)
+
+CC 2.1.118 shipped a fix for `prompt` hooks double-firing when an agent-hook verifier subagent itself made tool calls. The bug would manifest as duplicate `SDLC BASELINE` injections per `UserPromptSubmit` — context bloat plus possible confusion. The dual-channel (project + plugin) double-print is already handled by `dedupe_plugin_or_project` in v1.37.1; this section is the runtime check for the *CC-internal* double-fire case.
+
+`hooks/sdlc-prompt-check.sh` ships an opt-in instrumentation: when the env var `SDLC_HOOK_FIRE_LOG` is set, every post-dedupe invocation appends one tab-separated record (`<unix-ts>\t<pid>\tsdlc-prompt-check`) to that log. Counting lines per prompt tells you whether CC fired the hook once or twice.
+
+**Maintainer procedure (real session):**
+
+```bash
+# 1. Pick a fresh log path
+export SDLC_HOOK_FIRE_LOG="$(mktemp /tmp/sdlc-fire-log.XXXXXX)"
+
+# 2. Restart Claude Code so the env propagates into spawned hooks
+#    (or set it in your shell rc / .envrc and start a fresh session)
+
+# 3. Run a normal SDLC session — including any task that triggers a verifier
+#    subagent (e.g., /code-review, /sdlc with multi-step planning)
+
+# 4. After N user prompts, count log lines:
+wc -l "$SDLC_HOOK_FIRE_LOG"
+#    Expect: N lines. >N indicates the CC double-fire bug regressed.
+
+# 5. Optional: tail the log live in another terminal to watch each fire:
+tail -f "$SDLC_HOOK_FIRE_LOG"
+```
+
+The instrumentation is opt-in — when the env var is unset, no log is written and no overhead is added. Unwritable log paths fail silently so a bad `SDLC_HOOK_FIRE_LOG` value never crashes the hook.
+
+**Regression test:** `tests/test-prompt-hook-fires-once.sh` covers the instrumentation contract (counter increments per invocation, opt-in semantics, log line shape, output stability, unwritable-path tolerance). It does *not* spawn Claude Code — that's a maintainer-runtime check by design. The test asserts the recording mechanism works so the maintainer's real-session count is trustworthy.
+
 ---
 
 ## Example Workflow (End-to-End)
@@ -2715,7 +2786,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.37.1 -->
+<!-- SDLC Wizard Version: 1.38.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3777,7 +3848,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.37.1 -->
+<!-- SDLC Wizard Version: 1.38.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
