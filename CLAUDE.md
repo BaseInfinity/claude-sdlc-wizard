@@ -69,7 +69,8 @@ Key concepts:
 
 - **Never commit directly to `main`** — branch protection requires PRs
 - Create a feature branch, commit there, and open a PR
-- PRs require 1 approving review and passing CI (`validate`, `e2e-quick-check`)
+- PRs require 1 approving review and passing CI (`validate`)
+- E2E signal is advisory-only now, via `tests/e2e/local-shepherd.sh` run locally on maintainer's Max subscription (ROADMAP #212 Option 1)
 - Admin enforcement is on — no bypassing, even for repo owners
 
 ## Special Notes
