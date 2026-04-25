@@ -167,6 +167,54 @@ If the user's `.claude/settings.json` has a top-level `allowedTools` array, offe
 
 When migrating: preserve every entry byte-for-byte; only the container key changes. Do not reorder, dedup, or expand wildcards. Other top-level keys (hooks, env, model, custom user fields) are never touched.
 
+### Step 7.7: Dead Plugin Registration Cleanup (Global Settings)
+
+Wizard installs sometimes leave dead plugin registrations in the user's **global** `~/.claude/settings.json` after the underlying plugin directory is renamed, disabled, or removed. Symptom: every Claude Code session emits `UserPromptSubmit hook error: Failed to run: Plugin directory does not exist: <path> ... run /plugin to reinstall`. The error is harmless but bleeds into every prompt across every project until cleaned up.
+
+This step is **global-settings-only** (`~/.claude/settings.json`, not the project's `.claude/settings.json`). The update skill normally avoids global settings; this is the one exception, and only when the plugin marketplace name matches an exact wizard-owned identifier.
+
+**Wizard-owned marketplace allowlist** (exact match, no wildcard — wildcards risk eating third-party plugins like `sdlc-wizard-tools` if such a thing ever ships):
+
+- `sdlc-wizard-local`
+- `sdlc-wizard-wrap`
+
+If `cli/init.js` later registers additional wizard marketplace names, append them to this list verbatim.
+
+**Detection:**
+
+1. Read `~/.claude/settings.json` and parse as JSON.
+2. For each `extraKnownMarketplaces[key]` where `key` is in the allowlist above:
+   - Verify `entry.source.source === "directory"` AND `typeof entry.source.path === "string"`. If either guard fails, skip — not the shape the wizard installs (matches the type-check at `cli/init.js`).
+   - Resolve the `source.path` (expand `~` if literal). If the resolved path **does not exist** on disk, mark the marketplace **dead**.
+3. For every dead marketplace `<name>`, look for `enabledPlugins["sdlc-wizard@<name>"]` — also flag for removal.
+4. Repeat for **all** allowlist entries; collect the full set of dead `(marketplace, enabledPlugins)` pairs before prompting. Multiple dead registrations are common (e.g. both `sdlc-wizard-local` and `sdlc-wizard-wrap` if the user reinstalled twice).
+
+**Cleanup (always ask first, all-or-nothing per user response):**
+
+> Your `~/.claude/settings.json` references wizard plugin marketplaces that don't exist on disk:
+>
+> - `extraKnownMarketplaces.sdlc-wizard-local.source.path` → `<resolved-path>` (missing)
+> - `enabledPlugins["sdlc-wizard@sdlc-wizard-local"]` is `true`
+> - (list all dead pairs from detection)
+>
+> This causes `Plugin directory does not exist` errors on every prompt in every Claude Code session until cleaned up.
+>
+> Drop the listed entries from `~/.claude/settings.json`? `[y/N]`
+
+If the user says yes:
+1. **Back up with timestamp**: `cp ~/.claude/settings.json ~/.claude/settings.json.bak.$(date +%Y%m%dT%H%M%S)` so two cleanups on the same day don't overwrite each other's backups.
+2. **Build a single `jq` filter** that drops every dead marketplace and every dead `enabledPlugins` key in one pass: `jq 'del(.enabledPlugins["sdlc-wizard@sdlc-wizard-local"]) | del(.extraKnownMarketplaces["sdlc-wizard-local"]) | del(.enabledPlugins["sdlc-wizard@sdlc-wizard-wrap"]) | del(.extraKnownMarketplaces["sdlc-wizard-wrap"])'` (include only the keys actually marked dead in detection).
+3. Write to a temp file, validate with `jq empty` (round-trip parse), only then replace `~/.claude/settings.json` with `mv`. If validation fails, restore from the backup.
+4. **Formatting note**: `jq` rewrites the whole file and normalizes formatting. The wizard does NOT preserve comments, trailing commas, or other JSONC features — Claude Code's `settings.json` is strict JSON, so this is safe today, but say so to the user. If they care about preserving the exact diff, give them the manual `del()` filter and let them decide whether to apply it.
+
+If the user says no: skip silently. Some users have a recovery plan (re-enable the renamed dir, reinstall, etc.).
+
+**Idempotency:** Re-running Step 7.7 after a successful cleanup must be a no-op. Detection only flags marketplaces whose `source.path` is missing AND whose name is in the allowlist; both must be true, so a clean settings.json reports zero dead pairs.
+
+**Scope guard:** only touch entries whose marketplace name matches the exact allowlist. Third-party plugin registrations (`legal@knowledge-work-plugins`, `claude-md-management@claude-plugins-official`, etc.) and unrelated `sdlc`-prefixed marketplaces (e.g. `danielscholl/claude-sdlc`) are never the wizard's business. Path-existence alone never qualifies a marketplace for cleanup — only allowlist + missing-path together do.
+
+**Why this lives in the update skill, not setup:** setup runs once at install time, when the plugin paths are valid by definition. Dead registrations only appear later, when something disables/renames/deletes the plugin directory. Update is the natural seam to detect drift and offer cleanup.
+
 ### Step 8: Apply Selected Changes
 
 For each file the user approved:
