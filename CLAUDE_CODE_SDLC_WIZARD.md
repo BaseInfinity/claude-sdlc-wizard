@@ -3465,11 +3465,12 @@ Use an independent AI model from a different company as a code reviewer. The aut
 
 **Why this works:** Two AI systems from different companies (e.g., Claude writes, GPT reviews) provide adversarial diversity. They have fundamentally different training, different failure modes, and different strengths. What one misses, the other catches.
 
-**Use the best model at the deepest reasoning.** This is your quality gate — don't economize on it. Always use the latest, most capable model available (currently GPT-5.4) at maximum reasoning effort (`xhigh`). Cheaper/faster models miss things. The whole point is catching what the authoring model couldn't.
+**Use the best model at the deepest reasoning.** This is your quality gate — don't economize on it. Always use the latest, most capable model available (**GPT-5.5 if you have access**, otherwise GPT-5.4) at maximum reasoning effort (`xhigh` — this is non-negotiable, lower settings miss subtle errors). Cheaper/faster models miss things. The whole point is catching what the authoring model couldn't.
 
 **Prerequisites:**
 - Codex CLI installed: `npm i -g @openai/codex`
 - OpenAI API key configured: `export OPENAI_API_KEY=...`
+- Codex CLI picks up your OpenAI account's best available model automatically. If you have GPT-5.5 access, `codex exec` uses it; otherwise it falls back to GPT-5.4. No config change needed on your side.
 - This is a local workflow tool — not required for CI/CD
 
 **The Protocol:**
