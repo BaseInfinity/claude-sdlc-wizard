@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.40.0] - 2026-04-25
+
+### Added
+
+- **CLI version detection in /update-wizard** (ROADMAP #232). New Step 1.5 detects the locally installed `agentic-sdlc-wizard` CLI version (via `npm ls -g` for global installs and `~/.npm/_npx` cache inspection for npx users), compares to the npm registry latest at `registry.npmjs.org/agentic-sdlc-wizard/latest`, and surfaces a one-shot `npx -y agentic-sdlc-wizard@latest init --force` upgrade BEFORE running drift detection or per-file updates. Closes the gap where `/update-wizard` patched in-session project files but the user's stale npx cache kept running an old CLI on `init`/`check`/`complexity` invocations. Mirrors `claude update` UX (one-shot CLI + skill sync). Honors the `check-only` flag in report-only mode (no auto-upgrade). Graceful fallback when the CLI is undetectable (custom install, offline). New `tests/test-update-skill-cli-version.sh` (8 quality tests) covers step structure, both detection paths, the registry endpoint, the upgrade command, ordering before per-file plan, `check-only` precedence, fallback wording, and the changelog entry itself.
+
 ## [1.39.1] - 2026-04-25
 
 ### Fixed
