@@ -4,6 +4,16 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.41.0] - 2026-04-26
+
+### Added
+
+- **Post-mortem 2026-04-23 lessons folded into wizard docs** (ROADMAP #221). [Anthropic's 2026-04-23 post-mortem](https://www.anthropic.com/engineering/april-23-postmortem) provides independent third-party evidence for three SDLC-relevant failure modes; this release captures all three:
+  - **Don't rely on CC default effort** — the post-mortem confirmed CC has flipped reasoning_effort defaults across versions (high → medium → xhigh/high). Recommended Effort section now cites this as evidence and reinforces that `/effort max` should be set explicitly every session, never assumed from the default.
+  - **Extended-thinking + caching + idle sessions can drop thinking blocks** — new "Known CC Gotchas" top-level section documents the failure mode (cached prompt prefix re-served after idle pruning silently drops thinking blocks downstream), with a workaround (start fresh session with `claude --continue` if quality degrades mid-session) and a detection signal pointer to ROADMAP #220.
+  - **Brevity-cap audit + regression guard** — audited every `skills/*/SKILL.md` and `hooks/*.sh` for compounding brevity constraints (`≤N words`, `be concise`, `keep brief`). Audit clean; no system-prompt brevity caps in the wizard. New `tests/test-postmortem-lessons.sh` (7 tests) includes a regression guard that fails CI if a future PR introduces one.
+- "Known CC Gotchas" is now a documented section pattern; future CC failure modes get folded here with workarounds.
+
 ## [1.40.1] - 2026-04-26
 
 ### Added

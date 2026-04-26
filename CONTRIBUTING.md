@@ -38,6 +38,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-update-skill-step-7-7.sh && \
    ./tests/test-update-skill-cli-version.sh && \
    ./tests/test-cleanup-period-guidance.sh && \
+   ./tests/test-postmortem-lessons.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \
