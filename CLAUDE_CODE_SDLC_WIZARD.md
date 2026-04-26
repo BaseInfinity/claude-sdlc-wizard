@@ -257,6 +257,8 @@ Claude Code's **effort level** controls how much thinking the model does before 
 
 **Why `high` was the previous default:** Claude Code uses **adaptive thinking** to dynamically allocate reasoning budget per turn. On Pro and Max plans, the default effort level was **medium (85)**, which causes the model to under-allocate reasoning on complex multi-step tasks — leading to shallow analysis, missed edge cases, and "lazy" outputs. This was [confirmed by Anthropic engineer Boris Cherny](https://github.com/anthropics/claude-code/issues/42796) and is documented at [code.claude.com](https://code.claude.com/docs/en/model-config). API, Team, and Enterprise plans default to high effort and are not affected.
 
+**Don't rely on the CC default — set effort yourself.** Anthropic's [2026-04-23 post-mortem](https://www.anthropic.com/engineering/april-23-postmortem) is independent third-party evidence that CC has flipped reasoning_effort defaults across versions (high → medium → xhigh/high). The default has changed before and will change again. The wizard's `model-effort-check.sh` hook nudges to `xhigh`/`max` at session start specifically because the in-product default is not load-bearing — it can shift release-to-release without notice. Set `/effort max` explicitly every session you do SDLC work, and treat any "I assumed the default was X" reasoning as a bug.
+
 The `/sdlc` skill sets `effort: high` in its frontmatter as a baseline, overriding the medium default on every SDLC invocation. **On Opus 4.7, run `/effort max` at session start** — the frontmatter is a floor, not a ceiling, and `max` is where SDLC-compliant work actually happens on 4.7.
 
 **Nuclear option — disable adaptive thinking entirely:** Set `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` in your environment or settings.json `env` block. This forces a fixed reasoning budget per turn instead of letting the model dynamically allocate. Use this if you observe persistent quality issues even with `effort: high`. See [Claude Code model config docs](https://code.claude.com/docs/en/model-config) for details.
@@ -434,6 +436,38 @@ Several fixes that strengthen wizard enforcement:
 - **v2.1.72**: HTML comments (`<!-- -->`) in CLAUDE.md are no longer injected into context — useful for internal notes
 - **v2.1.77**: Output token limits increased from 64k to 128k (Opus 4.6/Sonnet 4.6)
 - **v2.1.81**: `--bare` flag for scripted `-p` calls skips hooks/LSP/plugins/skills in headless mode
+
+---
+
+## Known CC Gotchas
+
+This section documents Claude Code failure modes that have been observed in the wild — typically surfaced via post-mortems, GitHub issues, or our own catches data. Each entry has a workaround and a permanent fix when one exists.
+
+### Extended-thinking + caching + idle sessions can drop thinking blocks (post-mortem 2026-04-23)
+
+[Anthropic's 2026-04-23 post-mortem](https://www.anthropic.com/engineering/april-23-postmortem) describes a caching bug that "continuously dropped thinking blocks from subsequent requests" — surfaced primarily as silent quality degradation in long sessions. The failure mode mixed three ingredients:
+
+1. **Extended thinking enabled** (high/xhigh/max effort triggers thinking-block production)
+2. **Prompt caching active** (CC re-uses cached prompt prefixes across turns)
+3. **Idle sessions** (context pruning during idle pulls thinking blocks out of the cache window)
+
+When a cached prompt prefix is re-served after idle pruning, downstream thinking blocks can be silently absent — the model produces shorter, less-considered responses despite the requested effort level. Symptom: a session that was reasoning deeply earlier suddenly returns terse answers without obvious cause.
+
+**Workaround**: if you hit suspicious shallow reasoning mid-session — especially after a long idle gap — start a fresh session with `claude --continue` to reset cache state. The wizard's PreCompact hook gates manual `/compact` precisely because compacting at bad seams can also pull thinking blocks out of context.
+
+**Detection signal**: the wizard's `model-effort-check.sh` already loud-warns below `xhigh`. Combine with token-spike anomaly detection (ROADMAP #220) once shipped.
+
+### Prompt brevity caps can compound across turns (post-mortem 2026-04-23)
+
+The same post-mortem documented that a length-limit prompt change (one of several brevity edits, including a line like `"keep text between tool calls to ≤25 words"`) correlated with a measurable ~3% drop on one evaluation. The post-mortem attributes the drop to the broader length-limit prompt change, not to that single sentence alone.
+
+**Wizard policy** (audited 2026-04-26): the wizard's SKILL.md files and hook stdout do **not** impose compounding brevity constraints — no `≤N words`, `<N words`, `be concise`, or `keep brief` instructions to Claude. The wizard's own response-style guidance is in CC's user-level instructions, not injected into every system prompt.
+
+**Regression guard**: `tests/test-postmortem-lessons.sh` greps every `skills/*/SKILL.md` and `hooks/*.sh` for these patterns and fails CI if a future PR introduces one. The check is case-insensitive and ignores shell comments (`#`) but treats Markdown content (including headings) as instructions to Claude. Add new skills with this in mind — terseness for the user is fine, terseness as a system-prompt constraint is not.
+
+### `cleanupPeriodDays` and TodoWrite retention (CC 2.1.117+)
+
+See the dedicated subsection under [Tasks System](#tasks-system-v2116) (above, in Claude Code Feature Updates) for the full breakdown. Short version: pin `cleanupPeriodDays: 30` or higher in `.claude/settings.json` if you ever pause SDLC work for more than a week. The wizard ships this default in `cli/templates/settings.json` and the CLI's smart-merge preserves user overrides on `init --force`.
 
 ---
 
@@ -2840,7 +2874,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.40.1 -->
+<!-- SDLC Wizard Version: 1.41.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3902,7 +3936,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.40.1 -->
+<!-- SDLC Wizard Version: 1.41.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
