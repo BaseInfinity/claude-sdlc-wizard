@@ -41,6 +41,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-postmortem-lessons.sh && \
    ./tests/test-mcp-hook-audit.sh && \
    ./tests/test-agents-md-interop.sh && \
+   ./tests/test-self-pr-review-skip.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \

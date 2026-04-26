@@ -216,6 +216,9 @@ jobs:
       - name: Run AGENTS.md interop tests (#205)
         run: ./tests/test-agents-md-interop.sh
 
+      - name: Run self-PR review skip tests
+        run: ./tests/test-self-pr-review-skip.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
