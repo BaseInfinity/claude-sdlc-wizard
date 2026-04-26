@@ -213,6 +213,9 @@ jobs:
       - name: Run MCP-tool hook audit tests (#218)
         run: ./tests/test-mcp-hook-audit.sh
 
+      - name: Run AGENTS.md interop tests (#205)
+        run: ./tests/test-agents-md-interop.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
