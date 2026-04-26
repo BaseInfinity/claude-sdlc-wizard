@@ -131,9 +131,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.42.0
+Latest:    1.42.1
 
 What changed:
+- [1.42.1] CI hygiene fix — skip Claude PR review on wizard self-PRs. 7 self-PRs (v1.39.0–v1.42.0) had shipped with red `review` job (API canary firing on dead credit balance). Treated as "expected" but red normalizes red. Workflow `if:` now skips review on `BaseInfinity/claude-sdlc-wizard` repo only; consumer projects unaffected. 7 quality tests, mutation-verified (== inversion fails).
 - [1.42.0] AGENTS.md interop detection — ROADMAP #205 phase (a). Setup wizard auto-scan now lists AGENTS.md (cross-tool agent-instructions standard, CC issue #6235); new Step 4.5 surfaces a 3-way decision (dual-maintain / merge / skip) when AGENTS.md is detected. Phase (b) write-fresh and phase (d) drift-test deferred. 7 quality tests.
 - [1.41.1] MCP-tool hooks audit — ROADMAP #218. Audited all 5 wizard hooks against CC 2.1.118's `type: "mcp_tool"` migration option; conclusion: all stay bash (portability to Codex/OpenCode siblings + exit-code gating semantics rule out MCP). Per-hook rationale documented under "Known CC Gotchas → MCP-tool hooks audit". 7 quality tests.
 - [1.41.0] Post-mortem 2026-04-23 lessons folded into wizard — ROADMAP #221. New "Known CC Gotchas" section documents extended-thinking + caching + idle-session failure mode. Recommended Effort section cites the post-mortem as third-party evidence ("don't rely on CC default — set effort yourself"). Brevity-cap audit clean, regression guard added. 7 quality tests.
