@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.42.1] - 2026-04-26
+
+### Fixed
+
+- **Skip Claude PR review on wizard self-PRs** (CI hygiene). The `review` job in `pr-review.yml` calls `claude-code-action@v1` which requires `ANTHROPIC_API_KEY` with positive credit balance. The wizard maintainer keeps that key's balance dead as an "API canary" so unexpected API draws fail CI. Result: every wizard self-PR's `review` job was failing with "Credit balance is too low" — seven PRs (v1.39.0–v1.42.0) shipped to main with red CI, normalizing red and masking any real review failure. Fixed: workflow `if:` gate now skips the review job when `github.repository == 'BaseInfinity/claude-sdlc-wizard'`. Consumer projects using `pr-review.yml` are unaffected — the skip only fires on the wizard's own repo. The wizard uses Codex (`codex exec` xhigh) for cross-model review on its own PRs, so the Claude PR review is redundant on self-repo. Documented in `CI_CD.md` → "Self-PR Skip on the Wizard Repo". New `tests/test-self-pr-review-skip.sh` (6 tests) prevents regression.
+
 ## [1.42.0] - 2026-04-26
 
 ### Added
