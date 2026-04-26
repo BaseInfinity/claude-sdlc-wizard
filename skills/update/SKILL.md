@@ -131,9 +131,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.40.0
+Latest:    1.40.1
 
 What changed:
+- [1.40.1] cleanupPeriodDays: 30 pinned in template — ROADMAP #225. CC 2.1.117 expanded `cleanupPeriodDays` to also cover `~/.claude/tasks/`. Aggressive defaults could prune in-progress TodoWrite checklists for paused long-running features. Wizard now ships a 30-day floor + documented gotcha. 7 quality tests.
 - [1.40.0] CLI version detection in /update-wizard — ROADMAP #232. New Step 1.5 detects locally installed `agentic-sdlc-wizard` CLI version (npm ls + npx cache inspection, both with semver-aware ordering), compares to `registry.npmjs.org/agentic-sdlc-wizard/latest`, and surfaces a 3-way upgrade choice BEFORE drift detection: A) refresh CLI cache only (default, safest), B) `init --force` re-init with explicit non-settings overwrite warning, C) skip. Closes the gap where in-session file updates landed but the user's stale npx cache kept running an old CLI. Mirrors `claude update` UX. 8 quality tests, mutation-verified.
 - [1.39.1] Step 7.7 hoist — dead-plugin cleanup now runs even when wizard versions match. Previously `/update-wizard` exited at "you're up to date" before reaching Step 7.7, so users on the latest wizard with a stale `~/.claude/settings.json` plugin registration were never offered cleanup. New `tests/test-update-skill-step-7-7.sh` (8 quality tests) guards the ordering.
 - [1.39.0] Community feature-discovery scanner — ROADMAP #207. `tests/e2e/scan-community.sh` extracts unknown `/slash-command` mentions from transcript text (Reddit / HN / Discord exports), dedupes against `tests/e2e/known-slash-commands.txt` allowlist, emits JSON digest of candidates with count + sample. Replaces the deleted CI scan-community job (per #231 Phase 3) with a maintainer-runnable offline scan. 14 quality tests.
