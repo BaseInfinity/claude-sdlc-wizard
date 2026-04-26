@@ -469,6 +469,32 @@ The same post-mortem documented that a length-limit prompt change (one of severa
 
 See the dedicated subsection under [Tasks System](#tasks-system-v2116) (above, in Claude Code Feature Updates) for the full breakdown. Short version: pin `cleanupPeriodDays: 30` or higher in `.claude/settings.json` if you ever pause SDLC work for more than a week. The wizard ships this default in `cli/templates/settings.json` and the CLI's smart-merge preserves user overrides on `init --force`.
 
+### MCP-tool hooks audit (ROADMAP #218, CC 2.1.118)
+
+CC 2.1.118 introduced `type: "mcp_tool"` for hooks — a hook can now directly invoke an MCP tool instead of running a bash script. **Audit (2026-04-26) of all 5 wizard hooks concluded: none migrate, all stay bash.** This subsection documents the per-hook reasoning so future audits don't redo the work; if a future PR migrates a hook to MCP, update this entry with the new rationale rather than deleting it.
+
+**Decision criteria applied** (any one rules out MCP):
+
+1. **Portability** — bash hooks port to the **shipped** Codex sibling (`~/codex-sdlc-wizard`) and to a **planned** OpenCode sibling (ROADMAP #91, not yet shipped) without rewrite. MCP hooks are CC-specific. Cross-host portability is an XDLC requirement.
+2. **Fail-closed gating** — hooks that block an action (exit 2 from PreCompact) need a fail-closed contract: any error in the hook MUST keep the block in place. CC docs ([code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks)) confirm `mcp_tool` hooks CAN gate via `decision: "block"` JSON output, but **MCP server errors are non-blocking by design** — if the MCP server is down/slow/buggy, the action proceeds. That breaks the fail-closed contract. Bash exit 2 fails closed.
+3. **Local-only state** — hooks that read/write `~/.cache/sdlc-wizard/` or `.reviews/handoff.json` don't surface state across tool boundaries. MCP adds a wire format without consumers.
+
+**Per-hook decision** (each row applies at least one criterion explicitly):
+
+- **`sdlc-prompt-check.sh`** (UserPromptSubmit, ~132 lines) — emits the SDLC BASELINE text on every prompt; writes effort-bump signals to `~/.cache/sdlc-wizard/effort-signals.log` for self-consumption on next invocation. Decision: **Stay bash.** Portability criterion: same script ships to Codex sibling unchanged. Local-state criterion: signal log is local-only.
+- **`instructions-loaded-check.sh`** (~202 lines) — InstructionsLoaded event; validates SDLC files exist, fetches npm `latest` with daily file cache (`~/.cache/sdlc-wizard/npm-latest.json`), emits staleness warnings. Decision: **Stay bash.** Portability criterion: Codex sibling has its own equivalent of session-start validation; bash port is direct. Local-state criterion: cache file is local.
+- **`tdd-pretool-check.sh`** (~29 lines) — PreToolUse on Write/Edit/MultiEdit; emits the TDD reminder text. Decision: **Stay bash.** Portability criterion: trivially portable (one-screen text emit). Gating criterion: not applicable (this hook does not block, it advises). MCP would add a runtime dependency for zero functional gain.
+- **`model-effort-check.sh`** (~69 lines) — SessionStart event; reads `CLAUDE_CODE_EFFORT` env var, emits silent/soft/loud nudge per-tier. Decision: **Stay bash.** Portability criterion: env-var read maps 1:1 to any agent runtime. Local-state criterion: not applicable, hook is stateless.
+- **`precompact-seam-check.sh`** (~125 lines) — PreCompact event (matcher: `manual`); reads `.reviews/handoff.json` via jq, blocks manual `/compact` with exit 2 + stderr message when status is `PENDING_*` and the linked PR (if any) isn't merged. Decision: **Stay bash.** Fail-closed gating criterion: bash exit 2 fails closed by definition; an MCP `mcp_tool` hook returning `decision: "block"` works on the happy path, but if the MCP server crashes/times out the action proceeds — that flips the safety property from fail-closed to fail-open. For a hook whose entire job is to prevent context loss at bad seams, fail-open is the wrong default.
+
+**When to revisit this audit:**
+
+- A future hook genuinely needs cross-tool structured state surfacing (e.g., a "score history reader" that an MCP-aware skill consumes directly).
+- Anthropic deprecates bash hooks in favor of `mcp_tool` (currently both are first-class).
+- Codex / OpenCode siblings gain native MCP-tool hook support (then portability is no longer an MCP-rules-out).
+
+Until then, default answer for new hooks is bash.
+
 ---
 
 ## Prove It's Better
@@ -2874,7 +2900,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.41.0 -->
+<!-- SDLC Wizard Version: 1.41.1 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3936,7 +3962,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.41.0 -->
+<!-- SDLC Wizard Version: 1.41.1 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

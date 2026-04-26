@@ -131,9 +131,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.41.0
+Latest:    1.41.1
 
 What changed:
+- [1.41.1] MCP-tool hooks audit — ROADMAP #218. Audited all 5 wizard hooks against CC 2.1.118's `type: "mcp_tool"` migration option; conclusion: all stay bash (portability to Codex/OpenCode siblings + exit-code gating semantics rule out MCP). Per-hook rationale documented under "Known CC Gotchas → MCP-tool hooks audit". 7 quality tests.
 - [1.41.0] Post-mortem 2026-04-23 lessons folded into wizard — ROADMAP #221. New "Known CC Gotchas" section documents extended-thinking + caching + idle-session failure mode. Recommended Effort section cites the post-mortem as third-party evidence ("don't rely on CC default — set effort yourself"). Brevity-cap audit clean, regression guard added. 7 quality tests.
 - [1.40.1] cleanupPeriodDays: 30 pinned in template — ROADMAP #225. CC 2.1.117 expanded `cleanupPeriodDays` to also cover `~/.claude/tasks/`. Aggressive defaults could prune in-progress TodoWrite checklists for paused long-running features. Wizard now ships a 30-day floor + documented gotcha. 7 quality tests.
 - [1.40.0] CLI version detection in /update-wizard — ROADMAP #232. New Step 1.5 detects locally installed `agentic-sdlc-wizard` CLI version (npm ls + npx cache inspection, both with semver-aware ordering), compares to `registry.npmjs.org/agentic-sdlc-wizard/latest`, and surfaces a 3-way upgrade choice BEFORE drift detection: A) refresh CLI cache only (default, safest), B) `init --force` re-init with explicit non-settings overwrite warning, C) skip. Closes the gap where in-session file updates landed but the user's stale npx cache kept running an old CLI. Mirrors `claude update` UX. 8 quality tests, mutation-verified.
