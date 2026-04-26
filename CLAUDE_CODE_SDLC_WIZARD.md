@@ -2334,9 +2334,11 @@ PLANNING → DOCS → TDD RED → TDD GREEN → Tests Pass → Self-Review
      "round": 1,
      "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
      "review_instructions": "Review for security, edge cases, and correctness",
-     "artifact_path": ".reviews/feature-xyz-001/"
+     "artifact_path": ".reviews/feature-xyz-001/",
+     "pr_number": 205
    }
    ```
+   `pr_number` (optional) is the PreCompact self-heal opt-in (ROADMAP #209). When set, the `precompact-seam-check.sh` hook queries `gh pr view N --json state` on every manual `/compact` and treats MERGED as implicit CERTIFIED — so a forgotten PENDING handoff doesn't block every future compact. Omit for ad-hoc reviews not tied to a PR.
 2. Run the independent reviewer:
    ```bash
    codex exec \
@@ -2916,7 +2918,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.42.1 -->
+<!-- SDLC Wizard Version: 1.42.2 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3697,7 +3699,8 @@ Use an independent AI model from a different company as a code reviewer. The aut
   ],
   "review_instructions": "Focus on security and edge cases. Assume bugs may be present until proven otherwise.",
   "preflight_path": ".reviews/preflight-feature-xyz-001.md",
-  "artifact_path": ".reviews/feature-xyz-001/"
+  "artifact_path": ".reviews/feature-xyz-001/",
+  "pr_number": 205
 }
 ```
 
@@ -3978,7 +3981,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.42.1 -->
+<!-- SDLC Wizard Version: 1.42.2 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

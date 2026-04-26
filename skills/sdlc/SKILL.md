@@ -267,7 +267,8 @@ After self-review and preflight pass, write `.reviews/handoff.json`:
   ],
   "review_instructions": "Focus on security and edge cases. Be strict — assume bugs may be present until proven otherwise.",
   "preflight_path": ".reviews/preflight-feature-xyz-001.md",
-  "artifact_path": ".reviews/feature-xyz-001/"
+  "artifact_path": ".reviews/feature-xyz-001/",
+  "pr_number": 205
 }
 ```
 
@@ -275,6 +276,7 @@ After self-review and preflight pass, write `.reviews/handoff.json`:
 - `mission/success/failure` — Gives the reviewer context. Without this, you get generic "looks good" feedback. With it, reviewers read raw source files and verify specific claims (proven across 4 repos)
 - `verification_checklist` — Specific things to verify with file:line references. NOT "review for correctness" — that's too vague. Each item is independently verifiable
 - `preflight_path` — Shows the reviewer what you already checked, so they focus on what you might have missed
+- `pr_number` (optional) — PreCompact self-heal opt-in (ROADMAP #209). When the review tracks a specific PR, set this. The `precompact-seam-check.sh` hook queries `gh pr view N --json state` on every manual `/compact` and, if the PR is MERGED, treats this handoff as implicit CERTIFIED — unblocking `/compact` even if `status` is still `PENDING_*`. Without `pr_number`, a forgotten PENDING handoff blocks every future manual compact until you flip status by hand or hit the `SDLC_HANDOFF_STALE_DAYS` (default 14) auto-expire fallback. Omit for ad-hoc reviews not tied to a PR.
 
 ### Step 2: Run the Independent Reviewer
 

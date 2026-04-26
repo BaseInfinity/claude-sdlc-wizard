@@ -599,6 +599,36 @@ JSON
     fi
 }
 
+test_handoff_template_documents_pr_number() {
+    # ROADMAP #209 closure: the precompact hook self-heals on PENDING_* handoffs
+    # by querying `gh pr view <pr_number> --json state` — but consumers can only
+    # opt in if the field is DOCUMENTED in the handoff template schemas. Without
+    # docs, the self-heal path is dead code on every fresh install.
+    # This test asserts both authoritative schemas (skill + wizard) document
+    # pr_number AND explain it as the self-heal opt-in.
+    local skill="$SCRIPT_DIR/../skills/sdlc/SKILL.md"
+    local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
+    local missing=""
+
+    grep -q '"pr_number"' "$skill" || missing="${missing}skill-field "
+    grep -q '"pr_number"' "$wizard" || missing="${missing}wizard-field "
+
+    # Field must appear with self-heal context within 8 lines, not as a bare
+    # JSON entry — consumers need to know WHY they'd set it.
+    if grep -q '"pr_number"' "$skill" && ! grep -B8 -A8 '"pr_number"' "$skill" | grep -qiE 'self.heal|PreCompact|#209|merged.*PR|precompact'; then
+        missing="${missing}skill-context "
+    fi
+    if grep -q '"pr_number"' "$wizard" && ! grep -B8 -A8 '"pr_number"' "$wizard" | grep -qiE 'self.heal|PreCompact|#209|merged.*PR|precompact'; then
+        missing="${missing}wizard-context "
+    fi
+
+    if [ -z "$missing" ]; then
+        pass "handoff template documents pr_number with self-heal context (#209 opt-in)"
+    else
+        fail "handoff template missing pr_number opt-in docs: $missing"
+    fi
+}
+
 test_precompact_stale_threshold_override() {
     # SDLC_HANDOFF_STALE_DAYS=0 → every PENDING without pr_number is "stale".
     # Covers the env-override code path and lets power users tune their own
@@ -1355,6 +1385,7 @@ test_precompact_still_blocks_fresh_pending_without_pr_number
 test_precompact_stale_with_pr_number_prefers_self_heal
 test_precompact_stale_threshold_invalid_falls_back
 test_precompact_stale_threshold_override
+test_handoff_template_documents_pr_number
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
 test_effort_bump_nudge_fires_on_2_recent_signals
