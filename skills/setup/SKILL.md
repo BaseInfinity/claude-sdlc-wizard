@@ -38,7 +38,7 @@ Scan the project root for:
 - Deployment: Dockerfile, vercel.json, fly.toml, netlify.toml, Procfile, k8s/
 - Design system: tailwind.config.*, .storybook/, theme files, CSS custom properties
 - Branding assets: BRANDING.md, brand/, logos/, style-guide.md, brand-voice.md, tone-of-voice.*
-- Existing docs: README.md, CLAUDE.md, ARCHITECTURE.md
+- Existing docs: README.md, CLAUDE.md, ARCHITECTURE.md, AGENTS.md (cross-tool agent-instructions standard, ROADMAP #205)
 - Scripts in package.json (lint, test, build, typecheck, etc.)
 - Database config files (prisma/, drizzle.config.*, knexfile.*, .env with DB_*)
 - Cache config (redis.conf, .env with REDIS_*)
@@ -107,6 +107,34 @@ Using detected + confirmed values, generate `CLAUDE.md` with:
 - Special notes (infra, deployment)
 
 Reference: See "Step 8" in `CLAUDE_CODE_SDLC_WIZARD.md` for the full template.
+
+### Step 4.5: AGENTS.md Interop Detection (ROADMAP #205, phase a)
+
+`AGENTS.md` is the cross-tool agent-instructions file converged on by Cursor, Continue.dev, Aider, and other agentic IDEs (CC issue #6235, 276 comments). If the user already has `AGENTS.md` in the repo, the wizard's `CLAUDE.md` overlaps in scope; ignoring it leads to drift between the two files.
+
+**Detection** (already in Step 1's auto-scan): does `./AGENTS.md` exist?
+
+**If YES, surface the dual-maintain decision:**
+
+> Detected `AGENTS.md` (cross-tool agent-instructions standard, used by Cursor/Continue.dev/Aider). The wizard's `CLAUDE.md` covers the same ground for Claude Code. Three options:
+>
+> **A.** **Dual-maintain (recommended)**: keep both files. `CLAUDE.md` for Claude Code (loaded into every session), `AGENTS.md` for other tools. Sync manually when changing one — phase (a) does not auto-merge. Future work (phase d) will add a drift-consistency test.
+>
+> **B.** **Merge** (manual in phase a): record your intent to converge on a single source of truth. The wizard does NOT copy content for you in v1.42.0 — phase (b) will add the copy/symlink helper. For now, pick this if you plan to merge by hand and just want the wizard to know.
+>
+> **C.** **Skip**: leave AGENTS.md alone. The wizard generates only `CLAUDE.md`. AGENTS.md will go stale relative to your CC-specific instructions.
+>
+> Pick A, B, or C: `[A/B/C]`
+
+Default if no response: **A** (dual-maintain). Document the user's choice as a one-line comment in their project's `SDLC.md` (e.g. `<!-- AGENTS.md interop: dual-maintain (per ROADMAP #205 phase a) -->`). v1.42.0 does NOT teach `/update-wizard` to parse this metadata key — that's phase (d) work. The comment is for the user's own reference and for whatever future `/update-wizard` version adds AGENTS-aware behavior.
+
+**If NO `AGENTS.md` exists**: skip this step silently. Phase (b) of #205 (offer to ALSO generate AGENTS.md alongside CLAUDE.md) is deferred — not in v1.42.0 scope.
+
+**Phase scope honest summary**:
+- Phase (a) — DONE in v1.42.0: detection + decision surfacing only.
+- Phase (b) — deferred: write/symlink AGENTS.md when generating CLAUDE.md fresh.
+- Phase (c) — partial: this step IS the setup-skill update.
+- Phase (d) — deferred: cross-document-consistency drift test.
 
 ### Step 5: Generate SDLC.md
 

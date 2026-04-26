@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.42.0] - 2026-04-26
+
+### Added
+
+- **AGENTS.md interop detection in setup** (ROADMAP #205, phase a). Setup wizard now scans for `AGENTS.md` (cross-tool agent-instructions standard adopted by Cursor/Continue.dev/Aider, [CC issue #6235](https://github.com/anthropics/claude-code/issues/6235)) during Step 1 auto-scan. If found, new Step 4.5 surfaces a 3-way decision: dual-maintain (default), merge (manual in phase a), or skip. The choice is recorded as a one-line comment in the project's `SDLC.md` for the user's reference — `/update-wizard` does NOT yet parse this metadata (phase d). No wizard-side merge or symlink behavior in v1.42.0 — option B in the prompt is "record intent, copy by hand"; phase (b) will add the copy helper. Phase (d) drift-consistency test also deferred. New `tests/test-agents-md-interop.sh` (7 tests) asserts setup auto-scan, decision step structure, wizard doc reference + phase-scope honesty.
+
 ## [1.41.1] - 2026-04-26
 
 ### Added
