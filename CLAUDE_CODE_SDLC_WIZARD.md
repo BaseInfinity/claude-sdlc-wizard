@@ -311,6 +311,14 @@ If you notice Claude Code producing shallow outputs despite `effort: high`, add 
 
 **Rollback if issues**: Set `CLAUDE_CODE_ENABLE_TASKS=false` environment variable.
 
+#### Known CC gotcha: `cleanupPeriodDays` and TodoWrite retention (CC 2.1.117+)
+
+CC 2.1.117 expanded the `cleanupPeriodDays` setting to also cover `~/.claude/tasks/` — the directory where the Tasks system persists in-progress TodoWrite state across sessions. If `cleanupPeriodDays` is too low (CC's default has been as aggressive as 7 days in some versions), an SDLC checklist for a paused long-running feature can be silently pruned out from under you.
+
+**Wizard pins a safe default**: `cli/templates/settings.json` ships `"cleanupPeriodDays": 30`. The wizard's SDLC skill makes TodoWrite step 1 of every task, so the floor matters. Recommendation: keep it at **30 or higher** if you ever pause work for more than a week. If a task list disappears mid-cycle, check this setting first.
+
+**To override**: set `cleanupPeriodDays` to a higher number in your project's `.claude/settings.json`. The CLI's smart-merge preserves user overrides on `init --force`.
+
 ### Skill Arguments with $ARGUMENTS (v2.1.19+)
 
 **What changed**: Skills can now accept parameters via `$ARGUMENTS` placeholder.
@@ -2832,7 +2840,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.40.0 -->
+<!-- SDLC Wizard Version: 1.40.1 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3894,7 +3902,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.40.0 -->
+<!-- SDLC Wizard Version: 1.40.1 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
