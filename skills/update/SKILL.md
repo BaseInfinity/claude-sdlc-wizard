@@ -31,6 +31,91 @@ If no version comment exists, treat as `0.0.0` (first-time setup — suggest run
 
 Also note the completed steps from `<!-- Completed Steps: ... -->`.
 
+### Step 1.5: Check CLI Version (ROADMAP #232)
+
+The wizard files in the user's project (skills, hooks, settings.json) are one half of the install. The other half is the **npm CLI** (`agentic-sdlc-wizard`) — the binary that powers `npx agentic-sdlc-wizard init`, `check`, and `complexity`. If the user ran `npx agentic-sdlc-wizard init` months ago, their npx cache (or global install) can be stuck on an old version even after `/update-wizard` patches the project files in-session. This step closes that gap: detect the locally installed CLI version, compare to the npm registry latest, and surface a one-shot upgrade BEFORE running drift detection or per-file updates.
+
+**Detection — try both paths, in order:**
+
+1. **Global install** (rare but possible): `npm ls -g agentic-sdlc-wizard --json --depth=0 2>/dev/null | jq -r '.dependencies["agentic-sdlc-wizard"].version // empty'` — emits the version if globally installed, empty otherwise.
+
+2. **npx cache** (the common case): find every `package.json` in npx's cache layout, extract `.version`, then pick the largest by semver. Do NOT use `sort -u | tail -1` — that's lexicographic and treats `1.9.0 > 1.10.0`. Use Node's built-in semver-aware compare:
+
+   ```bash
+   find ~/.npm/_npx -maxdepth 4 -name 'package.json' -path '*agentic-sdlc-wizard*' 2>/dev/null \
+     | xargs -I{} jq -r '.version' {} 2>/dev/null \
+     | node -e "
+       let max = '';
+       require('readline').createInterface({input: process.stdin}).on('line', v => {
+         if (!v) return;
+         if (!max || cmp(v, max) > 0) max = v;
+       }).on('close', () => process.stdout.write(max));
+       function cmp(a, b) {
+         const [ab, ap] = a.split('-'), [bb, bp] = b.split('-');
+         const an = ab.split('.').map(Number), bn = bb.split('.').map(Number);
+         for (let i = 0; i < 3; i++) if (an[i] !== bn[i]) return an[i] - bn[i];
+         if (ap && !bp) return -1; if (!ap && bp) return 1;
+         if (ap && bp) return ap < bp ? -1 : ap > bp ? 1 : 0;
+         return 0;
+       }
+     "
+   ```
+
+   This reads each found version on its own line, compares pairwise with semver semantics (numeric major.minor.patch, plus prerelease tags ordered as `1.40.0-beta.1 < 1.40.0`), and prints the maximum. Empty input prints empty.
+
+If both paths return empty, the user may be running from a custom install or has never used `npx`. Treat as **undetectable** — note it in your update report but do not block the rest of the flow. Skip the CLI bump prompt, continue to Step 2.
+
+**Registry comparison:**
+
+```bash
+curl -fsS "https://registry.npmjs.org/agentic-sdlc-wizard/latest" | jq -r '.version'
+```
+
+This is the same endpoint the registry serves; the response is a single JSON object with `version` set to the published latest tag. Cache the result (it's also used in Step 3 for the wizard version comparison).
+
+**Compare with semver-aware logic** — `sort -V` does NOT correctly order prereleases (it places `1.40.0-beta.1` *after* `1.40.0`, but semver requires the opposite). Use the same Node `cmp()` helper from the npx-cache step:
+
+```bash
+node -e "
+  const a = process.argv[1], b = process.argv[2];
+  function cmp(a, b) { /* same body as above */ }
+  process.exit(cmp(a, b) < 0 ? 0 : cmp(a, b) > 0 ? 1 : 2);
+" "$INSTALLED" "$LATEST"
+# Exit 0 = installed < latest (behind); 1 = installed > latest; 2 = equal
+```
+
+**Surface based on the result:**
+
+- `installed == latest` → silent, continue to Step 2.
+- `installed < latest` → surface the gap with the upgrade options below.
+- `installed > latest` (rare — pre-release or local dev install) → silent, continue.
+
+**Upgrade options when behind:** be honest about what each does. Recommend the safer path by default.
+
+  > Your locally installed `agentic-sdlc-wizard` CLI is at **{installed}**, but npm has **{latest}**. The in-session `/update-wizard` will refresh this project's files via Step 6's per-file plan, but your `npx` cache will keep the old CLI on disk for `npx agentic-sdlc-wizard check`/`init`/`complexity` calls.
+  >
+  > Pick one:
+  >
+  > **A. Refresh just the CLI cache (recommended).** Doesn't touch your project files. Then `/update-wizard`'s per-file plan handles the rest with diffs:
+  > ```bash
+  > npx -y agentic-sdlc-wizard@latest --version
+  > ```
+  >
+  > **B. One-shot CLI + project re-init.** Refreshes the CLI AND overwrites *non-settings* managed files (skills, hooks, templates) with the latest versions. `settings.json` is smart-merged (custom hooks + permissions preserved); other managed files are NOT smart-merged — local edits to them are lost unless committed to git or backed up. Use this if you don't have local skill/hook customizations:
+  > ```bash
+  > npx -y agentic-sdlc-wizard@latest init --force
+  > ```
+  >
+  > **C. Skip the CLI bump entirely.** Keep the stale CLI; this session's file updates apply but `npx agentic-sdlc-wizard check` will keep using the old drift logic.
+  >
+  > Pick A, B, or C: `[A/B/C]`
+
+  If A: prompt the user to run the one-liner in their shell, then re-invoke `/update-wizard`. If B: same, with the warning about non-settings overwrite. If C: log the choice and continue with in-session file updates only. Default (no response) → A.
+
+**`check-only` precedence:** if the user passed `check-only`, Step 1.5 runs in report-only mode — print the gap if found, but do NOT prompt and do NOT run `init --force`. The check-only contract is "tell me what's drifted, don't change anything," and that supersedes the CLI bump path.
+
+**Why this lives at Step 1.5, not later:** subsequent steps shell out to `npx agentic-sdlc-wizard check` (Step 4) and rely on the CLI's drift heuristics. If the CLI is stale, Step 4 reports based on the OLD definition of "managed files" and may miss new templates entirely. Detecting + surfacing CLI staleness up front lets the user choose whether to refresh first.
+
 ### Step 2: Fetch Latest CHANGELOG
 
 Use WebFetch to fetch the CHANGELOG:
@@ -46,9 +131,10 @@ Parse all CHANGELOG entries between the user's installed version and the latest.
 
 ```
 Installed: 1.24.0
-Latest:    1.39.1
+Latest:    1.40.0
 
 What changed:
+- [1.40.0] CLI version detection in /update-wizard — ROADMAP #232. New Step 1.5 detects locally installed `agentic-sdlc-wizard` CLI version (npm ls + npx cache inspection, both with semver-aware ordering), compares to `registry.npmjs.org/agentic-sdlc-wizard/latest`, and surfaces a 3-way upgrade choice BEFORE drift detection: A) refresh CLI cache only (default, safest), B) `init --force` re-init with explicit non-settings overwrite warning, C) skip. Closes the gap where in-session file updates landed but the user's stale npx cache kept running an old CLI. Mirrors `claude update` UX. 8 quality tests, mutation-verified.
 - [1.39.1] Step 7.7 hoist — dead-plugin cleanup now runs even when wizard versions match. Previously `/update-wizard` exited at "you're up to date" before reaching Step 7.7, so users on the latest wizard with a stale `~/.claude/settings.json` plugin registration were never offered cleanup. New `tests/test-update-skill-step-7-7.sh` (8 quality tests) guards the ordering.
 - [1.39.0] Community feature-discovery scanner — ROADMAP #207. `tests/e2e/scan-community.sh` extracts unknown `/slash-command` mentions from transcript text (Reddit / HN / Discord exports), dedupes against `tests/e2e/known-slash-commands.txt` allowlist, emits JSON digest of candidates with count + sample. Replaces the deleted CI scan-community job (per #231 Phase 3) with a maintainer-runnable offline scan. 14 quality tests.
 - [1.38.0] Mixed-mode tier (Sonnet 4.6 coder + Opus 4.7 reviewer) for simple repos — ROADMAP #233. New `cli/lib/repo-complexity.js` heuristic + `npx agentic-sdlc-wizard complexity .` CLI command. Setup Step 9.5 expanded from binary y/N to 3-way (no-pin / mixed / flagship). Cross-model review always stays at flagship regardless of coder pin. Reconciles with #198: mixed-mode is opt-in per-project; no-pin remains the default. Plus ROADMAP #224 prompt-hook-fires-once instrumentation (opt-in `SDLC_HOOK_FIRE_LOG`).
