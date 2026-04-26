@@ -353,6 +353,22 @@ Claude Code now has built-in auto-memory that persists context across sessions. 
 
 **No changes needed**: The wizard's hooks and skills work alongside auto-memory. Memory stores preferences and context; the wizard enforces process.
 
+### AGENTS.md interop (cross-tool standard, ROADMAP #205)
+
+`AGENTS.md` is the cross-tool agent-instructions standard adopted by Cursor, Continue.dev, Aider, and other agentic IDEs ([CC issue #6235](https://github.com/anthropics/claude-code/issues/6235), 276 comments). It plays the same role as `CLAUDE.md` does for Claude Code, but reads as agent-agnostic.
+
+**Wizard behavior** (v1.42.0, phase a only):
+
+- **Setup skill detects existing AGENTS.md** during Step 1 auto-scan. If found, Step 4.5 surfaces a 3-way decision: dual-maintain (default, recommended), merge (manual in phase a), or skip. The user's choice is recorded as a one-line comment in their project's `SDLC.md` for their own reference. **`/update-wizard` does NOT parse this comment** — that wiring is phase (d) work, not v1.42.0 scope.
+- **No automatic merge / symlink yet** — phase (a) is detection + decision surfacing only. Option B in the prompt is "record your intent, do the copy by hand"; the wizard does not perform any merge in this phase.
+
+**Deferred phases** (not in v1.42.0 scope):
+
+- **Phase (b)**: when generating `CLAUDE.md` fresh (no AGENTS.md exists), offer to ALSO write AGENTS.md (symlinked or content-duplicated). Requires choosing a sync strategy.
+- **Phase (d)**: cross-document-consistency drift test — fail CI if `CLAUDE.md` and `AGENTS.md` drift apart on key sections (Commands, Architecture, etc.).
+
+**Why phase (a) only**: phase (a) ships detection signal value with zero new merge logic. The dual-maintain decision is reversible per-project; users who pick A get a sensible default and can opt up to phase (b) when it ships. Multi-tool sync is a real engineering problem (which file is source of truth? on edit, propagate which way?) that deserves its own design pass before automating.
+
 ### Built-in Commands (v2.1.59-v2.1.76)
 
 New built-in commands available to use alongside the wizard:
@@ -2900,7 +2916,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.41.1 -->
+<!-- SDLC Wizard Version: 1.42.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3962,7 +3978,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.41.1 -->
+<!-- SDLC Wizard Version: 1.42.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
