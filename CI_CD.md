@@ -227,6 +227,16 @@ The SDLC skill's CI feedback loops (`.claude/skills/sdlc/SKILL.md`) run during a
 6. Label auto-removed -> Ready for next round
 ```
 
+### Self-PR Skip on the Wizard Repo (v1.42.1+)
+
+The `review` job is **skipped on `BaseInfinity/claude-sdlc-wizard` self-PRs** — the workflow's `if:` gate checks `github.repository != 'BaseInfinity/claude-sdlc-wizard'`.
+
+**Why**: the wizard maintainer keeps `ANTHROPIC_API_KEY` credit balance dead as an "API canary" — any unexpected API draw is detected by failed CI. `claude-code-action@v1` needs that key with positive balance, so self-PRs were failing every run with "Credit balance is too low". Seven PRs (v1.39.0–v1.42.0) shipped to main with the review job red, normalizing red CI and masking any real review failure that might have appeared.
+
+**Why this is safe**: the wizard uses Codex (`codex exec` with `model_reasoning_effort=xhigh`) for cross-model review during the SDLC skill's review phase. Claude PR review is redundant on self-repo. Consumers using `pr-review.yml` in their own projects WILL run this job normally — the skip only fires when the workflow runs on the wizard's own repo.
+
+**Recovery for new failures**: if claude-code-action ever has a real issue affecting consumers (not just our dead canary), the consumer projects' runs will surface it. We rely on consumer signal + Codex reviews on self-repo to catch problems.
+
 ### Smart Features
 - **Skips trivial PRs**: Docs-only, config-only changes skip review
 - **Waits for CI**: No point reviewing broken code
