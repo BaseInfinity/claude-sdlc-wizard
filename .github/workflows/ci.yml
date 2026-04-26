@@ -207,6 +207,9 @@ jobs:
       - name: Run cleanup-period guidance tests (#225)
         run: ./tests/test-cleanup-period-guidance.sh
 
+      - name: Run postmortem lessons tests (#221)
+        run: ./tests/test-postmortem-lessons.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:
