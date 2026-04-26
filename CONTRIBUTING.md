@@ -35,6 +35,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-repo-complexity.sh && \
    ./tests/test-prompt-hook-fires-once.sh && \
    ./tests/test-community-scanner.sh && \
+   ./tests/test-update-skill-step-7-7.sh && \
    ./tests/e2e/run-simulation.sh && \
    ./tests/e2e/test-deterministic-checks.sh && \
    ./tests/e2e/test-scenario-rotation.sh && \
