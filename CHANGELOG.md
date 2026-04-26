@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.41.1] - 2026-04-26
+
+### Added
+
+- **MCP-tool hooks audit documented** (ROADMAP #218). CC 2.1.118 introduced `type: "mcp_tool"` for hooks. Audited all 5 wizard hooks (sdlc-prompt-check, instructions-loaded-check, tdd-pretool-check, model-effort-check, precompact-seam-check) against MCP-tool migration criteria: portability, gating semantics, cross-tool state. Conclusion: all 5 stay bash. Per-hook rationale documented in CLAUDE_CODE_SDLC_WIZARD.md → "Known CC Gotchas → MCP-tool hooks audit". New `tests/test-mcp-hook-audit.sh` (7 tests) ensures the audit doesn't get re-litigated by future maintainers; if a hook DOES migrate later, the test is the natural place to update with new rationale.
+
 ## [1.41.0] - 2026-04-26
 
 ### Added
