@@ -10,6 +10,7 @@ tests/fixtures/community-scanner/
 
 # Claude Code local state
 .claude/plans/
+.claude/hooks/
 
 # Review artifacts (local Codex/cross-model reviews)
 .reviews/

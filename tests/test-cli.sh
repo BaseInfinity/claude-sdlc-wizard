@@ -578,6 +578,49 @@ FIXTURE
     rm -rf "$d"
 }
 
+# Test 29.1: cleanupPeriodDays default applied when missing from existing settings (#225)
+test_cleanup_period_default_applied() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "allowedTools": ["Read"]
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local val
+    val=$(jq -r '.cleanupPeriodDays // empty' "$d/.claude/settings.json" 2>/dev/null)
+    if [ "$val" = "30" ]; then
+        pass "cleanupPeriodDays default (30) applied when missing"
+    else
+        fail "cleanupPeriodDays default should be applied when missing — got '$val'"
+    fi
+    rm -rf "$d"
+}
+
+# Test 29.2: cleanupPeriodDays user override preserved on init --force (#225)
+test_cleanup_period_user_override_preserved() {
+    local d
+    d=$(make_temp)
+    mkdir -p "$d/.claude"
+    cat > "$d/.claude/settings.json" << 'FIXTURE'
+{
+  "cleanupPeriodDays": 90,
+  "allowedTools": ["Read"]
+}
+FIXTURE
+    (cd "$d" && node "$CLI" init --force > /dev/null 2>&1)
+    local val
+    val=$(jq -r '.cleanupPeriodDays // empty' "$d/.claude/settings.json" 2>/dev/null)
+    if [ "$val" = "90" ]; then
+        pass "cleanupPeriodDays user override (90) preserved under --force"
+    else
+        fail "cleanupPeriodDays user override should be preserved under --force — got '$val' (expected 90)"
+    fi
+    rm -rf "$d"
+}
+
 # Test 30: init removes obsolete .claude/skills/testing/ on fresh install
 test_upgrade_removes_obsolete_testing() {
     local d
@@ -643,6 +686,8 @@ test_merge_invalid_json_fallback
 test_merge_force_invalid_json
 test_merge_idempotent
 test_merge_force_updates_hooks
+test_cleanup_period_default_applied
+test_cleanup_period_user_override_preserved
 test_upgrade_removes_obsolete_testing
 test_upgrade_removes_testing_on_skip_path
 

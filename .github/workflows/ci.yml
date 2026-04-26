@@ -204,6 +204,9 @@ jobs:
       - name: Run update-skill CLI version tests (#232)
         run: ./tests/test-update-skill-cli-version.sh
 
+      - name: Run cleanup-period guidance tests (#225)
+        run: ./tests/test-cleanup-period-guidance.sh
+
   # Clean up old bot comments on PR push (keeps PRs tidy)
   # Also runs on workflow_dispatch (no-op) so branch protection doesn't block auto-merge.
   cleanup-old-comments:

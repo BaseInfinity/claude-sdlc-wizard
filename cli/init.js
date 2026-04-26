@@ -78,6 +78,15 @@ function mergeSettings(existingPath, templatePath, force) {
       existing.model = template.model;
     }
 
+    // Merge cleanupPeriodDays (ROADMAP #225): only set the template default when
+    // the user has not chosen a value. NEVER overwrite under --force — retention
+    // policy is a user preference (they may want >30 for long pauses, or <30 for
+    // disk-tight setups). The wizard's job is to provide a safe floor on fresh
+    // installs, not to clobber an explicit choice.
+    if ('cleanupPeriodDays' in template && !('cleanupPeriodDays' in existing)) {
+      existing.cleanupPeriodDays = template.cleanupPeriodDays;
+    }
+
     // Merge env field
     if (template.env) {
       if (!existing.env || typeof existing.env !== 'object' || Array.isArray(existing.env)) {

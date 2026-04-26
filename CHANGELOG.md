@@ -4,6 +4,12 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.40.1] - 2026-04-26
+
+### Added
+
+- **`cleanupPeriodDays: 30` pinned in template settings** (ROADMAP #225). CC 2.1.117 expanded `cleanupPeriodDays` to also cover `~/.claude/tasks/` — the directory where the Tasks system persists in-progress TodoWrite state. With aggressive defaults (some CC versions defaulted to 7 days), SDLC checklists for paused long-running features could be silently pruned. `cli/templates/settings.json` now ships `"cleanupPeriodDays": 30` as a top-level field. `CLAUDE_CODE_SDLC_WIZARD.md` documents the gotcha + override path. New `tests/test-cleanup-period-guidance.sh` (7 tests) asserts template default + wizard rationale don't regress.
+
 ## [1.40.0] - 2026-04-25
 
 ### Added
