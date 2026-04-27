@@ -299,6 +299,24 @@ codex exec \
 
 **Always use `xhigh` reasoning effort.** Lower settings miss subtle errors (wrong-generation references, stale pricing, cross-file inconsistencies).
 
+**Progress visibility (#259):** Reviews at `xhigh` routinely take 1-5 minutes. Without a heartbeat the user can't distinguish "still thinking" from "crashed silently". For long reviews, swap the bare invocation for `scripts/codex-review-with-progress.sh`:
+
+```bash
+scripts/codex-review-with-progress.sh \
+  .reviews/latest-review.md \
+  "You are an independent code reviewer ..."
+```
+
+The wrapper passes the same default flags (`xhigh`, `danger-full-access`, `-o`) and emits a heartbeat to stderr every 10s (`SDLC_CODEX_HEARTBEAT_INTERVAL` to tune):
+
+```
+[codex 0m10s elapsed, 0 bytes written to .reviews/latest-review.md] still running...
+[codex 0m20s elapsed, 1342 bytes written to .reviews/latest-review.md] still running...
+[codex finished in 47s with rc=0]
+```
+
+The output file growth is the closest signal to "Codex is producing tokens". Empty + long elapsed = stuck; growing = working.
+
 **Sandbox note:** Codex's Rust binary requires access to macOS system configuration APIs (`SCDynamicStore`) during sandbox initialization. Claude Code's sandbox blocks this access, causing `codex exec` to crash with `system-configuration panicked: Attempted to create a NULL object`. When running `codex exec` from within Claude Code, you MUST use `dangerouslyDisableSandbox: true` on the Bash tool call. This is safe — Codex has its own sandbox (`-s danger-full-access` is already specified), and the CC sandbox bypass only affects the Codex process. This is a known Codex issue ([#15640](https://github.com/openai/codex/issues/15640)).
 
 If CERTIFIED → proceed to CI. If NOT CERTIFIED → go to dialogue loop.
