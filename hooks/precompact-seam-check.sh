@@ -30,6 +30,16 @@ ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
 
 HOLD_REASONS=""
 
+# #240: Dry-run / simulation env vars. Let consumers verify hook behavior
+# without mutating real .reviews/handoff.json or .git/ state.
+#   SDLC_DRY_RUN_HANDOFF_STATUS=<value> — overrides handoff.json status
+#                                         lookup (skip the file read entirely)
+#   SDLC_DRY_RUN_GIT_STATE=rebase|merge|cherry-pick — simulates an in-flight
+#                                                    git operation
+# When set, dry-run values short-circuit the real-state checks below. The
+# hook still emits the same HOLD/silent decision so consumers can smoke-test
+# every code path. No filesystem writes — purely read-only simulation.
+
 # Check 1: Codex review mid-cycle
 # Self-heal paths (ordered by preference):
 #   (a) #209: handoff has pr_number + gh reports PR MERGED → implicit CERTIFIED (silent)
@@ -54,7 +64,16 @@ case "$STALE_DAYS_RAW" in
     *) STALE_DAYS="$STALE_DAYS_RAW" ;;
 esac
 STALE_WARN=""
-if [ -f "$HANDOFF" ]; then
+# #240: dry-run override skips the real handoff.json read.
+if [ -n "${SDLC_DRY_RUN_HANDOFF_STATUS:-}" ]; then
+    STATUS="$SDLC_DRY_RUN_HANDOFF_STATUS"
+    case "$STATUS" in
+        PENDING_REVIEW|PENDING_RECHECK)
+            HOLD_REASONS="${HOLD_REASONS}  - Codex review is ${STATUS}. Round-1 evidence lives in this context — compacting now loses what round-2 needs to re-verify.
+    Resolve: wait for CERTIFIED (or escalate) before /compact."$'\n'
+            ;;
+    esac
+elif [ -f "$HANDOFF" ]; then
     STATUS=$(grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' "$HANDOFF" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
     case "$STATUS" in
         PENDING_REVIEW|PENDING_RECHECK)
@@ -168,8 +187,37 @@ if [ -f "$HANDOFF" ]; then
 fi
 
 # Check 2: in-progress git operation
+# #240: dry-run override simulates a git op without needing a real .git/.
 GITDIR="$ROOT/.git"
-if [ -d "$GITDIR" ]; then
+# Step 1: when dry-run var matches a known scenario, simulate it.
+# Otherwise (unset, empty, or unknown value) fall through to the real
+# .git/ checks below — this prevents an unintended safety bypass when
+# the user typos the env var (e.g. SDLC_DRY_RUN_GIT_STATE=bogus would
+# previously skip real checks entirely; Codex P1 round 1).
+DRY_RUN_GIT_HANDLED=0
+case "${SDLC_DRY_RUN_GIT_STATE:-}" in
+    rebase)
+        HOLD_REASONS="${HOLD_REASONS}  - Git rebase in progress. Compacting mid-rebase loses the operation's context.
+    Resolve: finish or abort the rebase before /compact."$'\n'
+        DRY_RUN_GIT_HANDLED=1
+        ;;
+    merge)
+        HOLD_REASONS="${HOLD_REASONS}  - Git merge in progress. Compacting mid-merge loses the operation's context.
+    Resolve: finish or abort the merge before /compact."$'\n'
+        DRY_RUN_GIT_HANDLED=1
+        ;;
+    cherry-pick)
+        HOLD_REASONS="${HOLD_REASONS}  - Git cherry-pick in progress. Compacting mid-cherry-pick loses the operation's context.
+    Resolve: finish or abort the cherry-pick before /compact."$'\n'
+        DRY_RUN_GIT_HANDLED=1
+        ;;
+esac
+
+# Step 2: real .git/ check fires if dry-run didn't simulate a scenario.
+# Empty/unset SDLC_DRY_RUN_GIT_STATE → real check (default behavior).
+# Unknown value (e.g. typo "bogus") → also falls through to real check
+# rather than silently bypassing safety. The safer-than-the-typo path.
+if [ "$DRY_RUN_GIT_HANDLED" -eq 0 ] && [ -d "$GITDIR" ]; then
     if [ -e "$GITDIR/REBASE_HEAD" ] || [ -d "$GITDIR/rebase-merge" ] || [ -d "$GITDIR/rebase-apply" ]; then
         HOLD_REASONS="${HOLD_REASONS}  - Git rebase in progress. Compacting mid-rebase loses the operation's context.
     Resolve: finish or abort the rebase before /compact."$'\n'
