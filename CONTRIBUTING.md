@@ -13,6 +13,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-workflow-triggers.sh && ./tests/test-cusum.sh && \
    ./tests/test-stats.sh && ./tests/test-hooks.sh && \
    ./tests/test-token-spike.sh && \
+   ./tests/test-codex-progress-wrapper.sh && \
    ./tests/test-compliance.sh && ./tests/test-sdp-calculation.sh && \
    ./tests/test-evaluate-bugs.sh && ./tests/test-score-analytics.sh && \
    ./tests/test-prove-it.sh && ./tests/test-self-update.sh && \
@@ -168,6 +169,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/test-stats.sh
 ./tests/test-hooks.sh
 ./tests/test-token-spike.sh
+./tests/test-codex-progress-wrapper.sh
 ./tests/test-compliance.sh
 ./tests/test-sdp-calculation.sh
 ./tests/test-evaluate-bugs.sh
