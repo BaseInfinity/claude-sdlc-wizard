@@ -44,14 +44,38 @@ fi
 SDLC_MD="$PROJECT_DIR/SDLC.md"
 # Strict x.y.z semver — rejects whitespace, "junk", "1.alpha.0", etc.
 SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+$'
+
+# semver_lt A B → exit 0 if A < B, exit 1 otherwise. Both args validated semver.
+# Used so a stale-but-fresh cache from before an upgrade ("latest" < installed)
+# doesn't fire a reverse-direction nudge (#254 Bug 2 / #239).
+semver_lt() {
+    local a_major a_minor a_patch b_major b_minor b_patch
+    a_major=$(echo "$1" | awk -F. '{print $1+0}')
+    a_minor=$(echo "$1" | awk -F. '{print $2+0}')
+    a_patch=$(echo "$1" | awk -F. '{print $3+0}')
+    b_major=$(echo "$2" | awk -F. '{print $1+0}')
+    b_minor=$(echo "$2" | awk -F. '{print $2+0}')
+    b_patch=$(echo "$2" | awk -F. '{print $3+0}')
+    if [ "$a_major" -lt "$b_major" ]; then return 0; fi
+    if [ "$a_major" -gt "$b_major" ]; then return 1; fi
+    if [ "$a_minor" -lt "$b_minor" ]; then return 0; fi
+    if [ "$a_minor" -gt "$b_minor" ]; then return 1; fi
+    if [ "$a_patch" -lt "$b_patch" ]; then return 0; fi
+    return 1
+}
+
 if [ -f "$SDLC_MD" ]; then
     INSTALLED_VERSION=$(grep -o 'SDLC Wizard Version: [0-9.]*' "$SDLC_MD" | head -1 | sed 's/SDLC Wizard Version: //')
     if [ -n "$INSTALLED_VERSION" ] && [[ "$INSTALLED_VERSION" =~ $SEMVER_RE ]]; then
         VERSION_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
         VERSION_CACHE_FILE="$VERSION_CACHE_DIR/latest-version"
         LATEST_VERSION=""
+        NPM_FAILED=0
 
-        # Use cache if present, <24h old, and contents are valid semver
+        # Use cache if present, <24h old, contents are valid semver, AND cached
+        # version is not strictly older than installed (#239: post-upgrade
+        # cache poison sanity check — if cache says "latest=1.41.1" but
+        # installed=1.43.0, the cache is poisoned, force a refetch).
         if [ -f "$VERSION_CACHE_FILE" ]; then
             if stat -f %m "$VERSION_CACHE_FILE" > /dev/null 2>&1; then
                 CACHE_MTIME=$(stat -f %m "$VERSION_CACHE_FILE")
@@ -62,22 +86,37 @@ if [ -f "$SDLC_MD" ]; then
             if [ "$CACHE_AGE" -lt 86400 ]; then
                 CACHE_CONTENT=$(cat "$VERSION_CACHE_FILE" 2>/dev/null) || CACHE_CONTENT=""
                 if [[ "$CACHE_CONTENT" =~ $SEMVER_RE ]]; then
-                    LATEST_VERSION="$CACHE_CONTENT"
+                    # Sanity check: cached "latest" must be >= installed.
+                    if ! semver_lt "$CACHE_CONTENT" "$INSTALLED_VERSION"; then
+                        LATEST_VERSION="$CACHE_CONTENT"
+                    fi
                 fi
             fi
         fi
 
-        # Fetch from npm if cache miss / stale / malformed
+        # Fetch from npm if cache miss / stale / malformed / poisoned
         if [ -z "$LATEST_VERSION" ] && command -v npm > /dev/null 2>&1; then
-            NPM_RESULT=$(npm view agentic-sdlc-wizard version 2>/dev/null) || NPM_RESULT=""
-            if [[ "$NPM_RESULT" =~ $SEMVER_RE ]]; then
+            NPM_RESULT=$(npm view agentic-sdlc-wizard version 2>/dev/null)
+            NPM_RC=$?
+            if [ "$NPM_RC" -ne 0 ] || ! [[ "$NPM_RESULT" =~ $SEMVER_RE ]]; then
+                NPM_FAILED=1
+            else
                 LATEST_VERSION="$NPM_RESULT"
                 mkdir -p "$VERSION_CACHE_DIR" 2>/dev/null || true
                 printf '%s' "$LATEST_VERSION" > "$VERSION_CACHE_FILE" 2>/dev/null || true
             fi
         fi
 
-        if [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "$INSTALLED_VERSION" ]; then
+        # #239: surface npm failure once when cache miss + npm fails. Without
+        # this, the version-check block produces no output and the user has
+        # no way to know the staleness nudge is broken.
+        if [ -z "$LATEST_VERSION" ] && [ "$NPM_FAILED" -eq 1 ]; then
+            echo "npm view failed — version check unavailable (run 'npm view agentic-sdlc-wizard version' to debug)"
+        fi
+
+        # #254 Bug 2: only nudge when installed < latest (semver direction).
+        # Equality `!=` previously fired reverse nudges post-upgrade.
+        if [ -n "$LATEST_VERSION" ] && semver_lt "$INSTALLED_VERSION" "$LATEST_VERSION"; then
             # Minor-version delta: 1.25.0 vs 1.34.0 → 9
             INSTALLED_MINOR=$(echo "$INSTALLED_VERSION" | awk -F. '{print $2+0}')
             LATEST_MINOR=$(echo "$LATEST_VERSION" | awk -F. '{print $2+0}')
@@ -131,8 +170,13 @@ fi
 # this hook and model-effort-check.sh both fire on SessionStart, so two checks
 # would double-print the nudge and risk drifting out of sync.
 
-# Dual-channel install check (#181) — nudge when CLI skills + Claude plugin both present
-if [ -d "$PROJECT_DIR/.claude/skills/update" ]; then
+# Dual-channel install check (#181) — nudge when CLI skills + Claude plugin both present.
+# #238: silenced once the user opts in via an ack sentinel. Sentinel is per-host
+# (lives under $SDLC_WIZARD_CACHE_DIR/dual-channel-acknowledged) since the dual
+# install is always a $HOME-scoped condition.
+DUAL_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
+DUAL_ACK_FILE="$DUAL_CACHE_DIR/dual-channel-acknowledged"
+if [ -d "$PROJECT_DIR/.claude/skills/update" ] && [ ! -f "$DUAL_ACK_FILE" ]; then
     for plugin_path in "$HOME/.claude/plugins-local/sdlc-wizard-wrap" "$HOME/.claude/plugins/cache/sdlc-wizard-local"; do
         if [ -d "$plugin_path" ]; then
             echo "WARNING: dual-install detected — CLI skills in .claude/skills/ AND Claude plugin at:"
@@ -140,6 +184,7 @@ if [ -d "$PROJECT_DIR/.claude/skills/update" ]; then
             echo "  Duplicate /update-wizard commands come from running both channels. Pick one:"
             echo "    - Keep plugin: remove .claude/skills/ from this project"
             echo "    - Keep CLI:    /plugin uninstall sdlc-wizard (or remove plugin dir)"
+            echo "    - Keep both:   mkdir -p \"$DUAL_CACHE_DIR\" && touch \"$DUAL_ACK_FILE\"  (silences this nudge)"
             break
         fi
     done

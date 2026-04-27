@@ -1731,6 +1731,60 @@ NPMEOF
     fi
 }
 
+# Test (#254 Bug 2 / #239): when cached "latest" < installed (cache poison
+# post-upgrade, or stale-but-not-expired cache after a release), the hook MUST
+# stay silent — never emit a reverse "update available" nudge. Previous
+# behavior printed "1.42.1 → 1.41.1" because line 80 used `!=` equality.
+test_update_notification_silent_when_installed_newer_than_cache() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.43.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin" "$tmpdir/cache"
+    # Cache holds an older version (post-upgrade scenario)
+    printf '1.41.1' > "$tmpdir/cache/latest-version"
+    # Make sure the file looks fresh so the cache age check passes
+    touch "$tmpdir/cache/latest-version"
+    # npm should not be called — but stub it just in case
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE 'update available|minor.*behind'; then
+        fail "#254 Bug 2: Hook emitted reverse nudge when installed > latest, got: $output"
+    else
+        pass "#254 Bug 2: Hook silent when installed (1.43.0) > cached latest (1.41.1)"
+    fi
+}
+
+# Test (#239): when npm view fails AND cache is missing/stale, the hook should
+# surface the failure once (one-line warning) instead of silently serving
+# nothing. Currently the version-check block produces no output at all in
+# this state — user has no way to know the nudge mechanism is broken.
+test_update_notification_surfaces_npm_failure() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.30.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/bin" "$tmpdir/cache"
+    # No cache file; npm fails with EPERM-style error
+    cat > "$tmpdir/bin/npm" <<'NPMEOF'
+#!/bin/bash
+echo "npm error code EPERM" >&2
+exit 1
+NPMEOF
+    chmod +x "$tmpdir/bin/npm"
+    local output
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>&1)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE 'npm view failed|npm.*unavailable|version check unavailable'; then
+        pass "#239: Hook surfaces npm failure with one-line warning when cache miss"
+    else
+        fail "#239: Expected one-line warning on npm failure, got: $output"
+    fi
+}
+
 test_update_notification_newer_available
 test_update_notification_same_version
 test_update_notification_npm_unavailable
@@ -1743,6 +1797,8 @@ test_update_notification_uses_daily_cache
 test_update_notification_rejects_malformed_cache_junk
 test_update_notification_rejects_malformed_cache_whitespace
 test_update_notification_rejects_non_numeric_minor
+test_update_notification_silent_when_installed_newer_than_cache
+test_update_notification_surfaces_npm_failure
 
 echo ""
 echo "--- Hook if-conditional tests (#68) ---"
@@ -2494,11 +2550,86 @@ test_instructions_hook_dual_install_non_blocking() {
     fi
 }
 
+# Test (#238): dual-channel nudge stays silent when the user has explicitly
+# acknowledged the dual-install setup via a sentinel file. Without this
+# silence mechanism, the warning fires on every SessionStart and trains
+# users to ignore all hook output — including legit signals.
+test_instructions_hook_dual_install_silenced_by_ack_sentinel() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "both" "yes"
+    # User acknowledged the dual-install setup
+    mkdir -p "$tmpdir/cache"
+    touch "$tmpdir/cache/dual-channel-acknowledged"
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if ! echo "$output" | grep -qi "dual-install\|both channels\|pick one"; then
+        pass "#238: dual-install nudge silenced by ack sentinel"
+    else
+        fail "#238: ack sentinel should silence dual-install nudge, got: $output"
+    fi
+}
+
+# Test (#238): mention the silence mechanism in the dual-install nudge so
+# users know how to acknowledge it (otherwise the sentinel is undiscoverable).
+test_instructions_hook_dual_install_nudge_mentions_silence() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "both" "yes"
+    # No sentinel — nudge should fire and reference the silence path
+    local output
+    output=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE 'dual-channel-acknowledged|silence.*nudge|to silence|acknowledge'; then
+        pass "#238: dual-install nudge mentions how to silence it"
+    else
+        fail "#238: nudge should reference the ack sentinel path, got: $output"
+    fi
+}
+
+# Test (#238 Codex finding 1): the printed silence hint must work even when
+# the cache dir doesn't exist yet (fresh install on a new host has no
+# ~/.cache/sdlc-wizard/ until something creates it). Plain `touch <path>`
+# fails with "No such file or directory" when the parent dir is missing.
+test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent() {
+    local tmpdir nudge ack_cmd
+    tmpdir=$(mktemp -d)
+    prepare_dual_install_fixture "$tmpdir" "both" "yes"
+    # Deliberately do NOT create $tmpdir/cache — simulate fresh install
+    if [ -d "$tmpdir/cache" ]; then
+        rm -rf "$tmpdir/cache"
+    fi
+    nudge=$(cd "$tmpdir/project" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir/project" HOME="$tmpdir" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    # Extract the line that contains the ack command. The hint must be
+    # actionable: running the printed command should succeed even with
+    # a missing cache dir.
+    ack_cmd=$(echo "$nudge" | grep -E 'Keep both' | sed 's/.*Keep both:[[:space:]]*//;s/[[:space:]]*(silences.*$//')
+    if [ -z "$ack_cmd" ]; then
+        fail "#238 Codex#1: no 'Keep both' silence hint in nudge output"
+        rm -rf "$tmpdir"
+        return
+    fi
+    # Run the suggested command. If it fails (e.g. cache dir missing),
+    # the hint is broken.
+    bash -c "$ack_cmd" 2>/dev/null
+    local rc=$?
+    if [ "$rc" -eq 0 ] && [ -f "$tmpdir/cache/dual-channel-acknowledged" ]; then
+        pass "#238 Codex#1: silence hint works even with missing cache dir"
+    else
+        fail "#238 Codex#1: printed silence command failed (rc=$rc) — hint should mkdir -p first. Cmd: $ack_cmd"
+    fi
+    rm -rf "$tmpdir"
+}
+
 test_instructions_hook_dual_install_nudge_local
 test_instructions_hook_dual_install_nudge_cache
 test_instructions_hook_silent_plugin_only
 test_instructions_hook_silent_cli_only
 test_instructions_hook_dual_install_non_blocking
+test_instructions_hook_dual_install_silenced_by_ack_sentinel
+test_instructions_hook_dual_install_nudge_mentions_silence
+test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent
 
 echo ""
 echo "--- CC release review nudge (#85) ---"

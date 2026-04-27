@@ -1,5 +1,5 @@
 {
-  "review_id": "token-spike-220-001",
+  "review_id": "install-bugs-254-238-239-001",
   "round": 2,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
@@ -7,29 +7,8 @@
       "finding": "1",
       "severity": "P1",
       "action": "FIXED",
-      "summary": "Privacy/type leak closed. Added `def num: if type == \"number\" then . else 0 end;` to the jq ingest filter at tests/e2e/token-analytics.sh:148-149. All 4 token fields now route through `| num` so strings/objects/arrays coerce to 0. Timestamp similarly type-guarded — non-string timestamps coerce to empty. Numeric outputs floored to integers. New test `test_privacy_string_values_coerced_to_zero` (tests/test-token-spike.sh) ingests a malicious transcript with `\"USER_SECRET_INPUT\"`, `\"ASSISTANT_SECRET_OUTPUT\"`, `{\"nested\":\"TOOL_ARGS_SECRET\"}`, and `[\"array\",\"payload\"]` in usage fields and asserts: (a) none of those strings appear anywhere in history.jsonl, (b) totals reflect ONLY the second well-formed message (in=42, out=7), (c) malicious fields all coerce to 0.",
-      "verify_at": "tests/e2e/token-analytics.sh:147-156 (`def num` + .|num applied to all 4 fields + timestamp type-guard); tests/test-token-spike.sh test_privacy_string_values_coerced_to_zero"
-    },
-    {
-      "finding": "2",
-      "severity": "P1",
-      "action": "FIXED",
-      "summary": "Flat-baseline false-positive suppressed. Added minimum-spread floor at tests/e2e/token-analytics.sh:308-321: threshold = center + max(SIGMA*spread, 5% of center, 1000 abs tokens). Without the floor, MAD=0 → threshold=center → any 1-token uptick fires. Two new tests (test_flat_baseline_small_uptick_does_not_fire and test_flat_baseline_large_jump_still_fires) cover both directions: 5 baseline at 1000, candidate 1100 → no spike (suppressed by 1000 abs floor); 5 baseline at 1000, candidate 50000 → spike fires (floor doesn't mask real regressions). The 5% / 1000 numbers are heuristic and documented inline.",
-      "verify_at": "tests/e2e/token-analytics.sh:308-321 (threshold awk block with margin floor); tests/test-token-spike.sh:test_flat_baseline_*"
-    },
-    {
-      "finding": "3",
-      "severity": "P1",
-      "action": "FIXED",
-      "summary": "test_median_not_mean now asserts the contrast directly. Test runs the analytics twice on the same fixture: once with `--metric median` (must warn) and once with `--metric mean` (must NOT warn — outlier inflates mean+stdev). Both branches now exercised; if anyone swaps the branches in the if/else at token-analytics.sh:299-313, the test fails.",
-      "verify_at": "tests/test-token-spike.sh test_median_not_mean (out_med, out_mean dual invocation)"
-    },
-    {
-      "finding": "4",
-      "severity": "P2",
-      "action": "FIXED",
-      "summary": "Concurrent-ingest TOCTOU race closed via mkdir-based atomic lock. Wrapped the seen-file/append window with `mkdir \"$HISTORY_FILE.lock.d\"` (atomic on POSIX), with a 50-attempt × 0.1s wait and 5-minute stale-lock takeover. Lock removed via RETURN trap. New test test_concurrent_ingest_no_duplicate_session runs two ingests in parallel and asserts the result is exactly 1 record / 1 unique session_id (without the lock, this race produces 2 records).",
-      "verify_at": "tests/e2e/token-analytics.sh:99-129 (mkdir lock + stale takeover); tests/test-token-spike.sh test_concurrent_ingest_no_duplicate_session"
+      "summary": "Silence hint command made fresh-install-safe. hooks/instructions-loaded-check.sh:187 now prints `mkdir -p \"$DUAL_CACHE_DIR\" && touch \"$DUAL_ACK_FILE\"` (was bare `touch`). The bare `touch` failed on hosts where `~/.cache/sdlc-wizard/` doesn't yet exist (a fresh consumer install never creates it until the version-cache fetch — the dual-install nudge can fire before that ever happens). Regression test test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent (tests/test-hooks.sh) deletes the cache dir, runs the hook, captures the printed `Keep both:` command, executes it via bash -c, and asserts both rc=0 AND that `$DUAL_CACHE_DIR/dual-channel-acknowledged` was created. test-hooks.sh now 134/134 PASS (was 133).",
+      "verify_at": "hooks/instructions-loaded-check.sh:187 (mkdir -p + touch); tests/test-hooks.sh test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent"
     }
   ]
 }

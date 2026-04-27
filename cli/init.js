@@ -25,6 +25,10 @@ const FILES = [
   { src: 'hooks/instructions-loaded-check.sh', dest: '.claude/hooks/instructions-loaded-check.sh', executable: true, base: REPO_ROOT },
   { src: 'hooks/model-effort-check.sh', dest: '.claude/hooks/model-effort-check.sh', executable: true, base: REPO_ROOT },
   { src: 'hooks/precompact-seam-check.sh', dest: '.claude/hooks/precompact-seam-check.sh', executable: true, base: REPO_ROOT },
+  // #254 Bug 1: shared helper sourced by all hooks above. Must ship — without
+  // it, hooks emit "_find-sdlc-root.sh: No such file or directory" + the
+  // SDLC root walk-up logic is silently dead.
+  { src: 'hooks/_find-sdlc-root.sh', dest: '.claude/hooks/_find-sdlc-root.sh', base: REPO_ROOT },
   { src: 'skills/sdlc/SKILL.md', dest: '.claude/skills/sdlc/SKILL.md', base: REPO_ROOT },
   { src: 'skills/setup/SKILL.md', dest: '.claude/skills/setup/SKILL.md', base: REPO_ROOT },
   { src: 'skills/update/SKILL.md', dest: '.claude/skills/update/SKILL.md', base: REPO_ROOT },
@@ -235,6 +239,21 @@ function printOps(ops) {
   }
 }
 
+// #254 Bug 2: clear the version cache on `init --force` so the
+// instructions-loaded hook re-fetches latest from npm post-upgrade. Without
+// this, the cache holds the pre-upgrade "latest" for up to 24h and the hook
+// prints reverse nudges like "1.42.1 → 1.41.1".
+function invalidateVersionCache({ dryRun }) {
+  const cacheDir = process.env.SDLC_WIZARD_CACHE_DIR
+    || path.join(os.homedir(), '.cache', 'sdlc-wizard');
+  const cacheFile = path.join(cacheDir, 'latest-version');
+  if (!fs.existsSync(cacheFile)) return false;
+  if (!dryRun) {
+    try { fs.rmSync(cacheFile, { force: true }); } catch (_) { /* best-effort */ }
+  }
+  return true;
+}
+
 function init(targetDir, { force = false, dryRun = false } = {}) {
   if (!dryRun && !force) {
     const pluginPaths = detectPluginInstall();
@@ -289,6 +308,13 @@ function init(targetDir, { force = false, dryRun = false } = {}) {
   const gitignoreAdds = updateGitignore(targetDir, { dryRun: false });
   if (gitignoreAdds.length > 0) {
     console.log(`  ${GREEN}APPEND${RESET}  .gitignore (${gitignoreAdds.join(', ')})`);
+  }
+
+  // #254 Bug 2: bust the latest-version cache after an upgrade so the
+  // staleness nudge re-fetches a fresh value from npm. Only on --force,
+  // since that's the upgrade path.
+  if (force && invalidateVersionCache({ dryRun: false })) {
+    console.log(`  ${CYAN}BUST${RESET}    version cache (${path.join(process.env.SDLC_WIZARD_CACHE_DIR || path.join(os.homedir(), '.cache', 'sdlc-wizard'), 'latest-version')})`);
   }
 
   console.log(`
