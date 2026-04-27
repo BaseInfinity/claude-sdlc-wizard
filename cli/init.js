@@ -385,6 +385,12 @@ function check(targetDir, { json = false } = {}) {
       console.log(`\n  ${color}${m.status}${RESET}  ${heading}`);
       console.log(`         ${m.path}`);
       console.log(`         ${m.details}`);
+      // #266: DANGLING + enabledPlugins=true = every UserPromptSubmit hook
+      // crashes. Surface the actionable fix loud and clear.
+      if (m.crashRisk && m.enabledPluginKey) {
+        console.log(`         ${RED}CRASH RISK${RESET}: enabledPlugins["${m.enabledPluginKey}"] is true but the path is missing — every UserPromptSubmit hook will fail until this is resolved (#266)`);
+        console.log(`         Fix: edit ~/.claude/settings.json and set enabledPlugins["${m.enabledPluginKey}"] to false, OR run /plugin uninstall to clean up properly`);
+      }
       if (m.suggestion) {
         console.log(`         Recommended: move to ${m.suggestion}`);
       }
@@ -453,6 +459,28 @@ function checkMarketplacePaths() {
   const marketplaces = data.extraKnownMarketplaces;
   if (!marketplaces || typeof marketplaces !== 'object') return results;
 
+  // #266: cross-reference enabledPlugins to detect the actual crash state.
+  // A DANGLING marketplace path is harmless if no plugins from it are enabled,
+  // but DANGLING + enabled = every UserPromptSubmit hook crashes (CC's plugin
+  // loader fails to resolve the path and propagates the error).
+  // Plugin keys in enabledPlugins are formatted "<plugin>@<marketplace>".
+  const enabledPlugins = (data.enabledPlugins && typeof data.enabledPlugins === 'object')
+    ? data.enabledPlugins
+    : {};
+  function findEnabledPluginForMarketplace(marketplaceName) {
+    for (const [pluginKey, isEnabled] of Object.entries(enabledPlugins)) {
+      if (isEnabled !== true) continue;
+      // pluginKey shape: "sdlc-wizard@sdlc-wizard-local". The part after the
+      // last `@` is the marketplace name. Use lastIndexOf so plugin names
+      // containing `@` (npm scoped packages) parse correctly.
+      const atIdx = pluginKey.lastIndexOf('@');
+      if (atIdx <= 0) continue;
+      const mp = pluginKey.slice(atIdx + 1);
+      if (mp === marketplaceName) return pluginKey;
+    }
+    return null;
+  }
+
   for (const [name, entry] of Object.entries(marketplaces)) {
     const source = entry && entry.source;
     if (!source || source.source !== 'directory' || !source.path || typeof source.path !== 'string') continue;
@@ -464,10 +492,14 @@ function checkMarketplacePaths() {
     const suggestion = `~/.claude/plugins-local/${basename}`;
 
     if (!exists) {
+      const enabledPluginKey = findEnabledPluginForMarketplace(name);
+      const isCrashRisk = enabledPluginKey !== null;
       results.push({
         name,
         path: sourcePath,
         status: 'DANGLING',
+        crashRisk: isCrashRisk,
+        enabledPluginKey,
         details: isEphemeral
           ? 'Ephemeral path has been reaped — plugin is broken'
           : 'Path does not exist — plugin may be silently broken',
