@@ -1328,6 +1328,98 @@ FIXTURE
     rm -rf "$d" "$fake_home"
 }
 
+# Test (#266): check flags DANGLING + enabledPlugins=true as CRASH RISK with
+# actionable remediation. The combo is what crashes UserPromptSubmit on every
+# turn (CC's plugin loader tries to resolve the path, fails, propagates to
+# every hook). Detecting just DANGLING isn't enough — the crash only fires
+# when a package from the dangling marketplace is also enabled.
+test_check_marketplace_dangling_with_enabled_plugin_flags_crash_risk() {
+    local d fake_home output exit_code=0
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "enabledPlugins": {
+    "sdlc-wizard@sdlc-wizard-local": true
+  },
+  "extraKnownMarketplaces": {
+    "sdlc-wizard-local": {
+      "source": { "source": "directory", "path": "/opt/missing-plugin-dir" }
+    }
+  }
+}
+FIXTURE
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1) || exit_code=$?
+    rm -rf "$d" "$fake_home"
+    if [ "$exit_code" -ne 0 ] \
+        && echo "$output" | grep -q "DANGLING" \
+        && echo "$output" | grep -qE "(CRASH RISK|enabled.*plugin|enabledPlugins)" \
+        && echo "$output" | grep -qE "(false|disable|/plugin uninstall)"; then
+        pass "#266: check flags DANGLING + enabledPlugins=true as CRASH RISK with remediation"
+    else
+        fail "#266: dangling+enabled should flag crash risk + remediation (exit=$exit_code, got: $output)"
+    fi
+}
+
+# Test (#266): DANGLING but NOT in enabledPlugins → just dangling warning, no crash flag
+test_check_marketplace_dangling_without_enabled_plugin_no_crash_flag() {
+    local d fake_home output exit_code=0
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "enabledPlugins": {},
+  "extraKnownMarketplaces": {
+    "harmless-orphan": {
+      "source": { "source": "directory", "path": "/opt/missing-but-disabled" }
+    }
+  }
+}
+FIXTURE
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1) || exit_code=$?
+    rm -rf "$d" "$fake_home"
+    # Still DANGLING (path missing) but should NOT escalate to CRASH RISK
+    if echo "$output" | grep -q "DANGLING" \
+        && ! echo "$output" | grep -qE "CRASH RISK"; then
+        pass "#266: DANGLING without enabled plugin → no crash flag (just dangling warning)"
+    else
+        fail "#266: dangling without enabled should not escalate to CRASH RISK (got: $output)"
+    fi
+}
+
+# Test (#266): DANGLING + enabledPlugins=false → no crash flag (user already disabled)
+test_check_marketplace_dangling_with_disabled_plugin_no_crash_flag() {
+    local d fake_home output exit_code=0
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    fake_home=$(make_temp)
+    mkdir -p "$fake_home/.claude"
+    cat > "$fake_home/.claude/settings.json" << 'FIXTURE'
+{
+  "enabledPlugins": {
+    "sdlc-wizard@sdlc-wizard-local": false
+  },
+  "extraKnownMarketplaces": {
+    "sdlc-wizard-local": {
+      "source": { "source": "directory", "path": "/opt/missing-plugin-dir" }
+    }
+  }
+}
+FIXTURE
+    output=$(cd "$d" && HOME="$fake_home" node "$CLI" check 2>&1) || exit_code=$?
+    rm -rf "$d" "$fake_home"
+    if echo "$output" | grep -q "DANGLING" \
+        && ! echo "$output" | grep -qE "CRASH RISK"; then
+        pass "#266: DANGLING + enabledPlugins=false → no crash flag (already disabled)"
+    else
+        fail "#266: dangling+disabled should not flag crash risk (got: $output)"
+    fi
+}
+
 # Test 44: check errors on dangling (non-existent, non-ephemeral) marketplace path
 test_check_marketplace_dangling() {
     local d
@@ -1560,6 +1652,9 @@ test_check_marketplace_suggests_fix
 test_check_marketplace_private_var_folders
 test_check_marketplace_malformed_path
 test_check_marketplace_dangling_heading
+test_check_marketplace_dangling_with_enabled_plugin_flags_crash_risk
+test_check_marketplace_dangling_without_enabled_plugin_no_crash_flag
+test_check_marketplace_dangling_with_disabled_plugin_no_crash_flag
 
 # === Dual-channel install drift guardrails (#181) ===
 
