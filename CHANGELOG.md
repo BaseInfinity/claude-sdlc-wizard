@@ -4,6 +4,22 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.46.0] - 2026-04-27
+
+### Added
+
+- **PreCompact dry-run env vars** (closes #240). Consumer reported clobbering their real `.reviews/handoff.json` while smoke-testing the PreCompact hook — the only way to verify hook behavior was to `cp` real state aside, fabricate fakes, and restore. Two new env vars simulate state in-memory:
+  - `SDLC_DRY_RUN_HANDOFF_STATUS=<value>` — overrides the handoff.json read entirely. Useful values: `PENDING_REVIEW`/`PENDING_RECHECK` (block), `CERTIFIED` (silent). Skips file I/O.
+  - `SDLC_DRY_RUN_GIT_STATE=rebase|merge|cherry-pick` — simulates an in-flight git op. No real `.git/` needed.
+  - **Safety**: unknown values (typos like `bogus`) fall back to real-state checks rather than silently bypassing safety. Codex round 1 caught this bypass risk; the fix uses a `DRY_RUN_GIT_HANDLED` flag so only known scenarios short-circuit the real check.
+  - **No mutations**: dry-run paths are pure read-only simulation. Subsequent runs without env vars see clean state.
+- 7 new test-hooks tests (positive simulations + override of real PENDING + typo fallback + no-mutation guarantee). Codex round 2 CERTIFIED 10/10.
+
+### Files
+
+- `hooks/precompact-seam-check.sh` — comment block + dry-run handoff `if/elif` branch + dry-run git `case` with `DRY_RUN_GIT_HANDLED` flag; real-state check gated on flag
+- `tests/test-hooks.sh` — 7 new dry-run tests
+
 ## [1.45.0] - 2026-04-27
 
 ### Added
