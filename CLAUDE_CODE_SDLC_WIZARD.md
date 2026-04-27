@@ -3706,6 +3706,8 @@ Use an independent AI model from a different company as a code reviewer. The aut
 
 The `mission/success/failure` fields give the reviewer context. Without them, you get generic "looks good" feedback. With them, reviewers dig into source files and verify specific claims. The `verification_checklist` tells the reviewer exactly what to verify — not "review this" but specific items with file:line references.
 
+`pr_number` (optional) is the PreCompact self-heal opt-in (ROADMAP #209). Set it when the review tracks a specific PR — the `precompact-seam-check.sh` hook queries `gh pr view N --json state` on every manual `/compact` and treats MERGED as implicit CERTIFIED, so a forgotten PENDING handoff doesn't lock you out of compaction after the PR ships. Omit for ad-hoc reviews not tied to a PR.
+
 3. Run the independent reviewer (Round 1 — full review). These commands use your Codex default model — configure it to the latest, most capable model available:
 
 ```bash

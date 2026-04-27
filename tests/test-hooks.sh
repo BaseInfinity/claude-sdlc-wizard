@@ -602,28 +602,47 @@ JSON
 test_handoff_template_documents_pr_number() {
     # ROADMAP #209 closure: the precompact hook self-heals on PENDING_* handoffs
     # by querying `gh pr view <pr_number> --json state` — but consumers can only
-    # opt in if the field is DOCUMENTED in the handoff template schemas. Without
-    # docs, the self-heal path is dead code on every fresh install.
-    # This test asserts both authoritative schemas (skill + wizard) document
-    # pr_number AND explain it as the self-heal opt-in.
+    # opt in if the field is DOCUMENTED in EVERY handoff schema (consumers read
+    # whichever example they hit first). Without docs, the self-heal path is
+    # dead code.
+    #
+    # Codex round-1 caught a false-green: the old test required ANY occurrence
+    # of `pr_number` per file, so removing it from one of the wizard's two
+    # schemas left the other intact and passed. Round-2 fix below uses the
+    # `"status": "PENDING_REVIEW"` marker to count handoff schema instances
+    # per file and asserts pr_number occurrence count >= handoff count.
+    # Mutation: deleting pr_number from ANY schema instance drops the count
+    # below handoff count and flips the test to FAIL.
     local skill="$SCRIPT_DIR/../skills/sdlc/SKILL.md"
     local wizard="$SCRIPT_DIR/../CLAUDE_CODE_SDLC_WIZARD.md"
     local missing=""
 
-    grep -q '"pr_number"' "$skill" || missing="${missing}skill-field "
-    grep -q '"pr_number"' "$wizard" || missing="${missing}wizard-field "
+    # Coverage check: every handoff schema must include pr_number.
+    # PENDING_REVIEW uniquely marks handoff JSON (response.json uses PENDING_RECHECK).
+    # NOTE: `grep -c` exits 1 when count is 0; `|| true` discards the failing
+    # exit status without appending extra text (using `|| echo 0` here would
+    # double-print "0\n0" and break integer comparison under set -e).
+    local skill_handoffs skill_pr
+    skill_handoffs=$(grep -c '"status": "PENDING_REVIEW"' "$skill" 2>/dev/null || true)
+    skill_pr=$(grep -c '"pr_number":' "$skill" 2>/dev/null || true)
+    [ "${skill_pr:-0}" -lt "${skill_handoffs:-0}" ] && missing="${missing}skill-coverage(${skill_pr:-0}/${skill_handoffs:-0}) "
 
-    # Field must appear with self-heal context within 8 lines, not as a bare
-    # JSON entry — consumers need to know WHY they'd set it.
-    if grep -q '"pr_number"' "$skill" && ! grep -B8 -A8 '"pr_number"' "$skill" | grep -qiE 'self.heal|PreCompact|#209|merged.*PR|precompact'; then
+    local wizard_handoffs wizard_pr
+    wizard_handoffs=$(grep -c '"status": "PENDING_REVIEW"' "$wizard" 2>/dev/null || true)
+    wizard_pr=$(grep -c '"pr_number":' "$wizard" 2>/dev/null || true)
+    [ "${wizard_pr:-0}" -lt "${wizard_handoffs:-0}" ] && missing="${missing}wizard-coverage(${wizard_pr:-0}/${wizard_handoffs:-0}) "
+
+    # Context check: at least one occurrence per file must sit within 8 lines
+    # of self-heal context so consumers learn WHY they'd set it.
+    if grep -q '"pr_number":' "$skill" && ! grep -B8 -A8 '"pr_number":' "$skill" | grep -qiE 'self.heal|PreCompact|#209|merged.*PR|precompact'; then
         missing="${missing}skill-context "
     fi
-    if grep -q '"pr_number"' "$wizard" && ! grep -B8 -A8 '"pr_number"' "$wizard" | grep -qiE 'self.heal|PreCompact|#209|merged.*PR|precompact'; then
+    if grep -q '"pr_number":' "$wizard" && ! grep -B8 -A8 '"pr_number":' "$wizard" | grep -qiE 'self.heal|PreCompact|#209|merged.*PR|precompact'; then
         missing="${missing}wizard-context "
     fi
 
     if [ -z "$missing" ]; then
-        pass "handoff template documents pr_number with self-heal context (#209 opt-in)"
+        pass "handoff template documents pr_number in every schema with self-heal context (#209 opt-in)"
     else
         fail "handoff template missing pr_number opt-in docs: $missing"
     fi
