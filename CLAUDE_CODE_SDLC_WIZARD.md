@@ -2717,6 +2717,53 @@ Options:
 
 ---
 
+### Browser Tooling Policy
+
+Three different jobs, three different tools. Conflating them is the source of recurring agent failures — `Playwright MCP` for an auth-heavy registrar dashboard wastes a session, browser-use for a deterministic regression test gives flaky CI.
+
+| Tool | Job | Profile model | When to pick |
+|------|-----|---------------|--------------|
+| **Playwright tests** | Deterministic regression suite, CI/release gate | Isolated by design — each test gets a clean browser context per [Playwright docs](https://playwright.dev/docs/browser-contexts) | Asserting expected user flows; running on every PR; gating deploy |
+| **Playwright MCP** | Live browser debugging, visual QA, DOM inspection | Default mode uses a **persistent Playwright-managed profile** at `ms-playwright/mcp-{channel}-{workspace-hash}` ([docs](https://playwright.dev/docs/getting-started-mcp#user-profile)) — NOT the user's regular Chrome profile. Other modes: `--isolated` (ephemeral context per session), `--user-data-dir=PATH` (caller-supplied dir), CDP attach (`--cdp-endpoint`), extension mode (attach to user's running browser tab) | One-off "look at this page" / "click this button and tell me what happens"; visual verification mid-session |
+| **Real-browser tooling** (browser-use, CDP-attach, Chrome profile) | Authenticated, profile-dependent, stateful operator flows | **When configured for real-browser mode** (e.g., browser-use `Browser.from_system_chrome()` or CLI `--profile`/`connect`), uses the user's actual Chrome profile (cookies, extensions, logged-in sessions). Default browser-use CLI runs headless Chromium — opt into the real-profile mode explicitly | Registrar dashboards (Porkbun, GoDaddy), DNS setup, cloud-provider consoles, wallet-adjacent Web3 flows, logged-in admin panels — anywhere preserving cookies/profile/extensions matters more than clean isolation |
+
+**The core insight:** Playwright tests' isolation is a *feature*, not a bug. Playwright MCP's persistent-managed-profile default is also a feature — it preserves session continuity across debug interactions in a SINGLE agent. The collision case is concurrent agents (#251) sharing the same managed profile. Real-browser tooling is the right call only when the task IS the user's authenticated session, and only when explicitly configured to attach to that profile.
+
+#### When to recommend real-browser tooling (#225)
+
+Trigger examples — if the task description includes any of these, suggest real-browser tooling (browser-use or CDP-attach) over Playwright MCP:
+
+- Registrar dashboards (domain purchase, DNS records, nameserver changes)
+- DNS setup / DNSLink / custom-domain configuration
+- Cloud/provider dashboards (AWS console, Cloudflare, Vercel, registrars)
+- Wallet-adjacent Web3 flows (token approvals, contract interactions in a logged-in MetaMask)
+- Logged-in admin panels (Stripe, Vercel, GitHub admin pages requiring 2FA-cached session)
+- Anywhere preserving cookies/profile/extensions matters more than clean isolation
+
+These all share a property: the agent's job IS the authenticated session. A clean automation browser is the wrong model.
+
+#### Playwright MCP profile-lock policy (#251)
+
+`Playwright MCP`'s default mode reuses a single persistent managed profile (`ms-playwright/mcp-{channel}-{workspace-hash}`) across stdio sessions — which is the right call for single-agent debugging because it preserves session continuity across calls, but breaks down when **multiple agents or MCP clients run concurrently** (two CC sessions, one CC + one Codex, etc.). Concurrent stdio sessions collide on the same Chrome user-data directory and corrupt each other's session state.
+
+**Upstream Playwright rejected default-isolated as the global default.** See [microsoft/playwright#40419](https://github.com/microsoft/playwright/issues/40419) and the discussion on [microsoft/playwright#40420](https://github.com/microsoft/playwright/pull/40420) — maintainer feedback: *"That's unfortunately very breaking."* Changing the default would silently break every existing single-agent setup that relies on the persistent managed profile.
+
+**Wizard policy (per-user, opt-in at the wizard layer, not upstream):**
+
+- **Single-agent / single MCP client (default):** Use Playwright MCP's default persistent-managed-profile mode. No special config required.
+- **Concurrent agents / multiple MCP clients:** Pick one of these per client to avoid profile-lock collisions: (a) `--isolated` (ephemeral context per session, no persistence), (b) `--user-data-dir=$TMPDIR/playwright-mcp-$AGENT_ID` (caller-supplied dir, isolated per agent), or (c) `--cdp-endpoint` to attach each agent to a separately-launched browser. None of these require an upstream breaking change.
+- **Real-browser / profile-dependent flows:** Don't use Playwright MCP at all — use real-browser tooling explicitly configured to attach to the user's profile (e.g., `browser-use` with `Browser.from_system_chrome()` or CLI `--profile`). The task is the session, not isolated automation.
+
+This rule is per-workflow, not global. Setup wizard does NOT auto-configure isolated profiles — adoption is explicit, gated on the user signaling concurrent-agent intent.
+
+#### Anti-patterns
+
+- **Using Playwright MCP for registrar dashboards** — its persistent managed profile is NOT your real Chrome profile, so your registrar's logged-in session/2FA cookies aren't there. You'll be re-logging in on every interaction. Use real-browser tooling configured for your real Chrome profile instead.
+- **Using profile-coupled / stateful browser tooling for deterministic CI tests** — when browser-use (or any tool) is configured to use a real Chrome profile, cached state, extension chrome, and stale cookies pollute the test. Use Playwright tests with isolated browser contexts for CI.
+- **Setting Playwright MCP `--isolated` globally as a default** — breaks single-agent flows that rely on the persistent managed profile for session continuity across debug interactions. Upstream Playwright rejected this for the same reason. Make it explicit per-workflow when concurrent agents are running.
+
+---
+
 ## Step 8: Create CLAUDE.md
 
 Create `CLAUDE.md` in your project root. This is your project-specific configuration:

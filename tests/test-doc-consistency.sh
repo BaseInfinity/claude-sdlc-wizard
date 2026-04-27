@@ -523,12 +523,100 @@ test_sdlc_skill_frames_opus_1m_as_opt_in() {
     fi
 }
 
+# Tests (#251 + #225): Browser Tooling Policy section.
+# Greps run INSIDE the policy section, not against the whole doc — otherwise
+# claims could be satisfied by unrelated mentions elsewhere (Codex round 1
+# finding 3).
+
+# Extract the Browser Tooling Policy section: from `### Browser Tooling Policy`
+# heading to the next `###` or `##` heading. Echoes the section content.
+extract_browser_tooling_policy_section() {
+    local DOC="$1"
+    awk '
+        /^### Browser Tooling Policy/ { in_section = 1; print; next }
+        in_section && /^##[#]?[^#]/ { in_section = 0 }
+        in_section { print }
+    ' "$DOC"
+}
+
+test_wizard_doc_has_browser_tooling_policy_section() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -qE '^### Browser Tooling Policy[[:space:]]*$' "$DOC"; then
+        pass "wizard doc has 'Browser Tooling Policy' section heading (#225, #251)"
+    else
+        fail "wizard doc must have a 'Browser Tooling Policy' section (#225, #251)"
+    fi
+}
+
+# #225: 3-way split — all 3 tools must be named INSIDE the policy section
+test_wizard_doc_browser_policy_covers_three_way_split() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    local section
+    section=$(extract_browser_tooling_policy_section "$DOC")
+    if [ -z "$section" ]; then fail "Browser Tooling Policy section is empty/missing"; return; fi
+    local ok=true
+    echo "$section" | grep -qE 'Playwright tests' || ok=false
+    echo "$section" | grep -qE 'Playwright MCP' || ok=false
+    echo "$section" | grep -qiE 'browser-use|real.browser tooling' || ok=false
+    if [ "$ok" = true ]; then
+        pass "policy section covers 3-way browser-tooling split (tests / MCP / real-browser, #225)"
+    else
+        fail "policy section must cover all 3 browser tooling approaches (#225)"
+    fi
+}
+
+# #251: profile isolation for concurrent agents — INSIDE the policy section
+test_wizard_doc_mcp_profile_isolation_for_concurrent_agents() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    local section
+    section=$(extract_browser_tooling_policy_section "$DOC")
+    if echo "$section" | grep -qiE 'concurrent.*(agent|MCP client)|multiple (agent|MCP client)|profile.lock|--user-data-dir|--isolated' ; then
+        pass "policy section covers MCP profile-isolation for concurrent agent workflows (#251)"
+    else
+        fail "policy section must explain MCP profile isolation for concurrent agents (#251)"
+    fi
+}
+
+# #251: upstream Playwright rejection — INSIDE the policy section
+test_wizard_doc_notes_playwright_default_isolation_rejected() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    local section
+    section=$(extract_browser_tooling_policy_section "$DOC")
+    if echo "$section" | grep -qiE '(playwright/issues/40419|playwright/pull/40420|upstream.*rejected|very breaking)'; then
+        pass "policy section notes upstream Playwright rejected default-isolated (#251)"
+    else
+        fail "policy section must explain that upstream Playwright rejected default-isolated (#251)"
+    fi
+}
+
+# #225: trigger examples for real-browser tooling — INSIDE the policy section
+test_wizard_doc_real_browser_trigger_examples() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    local section
+    section=$(extract_browser_tooling_policy_section "$DOC")
+    if echo "$section" | grep -qiE 'registrar|DNS setup|wallet|Web3|auth.heavy|profile.dependent|stateful operator|admin panel'; then
+        pass "policy section includes real-browser trigger examples (#225)"
+    else
+        fail "policy section must include trigger examples for real-browser tooling (#225)"
+    fi
+}
+
 test_wizard_doc_recommends_opus_1m
 test_wizard_doc_frames_opus_1m_as_opt_in
 test_wizard_doc_no_default_opus_1m_wording
 test_wizard_doc_warns_against_compound_autocompact_config
 test_sdlc_skill_warns_against_compound_autocompact_config
 test_sdlc_skill_frames_opus_1m_as_opt_in
+test_wizard_doc_has_browser_tooling_policy_section
+test_wizard_doc_browser_policy_covers_three_way_split
+test_wizard_doc_mcp_profile_isolation_for_concurrent_agents
+test_wizard_doc_notes_playwright_default_isolation_rejected
+test_wizard_doc_real_browser_trigger_examples
 test_sdlc_skill_recommends_opus_1m
 test_cli_template_has_no_default_model_pin
 test_cli_template_has_no_default_autocompact
