@@ -1728,6 +1728,143 @@ JSON
 
 test_precompact_blocks_on_phantom_sha_after_escaped_quote_bracket
 test_precompact_falls_through_to_stale_path_when_no_shas
+
+# ---- #240: dry-run env vars for safe smoke-testing ----
+# Consumer issue: smoke-testing hook behavior required cp'ing real
+# .reviews/handoff.json + .git/ aside, fabricating fake state, restoring —
+# error-prone (clobbered real handoff.json mid-test). New env vars
+# SDLC_DRY_RUN_HANDOFF_STATUS and SDLC_DRY_RUN_GIT_STATE simulate state
+# without touching the filesystem. Override real state when set.
+
+test_precompact_dry_run_handoff_status_blocks_on_pending_recheck() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    # Empty project — no .reviews/, no .git/. Pre-fix: hook exits 0 silent.
+    # With env var: hook should treat status as PENDING_RECHECK → block.
+    stderr_out=$(SDLC_DRY_RUN_HANDOFF_STATUS=PENDING_RECHECK \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_RECHECK"; then
+        pass "#240: SDLC_DRY_RUN_HANDOFF_STATUS=PENDING_RECHECK simulates block (rc=2)"
+    else
+        fail "#240: dry-run handoff status should simulate block (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_dry_run_handoff_status_silent_on_certified() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    # Real handoff says PENDING; dry-run override says CERTIFIED → silent
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{"status": "PENDING_REVIEW", "round": 1}
+JSON
+    stderr_out=$(SDLC_DRY_RUN_HANDOFF_STATUS=CERTIFIED \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && [ -z "$stderr_out" ]; then
+        pass "#240: SDLC_DRY_RUN_HANDOFF_STATUS=CERTIFIED overrides real PENDING handoff (rc=0 silent)"
+    else
+        fail "#240: dry-run CERTIFIED should override real PENDING (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_dry_run_git_state_rebase_blocks() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    # No .git/, but env var simulates rebase
+    stderr_out=$(SDLC_DRY_RUN_GIT_STATE=rebase \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "rebase"; then
+        pass "#240: SDLC_DRY_RUN_GIT_STATE=rebase simulates rebase block (rc=2)"
+    else
+        fail "#240: dry-run git rebase should simulate block (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_dry_run_git_state_merge_blocks() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    stderr_out=$(SDLC_DRY_RUN_GIT_STATE=merge \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "merge"; then
+        pass "#240: SDLC_DRY_RUN_GIT_STATE=merge simulates merge block (rc=2)"
+    else
+        fail "#240: dry-run git merge should simulate block (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_dry_run_git_state_cherry_pick_blocks() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    stderr_out=$(SDLC_DRY_RUN_GIT_STATE=cherry-pick \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "cherry"; then
+        pass "#240: SDLC_DRY_RUN_GIT_STATE=cherry-pick simulates cherry-pick block (rc=2)"
+    else
+        fail "#240: dry-run cherry-pick should simulate block (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Critical: dry-run must NOT mutate real state. Run a dry-run that would
+# trigger HOLD; then re-run without dry-run env vars and confirm real
+# state (no handoff, no git op) returns silent rc=0.
+test_precompact_dry_run_does_not_mutate_real_state() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    # Run dry-run that would block. Suppress non-zero with || true so set -e
+    # doesn't terminate the test runner on the expected rc=2.
+    SDLC_DRY_RUN_HANDOFF_STATUS=PENDING_RECHECK \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null > /dev/null 2>&1 || true
+    # Now run without dry-run → real state is empty → silent
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && [ -z "$stderr_out" ]; then
+        pass "#240: dry-run does not mutate real state (subsequent real run is silent)"
+    else
+        fail "#240: dry-run should not leave persistent state (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Codex round 1 P1: invalid SDLC_DRY_RUN_GIT_STATE values (typos like
+# "bogus") used to skip the real .git/ check entirely — silently bypassing
+# the merge-in-progress safety. Now: unknown values fall through to real
+# state checks, so a typo can't disable the safety check.
+test_precompact_dry_run_git_state_typo_falls_back_to_real_check() {
+    local tmpdir rc=0 stderr_out
+    tmpdir=$(mktemp -d)
+    # Real .git/MERGE_HEAD present
+    mkdir -p "$tmpdir/.git"
+    touch "$tmpdir/.git/MERGE_HEAD"
+    # Bogus dry-run value should NOT bypass real merge-in-progress check
+    stderr_out=$(SDLC_DRY_RUN_GIT_STATE=bogus \
+        CLAUDE_PROJECT_DIR="$tmpdir" \
+        "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -qi "merge"; then
+        pass "#240 Codex#1: typo in SDLC_DRY_RUN_GIT_STATE falls back to real .git/ check (no safety bypass)"
+    else
+        fail "#240 Codex#1: typo should fall back to real check (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_dry_run_handoff_status_blocks_on_pending_recheck
+test_precompact_dry_run_handoff_status_silent_on_certified
+test_precompact_dry_run_git_state_rebase_blocks
+test_precompact_dry_run_git_state_merge_blocks
+test_precompact_dry_run_git_state_cherry_pick_blocks
+test_precompact_dry_run_git_state_typo_falls_back_to_real_check
+test_precompact_dry_run_does_not_mutate_real_state
 test_handoff_template_documents_pr_number
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt
