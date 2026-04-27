@@ -1,4 +1,4 @@
-<!-- SDLC Wizard Version: 1.42.2 -->
+<!-- SDLC Wizard Version: 1.43.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 # SDLC Configuration
@@ -7,8 +7,8 @@
 
 | Property | Value |
 |----------|-------|
-| Wizard Version | 1.42.2 |
-| Last Updated | 2026-04-24 |
+| Wizard Version | 1.43.0 |
+| Last Updated | 2026-04-27 |
 | Claude Code Baseline | v2.1.111+ (required for Opus 4.7 / `opus[1m]`) |
 | Recommended Model | `opus[1m]` (Opus 4.7, 1M context) — run `/model opus[1m]` |
 | Recommended Effort | `max` (preferred) / `xhigh` (floor) — run `/effort max` |
@@ -45,6 +45,7 @@ This repository uses the SDLC Wizard to enforce:
 | `instructions-loaded-check.sh` | Session start | Validates SDLC.md/TESTING.md exist, effort/model check |
 | `model-effort-check.sh` | Session start | Nudges upgrade when effort/model is behind recommended |
 | `precompact-seam-check.sh` | Before manual `/compact` | Blocks compact mid-Codex-review or mid-rebase/merge/cherry-pick (requires CC v2.1.105+) |
+| `token-spike-check.sh` | Session start | Warns when last session's token burn >2σ above rolling median (catches CC caching regressions; opt-in via `.metrics/`) |
 
 ## Skills Available
 
@@ -83,7 +84,8 @@ When Claude Code releases new features:
 │   ├── tdd-pretool-check.sh      # TDD reminder
 │   ├── instructions-loaded-check.sh  # Session start validation + effort/model
 │   ├── model-effort-check.sh     # SessionStart upgrade nudge
-│   └── precompact-seam-check.sh  # PreCompact seam gate (CC v2.1.105+)
+│   ├── precompact-seam-check.sh  # PreCompact seam gate (CC v2.1.105+)
+│   └── token-spike-check.sh      # SessionStart token-burn anomaly detector (#220)
 └── skills/
     ├── sdlc/SKILL.md             # SDLC workflow
     ├── setup/SKILL.md            # Setup wizard

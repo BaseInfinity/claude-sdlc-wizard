@@ -108,6 +108,9 @@ jobs:
       - name: Run hooks tests
         run: ./tests/test-hooks.sh
 
+      - name: Run token-spike anomaly tests (ROADMAP #220)
+        run: ./tests/test-token-spike.sh
+
       - name: Run compliance tests
         run: ./tests/test-compliance.sh
 

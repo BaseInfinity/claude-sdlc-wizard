@@ -4,6 +4,20 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.43.0] - 2026-04-27
+
+### Added
+
+- **Token-spike anomaly detection** (ROADMAP #220 closure). New SessionStart hook `hooks/token-spike-check.sh` walks the CC transcript dir (`~/.claude/projects/<sanitized-cwd>/*.jsonl`), sums per-session `usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` from every assistant message with a usage block, and idempotently appends one record per `session_id` to `.metrics/token-history.jsonl`. The hook then warns when the most recent completed session's `costly_tokens` (= `input + cache_creation + output`, excluding the cheap ~$1.50/M `cache_read` tier) exceeds the rolling baseline by more than 2σ. Anthropic's 2026-04-23 post-mortem documented a CC caching bug that "continuously dropped thinking blocks from subsequent requests" — invisible until the invoice arrived; this hook surfaces the same shape of regression the moment it occurs. The `--metric median` mode (default) uses MAD (median absolute deviation) instead of stdev for the spread term, so a single outlier session in the baseline doesn't mask the next genuine spike. Hook is gated on `.metrics/` existing in the project root (opt-in for consumers, on for the wizard repo which already maintains `.metrics/catches.jsonl`). 14 quality tests in `tests/test-token-spike.sh` cover burn calculation against summed transcript fields, idempotent ingest, positive/negative spike detection, the min-baseline floor (no false positives on <5-record windows), the median-vs-mean contrast (both `--metric` modes invoked, asserting median warns and mean does not on an outlier-inflated fixture), flat-baseline minimum-spread floor (1000→1100 suppressed, 1000→50000 still fires), privacy/type-coercion (a malicious transcript with `"USER_SECRET_INPUT"` strings in usage fields cannot leak content into history), concurrent-ingest atomic-lock serialization (parallel ingests produce 1 record per session), and hook gating + warning surface.
+
+### Files
+
+- New `hooks/token-spike-check.sh` (SessionStart, opt-in)
+- New `tests/e2e/token-analytics.sh` (writer + checker engine; supports `--ingest`, `--check`, `--report`, `--metric median|mean`, `--window`, `--threshold-sigma`)
+- New `tests/test-token-spike.sh` (14 quality tests)
+- Hook registered in `hooks/hooks.json` and `.claude/settings.json` SessionStart event
+- `SDLC.md` hooks table + file tree updated
+
 ## [1.42.2] - 2026-04-26
 
 ### Documented
