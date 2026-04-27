@@ -159,7 +159,8 @@ test_instructions_loaded_size_cap() {
     # fixture only exercised the loud-staleness branch (measured 557 chars,
     # cap was 3000 — 50-line bloat at 1509 still passed). This rebuilt fixture
     # stacks: loud staleness + cross-model review staleness + effort upgrade +
-    # dual-install + API review + CC release + CC version check.
+    # autocompact compound misconfig (#207) + dual-install + API review +
+    # CC release + CC version check.
     local tmpdir
     tmpdir=$(mktemp -d)
     local fakehome="$tmpdir/home"
@@ -173,6 +174,15 @@ test_instructions_loaded_size_cap() {
     echo 'testing' > "$proj/TESTING.md"
     # Effort upgrade (jq + stale effort)
     echo '{"effortLevel":"high"}' > "$proj/.claude/settings.local.json"
+    # #207: autocompact compound misconfig (both env vars set)
+    cat > "$proj/.claude/settings.json" <<'STACKED_SETTINGS'
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "400000"
+  }
+}
+STACKED_SETTINGS
     # API review nudge (weekly-api-update.yml + gh stub → 5 open)
     echo 'name: weekly-api-update' > "$proj/.github/workflows/weekly-api-update.yml"
     # CC release nudge (weekly-update.yml + gh stub → 5 open)
@@ -190,10 +200,14 @@ test_instructions_loaded_size_cap() {
     local size
     size=$(cd "$proj" && HOME="$fakehome" PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$proj" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null | wc -c | tr -d ' ')
     rm -rf "$tmpdir"
-    if [ "$size" -lt 1500 ]; then
-        pass "instructions-loaded-check stacked worst-case (all 7 branches) is bounded (${size} chars < 1500)"
+    # Cap raised 1500 → 1700 to accommodate the autocompact compound-misconfig
+    # branch added in v1.44.1 / #207. Each new diagnostic warning legitimately
+    # earns its space — but keep the cap as a brevity gate so unbounded growth
+    # gets caught.
+    if [ "$size" -lt 1700 ]; then
+        pass "instructions-loaded-check stacked worst-case (all 8 branches incl. #207) is bounded (${size} chars < 1700)"
     else
-        fail "instructions-loaded-check stacked worst-case exceeded cap (${size} chars ≥ 1500)"
+        fail "instructions-loaded-check stacked worst-case exceeded cap (${size} chars ≥ 1700)"
     fi
 }
 
@@ -2630,6 +2644,134 @@ test_instructions_hook_dual_install_non_blocking
 test_instructions_hook_dual_install_silenced_by_ack_sentinel
 test_instructions_hook_dual_install_nudge_mentions_silence
 test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent
+
+# Test (#207): when settings.json has BOTH `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`
+# AND `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, the hook must warn about the
+# compound misconfiguration. Setting both compounds (e.g. 30% × 400K = 120K
+# trigger, which is ~12% of a 1M window) — a docs footgun the consumer
+# (issue #207) hit in practice when autocompact fired at 12% context.
+test_instructions_hook_warns_on_autocompact_compound_misconfig() {
+    local tmpdir output
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.44.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.claude" "$tmpdir/bin"
+    cat > "$tmpdir/.claude/settings.json" <<'EOF'
+{
+  "model": "opus[1m]",
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "400000"
+  }
+}
+EOF
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    mkdir -p "$tmpdir/home"
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir/home" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    local ok=true
+    echo "$output" | grep -qiE 'autocompact|AUTOCOMPACT' || ok=false
+    echo "$output" | grep -q 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE' || ok=false
+    echo "$output" | grep -q 'CLAUDE_CODE_AUTO_COMPACT_WINDOW' || ok=false
+    echo "$output" | grep -qE 'compound|combined|both|alternative|pick one|either' || ok=false
+    if [ "$ok" = true ]; then
+        pass "#207: warns when settings.json has both PCT_OVERRIDE + AUTO_COMPACT_WINDOW"
+    else
+        fail "#207: expected compound-misconfig warning, got: $output"
+    fi
+}
+
+test_instructions_hook_silent_on_single_autocompact_pct_only() {
+    local tmpdir output
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.44.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.claude" "$tmpdir/bin"
+    cat > "$tmpdir/.claude/settings.json" <<'EOF'
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30"
+  }
+}
+EOF
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    mkdir -p "$tmpdir/home"
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir/home" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qiE 'autocompact.*compound|both.*autocompact|PCT_OVERRIDE.*AUTO_COMPACT_WINDOW'; then
+        fail "#207: should not warn when only PCT_OVERRIDE is set, got: $output"
+    else
+        pass "#207: silent when only PCT_OVERRIDE is set (single-knob)"
+    fi
+}
+
+test_instructions_hook_silent_on_single_autocompact_window_only() {
+    local tmpdir output
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.44.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.claude" "$tmpdir/bin"
+    cat > "$tmpdir/.claude/settings.json" <<'EOF'
+{
+  "env": {
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "400000"
+  }
+}
+EOF
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    mkdir -p "$tmpdir/home"
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir/home" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qiE 'autocompact.*compound|both.*autocompact|PCT_OVERRIDE.*AUTO_COMPACT_WINDOW'; then
+        fail "#207: should not warn when only AUTO_COMPACT_WINDOW is set, got: $output"
+    else
+        pass "#207: silent when only AUTO_COMPACT_WINDOW is set (single-knob)"
+    fi
+}
+
+# #207: warning shows effective compound trigger (30% × 400K = 120K) so user
+# can diagnose impact from the warning alone.
+test_instructions_hook_compound_warning_shows_effective_trigger() {
+    local tmpdir output
+    tmpdir=$(mktemp -d)
+    echo '<!-- SDLC Wizard Version: 1.44.0 -->' > "$tmpdir/SDLC.md"
+    touch "$tmpdir/TESTING.md"
+    mkdir -p "$tmpdir/.claude" "$tmpdir/bin"
+    cat > "$tmpdir/.claude/settings.json" <<'EOF'
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "30",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "400000"
+  }
+}
+EOF
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/npm"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/claude"
+    printf '#!/bin/bash\nexit 1\n' > "$tmpdir/bin/codex"
+    chmod +x "$tmpdir/bin/npm" "$tmpdir/bin/claude" "$tmpdir/bin/codex"
+    mkdir -p "$tmpdir/home"
+    output=$(cd "$tmpdir" && PATH="$tmpdir/bin:$PATH" CLAUDE_PROJECT_DIR="$tmpdir" HOME="$tmpdir/home" SDLC_WIZARD_CACHE_DIR="$tmpdir/cache" "$HOOKS_DIR/instructions-loaded-check.sh" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$output" | grep -qE '120000|120[Kk]|120,000'; then
+        pass "#207: warning shows effective compound trigger (120K = 30% × 400K)"
+    else
+        fail "#207: expected effective trigger (120K) in warning, got: $output"
+    fi
+}
+
+test_instructions_hook_warns_on_autocompact_compound_misconfig
+test_instructions_hook_silent_on_single_autocompact_pct_only
+test_instructions_hook_silent_on_single_autocompact_window_only
+test_instructions_hook_compound_warning_shows_effective_trigger
 
 echo ""
 echo "--- CC release review nudge (#85) ---"

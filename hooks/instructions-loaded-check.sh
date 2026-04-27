@@ -170,6 +170,28 @@ fi
 # this hook and model-effort-check.sh both fire on SessionStart, so two checks
 # would double-print the nudge and risk drifting out of sync.
 
+# Autocompact compound-misconfig check (#207). Setting BOTH
+# CLAUDE_AUTOCOMPACT_PCT_OVERRIDE and CLAUDE_CODE_AUTO_COMPACT_WINDOW
+# compounds — e.g. 30% × 400000 = 120000 token trigger, which on a 1M
+# window fires at ~12% of context. The wizard doc lists them as
+# alternatives ("PCT_OVERRIDE=30 OR AUTO_COMPACT_WINDOW=400000") but the
+# "or" is easy to misread, and the consumer in #207 hit autocompact at
+# 12% in a fresh session. Surface the misconfig with the effective
+# trigger so it's diagnosable from the warning alone.
+SETTINGS_JSON="$PROJECT_DIR/.claude/settings.json"
+if [ -f "$SETTINGS_JSON" ]; then
+    AC_PCT=$(grep -o '"CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"[[:space:]]*:[[:space:]]*"[0-9]*"' "$SETTINGS_JSON" \
+        | head -1 | sed 's/.*"\([0-9]*\)"$/\1/')
+    AC_WIN=$(grep -o '"CLAUDE_CODE_AUTO_COMPACT_WINDOW"[[:space:]]*:[[:space:]]*"[0-9]*"' "$SETTINGS_JSON" \
+        | head -1 | sed 's/.*"\([0-9]*\)"$/\1/')
+    if [ -n "$AC_PCT" ] && [ -n "$AC_WIN" ]; then
+        # Effective trigger = pct% of window (integer math; both pure digits per the regex).
+        AC_TRIGGER=$(( AC_PCT * AC_WIN / 100 ))
+        AC_PCT_OF_1M=$(( AC_TRIGGER * 100 / 1000000 ))
+        echo "WARNING: autocompact compound misconfig — CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=${AC_PCT} AND CLAUDE_CODE_AUTO_COMPACT_WINDOW=${AC_WIN} both set in .claude/settings.json compound to ${AC_TRIGGER} tokens (~${AC_PCT_OF_1M}% of 1M). Pick one — see wizard doc '1M vs 200K' (#207)."
+    fi
+fi
+
 # Dual-channel install check (#181) — nudge when CLI skills + Claude plugin both present.
 # #238: silenced once the user opts in via an ack sentinel. Sentinel is per-host
 # (lives under $SDLC_WIZARD_CACHE_DIR/dual-channel-acknowledged) since the dual
