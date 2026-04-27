@@ -4,6 +4,29 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.47.0] - 2026-04-27
+
+### Added
+
+- **Codex review progress wrapper** (closes #259). Consumer reported `codex exec` running opaquely during 1-5 minute xhigh reviews — no signal whether Codex is "still thinking" or "crashed silently". New `scripts/codex-review-with-progress.sh` backgrounds `codex exec` with the same default flags (`xhigh`, `danger-full-access`, `-o`) and emits a heartbeat to stderr every N seconds (`SDLC_CODEX_HEARTBEAT_INTERVAL`, default 10s):
+  ```
+  [codex 0m10s elapsed, 0 bytes written to .reviews/latest-review.md] still running...
+  [codex 0m20s elapsed, 1342 bytes written to .reviews/latest-review.md] still running...
+  [codex finished in 47s with rc=0]
+  ```
+  - **Signal-safe**: uses interruptible `sleep & wait` pattern (plain `sleep` blocks bash signal delivery for up to INTERVAL seconds). SIGTERM/INT/HUP propagates to the child codex within ~1s via TERM-then-KILL cleanup. No orphan codex processes after wrapper kill.
+  - **Preflight binary check**: missing/typoed `codex` binary exits 127 with a clear error before backgrounding anything.
+  - **No spurious heartbeats**: loop rechecks liveness after each sleep, so a fast-exiting codex doesn't print one final "still running..." after it has already finished.
+  - 11 quality tests (`tests/test-codex-progress-wrapper.sh`) using a stub codex binary — no real OpenAI tokens burned. Codex round 3 CERTIFIED 10/10 (rounds 1-2 surfaced subprocess management bugs: missing trap cleanup, sleep blocking signal delivery, missing-binary not exiting 127 — all fixed with regression tests).
+- `skills/sdlc/SKILL.md` Step 2 documents the wrapper as the recommended invocation for long reviews, alongside the bare `codex exec` form.
+
+### Files
+
+- `scripts/codex-review-with-progress.sh` (new, ~80 lines)
+- `tests/test-codex-progress-wrapper.sh` (new, 11 tests)
+- `.github/workflows/ci.yml` — wires the new test step
+- `skills/sdlc/SKILL.md` — Step 2 documents the wrapper
+
 ## [1.46.1] - 2026-04-27
 
 ### Fixed
