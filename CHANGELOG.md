@@ -4,6 +4,17 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.46.1] - 2026-04-27
+
+### Fixed
+
+- **`npx check` surfaces dangling+enabled plugin state** (closes #266). Consumer disabled the wizard plugin via directory rename — CC's plugin loader still tried to resolve the missing path because `~/.claude/settings.json` `enabledPlugins["sdlc-wizard@sdlc-wizard-local"] = true` was untouched. Result: every UserPromptSubmit hook crashed silently for 3 days. The wizard can't fix CC's plugin loader, but `npx agentic-sdlc-wizard check` now cross-references `enabledPlugins` against DANGLING marketplace paths and surfaces a `CRASH RISK` block with the exact remediation: edit `~/.claude/settings.json` to flip the boolean to `false`, OR run `/plugin uninstall`. Strict-boolean check (only literal `true` triggers); scoped npm package keys parse correctly via `lastIndexOf('@')`. 3 new tests; Codex CERTIFIED 10/10 round 1.
+
+### Files
+
+- `cli/init.js` — `checkMarketplacePaths()` now reads `enabledPlugins`; result objects gain `crashRisk: bool` + `enabledPluginKey: string|null`; print loop surfaces actionable `CRASH RISK` block when both DANGLING + enabled hold
+- `tests/test-cli.sh` — 3 new tests (positive crash-risk fires, negative without enabled, negative with disabled)
+
 ## [1.46.0] - 2026-04-27
 
 ### Added
