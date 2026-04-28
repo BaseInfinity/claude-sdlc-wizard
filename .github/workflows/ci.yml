@@ -111,6 +111,9 @@ jobs:
       - name: Run token-spike anomaly tests (ROADMAP #220)
         run: ./tests/test-token-spike.sh
 
+      - name: Run Codex progress wrapper tests (#259)
+        run: ./tests/test-codex-progress-wrapper.sh
+
       - name: Run compliance tests
         run: ./tests/test-compliance.sh
 
