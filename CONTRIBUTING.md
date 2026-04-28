@@ -130,13 +130,19 @@ We track scores over time using CUSUM (Cumulative Sum) to catch gradual drift th
 
 If CUSUM shows drift, we investigate before the situation worsens.
 
-## Version Update Testing
+## Version Update Testing (manual local-Max procedure, v1.51.0+)
 
-When Claude Code updates, we test:
-1. **Phase A (Regression)**: Does new CC version break our SDLC enforcement?
-2. **Phase B (Improvement)**: Do changelog-suggested changes improve scores?
+When Claude Code releases a new version, the weekly workflow opens an auto-update PR. Before merging, a maintainer runs the version-test locally on Max:
 
-Results are posted to the PR with statistical confidence.
+```bash
+npm i -g @anthropic-ai/claude-code@<new_version>
+gh pr checkout <auto_update_pr>
+tests/e2e/local-shepherd.sh <pr> --compare-baseline
+```
+
+Phase A semantics (regression — does the new CC break our SDLC?) come from the score delta vs main. Phase B semantics (do changelog-suggested doc changes help?) come from including those changes in the PR before running the shepherd.
+
+> **Historical:** through v1.50.0, this was a CI cron (`version-test` in `weekly-update.yml`). Deleted in v1.51.0 (ROADMAP #231 Phase 3a) — $8-20/run, zero merged artifacts in 30 days.
 
 ## What Makes a Good PR
 

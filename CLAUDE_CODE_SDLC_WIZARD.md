@@ -91,13 +91,20 @@ When your AI tools update, how do you know if the update is safe?
 
 This prevents both false positives (crying wolf) and false negatives (missing real regressions).
 
-**How We Apply This:**
-- Weekly workflow tests new Claude Code versions before recommending upgrade
-- Version-pinned gate: installs the specific CC version and passes it via `path_to_claude_code_executable` so E2E actually runs the new binary
-- Phase A: Does new CC version break SDLC enforcement?
-- Phase B: Do changelog-suggested improvements actually help?
-- Green CI = safe to upgrade. Red = stay on current version until fixed
-- Results shown in PR with statistical confidence
+**How We Apply This (post-ROADMAP #231 Phase 3a, v1.51.0+):**
+- Weekly workflow detects new Claude Code versions and opens an auto-update PR
+- Maintainer runs the version-test locally on Max before merging:
+  ```
+  npm i -g @anthropic-ai/claude-code@<new_version>
+  gh pr checkout <auto_update_pr>
+  tests/e2e/local-shepherd.sh <pr> --compare-baseline
+  ```
+- Phase A semantics (regression): score delta vs main shows whether the new CC version breaks our SDLC enforcement
+- Phase B semantics (improvement): include changelog-suggested doc changes in the PR before running the shepherd
+- Green delta = safe to upgrade. Red = stay on current version until fixed
+- Results posted as a check-run + PR comment with provenance (host, claude version, execution_path)
+
+**Historical:** through v1.50.0, this was a CI cron job (`version-test` in `weekly-update.yml`, $8-20/run) that auto-installed the new version and ran Phase A/B Tier 1+2. Deleted in v1.51.0 because it ran on every release detection regardless of relevance, with zero merged artifacts in 30 days.
 
 ### Benchmark Ceiling Effect (Known Issue — April 2026)
 
@@ -2967,7 +2974,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.50.0 -->
+<!-- SDLC Wizard Version: 1.51.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -4032,7 +4039,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.50.0 -->
+<!-- SDLC Wizard Version: 1.51.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

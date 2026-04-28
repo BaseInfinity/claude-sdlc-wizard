@@ -4,6 +4,28 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.51.0] - 2026-04-27
+
+### Removed
+
+- **`version-test` job in `.github/workflows/weekly-update.yml`** (319 lines) — closes ROADMAP #231 Phase 3a. The CI job ran two-phase E2E (Phase A regression + Phase B improvement) on every detected CC release with `path_to_claude_code_executable` to install + test specific versions. Cost: $8-20/run with zero merged artifacts in 30 days. Replacement: manual local-Max procedure using the v1.49.0+ shepherd (`npm i -g @anthropic-ai/claude-code@<version> && tests/e2e/local-shepherd.sh <PR> --compare-baseline`). Auto-update PRs no longer get auto-validated; the maintainer runs the shepherd before merging.
+
+### Changed
+
+- `tests/test-self-update.sh`: 3 version-test gate tests stubbed to "n/a per #231 Phase 3a" (preserves harness counters; remove after one release if no regressions). Added regression test verifying CI_CD.md documents the manual local replacement.
+- `tests/test-workflow-triggers.sh`: 4 tests updated. Test 86 inverted to ensure version-test stays deleted (any future resurrection emits VERSION_TEST_RESURRECTED). Tests 87, 93, 95 stubbed.
+- `CI_CD.md` "Two-Phase Version Testing" section rewritten with the manual local-shepherd procedure.
+- `plans/AUTO_SELF_UPDATE.md` "Two-Phase Version Testing" section marked DELETED with the local replacement runbook.
+
+### Files
+
+- `.github/workflows/weekly-update.yml` (-319 lines)
+- `tests/test-self-update.sh` (4 tests stubbed/updated)
+- `tests/test-workflow-triggers.sh` (4 tests stubbed/inverted)
+- `CI_CD.md` (1 section rewritten)
+- `plans/AUTO_SELF_UPDATE.md` (1 section rewritten)
+- Version bump 1.50.0 → 1.51.0 across the usual files
+
 ## [1.50.0] - 2026-04-27
 
 ### Added
