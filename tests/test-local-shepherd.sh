@@ -530,22 +530,26 @@ _compare_baseline_run() {
     # Mock claude: log every invocation + emit minimal valid JSON.
     _mock_claude "$bindir" "$tmpdir/claude.log"
     _mock_curl "$bindir"
-    cat > "$evaluator" <<'EOF'
+    # State file path explicit, NOT via $TMPDIR (which can be unset on Linux
+    # GHA runners — caused both calls to fall through to the "not-first"
+    # branch, masking the delta and breaking the summary test on CI).
+    local state_file="$tmpdir/_compare_eval_state"
+    cat > "$evaluator" <<EOF
 #!/bin/bash
 # Mock evaluator returning different scores per call to make delta visible.
-# First call (baseline): 7. Second call (candidate): 9. Tracked via state file.
-state="$TMPDIR/_compare_eval_state"
-[ ! -f "$state" ] && echo 0 > "$state"
-n=$(cat "$state")
-echo $((n + 1)) > "$state"
-if [ "$n" = "0" ]; then
+# First call (baseline): 7. Second call (candidate): 9.
+state="$state_file"
+[ ! -f "\$state" ] && echo 0 > "\$state"
+n=\$(cat "\$state")
+echo \$((n + 1)) > "\$state"
+if [ "\$n" = "0" ]; then
     echo '{"score":7,"max_score":10,"criteria":{"tdd_red":{"points":2}}}'
 else
     echo '{"score":9,"max_score":10,"criteria":{"tdd_red":{"points":2}}}'
 fi
 EOF
     chmod +x "$evaluator"
-    rm -f "$TMPDIR/_compare_eval_state"
+    rm -f "$state_file"
     PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
         SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
         SDLC_SHEPHERD_EVALUATOR="$evaluator" \
