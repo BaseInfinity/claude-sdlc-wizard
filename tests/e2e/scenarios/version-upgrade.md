@@ -16,9 +16,20 @@ Requirements:
 ## Purpose
 
 Validate that SDLC enforcement works correctly with a new Claude Code version.
-This scenario runs during version upgrade testing:
-1. **Phase A (Regression)**: With current SDLC docs (checks CC version didn't break us)
-2. **Phase B (Improvement)**: With updated SDLC docs (checks if suggested changes help)
+
+This scenario runs during version-upgrade testing. Through v1.50.0 it ran in CI under the `version-test` job's two-phase split:
+
+1. **Phase A (Regression, historical)**: With current SDLC docs (checks CC version didn't break us)
+2. **Phase B (Improvement, historical)**: With updated SDLC docs (checks if suggested changes help)
+
+After ROADMAP #231 Phase 3a (v1.51.0), the same scenario runs locally via the shepherd:
+
+```bash
+npm i -g @anthropic-ai/claude-code@<new_version>
+tests/e2e/local-shepherd.sh <auto_update_pr> --compare-baseline
+```
+
+Phase A semantics → score delta vs `main`. Phase B semantics → include changelog-suggested doc changes in the PR before running the shepherd.
 
 ## Expected SDLC Compliance
 

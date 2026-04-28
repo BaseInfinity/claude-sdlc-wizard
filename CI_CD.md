@@ -153,20 +153,22 @@ CI-level token tracking was removed in PR #33 — `claude-code-action@v1` does n
 9. Feeds open `friction-signal` issues into the scan for internal feedback
 10. Creates digest issues for notable findings
 
-### Two-Phase Version Testing
+### Two-Phase Version Testing — DELETED (ROADMAP #231 Phase 3a, v1.51.0)
 
-**Phase A (Regression):** Does new CC version break our SDLC enforcement?
-**Phase B (Improvement):** Do changelog-suggested changes improve scores?
+The CI `version-test` job ($8-20/run, 0 merged artifacts in 30d) was deleted on 2026-04-27. Replacement is a manual local-Max procedure:
 
-Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
+```bash
+# When the auto-update PR opens for a new CC version, run locally:
+npm i -g @anthropic-ai/claude-code@<new_version>
+gh pr checkout <auto_update_pr>
+tests/e2e/local-shepherd.sh <auto_update_pr> --compare-baseline
+# OR for prove-it (custom features intact vs stripped):
+tests/e2e/local-shepherd.sh <auto_update_pr> --compare-baseline --strip-paths '[paths]'
+```
 
-**Version-Pinned Gate:** The version-test job installs the specific new CC version and passes the binary path to all `claude-code-action` calls via `path_to_claude_code_executable`. This ensures simulations run the actual new version, not the action's bundled binary.
+The shepherd posts a check-run + PR comment with the score delta. Same Phase A/Phase B verdict semantics, run on maintainer's Max ($0 sim leg) instead of CI ($8-20 API).
 
-| Verdict | Action |
-|---------|--------|
-| STABLE/IMPROVED | Safe to merge — upgrade to new version |
-| REGRESSION | Do not merge — stay on current version until investigated |
-| PHASE_A_FAILED | New version breaks SDLC enforcement — do not upgrade |
+**Why migrated:** The CI job ran on every CC release detection regardless of relevance. Manual local run lets the maintainer batch detection across multiple releases and only run when a release looks risky.
 
 ### Runs On
 - Weekly schedule: 9 AM UTC Mondays (`cron: '0 9 * * 1'`)

@@ -18,26 +18,26 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Workflow | Detects | Suggests Changes To | Tests | Output |
 |----------|---------|---------------------|-------|--------|
-| **weekly-update** | New CC version + community patterns | N/A (Phase A) or SDLC docs (Phase B) + community patterns | Regression/Improvement + pattern testing | PR with scores |
+| **weekly-update** | New CC version + community patterns | community patterns only (version-test deleted in v1.51.0 — see below) | Community pattern testing (Tier 2); manual local-shepherd handles version regression checks | PR with scores |
 
 > **Historical (pre-2026-04-24):** `monthly-research` covered trend research → SDLC doc suggestions. Removed per ROADMAP #231 Phase 1 (zero merged artifacts in 30d, "perplexity-as-CI" antipattern). Research now happens inline in a Claude Code session.
 
-### Two-Phase Version Testing
+### Two-Phase Version Testing — DELETED (ROADMAP #231 Phase 3a, v1.51.0, 2026-04-27)
 
-**Phase A: Regression Test** ("Did the update break us?")
-- Install new Claude Code version in CI
-- Run E2E with current SDLC wizard (unchanged)
-- Compare to stored baseline
-- STABLE or IMPROVED → Safe to upgrade
-- REGRESSION → Don't upgrade, investigate
+The CI `version-test` job ($8-20/run, 0 merged artifacts in 30d) was deleted. Manual local replacement using the v1.49.0+ shepherd:
 
-**Phase B: Improvement Test** ("Does incorporating changes help?")
-- Claude analyzes changelog → auto-applies SDLC doc changes
-- Run E2E with modified docs
-- Compare to Phase A baseline using 95% CI
-- IMPROVED → Merge suggested changes
-- STABLE → Changes neutral, merge optional
-- REGRESSION → Don't merge changes
+```bash
+# When auto-update PR opens, run locally on Max:
+npm i -g @anthropic-ai/claude-code@<new_version>
+gh pr checkout <pr_number>
+tests/e2e/local-shepherd.sh <pr_number> --compare-baseline
+# Or for prove-it (intact vs stripped fixture):
+tests/e2e/local-shepherd.sh <pr_number> --compare-baseline --strip-paths '[paths]'
+```
+
+The shepherd posts a check-run + PR comment with the baseline-vs-candidate score delta. Phase A semantics (regression check on new CC version) achieved by running the shepherd against the auto-update PR. Phase B semantics (do changelog-suggested doc changes help) achieved by including those changes in the PR diff before running.
+
+**Why migrated:** the CI cron ran on every CC release detection, charging ~$8-20 per run with zero merged artifacts in 30 days. Local-Max run is $0 for the sim leg and lets the maintainer batch detections / skip uninteresting releases.
 
 ### Tier System
 
@@ -56,7 +56,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 - **Trigger:** Weekly schedule (Mondays 9 AM UTC) + manual dispatch
 - **Checks:** Claude Code GitHub releases + Reddit, HN, dev blogs, official channels
 - **Action:** Creates PR for updates (relevance shown in title) + digest issue for notable community findings
-- **E2E Testing:** Phase A (regression) + Phase B (improvement) with Tier 1 + 2, community pattern testing (Tier 2)
+- **E2E Testing:** Community pattern testing (Tier 2) only. Two-phase version testing was deleted in v1.51.0 (#231 Phase 3a) — replaced by manual `npm i + local-shepherd.sh --compare-baseline` (see Two-Phase Version Testing section above).
 
 ### Monthly Research Deep Dive — REMOVED (ROADMAP #231 Phase 1, 2026-04-24)
 The `.github/workflows/monthly-research.yml` workflow (deep research → issue → Tier 2 E2E) was deleted. Research now happens inline in a Claude Code session when the maintainer wants it.
@@ -295,9 +295,11 @@ CUSUM (Cumulative Sum) tracks deviation from target over time.
 New scenario for testing SDLC enforcement with new CC versions:
 `tests/e2e/scenarios/version-upgrade.md`
 
-Used in weekly-update workflow to validate that:
-1. New CC version doesn't break SDLC enforcement (Phase A)
-2. Changelog-suggested improvements help (Phase B)
+Used (historical, through v1.50.0) by the deleted CI `version-test` job to validate:
+1. New CC version doesn't break SDLC enforcement (Phase A semantics)
+2. Changelog-suggested improvements help (Phase B semantics)
+
+After ROADMAP #231 Phase 3a (v1.51.0), the same scenario runs locally via `tests/e2e/local-shepherd.sh <PR> --compare-baseline` — Phase A from the score delta, Phase B from including doc changes in the PR diff.
 
 ---
 

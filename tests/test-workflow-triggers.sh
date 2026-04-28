@@ -1143,11 +1143,13 @@ test_ci_score_artifact_has_retention
 # ============================================
 # Weekly-Update Consolidation Structure Tests
 # ============================================
-# These tests verify the consolidated weekly-update.yml
-# has all 4 jobs with correct dependency chains.
+# These tests verify the consolidated weekly-update.yml has the
+# expected jobs after #231 Phase 3a (3 active jobs; version-test deleted).
 
-# Test 86: weekly-update.yml has all 4 jobs (check-updates, version-test, scan-community, community-e2e-test)
-test_weekly_update_has_four_jobs() {
+# Test 86: weekly-update.yml has the still-active jobs after #231 Phase 3a
+# version-test was deleted (function replaced by manual `npm i -g
+# @anthropic-ai/claude-code@v && tests/e2e/local-shepherd.sh <PR>`).
+test_weekly_update_has_three_jobs_post_phase_3a() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
@@ -1160,51 +1162,32 @@ import yaml
 with open('$WORKFLOW') as f:
     wf = yaml.safe_load(f)
 jobs = list(wf.get('jobs', {}).keys())
-expected = ['check-updates', 'version-test', 'scan-community', 'community-e2e-test']
+# Phase 3a (#231) deleted version-test → 3 jobs remain.
+expected = ['check-updates', 'scan-community', 'community-e2e-test']
 missing = [j for j in expected if j not in jobs]
-if not missing:
+# version-test must be absent (regression: it stays deleted)
+if not missing and 'version-test' not in jobs:
     print('ALL_PRESENT')
+elif 'version-test' in jobs:
+    print('VERSION_TEST_RESURRECTED')
 else:
     print('MISSING:' + ','.join(missing))
 " > /tmp/weekly_jobs_check.txt 2>&1
 
     if grep -q "ALL_PRESENT" /tmp/weekly_jobs_check.txt; then
-        pass "weekly-update.yml has all 4 required jobs"
+        pass "weekly-update.yml has 3 active jobs (version-test deleted per Phase 3a)"
+    elif grep -q "VERSION_TEST_RESURRECTED" /tmp/weekly_jobs_check.txt; then
+        fail "weekly-update.yml has resurrected version-test — Phase 3a deletion was undone"
     else
         MISSING=$(grep "MISSING:" /tmp/weekly_jobs_check.txt | sed 's/MISSING://')
         fail "weekly-update.yml missing jobs: $MISSING"
     fi
 }
 
-# Test 87: weekly-update.yml version-test depends on check-updates
+# Test 87: n/a per #231 Phase 3a (version-test deleted, no dependency to check).
+# Stub keeps the test count stable so harness counters/CI summaries don't shift.
 test_weekly_update_version_test_needs_check_updates() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-jobs = wf.get('jobs', {})
-version_test = jobs.get('version-test', {})
-needs = version_test.get('needs', [])
-if isinstance(needs, str):
-    needs = [needs]
-if 'check-updates' in needs:
-    print('DEP_OK')
-else:
-    print('DEP_MISSING')
-" > /tmp/weekly_dep_check1.txt 2>&1
-
-    if grep -q "DEP_OK" /tmp/weekly_dep_check1.txt; then
-        pass "weekly-update.yml version-test depends on check-updates"
-    else
-        fail "weekly-update.yml version-test missing 'needs: check-updates' dependency"
-    fi
+    pass "n/a per #231 Phase 3a — version-test deleted (manual local-shepherd replaces it)"
 }
 
 # Test 88: weekly-update.yml community-e2e-test depends on scan-community
@@ -1263,7 +1246,7 @@ test_tier2_comment_matches_trial_count() { pass "test_tier2_comment_matches_tria
 # Test 92: CI Tier 2 cleans stale output between baseline and candidate sims
 test_tier2_cleans_stale_output() { pass "test_tier2_cleans_stale_output n/a per #212 Option 1 (ci.yml e2e jobs removed)"; }
 
-test_weekly_update_has_four_jobs
+test_weekly_update_has_three_jobs_post_phase_3a
 test_weekly_update_version_test_needs_check_updates
 test_weekly_update_community_e2e_needs_scan
 test_weekly_update_has_issues_permission
@@ -1278,43 +1261,17 @@ test_tier2_cleans_stale_output
 # but candidate simulations run in the test fixture. Without copying
 # applied changes into the fixture, baseline == candidate (useless).
 
-# Test 93: weekly-update.yml copies modified wizard into fixture after Phase B apply step
+# Test 93: n/a per #231 Phase 3a — version-test job deleted (Phase A/B no longer in CI)
 test_weekly_update_copies_wizard_after_apply() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    # After "Apply changelog suggestions" step, there must be a step that
-    # copies .claude/ files into the test fixture before candidate simulation
-    if grep -A 50 "Apply changelog suggestions" "$WORKFLOW" | grep -q "cp.*\.claude.*fixtures/test-repo"; then
-        pass "weekly-update.yml copies wizard into fixture after apply step"
-    else
-        fail "weekly-update.yml does NOT copy applied changes into test fixture (baseline == candidate, comparison useless)"
-    fi
+    pass "test_weekly_update_copies_wizard_after_apply n/a per #231 Phase 3a (version-test deleted)"
 }
 
 # Test 94: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
 test_monthly_copies_wizard_after_apply() { pass "test_monthly_copies_wizard_after_apply n/a per #231 Phase 1 (monthly-research.yml deleted)"; }
 
-# Test 95: weekly-update.yml cleans stale output before Phase B simulation
+# Test 95: n/a per #231 Phase 3a — version-test (Phase A/B) deleted from CI
 test_weekly_update_cleans_output_before_phase_b() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    # Between Phase A eval and Phase B sim, stale output file must be removed
-    # Otherwise candidate eval reads baseline data on silent sim failure
-    if grep -B 20 "Run scenario simulation for Phase B" "$WORKFLOW" | grep -q "rm.*claude-execution-output"; then
-        pass "weekly-update.yml cleans stale output before Phase B sim"
-    else
-        fail "weekly-update.yml does NOT clean stale output before Phase B sim (candidate eval reads baseline data on failure)"
-    fi
+    pass "test_weekly_update_cleans_output_before_phase_b n/a per #231 Phase 3a (version-test deleted)"
 }
 
 # Test 96: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
