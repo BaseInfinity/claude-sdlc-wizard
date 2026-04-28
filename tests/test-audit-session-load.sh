@@ -143,6 +143,36 @@ test_audit_ranks_by_size_descending() {
     fi
 }
 
+# Eat-our-own-dogfood: the wizard's own SKILL.md files must come in below the
+# bloat threshold the audit warns about. Phase 2 follow-up to PR #272 — the
+# audit tool flagged 2 of our 4 SKILL.md files (sdlc 12,427 tokens; update
+# 8,555 tokens) on the day we shipped it. Acting on the tool's findings closes
+# the Prove-It loop: a tool that surfaces real issues whose owner ignores them
+# is just a louder lint warning.
+test_wizard_own_skills_below_threshold() {
+    local repo_root="$SCRIPT_DIR/.."
+    local output flagged
+    output=$(SDLC_AUDIT_ROOT="$repo_root" "$AUDIT" --json 2>&1)
+    flagged=$(printf '%s' "$output" | python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.stdin.read())
+except json.JSONDecodeError:
+    print("INVALID_JSON")
+    sys.exit(0)
+flagged = [e["path"] for e in data.get("entries", [])
+           if e.get("type") == "skill" and e.get("flag") == "TRIM"]
+print("\n".join(flagged))
+' 2>/dev/null)
+    if [ -z "$flagged" ]; then
+        pass "wizard repo's own SKILL.md files all stay below 5000-token threshold"
+    elif [ "$flagged" = "INVALID_JSON" ]; then
+        fail "audit --json produced invalid JSON; cannot enforce SKILL budget"
+    else
+        fail "wizard SKILL.md files exceed token threshold (act on the tool's findings): $flagged"
+    fi
+}
+
 test_audit_exists_and_executable
 test_audit_flags_oversized_skill_as_trim_candidate
 test_audit_does_not_flag_small_files
@@ -151,6 +181,7 @@ test_audit_json_output_includes_trim_count
 test_audit_threshold_override
 test_audit_empty_repo_no_crash
 test_audit_ranks_by_size_descending
+test_wizard_own_skills_below_threshold
 
 echo ""
 echo "=== Results ==="
