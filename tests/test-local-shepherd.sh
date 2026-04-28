@@ -792,6 +792,315 @@ EOF
     fi
 }
 
+# ---- ROADMAP #231 Phase 2: --strip-paths (prove-it pattern, same-commit) ----
+# Helper: standard --compare-baseline --strip-paths run with mock evaluator
+# returning 9 for baseline (intact fixture) and 5 for candidate (stripped),
+# making the prove-it delta visible (KEEP-CUSTOM verdict).
+_strip_paths_run() {
+    local tmpdir="$1" strip_arg="${2:-[\".claude/hooks/sdlc-prompt-check.sh\"]}"
+    local bindir="$tmpdir/bin"
+    local evaluator="$tmpdir/eval.sh"
+    mkdir -p "$bindir"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    local state_file="$tmpdir/_strip_eval_state"
+    cat > "$evaluator" <<EOF
+#!/bin/bash
+state="$state_file"
+[ ! -f "\$state" ] && echo 0 > "\$state"
+n=\$(cat "\$state")
+echo \$((n + 1)) > "\$state"
+if [ "\$n" = "0" ]; then
+    echo '{"score":9,"max_score":10,"criteria":{"tdd_red":{"points":2}}}'
+else
+    echo '{"score":5,"max_score":10,"criteria":{"tdd_red":{"points":0}}}'
+fi
+EOF
+    chmod +x "$evaluator"
+    rm -f "$state_file"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
+        --compare-baseline --strip-paths "$strip_arg" \
+        > "$tmpdir/stdout.log" 2> "$tmpdir/stderr.log" || true
+}
+
+test_strip_paths_requires_compare_baseline() {
+    # Lone --strip-paths is meaningless — must error fast with a clear message.
+    # Otherwise users get silent fall-through to single-run (no comparison).
+    local tmpdir bindir
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$tmpdir/eval.sh" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$tmpdir/eval.sh"
+    local rc=0
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$tmpdir/eval.sh" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
+        --strip-paths '[".claude/hooks/sdlc-prompt-check.sh"]' \
+        > "$tmpdir/stdout.log" 2> "$tmpdir/stderr.log" || rc=$?
+    local stderr_content
+    stderr_content=$(cat "$tmpdir/stderr.log" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ "$rc" -ne 0 ] && echo "$stderr_content" | grep -qE 'compare-baseline|--compare-baseline'; then
+        pass "--strip-paths without --compare-baseline exits non-zero with clear error"
+    else
+        fail "--strip-paths alone must error (rc=$rc, stderr='$stderr_content')"
+    fi
+}
+
+test_strip_paths_rejects_non_allowlisted_path() {
+    # Security: prevents LLM hallucination from deleting arbitrary files. The
+    # prove-it allowlist (tests/e2e/lib/prove-it.sh) is the source of truth.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local rc=0
+    _strip_paths_run "$tmpdir" '["/etc/passwd"]'
+    # _strip_paths_run swallows rc — re-derive from absence of comparison rows.
+    # Better: capture rc by re-running standalone here.
+    local bindir="$tmpdir/bin"
+    rc=0
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$tmpdir/eval.sh" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl.2" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
+        --compare-baseline --strip-paths '["/etc/passwd"]' \
+        >/dev/null 2>"$tmpdir/stderr.2" || rc=$?
+    local stderr_content
+    stderr_content=$(cat "$tmpdir/stderr.2" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if [ "$rc" -ne 0 ] && echo "$stderr_content" | grep -qiE 'allowlist|allowed|/etc/passwd|no valid'; then
+        pass "--strip-paths rejects non-allowlisted paths (security: no arbitrary deletions)"
+    else
+        fail "--strip-paths must reject /etc/passwd (rc=$rc, stderr='$stderr_content')"
+    fi
+}
+
+test_strip_paths_skips_main_worktree() {
+    # Same-commit prove-it semantics: NO main worktree creation. Both runs
+    # use the current branch. Cross-commit comparison is the no-strip mode.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _strip_paths_run "$tmpdir"
+    local git_log="$tmpdir/git.log"
+    # Should NOT contain `worktree add main` or `worktree add origin/main`.
+    if ! grep -qE "worktree add.*\b(main|origin/main)\b" "$git_log" 2>/dev/null; then
+        pass "--strip-paths does not create a main worktree (same-commit mode)"
+    else
+        fail "--strip-paths must skip main worktree (git.log: $(cat $git_log 2>/dev/null | head -5))"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_strip_paths_runs_sim_twice() {
+    # Both baseline (intact fixture) and candidate (stripped fixture) run.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _strip_paths_run "$tmpdir"
+    local sim_calls
+    sim_calls=$(grep -c "^claude.*--print" "$tmpdir/claude.log" 2>/dev/null || true)
+    rm -rf "$tmpdir"
+    if [ "${sim_calls:-0}" -ge 2 ]; then
+        pass "--strip-paths runs claude --print twice (baseline + candidate)"
+    else
+        fail "--strip-paths must run claude twice (got: $sim_calls calls)"
+    fi
+}
+
+test_strip_paths_appends_two_history_rows_with_roles() {
+    # Atomic append: both rows or neither. Same contract as plain compare-baseline.
+    local tmpdir history_file baseline_row candidate_row
+    tmpdir=$(mktemp -d)
+    _strip_paths_run "$tmpdir"
+    history_file="$tmpdir/score-history.jsonl"
+    baseline_row=$(grep '"comparison_role":"baseline"' "$history_file" 2>/dev/null || true)
+    candidate_row=$(grep '"comparison_role":"candidate"' "$history_file" 2>/dev/null || true)
+    rm -rf "$tmpdir"
+    if [ -n "$baseline_row" ] && [ -n "$candidate_row" ]; then
+        pass "--strip-paths appends baseline + candidate rows with comparison_role"
+    else
+        fail "history must have both rows. baseline='$baseline_row' candidate='$candidate_row'"
+    fi
+}
+
+test_strip_paths_emits_strip_signal_in_stderr() {
+    # Operator visibility: shepherd's stderr must mention what was stripped.
+    # Otherwise a silent --strip-paths run is indistinguishable from a regular
+    # compare-baseline (same delta column in the PR comment, different cause).
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _strip_paths_run "$tmpdir"
+    local stderr_log="$tmpdir/stderr.log"
+    local combined
+    combined=$(cat "$stderr_log" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$combined" | grep -qiE 'strip|stripped|prove.it|sdlc-prompt-check'; then
+        pass "--strip-paths emits operator-visible signal mentioning strip action"
+    else
+        fail "--strip-paths must surface what was stripped. stderr: '$combined'"
+    fi
+}
+
+test_strip_paths_no_dir_leak_on_success() {
+    # Both BASELINE_DIR and CANDIDATE_DIR (if same-commit mode creates them as
+    # tmpdirs) must clean up on exit. Otherwise repeated runs accumulate.
+    local before_count after_count tmpdir
+    before_count=$(find "${TMPDIR:-/tmp}" -maxdepth 2 -type d \( -name 'sdlc-baseline-strip*' -o -name 'sdlc-candidate-strip*' \) 2>/dev/null | wc -l | tr -d ' ')
+    tmpdir=$(mktemp -d)
+    _strip_paths_run "$tmpdir"
+    after_count=$(find "${TMPDIR:-/tmp}" -maxdepth 2 -type d \( -name 'sdlc-baseline-strip*' -o -name 'sdlc-candidate-strip*' \) 2>/dev/null | wc -l | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "${after_count:-0}" -le "${before_count:-0}" ]; then
+        pass "--strip-paths does not leak strip tmpdirs (before=$before_count after=$after_count)"
+    else
+        fail "--strip-paths leaked tmpdirs (before=$before_count after=$after_count)"
+    fi
+}
+
+test_strip_paths_validates_via_prove_it_lib() {
+    # The shepherd MUST source tests/e2e/lib/prove-it.sh and use its
+    # validate_removable_paths function. This pins us to the single source of
+    # truth for the allowlist (no parallel allowlists drifting apart).
+    if grep -qE 'tests/e2e/lib/prove-it\.sh|lib/prove-it\.sh' "$SHEPHERD" 2>/dev/null \
+       && grep -qE 'validate_removable_paths|create_stripped_fixture' "$SHEPHERD" 2>/dev/null; then
+        pass "shepherd sources prove-it.sh lib (single source of truth for allowlist)"
+    else
+        fail "shepherd must source tests/e2e/lib/prove-it.sh and use its functions"
+    fi
+}
+
+test_strip_paths_equals_form_rejects_empty() {
+    # Codex P1 #2 round 1: the `--strip-paths=` form silently set STRIP_PATHS=""
+    # and fell through to single-run mode (the -n check below skipped the
+    # require-compare-baseline error). Must reject empty equals form same as
+    # bare flag with no value.
+    local tmpdir bindir
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$tmpdir/eval.sh" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$tmpdir/eval.sh"
+    local rc=0
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$tmpdir/eval.sh" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
+        --compare-baseline --strip-paths= \
+        > "$tmpdir/stdout.log" 2> "$tmpdir/stderr.log" || rc=$?
+    local stderr_content row_count
+    stderr_content=$(cat "$tmpdir/stderr.log" 2>/dev/null)
+    if [ -f "$tmpdir/score-history.jsonl" ]; then
+        row_count=$(wc -l < "$tmpdir/score-history.jsonl" 2>/dev/null | tr -d ' ')
+    else
+        row_count=0
+    fi
+    rm -rf "$tmpdir"
+    # Must error AND not append any history rows.
+    if [ "$rc" -ne 0 ] && [ "${row_count:-0}" -eq 0 ] && echo "$stderr_content" | grep -qE 'strip-paths.*requires|JSON array'; then
+        pass "--strip-paths= empty form rejected with error (no silent fall-through)"
+    else
+        fail "--strip-paths= must error (rc=$rc, rows=$row_count, stderr='$stderr_content')"
+    fi
+}
+
+test_strip_paths_no_leak_on_setup_failure() {
+    # Codex P1 #1 round 1: install cleanup trap BEFORE creating tmpdirs so
+    # an early failure (e.g., a cp / fixture-build crash) doesn't leak. We
+    # simulate by pre-counting tmpdirs, running with a forced /etc/passwd
+    # path (which exits BEFORE any tmpdir creation), and confirming no leak.
+    # The harder case (failure DURING setup) is hard to reproduce
+    # deterministically without monkey-patching cp; we rely on the trap-set
+    # ordering check below to cover it.
+    local before_count after_count tmpdir bindir
+    before_count=$(find "${TMPDIR:-/tmp}" -maxdepth 2 -type d \( -name 'sdlc-baseline-strip*' -o -name 'sdlc-candidate-strip*' -o -name 'sdlc-cand-stage*' \) 2>/dev/null | wc -l | tr -d ' ')
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$tmpdir/eval.sh" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$tmpdir/eval.sh"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$tmpdir/eval.sh" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
+        --compare-baseline --strip-paths '["/etc/passwd"]' \
+        >/dev/null 2>&1 || true
+    after_count=$(find "${TMPDIR:-/tmp}" -maxdepth 2 -type d \( -name 'sdlc-baseline-strip*' -o -name 'sdlc-candidate-strip*' -o -name 'sdlc-cand-stage*' \) 2>/dev/null | wc -l | tr -d ' ')
+    rm -rf "$tmpdir"
+    if [ "${after_count:-0}" -le "${before_count:-0}" ]; then
+        pass "early validation failure does not leak strip tmpdirs (before=$before_count after=$after_count)"
+    else
+        fail "early-failure path leaked tmpdirs (before=$before_count after=$after_count)"
+    fi
+}
+
+test_strip_paths_trap_set_before_tmpdir() {
+    # Static check: cleanup_strip_dirs and its trap MUST appear in the source
+    # BEFORE the first `mktemp -d -t sdlc-baseline-strip`. Otherwise a crash
+    # between mktemp and trap leaks. Codex P1 #1 round 1 fix.
+    local cleanup_line trap_line first_mktemp_line
+    cleanup_line=$(grep -nE 'cleanup_strip_dirs\(\) \{' "$SHEPHERD" | head -1 | cut -d: -f1)
+    trap_line=$(grep -nE "trap.*cleanup_strip_dirs.*EXIT" "$SHEPHERD" | head -1 | cut -d: -f1)
+    first_mktemp_line=$(grep -n 'mktemp -d -t sdlc-baseline-strip' "$SHEPHERD" | head -1 | cut -d: -f1)
+    if [ -n "$cleanup_line" ] && [ -n "$trap_line" ] && [ -n "$first_mktemp_line" ] \
+       && [ "$cleanup_line" -lt "$first_mktemp_line" ] \
+       && [ "$trap_line" -lt "$first_mktemp_line" ]; then
+        pass "cleanup_strip_dirs trap is installed BEFORE first strip tmpdir creation (line $trap_line < $first_mktemp_line)"
+    else
+        fail "trap-before-tmpdir invariant broken: cleanup=$cleanup_line, trap=$trap_line, first_mktemp=$first_mktemp_line"
+    fi
+}
+
+test_strip_paths_pr_comment_uses_intact_stripped_labels() {
+    # Codex P1 #3 round 1: in strip mode, the check-run + PR comment must
+    # NOT mislabel as "Baseline (main)" / "Candidate (PR)" because both are
+    # the SAME COMMIT. They must say "intact" / "stripped" with the stripped
+    # paths surfaced.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _strip_paths_run "$tmpdir"
+    local stderr_log="$tmpdir/stderr.log"
+    local combined
+    combined=$(cat "$stderr_log" 2>/dev/null)
+    rm -rf "$tmpdir"
+    # Stderr summary line is the visible signal in dry-run. Verify intact +
+    # stripped wording is present and the misleading "main" label is NOT.
+    if echo "$combined" | grep -qE 'intact-fixture|intact fixture' \
+       && echo "$combined" | grep -qE 'stripped-fixture|stripped fixture' \
+       && ! echo "$combined" | grep -qE 'baseline=.*\bmain\b'; then
+        pass "strip mode summary uses intact/stripped labels (not main/PR)"
+    else
+        fail "strip mode mislabels comparison. stderr: '$combined'"
+    fi
+}
+
 # ---- Test run ----
 test_shepherd_script_exists
 test_shepherd_usage_on_no_args
@@ -815,6 +1124,18 @@ test_compare_baseline_uses_same_scenario_for_both_runs
 test_compare_baseline_aborts_when_baseline_sim_fails
 test_compare_baseline_no_orphan_row_on_candidate_failure
 test_compare_baseline_no_baseline_tmprun_leak
+test_strip_paths_requires_compare_baseline
+test_strip_paths_rejects_non_allowlisted_path
+test_strip_paths_skips_main_worktree
+test_strip_paths_runs_sim_twice
+test_strip_paths_appends_two_history_rows_with_roles
+test_strip_paths_emits_strip_signal_in_stderr
+test_strip_paths_no_dir_leak_on_success
+test_strip_paths_validates_via_prove_it_lib
+test_strip_paths_equals_form_rejects_empty
+test_strip_paths_no_leak_on_setup_failure
+test_strip_paths_trap_set_before_tmpdir
+test_strip_paths_pr_comment_uses_intact_stripped_labels
 
 echo ""
 echo "=== Results ==="

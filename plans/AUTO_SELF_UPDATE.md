@@ -1075,22 +1075,30 @@ The `workflows: write` permission was added in commit `208ecdb` to allow pushing
 
 When the weekly-update workflow detects a new Claude Code feature that overlaps with a wizard custom feature, CI automatically runs a side-by-side Tier 2 comparison.
 
-**How it works:**
+**How it works (post-ROADMAP #231 Phase 2 migration, 2026-04-27):**
 1. `analyze-release.md` has custom feature inventory table — Claude checks for overlap
 2. `check-updates` job parses `replaces_custom` → outputs `has_overlap` + `overlap_paths`
-3. `prove-it-test` job (only runs when `has_overlap=true`):
-   - Baseline: full wizard with custom features → Tier 2 eval
-   - Candidate: wizard with overlapping custom features stripped → Tier 2 eval
-   - `compare_ci` from stats.sh → verdict: IMPROVED/STABLE/REGRESSION
-   - Maps to recommendation: KEEP CUSTOM / SWITCH TO NATIVE / TIE
-4. Posts sticky PR comment with comparison table
+3. **Local prove-it run** (replaces deleted `prove-it-test` CI job): when overlap surfaces in the auto-update PR body, the maintainer runs locally on Max:
+   ```
+   tests/e2e/local-shepherd.sh <PR> --compare-baseline --strip-paths '[paths]'
+   ```
+   - Baseline: current branch's fixture intact (with custom features) → Tier 2 eval
+   - Candidate: same fixture with `--strip-paths` files stripped → Tier 2 eval
+   - Same-commit comparison; both rows tagged `comparison_role` in score-history
+   - Posts a check-run + PR comment with the delta
+4. Maintainer reads the delta and decides KEEP CUSTOM / SWITCH TO NATIVE manually
 
-**Cost:** $0 extra on typical weeks (job skipped). ~$2.50 extra when overlap detected (within $5/week ceiling).
+**Why migrated:** the CI `prove-it-test` job ran $6-12/run on rare overlap detections, with zero merged artifacts in 30d. Local-Max replacement is $0 (sim leg on subscription) and gives the maintainer richer context to decide.
 
 **Files:**
-- `tests/e2e/lib/prove-it.sh` — path allowlist validation + fixture stripping
-- `.github/prompts/analyze-release.md` — custom feature inventory table
-- `.github/workflows/weekly-update.yml` — `prove-it-test` job + overlap outputs
+- `tests/e2e/local-shepherd.sh` — `--compare-baseline --strip-paths` flag (current implementation)
+- `tests/e2e/lib/prove-it.sh` — path allowlist validation + fixture stripping (reused, unchanged)
+- `.github/prompts/analyze-release.md` — custom feature inventory table (unchanged)
+- `.github/workflows/weekly-update.yml` — `check-updates` still emits `has_overlap`/`overlap_paths`; the `prove-it-test` job has been deleted
+
+### Historical: prove-it-test Cron Job (DELETED 2026-04-27, ROADMAP #231 Phase 2)
+
+The deleted job ran A/B Tier 2 evals on overlap detection, posted a sticky PR comment with KEEP CUSTOM / SWITCH TO NATIVE recommendation. Replaced by the local invocation above.
 
 **Current overlap audit (as of v2.1.81):**
 
