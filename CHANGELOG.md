@@ -4,6 +4,25 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.49.0] - 2026-04-27
+
+### Added
+
+- **`local-shepherd.sh --compare-baseline` flag** — closes ROADMAP #230. When set, the shepherd runs the same scenario on `main` (via `git worktree add --detach`) AND the current branch, then posts a baseline-vs-candidate delta to the check-run + PR comment. Both score-history rows are tagged with `comparison_role: "baseline" | "candidate"` so trend analytics can distinguish comparison runs from regular shepherd runs. Single-run mode (no flag) is unchanged for backward compat — no `comparison_role` field on those rows.
+  - **Atomic write** (Codex P1 round 1): both rows are appended together AFTER candidate sim+eval succeeds. A candidate failure leaves zero comparison rows in history (no orphan baseline). Verified by `test_compare_baseline_no_orphan_row_on_candidate_failure`.
+  - **Tempdir hygiene** (Codex P1 round 1): `BASELINE_TMPRUN` is nested under `TMPRUN` so the existing `trap` cleans it up on every exit path. No leaks even on early failures (history mkdir, evaluator crash). Verified by `test_compare_baseline_no_baseline_tmprun_leak`.
+  - 9 new quality tests (22/22 total in `test-local-shepherd.sh`). Codex round 2 CERTIFIED 9/10 (round 1 found 2 P1s, both fixed).
+- **Unblocks ROADMAP #231 Phase 2** — weekly-update workflow migration (currently burning $25-55/week on API). With `--compare-baseline`, the maintainer can run the comparison locally on Max instead of paying for it in CI.
+
+### Changed
+
+- `local-shepherd.sh`: provenance fields (`HOST_OS`, `CLI_VERSION`, `AUTH_MODE`, `EXECUTION_PATH`) now computed ONCE before any sim runs. Previously duplicated between baseline and candidate paths; consolidated for both DRY and correctness.
+
+### Files
+
+- `tests/e2e/local-shepherd.sh` (+247 lines, ~50 changed)
+- `tests/test-local-shepherd.sh` (+~280 lines, +9 tests)
+
 ## [1.48.0] - 2026-04-27
 
 ### Changed
