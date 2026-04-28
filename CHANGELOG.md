@@ -4,6 +4,25 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.44.0] - 2026-04-27
+
+### Fixed
+
+- **Install-path & cache hygiene** — closes #254 (P1+P2), #239, #238 filed by consumer codeguesser after upgrading 1.32.0 → 1.42.1.
+  - **#254 Bug 1 (P1)**: `cli/init.js` FILES list now ships `hooks/_find-sdlc-root.sh`. The helper is sourced by all 5 wizard hooks and provides `find_sdlc_root` + `dedupe_plugin_or_project`, but `npx ... init --force` previously didn't copy it. Result on every consumer: stderr noise (`_find-sdlc-root.sh: No such file or directory`, `dedupe_plugin_or_project: command not found`) and the SDLC walk-up logic (#171), silent-exit-for-non-SDLC-dirs (#173), and plugin/project dedupe were all silently dead.
+  - **#254 Bug 2 (P2)**: `init --force` now invalidates `~/.cache/sdlc-wizard/latest-version` (or `$SDLC_WIZARD_CACHE_DIR/latest-version` when overridden). Previously the cache held the pre-upgrade "latest" for up to 24h, producing reverse staleness nudges like `update available 1.42.1 → 1.41.1`. Console now prints a `BUST` line so the cache eviction is visible.
+  - **#254 Bug 2 / #239 (semver-direction)**: `instructions-loaded-check.sh` introduces `semver_lt` for numeric major/minor/patch comparison. Nudge gate switched from `LATEST_VERSION != INSTALLED_VERSION` (which fired on equality AND reverse direction) to `semver_lt INSTALLED LATEST` — so the nudge only fires when an actual upgrade is available. Cache reads gain a sanity check: cached "latest" must be >= installed, otherwise force a refetch.
+  - **#239 (npm failure surface)**: When `npm view` fails (e.g. EPERM from root-owned `~/.npm/_cacache/`) AND no usable cache exists, the hook now prints `npm view failed — version check unavailable (run 'npm view agentic-sdlc-wizard version' to debug)`. Previously the version-check block produced no output at all and the user had no signal that the staleness nudge was broken.
+  - **#238 (dual-channel ack sentinel)**: The "CLI skills + Claude plugin both present" warning gains an opt-in silence mechanism. Once the user runs `mkdir -p $DUAL_CACHE_DIR && touch $DUAL_ACK_FILE` (the exact command is printed inside the nudge), the warning stops firing. Sentinel lives at `$SDLC_WIZARD_CACHE_DIR/dual-channel-acknowledged` (defaults to `~/.cache/sdlc-wizard/dual-channel-acknowledged`). Removes the every-session noise that was training users to ignore all hook output.
+- 8 new tests across `tests/test-cli.sh` (75 total, +3 for #254) and `tests/test-hooks.sh` (134 total, +5 for the four bugs + Codex round-1 cache-dir-absent regression test). Codex CERTIFIED 10/10 round 2.
+
+### Files
+
+- `cli/init.js` — `FILES` list adds `_find-sdlc-root.sh`; new `invalidateVersionCache()` helper; `--force` path calls bust + logs `BUST` line
+- `hooks/instructions-loaded-check.sh` — new `semver_lt()`; cache sanity check; npm-fail surface; semver-direction nudge gate; dual-channel ack sentinel
+- `tests/test-cli.sh` — file-count test bumped 11→12; 3 new tests
+- `tests/test-hooks.sh` — 5 new tests covering all 4 bugs + Codex cache-dir-absent regression
+
 ## [1.43.0] - 2026-04-27
 
 ### Added

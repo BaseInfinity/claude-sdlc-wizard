@@ -73,7 +73,7 @@ test_dry_run_no_files() {
     rm -rf "$d"
 }
 
-# Test 4: init creates all 11 expected files (hooks + skills + settings + wizard doc)
+# Test 4: init creates all 12 expected files (hooks + helper + skills + settings + wizard doc)
 test_creates_all_files() {
     local d
     d=$(make_temp)
@@ -85,17 +85,93 @@ test_creates_all_files() {
     [ -f "$d/.claude/hooks/instructions-loaded-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/model-effort-check.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/hooks/precompact-seam-check.sh" ] && count=$((count + 1))
+    [ -f "$d/.claude/hooks/_find-sdlc-root.sh" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/sdlc/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/setup/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/update/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/.claude/skills/feedback/SKILL.md" ] && count=$((count + 1))
     [ -f "$d/CLAUDE_CODE_SDLC_WIZARD.md" ] && count=$((count + 1))
-    if [ "$count" -eq 11 ]; then
-        pass "init creates all 11 expected files"
+    if [ "$count" -eq 12 ]; then
+        pass "init creates all 12 expected files (#254 ships _find-sdlc-root.sh)"
     else
-        fail "init should create 11 files, found $count"
+        fail "init should create 12 files, found $count"
     fi
     rm -rf "$d"
+}
+
+# Test (#254 Bug 1): _find-sdlc-root.sh helper is shipped and sourceable.
+# Hooks `source "$HOOK_DIR/_find-sdlc-root.sh"` and call `dedupe_plugin_or_project`
+# defined inside. Without the helper, every session emits stderr noise:
+#   "_find-sdlc-root.sh: No such file or directory"
+#   "dedupe_plugin_or_project: command not found"
+# and the SDLC root walk-up logic is silently dead.
+test_init_ships_find_sdlc_root_helper() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    local helper="$d/.claude/hooks/_find-sdlc-root.sh"
+    if [ ! -f "$helper" ]; then
+        fail "#254 Bug 1: _find-sdlc-root.sh not shipped to .claude/hooks/"
+        rm -rf "$d"
+        return
+    fi
+    # Helper must define dedupe_plugin_or_project (referenced by hooks)
+    if ! grep -q "dedupe_plugin_or_project()" "$helper"; then
+        fail "#254 Bug 1: shipped helper missing dedupe_plugin_or_project()"
+        rm -rf "$d"
+        return
+    fi
+    # Helper must define find_sdlc_root (referenced by hooks)
+    if ! grep -q "find_sdlc_root()" "$helper"; then
+        fail "#254 Bug 1: shipped helper missing find_sdlc_root()"
+        rm -rf "$d"
+        return
+    fi
+    pass "#254 Bug 1: init ships _find-sdlc-root.sh with required functions"
+    rm -rf "$d"
+}
+
+# Test (#254 Bug 1): npm pack tarball includes hooks/_find-sdlc-root.sh.
+# Catches regressions where package.json `files` whitelist drops the helper —
+# even if cli/init.js references it, npm publish wouldn't ship it.
+test_npm_pack_includes_find_sdlc_root() {
+    if ! command -v npm > /dev/null 2>&1; then
+        pass "skipped (npm not available)"
+        return
+    fi
+    local d listing
+    d=$(make_temp)
+    # `npm pack --dry-run --json` lists files without producing a tarball
+    listing=$(cd "$SCRIPT_DIR/.." && npm pack --dry-run --json 2>/dev/null) || {
+        fail "#254 Bug 1: npm pack --dry-run failed"
+        rm -rf "$d"
+        return
+    }
+    if echo "$listing" | grep -q "hooks/_find-sdlc-root.sh"; then
+        pass "#254 Bug 1: npm pack tarball includes hooks/_find-sdlc-root.sh"
+    else
+        fail "#254 Bug 1: npm pack tarball missing hooks/_find-sdlc-root.sh — package.json files whitelist drops it"
+    fi
+    rm -rf "$d"
+}
+
+# Test (#254 Bug 2): init --force invalidates the version cache so the hook
+# re-fetches latest from npm instead of serving stale pre-upgrade values.
+# Without bust, post-upgrade hook prints reverse nudge "1.42.1 → 1.41.1".
+test_init_force_clears_version_cache() {
+    local d cache_dir
+    d=$(make_temp)
+    cache_dir=$(make_temp)
+    # Seed cache with a stale version
+    echo "1.41.1" > "$cache_dir/latest-version"
+    # Run init --force with cache override
+    (cd "$d" && SDLC_WIZARD_CACHE_DIR="$cache_dir" node "$CLI" init --force > /dev/null 2>&1)
+    if [ -f "$cache_dir/latest-version" ]; then
+        fail "#254 Bug 2: init --force should remove $cache_dir/latest-version, but it still exists"
+    else
+        pass "#254 Bug 2: init --force invalidates SDLC_WIZARD_CACHE_DIR/latest-version"
+    fi
+    rm -rf "$d" "$cache_dir"
 }
 
 # Test 5: init sets all 5 installed hooks as executable
@@ -661,6 +737,9 @@ test_help
 test_version
 test_dry_run_no_files
 test_creates_all_files
+test_init_ships_find_sdlc_root_helper
+test_npm_pack_includes_find_sdlc_root
+test_init_force_clears_version_cache
 test_hooks_executable
 test_skip_existing
 test_force_overwrite
