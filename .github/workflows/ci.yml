@@ -114,6 +114,9 @@ jobs:
       - name: Run Codex progress wrapper tests (#259)
         run: ./tests/test-codex-progress-wrapper.sh
 
+      - name: Run session-load audit tests (token bloat phase 2)
+        run: ./tests/test-audit-session-load.sh
+
       - name: Run compliance tests
         run: ./tests/test-compliance.sh
 
