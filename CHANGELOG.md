@@ -4,6 +4,23 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.48.0] - 2026-04-27
+
+### Changed
+
+- **SKILL.md trim — token bloat audit phase 2 follow-up.** PR #272's new `scripts/audit-session-load.sh` flagged 2 of 4 SKILL.md files as TRIM candidates (>=5000 tokens each — `skills/sdlc/SKILL.md` at 12,427t, `skills/update/SKILL.md` at 8,555t). Acting on the tool's findings closes the Prove-It loop: a tool that surfaces real bloat whose owner ignores it is just a louder lint warning. Both skills trimmed below threshold without losing operational content:
+  - `skills/sdlc/SKILL.md`: 12,427 → 4,995 tokens (-60%, 49,709 → 19,983 chars). Compressed prose, removed ASCII-art decoration boxes (kept the **bold sentences** they contained), tightened cross-model review section while preserving every Codex command, sandbox note, dialogue-loop template, and convergence rule. TodoWrite checklist intact (all 30 items, with `activeForm` removed since the spinner falls back to `subject` when omitted).
+  - `skills/update/SKILL.md`: 8,555 → 4,044 tokens (-53%, 34,220 → 16,179 chars). Step 1.5 CLI version detection's 30-line Node `cmp()` helper replaced with prose describing the algorithm (split on `-`, numeric major.minor.patch, prerelease ordering — `1.40.0-beta.1 < 1.40.0`). Step 3 changelog example shortened from 20-line frozen list to a placeholder pointing at the actual fetched CHANGELOG.
+  - Test anchor preservation traced manually: every grep'd phrase across `tests/test-{doc-consistency,self-update,update-skill-step-7-7,update-skill-cli-version,memory-audit-protocol,docs-usability,cli,prove-it,hooks}.sh` verified to still match. 45 unit suites + 4 e2e quick-tests green.
+- **New quality test** (`tests/test-audit-session-load.sh`): `test_wizard_own_skills_below_threshold` runs the audit on the wizard repo itself and fails if any SKILL.md flags TRIM. RED before the trim (both files flagged), GREEN after. Mutation-verifiable: bumping either file ~200 tokens flips the test red.
+- Codex round 1 CERTIFIED 10/10. No findings — Codex did its own RED/GREEN proof (stashed only the trimmed skill files to keep the new test active), verified every checklist item with shell evidence, ran the full CONTRIBUTING.md test suite, and read both files end-to-end against `git show HEAD:...` for semantic completeness.
+
+### Files
+
+- `skills/sdlc/SKILL.md` (trimmed)
+- `skills/update/SKILL.md` (trimmed)
+- `tests/test-audit-session-load.sh` (+test_wizard_own_skills_below_threshold)
+
 ## [1.47.0] - 2026-04-27
 
 ### Added
