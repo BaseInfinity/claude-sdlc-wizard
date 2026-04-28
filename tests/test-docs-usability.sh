@@ -226,6 +226,48 @@ test_readme_install_mentions_auto() {
     fi
 }
 
+# Test (#228): README main install MUST name the live-session contract — first
+# prompt auto-invocation is the default human path. Hard-to-regress wording
+# guard so a future README rewrite doesn't accidentally bury the contract.
+test_readme_install_names_first_prompt_contract() {
+    local main_install
+    main_install=$(extract_section "$README" "Install" | sed '/<details>/,$d')
+    if echo "$main_install" | grep -qiE 'first prompt|first-prompt'; then
+        pass "#228: README main install names the first-prompt auto-setup contract"
+    else
+        fail "#228: README main install must name the live-session 'first prompt' contract — not just generic 'auto'"
+    fi
+}
+
+# Test (#228): manual setup path lives ONLY in the alternative-install
+# <details> dropdown, not in the main install flow. Acceptance criterion:
+# 'manual path stays clearly documented as advanced/manual only'.
+test_readme_manual_setup_only_in_details_block() {
+    local main_install
+    main_install=$(extract_section "$README" "Install" | sed '/<details>/,$d')
+    # Main flow must NOT contain "tell Claude" / "Run the SDLC wizard setup"
+    # phrasing — those belong inside the manual escape-hatch dropdown only.
+    if echo "$main_install" | grep -qiE 'tell claude.*run the sdlc|tell claude.*setup'; then
+        fail "#228: 'Tell Claude run setup' phrasing should be inside the alternative-install <details> only, not the main flow"
+    else
+        pass "#228: manual setup phrasing is confined to the alternative-install dropdown"
+    fi
+}
+
+# Test (#228): the manual-setup entry in the alternative-install dropdown
+# is labeled as advanced/escape-hatch (not as a peer to npx/curl/brew/gh).
+# Without this label, agents and users may pick manual setup as if it's
+# a normal alternative — defeating the live-session contract.
+test_readme_manual_setup_labeled_advanced() {
+    # The manual entry should signal it's not the default. Look for any of:
+    # "advanced", "escape hatch", "fallback", "only when", "only intended"
+    if grep -qE 'Manual.*advanced|Manual.*escape hatch|Manual.*fallback|Manual.*only.{1,30}(when|intended)' "$README"; then
+        pass "#228: README labels manual setup as advanced/escape-hatch"
+    else
+        fail "#228: README manual-setup entry needs an 'advanced/escape-hatch only' label so it's not picked as a peer alternative"
+    fi
+}
+
 # ---------------------------------------------------------------------------
 # Setup skill — must force-read the wizard doc
 # ---------------------------------------------------------------------------
@@ -421,6 +463,9 @@ test_readme_install_mentions_claude_code
 test_readme_install_mentions_bang_prefix
 test_readme_install_no_manual_setup
 test_readme_install_mentions_auto
+test_readme_install_names_first_prompt_contract
+test_readme_manual_setup_only_in_details_block
+test_readme_manual_setup_labeled_advanced
 
 echo ""
 echo "--- Setup skill ---"

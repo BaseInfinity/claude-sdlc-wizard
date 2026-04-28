@@ -45,7 +45,7 @@ npm install -g agentic-sdlc-wizard
 sdlc-wizard init
 ```
 
-**Manual:** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and tell Claude `Run the SDLC wizard setup`.
+**Manual (advanced — escape hatch only):** Download `CLAUDE_CODE_SDLC_WIZARD.md` to your project and tell Claude `Run the SDLC wizard setup`. This skips the live-session auto-invoke and is only intended for environments where `npx`, `curl`, `brew`, and `gh` are all unavailable. The default human path is `npx init` → restart CC → first-prompt auto-setup, not this manual flow.
 </details>
 
 <details>
