@@ -170,16 +170,18 @@ When auto-approving, still announce your approach — just don't wait for approv
 
 ## Recommended Model
 
-**Default: `opus[1m]` (Opus 4.7 with 1M context window).** Run `/model opus[1m]` at the start of any non-trivial SDLC session.
+**Opt-in: `opus[1m]` (Opus 4.7 with 1M context window).** Run `/model opus[1m]` at the start of any non-trivial SDLC session — but understand the tradeoff first (issue #198).
 
-**Why:**
+**Why opt-in, not default:** A top-level `model` pin in `.claude/settings.json` disables Claude Code's per-turn model auto-selection. That's a real cost — Max-plan users pay for that auto-selection (Sonnet for cheap tasks, Opus for hard ones, plus weekly-limit smoothing). Pin only when you actually need the 1M headroom.
+
+**Why pin to `opus[1m]` when you do opt in:**
 - SDLC sessions (plan → TDD → review → CI shepherd) accumulate context fast — plans, test output, diffs, review artifacts. 200K fills up before you're done.
 - Forced auto-compact mid-task loses your working state. Extra headroom is cheaper than re-reading files.
 - At time of writing, Anthropic lists 1M context at standard pricing for supported Opus/Sonnet models — verify current rates for your plan before relying on this.
 
 **Requires Claude Code v2.1.111+** for Opus 4.7.
 
-**Pair with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`.** Without it, CC's default auto-compact on 1M fires at ~76K and defeats the purpose. The wizard's `cli/templates/settings.json` sets both defaults on install.
+**Pair with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30`** when you opt in. Without it, CC's default auto-compact on 1M fires at ~76K and defeats the purpose. The setup wizard's Step 9.5 prompts to write both together (template ships with neither, opt-in only).
 
 **Fall back to `opus` (200K) only when:** your plan charges a premium for long-context prompts, the task is genuinely short (<30K), or team cost controls flag >200K prompts. See the "1M vs 200K Context Window" section in `CLAUDE_CODE_SDLC_WIZARD.md` for details.
 
@@ -606,7 +608,7 @@ CI passes -> Read review suggestions
 - `/clear` after 2+ failed corrections (context polluted — start fresh with better prompt)
 - Auto-compact fires at ~95% capacity — no manual management needed
 - After committing a PR, `/clear` before starting the next feature
-- **Autocompact tuning:** Set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to trigger compaction earlier (75% for 200K, 30% for 1M). On 1M models, the default fires at ~76K — set 30% or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` to use the full context window. See wizard doc "Autocompact Tuning" for full details
+- **Autocompact tuning:** Set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` to trigger compaction earlier (75% for 200K, 30% for 1M). On 1M models, the default fires at ~76K — pick ONE of: `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` **OR** `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` (do NOT set both — they compound to 30% × 400K = 120K trigger ≈ 12% of 1M, which fires almost immediately, #207). See wizard doc "Autocompact Tuning" for full details
 
 **`--bare` mode (v2.1.81+):** `claude -p "prompt" --bare` skips ALL hooks, skills, LSP, and plugins. This is a complete wizard bypass — no SDLC enforcement, no TDD checks, no planning hooks. Use only for scripted headless calls (CI pipelines, automation) where you explicitly don't want wizard enforcement. Never use `--bare` for normal development work.
 

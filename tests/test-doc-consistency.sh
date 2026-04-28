@@ -482,9 +482,53 @@ test_wizard_doc_mentions_permissions_command() {
     fi
 }
 
+# Test (#207): the wizard doc must explicitly warn that PCT_OVERRIDE and
+# AUTO_COMPACT_WINDOW are ALTERNATIVES, not complementary. Setting both
+# compounds (30% × 400K = 120K trigger = ~12% of 1M) — the consumer hit
+# this in practice and autocompact fired at 12% context.
+test_wizard_doc_warns_against_compound_autocompact_config() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -qE '(do not set both|don.t set both|alternatives.*not|pick one.*not both|either.*PCT_OVERRIDE.*or.*AUTO_COMPACT_WINDOW|setting both.*compound)' "$DOC"; then
+        pass "wizard doc explicitly marks PCT_OVERRIDE / AUTO_COMPACT_WINDOW as alternatives (#207)"
+    else
+        fail "wizard doc must warn against setting both PCT_OVERRIDE AND AUTO_COMPACT_WINDOW (compound trigger footgun, #207)"
+    fi
+}
+
+# Test (#207, Codex round 1 finding 2): the SHIPPED `/sdlc` skill must not
+# repeat the ambiguous "30 or AUTO_COMPACT_WINDOW=400000" wording. This file
+# is distributed via npm to consumers' .claude/skills/sdlc/, so doc drift
+# here puts the same footgun back in front of every user.
+test_sdlc_skill_warns_against_compound_autocompact_config() {
+    local SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
+    if [ ! -f "$SKILL" ]; then fail "skills/sdlc/SKILL.md not found"; return; fi
+    if grep -qE '(do not set both|don.t set both|do NOT set both|pick one|alternatives.*not)' "$SKILL"; then
+        pass "skills/sdlc/SKILL.md warns against autocompact compound config (#207)"
+    else
+        fail "skills/sdlc/SKILL.md must warn against PCT_OVERRIDE + AUTO_COMPACT_WINDOW compound (#207)"
+    fi
+}
+
+# Test (#207, Codex round 1 finding 2): the shipped `/sdlc` skill must frame
+# opus[1m] as opt-in (matching the wizard doc post-#198), not default.
+test_sdlc_skill_frames_opus_1m_as_opt_in() {
+    local SKILL="$REPO_ROOT/skills/sdlc/SKILL.md"
+    if [ ! -f "$SKILL" ]; then fail "skills/sdlc/SKILL.md not found"; return; fi
+    # Must explicitly say "opt-in" or "issue #198" in the Recommended Model section.
+    if grep -qE 'Opt-in:.*opus\[1m\]|opt-in.*opus\[1m\]|opus\[1m\].*opt-in|issue #198' "$SKILL"; then
+        pass "skills/sdlc/SKILL.md frames opus[1m] as opt-in (#198, #207 round 1)"
+    else
+        fail "skills/sdlc/SKILL.md must frame opus[1m] as opt-in, not default (#198)"
+    fi
+}
+
 test_wizard_doc_recommends_opus_1m
 test_wizard_doc_frames_opus_1m_as_opt_in
 test_wizard_doc_no_default_opus_1m_wording
+test_wizard_doc_warns_against_compound_autocompact_config
+test_sdlc_skill_warns_against_compound_autocompact_config
+test_sdlc_skill_frames_opus_1m_as_opt_in
 test_sdlc_skill_recommends_opus_1m
 test_cli_template_has_no_default_model_pin
 test_cli_template_has_no_default_autocompact

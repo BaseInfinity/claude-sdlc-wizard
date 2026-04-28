@@ -1005,7 +1005,9 @@ Claude Code supports both 200K and 1M context windows. **`opus[1m]` is an opt-in
 | **Cost** | Standard pricing | Anthropic currently lists the 1M window at standard pricing across the full context for supported Opus/Sonnet models — **verify current rates at [docs.anthropic.com/pricing](https://docs.anthropic.com/)** before assuming no premium |
 | **Auto-mode** | **Enabled** — Claude Code chooses model per turn | **Disabled** — top-level `model` tells CC you've chosen explicitly |
 | **Auto-compact** | Default ~95% works well | Fires at ~76K by default ([issue #34332](https://github.com/anthropics/claude-code/issues/34332)) — pair with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` |
-| **Suggested override (if you pin)** | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` or `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` |
+| **Suggested override (if you pin)** | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=75` | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` **OR** `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` (pick one) |
+
+> **⚠ Do NOT set both.** `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` and `CLAUDE_CODE_AUTO_COMPACT_WINDOW` are alternatives, not complementary. Setting both compounds: `30% × 400000 = 120000` tokens, which is ~12% of a 1M window — autocompact fires almost immediately, destroying the headroom you opted in for. Pick one knob: either lower the trigger percentage (`PCT_OVERRIDE=30`) on the model's default 1M window, OR cap the working window (`AUTO_COMPACT_WINDOW=400000`) at the model's default 95% trigger. The `instructions-loaded-check.sh` `InstructionsLoaded` hook (fires on session start/resume) detects this misconfig and prints the effective trigger so you can debug from the warning alone (#207).
 
 **Why `opus[1m]` is opt-in (issue #198):**
 - **Pinning disables auto-mode.** Max-plan users pay for Claude Code's per-turn model selection (Sonnet for cheap tasks, Opus for hard ones, plus weekly-limit smoothing). A top-level `model` gives that up.
@@ -2918,7 +2920,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.44.0 -->
+<!-- SDLC Wizard Version: 1.44.1 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3983,7 +3985,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.44.0 -->
+<!-- SDLC Wizard Version: 1.44.1 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

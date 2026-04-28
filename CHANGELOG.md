@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.44.1] - 2026-04-27
+
+### Fixed
+
+- **Autocompact compound-misconfig detection** — closes #207. Consumer reported autocompact firing at 12% context on a fresh `opus[1m]` session because they set BOTH `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=30` AND `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` (a natural misreading of `CLAUDE_CODE_SDLC_WIZARD.md:1008`'s "or"-joined cell). The two compound: `30% × 400000 = 120000 tokens ≈ 12% of 1M`.
+  - **Doc fix**: `CLAUDE_CODE_SDLC_WIZARD.md` 1M-vs-200K table now writes `**OR** ... (pick one)` and adds a `> ⚠ Do NOT set both` callout that explains the compound math and points at the runtime detection.
+  - **Runtime detection**: `instructions-loaded-check.sh` (InstructionsLoaded hook) reads `.claude/settings.json` for both env vars, computes the effective trigger, and warns with the math when both are set — diagnosable from the warning alone.
+  - **Shipped skill drift**: `skills/sdlc/SKILL.md` was still calling `opus[1m]` the "default" (stale post-#198) AND repeating the same ambiguous "30 or 400000" wording it ships to consumers. Both fixed: opus[1m] now framed as opt-in with #198 reference; autocompact tuning line says "pick ONE of: ... OR ... (do NOT set both)".
+- 4 new test-hooks tests (warns / silent on PCT-only / silent on WINDOW-only / shows effective trigger), 3 new test-doc-consistency tests (wizard doc + sdlc skill regression guards), size-cap test fixture extended to include the new branch (cap raised 1500 → 1700 to accommodate). Codex round 2 CERTIFIED 9/10 (round 1 surfaced the size-cap, shipped-skill drift, and InstructionsLoaded vs SessionStart wording — all fixed).
+
+### Files
+
+- `hooks/instructions-loaded-check.sh` — new compound-misconfig detection block (single-line warning with full env var names + effective trigger math)
+- `CLAUDE_CODE_SDLC_WIZARD.md` — line 1008 alternatives clarification + `> ⚠ Do NOT set both` callout
+- `skills/sdlc/SKILL.md` — `opus[1m]` reframed `Default` → `Opt-in` (matches wizard doc post-#198); autocompact tuning line now warns against the compound config
+- `tests/test-hooks.sh` — 4 new tests + size-cap fixture extended + cap raised
+- `tests/test-doc-consistency.sh` — 3 new regression guards (wizard doc + sdlc skill)
+
 ## [1.44.0] - 2026-04-27
 
 ### Fixed
