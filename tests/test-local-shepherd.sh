@@ -67,12 +67,54 @@ EOF
 
 # Writes a mock `git` that emits a controllable HEAD SHA for `rev-parse HEAD`.
 _mock_git() {
-    local bindir="$1" head_sha="${2:-abcd1234}"
+    local bindir="$1" head_sha="${2:-abcd1234}" log_file="${3:-/dev/null}"
     mkdir -p "$bindir"
     cat > "$bindir/git" <<EOF
 #!/bin/bash
+echo "git \$*" >> "$log_file"
 case "\$1 \$2" in
     "rev-parse HEAD") echo "$head_sha" ;;
+    "worktree add")
+        # Mock worktree creation: the shepherd may pushd into the path,
+        # so the dir must actually exist. git worktree add format:
+        #   git worktree add [<options>] <path> [<commit-ish>]
+        # Path is the first non-flag positional arg AFTER 'worktree add'.
+        # Walk past 'worktree' and 'add', then past flags (--detach, --force,
+        # -b, --reason, etc.), then the next non-flag is <path>.
+        path=""
+        shift 2  # consume 'worktree' 'add'
+        skip_next=0
+        while [ \$# -gt 0 ]; do
+            if [ "\$skip_next" = "1" ]; then skip_next=0; shift; continue; fi
+            case "\$1" in
+                -b|-B|--reason) skip_next=1; shift ;;
+                --) shift; break ;;
+                -*) shift ;;  # boolean flag
+                *) path="\$1"; break ;;
+            esac
+        done
+        if [ -n "\$path" ]; then
+            mkdir -p "\$path"
+            # Populate with the minimum the shepherd needs: scenarios + fixtures.
+            if [ -d "$REPO_ROOT/tests/e2e/scenarios" ]; then
+                mkdir -p "\$path/tests/e2e"
+                cp -R "$REPO_ROOT/tests/e2e/scenarios" "\$path/tests/e2e/" 2>/dev/null
+                [ -d "$REPO_ROOT/tests/e2e/fixtures" ] && cp -R "$REPO_ROOT/tests/e2e/fixtures" "\$path/tests/e2e/" 2>/dev/null
+            fi
+        fi
+        ;;
+    "worktree remove")
+        # Path is first non-flag arg after 'worktree remove'.
+        path=""
+        shift 2
+        while [ \$# -gt 0 ]; do
+            case "\$1" in
+                -*) shift ;;
+                *) path="\$1"; break ;;
+            esac
+        done
+        [ -n "\$path" ] && [ -d "\$path" ] && rm -rf "\$path"
+        ;;
     *) exit 0 ;;
 esac
 EOF
@@ -470,6 +512,286 @@ test_shepherd_prompt_has_required_signatures() {
     fi
 }
 
+# ---- ROADMAP #230: --compare-baseline mode ----
+# Single-scenario delta between candidate (current branch) and baseline (main).
+# Unblocks #231 Phase 2 weekly-update migration. Stub-friendly via mocks; no
+# real claude/gh/git calls.
+
+# Helper: shared compare-baseline harness — sets up mocks, runs shepherd with
+# --compare-baseline, returns paths. Caller asserts on the captured artifacts.
+_compare_baseline_run() {
+    local tmpdir="$1"
+    local bindir="$tmpdir/bin"
+    local evaluator="$tmpdir/eval.sh"
+    mkdir -p "$bindir"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    # Fresh git mock with worktree support; both commands log into git.log.
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    # Mock claude: log every invocation + emit minimal valid JSON.
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    # State file path explicit, NOT via $TMPDIR (which can be unset on Linux
+    # GHA runners — caused both calls to fall through to the "not-first"
+    # branch, masking the delta and breaking the summary test on CI).
+    local state_file="$tmpdir/_compare_eval_state"
+    cat > "$evaluator" <<EOF
+#!/bin/bash
+# Mock evaluator returning different scores per call to make delta visible.
+# First call (baseline): 7. Second call (candidate): 9.
+state="$state_file"
+[ ! -f "\$state" ] && echo 0 > "\$state"
+n=\$(cat "\$state")
+echo \$((n + 1)) > "\$state"
+if [ "\$n" = "0" ]; then
+    echo '{"score":7,"max_score":10,"criteria":{"tdd_red":{"points":2}}}'
+else
+    echo '{"score":9,"max_score":10,"criteria":{"tdd_red":{"points":2}}}'
+fi
+EOF
+    chmod +x "$evaluator"
+    rm -f "$state_file"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
+        > "$tmpdir/stdout.log" 2> "$tmpdir/stderr.log" || true
+}
+
+test_compare_baseline_creates_main_worktree() {
+    # The whole point: run baseline against a clean main checkout, not the
+    # current branch's working tree. git worktree add main <path> is the spec.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    local git_log="$tmpdir/git.log"
+    if grep -qE "worktree add.*main|worktree add.*--detach|worktree add" "$git_log" 2>/dev/null \
+       && grep -q "worktree add" "$git_log" 2>/dev/null \
+       && grep -qE "main|origin/main" "$git_log" 2>/dev/null; then
+        pass "compare-baseline creates a main worktree (git worktree add main)"
+    else
+        fail "compare-baseline must call 'git worktree add ... main' (git.log: $(cat $git_log 2>/dev/null | head -5))"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_compare_baseline_runs_sim_twice() {
+    # Two simulations: baseline + candidate. claude gets called twice with the
+    # same parity flags but in different working dirs.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    local claude_log="$tmpdir/claude.log"
+    # Each invocation logs a line beginning "claude". Count non-version calls.
+    local sim_calls
+    sim_calls=$(grep -c "^claude.*--print" "$claude_log" 2>/dev/null || true)
+    rm -rf "$tmpdir"
+    if [ "${sim_calls:-0}" -ge 2 ]; then
+        pass "compare-baseline runs claude --print twice (baseline + candidate)"
+    else
+        fail "compare-baseline must run claude twice (got: $sim_calls calls)"
+    fi
+}
+
+test_compare_baseline_appends_two_history_rows_with_roles() {
+    # score-history must distinguish baseline vs candidate rows. New field
+    # comparison_role: "baseline" | "candidate". Without it, mixed comparison
+    # rows poison CUSUM/trend analytics same way local-vs-CI mixing does.
+    local tmpdir history_file baseline_row candidate_row
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    history_file="$tmpdir/score-history.jsonl"
+    baseline_row=$(grep '"comparison_role":"baseline"' "$history_file" 2>/dev/null || true)
+    candidate_row=$(grep '"comparison_role":"candidate"' "$history_file" 2>/dev/null || true)
+    rm -rf "$tmpdir"
+    if [ -n "$baseline_row" ] && [ -n "$candidate_row" ]; then
+        pass "compare-baseline appends two rows with comparison_role=baseline AND =candidate"
+    else
+        fail "score-history must have role-tagged rows. baseline='$baseline_row' candidate='$candidate_row'"
+    fi
+}
+
+test_compare_baseline_posts_delta_summary() {
+    # In non-dry-run mode, posts ONE check-run + ONE PR comment showing both
+    # scores + delta. Dry-run mode (used in this harness) writes the comment
+    # body to a known location for inspection but skips the gh side effects.
+    # Spec: stderr/stdout summary mentions both scores + delta — visible to
+    # the user even in dry-run.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    local stderr_log="$tmpdir/stderr.log" stdout_log="$tmpdir/stdout.log"
+    local combined
+    combined="$(cat "$stderr_log" "$stdout_log" 2>/dev/null)"
+    rm -rf "$tmpdir"
+    # Mock evaluator returns 7 then 9, delta = +2. Look for both scores + a
+    # delta indicator (Δ, "delta", or signed integer like "+2").
+    if echo "$combined" | grep -qE 'baseline.*7' \
+       && echo "$combined" | grep -qE 'candidate.*9' \
+       && echo "$combined" | grep -qE 'delta|Δ|\+2|change'; then
+        pass "compare-baseline summarizes baseline=7, candidate=9, delta=+2"
+    else
+        fail "compare-baseline summary missing scores+delta. Output: '$combined'"
+    fi
+}
+
+test_compare_baseline_cleans_up_worktree_on_exit() {
+    # Worktree must be removed (or at least pruned) on shepherd exit. Otherwise
+    # repeated runs accumulate stale worktrees and confuse the next git op.
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    local git_log="$tmpdir/git.log"
+    if grep -qE "worktree (remove|prune)" "$git_log" 2>/dev/null; then
+        pass "compare-baseline runs 'git worktree remove' (or prune) on exit"
+    else
+        fail "compare-baseline must clean up worktree (git.log: $(cat $git_log 2>/dev/null | head -5))"
+    fi
+    rm -rf "$tmpdir"
+}
+
+test_compare_baseline_uses_same_scenario_for_both_runs() {
+    # Comparing apples to apples: baseline + candidate must run the SAME
+    # scenario. Otherwise the delta is meaningless. Scenario is selected once
+    # (round-robin by PR number) and reused.
+    local tmpdir history_file baseline_scenario candidate_scenario
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    history_file="$tmpdir/score-history.jsonl"
+    baseline_scenario=$(grep '"comparison_role":"baseline"' "$history_file" 2>/dev/null \
+        | head -1 | jq -r '.scenario // empty' 2>/dev/null || true)
+    candidate_scenario=$(grep '"comparison_role":"candidate"' "$history_file" 2>/dev/null \
+        | head -1 | jq -r '.scenario // empty' 2>/dev/null || true)
+    rm -rf "$tmpdir"
+    if [ -n "$baseline_scenario" ] && [ "$baseline_scenario" = "$candidate_scenario" ]; then
+        pass "compare-baseline reuses one scenario for both runs ($baseline_scenario)"
+    else
+        fail "scenarios diverged: baseline='$baseline_scenario' candidate='$candidate_scenario'"
+    fi
+}
+
+test_compare_baseline_no_orphan_row_on_candidate_failure() {
+    # Codex P1 #1 round-1 finding: baseline row was appended BEFORE candidate
+    # ran, so a candidate crash left an orphan baseline-only row in history
+    # — poisoning trend analytics with half-comparisons. Fix: defer both
+    # appends until candidate sim+eval succeed (atomic write of both rows).
+    # This test crashes the candidate (second claude call) and asserts zero
+    # rows were appended for that comparison.
+    local tmpdir bindir evaluator
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    # Mock claude that succeeds on baseline (call 1) but fails on candidate (call 2).
+    mkdir -p "$bindir"
+    local state_file="$tmpdir/claude-state"
+    echo 0 > "$state_file"
+    cat > "$bindir/claude" <<EOF
+#!/bin/bash
+if [ "\$1" = "--version" ]; then echo "2.1.118"; exit 0; fi
+n=\$(cat "$state_file")
+echo \$((n + 1)) > "$state_file"
+if [ "\$n" = "0" ]; then
+    cat <<JSON
+{"type":"result","session_id":"mock","result":"TodoWrite. Confidence: HIGH. tests/x.test.js","total_cost_usd":0,"num_turns":3}
+JSON
+    exit 0
+else
+    echo "candidate crash" >&2
+    exit 42
+fi
+EOF
+    chmod +x "$bindir/claude"
+    _mock_curl "$bindir"
+    cat > "$tmpdir/eval.sh" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$tmpdir/eval.sh"
+    local rc=0
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$tmpdir/eval.sh" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
+        >/dev/null 2>&1 || rc=$?
+    # File may not exist if shepherd aborts before mkdir — treat as zero rows.
+    local row_count
+    if [ -f "$tmpdir/score-history.jsonl" ]; then
+        row_count=$(wc -l < "$tmpdir/score-history.jsonl" 2>/dev/null | tr -d ' ')
+    else
+        row_count=0
+    fi
+    rm -rf "$tmpdir"
+    if [ "$rc" -ne 0 ] && [ "${row_count:-0}" -eq 0 ]; then
+        pass "candidate failure leaves zero comparison rows (no orphan baseline)"
+    else
+        fail "candidate crash must NOT write orphan baseline row (rc=$rc, history_rows=$row_count)"
+    fi
+}
+
+test_compare_baseline_no_baseline_tmprun_leak() {
+    # Codex P1 #2 round-1 finding: BASELINE_TMPRUN was created via mktemp -d
+    # outside the trap-managed cleanup. If anything failed before the manual
+    # rm -rf, the dir leaked. Fix: nest under TMPRUN so the existing trap
+    # covers it. This test verifies no /tmp/sdlc-baseline.* dirs survive a
+    # successful run (mock claude + eval succeed; we just check housekeeping).
+    local tmpdir bindir evaluator before_count after_count
+    before_count=$(find "${TMPDIR:-/tmp}" -maxdepth 2 -type d -name 'sdlc-baseline*' 2>/dev/null | wc -l | tr -d ' ')
+    tmpdir=$(mktemp -d)
+    _compare_baseline_run "$tmpdir"
+    after_count=$(find "${TMPDIR:-/tmp}" -maxdepth 2 -type d -name 'sdlc-baseline*' 2>/dev/null | wc -l | tr -d ' ')
+    rm -rf "$tmpdir"
+    # Allow zero growth (or even shrinkage from the cleanup of pre-existing
+    # dirs). Fail only if we LEAK new ones.
+    if [ "${after_count:-0}" -le "${before_count:-0}" ]; then
+        pass "compare-baseline does not leak BASELINE_TMPRUN dirs (before=$before_count after=$after_count)"
+    else
+        fail "BASELINE_TMPRUN leaked (before=$before_count after=$after_count)"
+    fi
+}
+
+test_compare_baseline_aborts_when_baseline_sim_fails() {
+    # If baseline fails, candidate must NOT run, exit code is 1, and we don't
+    # post a partial comparison comment.
+    local tmpdir bindir evaluator
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    # Crash claude on every call — baseline run will be the first to crash,
+    # so candidate should never be attempted.
+    mkdir -p "$bindir"
+    cat > "$bindir/claude" <<'EOF'
+#!/bin/bash
+if [ "$1" = "--version" ]; then echo "2.1.118"; exit 0; fi
+echo "simulated claude crash" >&2
+exit 42
+EOF
+    chmod +x "$bindir/claude"
+    _mock_curl "$bindir"
+    cat > "$tmpdir/eval.sh" <<'EOF'
+#!/bin/bash
+echo '{"score":8,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$tmpdir/eval.sh"
+    local rc=0
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$tmpdir/eval.sh" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
+        >/dev/null 2>&1 || rc=$?
+    local has_candidate
+    has_candidate=$(grep -c '"comparison_role":"candidate"' "$tmpdir/score-history.jsonl" 2>/dev/null || echo 0)
+    rm -rf "$tmpdir"
+    if [ "$rc" -ne 0 ] && [ "${has_candidate:-0}" -eq 0 ]; then
+        pass "compare-baseline aborts on baseline sim failure (rc=$rc, no candidate row written)"
+    else
+        fail "baseline failure must abort (rc=$rc, candidate_rows=$has_candidate)"
+    fi
+}
+
 # ---- Test run ----
 test_shepherd_script_exists
 test_shepherd_usage_on_no_args
@@ -484,6 +806,15 @@ test_shepherd_exits_1_on_claude_failure
 test_shepherd_exits_1_on_evaluator_failure
 test_shepherd_exits_1_on_checkrun_failure
 test_shepherd_prompt_has_required_signatures
+test_compare_baseline_creates_main_worktree
+test_compare_baseline_runs_sim_twice
+test_compare_baseline_appends_two_history_rows_with_roles
+test_compare_baseline_posts_delta_summary
+test_compare_baseline_cleans_up_worktree_on_exit
+test_compare_baseline_uses_same_scenario_for_both_runs
+test_compare_baseline_aborts_when_baseline_sim_fails
+test_compare_baseline_no_orphan_row_on_candidate_failure
+test_compare_baseline_no_baseline_tmprun_leak
 
 echo ""
 echo "=== Results ==="
