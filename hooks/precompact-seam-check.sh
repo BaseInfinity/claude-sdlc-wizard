@@ -33,10 +33,16 @@ HOLD_REASONS=""
 # Check 1: Codex review mid-cycle
 # Self-heal paths (ordered by preference):
 #   (a) #209: handoff has pr_number + gh reports PR MERGED → implicit CERTIFIED (silent)
-#   (b) #229: handoff has no pr_number but mtime > SDLC_HANDOFF_STALE_DAYS days
-#       → implicit CERTIFIED with WARN (the handoff predates #209 or was never
-#       PR-linked; blocking forever over a forgotten artifact is worse UX than
-#       the bug we're preventing). Default threshold: 14 days.
+#   (c) #257: handoff has no pr_number BUT every SHA cited in fixes_applied[]
+#       is in HEAD's ancestry AND .reviews/latest-review.md contains CERTIFIED
+#       (without "NOT CERTIFIED") → implicit CERTIFIED (silent). Catches the
+#       solo-developer pattern: write fixes, commit them, run targeted
+#       recheck, see CERTIFIED in latest-review.md, ship — and forget to
+#       update handoff.json status. The visible signals (commits landed +
+#       review file) already say "done" so blocking is high false-positive.
+#   (b) #229: handoff has no pr_number, no SHA-ancestry heal, but mtime >
+#       SDLC_HANDOFF_STALE_DAYS days → implicit CERTIFIED with WARN
+#       (forgotten artifact; blocking forever is worse UX). Default: 14 days.
 HANDOFF="$ROOT/.reviews/handoff.json"
 # Validate SDLC_HANDOFF_STALE_DAYS as non-negative integer. Anything else
 # (empty, "foo", "-3", "10.5") silently falls back to 14 — we don't want a
@@ -62,8 +68,77 @@ if [ -f "$HANDOFF" ]; then
                     [ "$PR_STATE" = "MERGED" ] && HEALED=1
                 fi
             else
+                # Path (c) #257: SHA-ancestry self-heal. Look for git SHAs cited
+                # in fixes_applied[]; if every cited SHA is reachable from HEAD
+                # AND .reviews/latest-review.md says CERTIFIED, the review IS
+                # closed, the user just forgot to bump status. Silent heal.
+                REVIEW_MD="$ROOT/.reviews/latest-review.md"
+                if [ -f "$REVIEW_MD" ] \
+                    && grep -qE '\bCERTIFIED\b' "$REVIEW_MD" 2>/dev/null \
+                    && ! grep -qE '\bNOT CERTIFIED\b' "$REVIEW_MD" 2>/dev/null; then
+                    # Extract the fixes_applied[] block via bracket-depth
+                    # tracking — naive `/\]/` matching breaks on `]` inside
+                    # string literals (e.g. "[x] FIXED in <sha>" markdown
+                    # checkboxes), which would let phantom SHAs after the
+                    # broken-early bracket leak past path (c) and false-heal.
+                    # Codex P1 round 1.
+                    FIXES_BLOCK=$(awk '
+                        BEGIN { in_block = 0; depth = 0; started = 0 }
+                        /"fixes_applied"/ { in_block = 1 }
+                        in_block {
+                            print
+                            in_string = 0
+                            escaped = 0
+                            for (i = 1; i <= length($0); i++) {
+                                c = substr($0, i, 1)
+                                # Honor JSON backslash escapes: \" inside a
+                                # string is a literal quote, NOT a string
+                                # terminator. Without this, a fixes_applied
+                                # entry containing `\"]` falsely flips the
+                                # in_string flag and exits the array early —
+                                # letting later phantom SHAs leak past path
+                                # (c) and false-heal (Codex round 2 P1).
+                                if (escaped) { escaped = 0; continue }
+                                if (c == "\\") { escaped = 1; continue }
+                                if (c == "\"") { in_string = !in_string; continue }
+                                if (in_string) continue
+                                if (c == "[") { depth++; started = 1 }
+                                else if (c == "]") { depth-- }
+                            }
+                            if (started && depth <= 0) in_block = 0
+                        }
+                    ' "$HANDOFF" 2>/dev/null)
+                    if [ -n "$FIXES_BLOCK" ] && [ -d "$ROOT/.git" ]; then
+                        # Strip UUIDs (8-4-4-4-12 hex pattern) BEFORE extracting
+                        # SHA candidates. UUIDs have a fixed shape; their hex
+                        # segments would otherwise match \b[0-9a-f]{7,40}\b and
+                        # fail the ancestry check, false-blocking certified
+                        # reviews that cite UUIDs in fixes_applied (mission
+                        # UUIDs, Linear/Jira ticket IDs, etc.). Codex P2 round 1.
+                        # POSIX-compatible: no `\b` (BSD sed doesn't support it).
+                        # The hyphenated 8-4-4-4-12 shape is specific enough
+                        # that false-stripping a real SHA is implausible.
+                        CLEANED=$(echo "$FIXES_BLOCK" | sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}//g')
+                        SHAS=$(echo "$CLEANED" | grep -oE '\b[0-9a-f]{7,40}\b' | sort -u)
+                        if [ -n "$SHAS" ]; then
+                            # Every cited SHA must be reachable from HEAD —
+                            # phantom SHAs (e.g. typos, references to other
+                            # repos) correctly fail ancestry and block the heal.
+                            ALL_IN_HEAD=1
+                            for sha in $SHAS; do
+                                if ! git -C "$ROOT" merge-base --is-ancestor "$sha" HEAD 2>/dev/null; then
+                                    ALL_IN_HEAD=0
+                                    break
+                                fi
+                            done
+                            [ "$ALL_IN_HEAD" -eq 1 ] && HEALED=1
+                        fi
+                    fi
+                fi
                 # Path (b): stale-handoff auto-expire (#229). Only when no pr_number
-                # — we must not short-circuit PR-linked reviews.
+                # AND path (c) didn't already heal. We must not short-circuit
+                # PR-linked reviews.
+            if [ "$HEALED" -ne 1 ]; then
                 # Try GNU stat first (Linux: `-c %Y` gives mtime, BSD stat errors out
                 # so `||` fires). Then BSD stat (macOS: `-f %m` gives mtime). The
                 # reverse order fails on Linux because `stat -f` on GNU means
@@ -82,6 +157,7 @@ if [ -f "$HANDOFF" ]; then
                         fi
                         ;;
                 esac
+            fi
             fi
             if [ "$HEALED" -ne 1 ]; then
                 HOLD_REASONS="${HOLD_REASONS}  - Codex review is ${STATUS}. Round-1 evidence lives in this context — compacting now loses what round-2 needs to re-verify.

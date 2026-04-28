@@ -683,6 +683,270 @@ JSON
     fi
 }
 
+# ---- Path (c) — fixes_applied SHAs in HEAD ancestry self-heal (#257) ----
+# Solo-developer pattern: write fixes, commit, run targeted recheck via
+# `codex exec`, see CERTIFIED in latest-review.md, ship the feature.
+# Forgetting to update handoff.json status is realistic — the file is buried
+# and the visible signals (latest-review.md "CERTIFIED" + commits landed)
+# already tell the developer they're done. PreCompact should auto-CERTIFY
+# silently in this case rather than blocking forever on a stale handoff.
+
+# Helper: init a minimal repo at $1 with commits whose SHAs we can cite.
+# Echoes the short SHA of the last commit so tests can write it into
+# fixes_applied.
+_precompact_init_repo_with_commit() {
+    local dir="$1" msg="${2:-fix something}"
+    git -C "$dir" init -q 2>/dev/null
+    git -C "$dir" config user.email t@t.com
+    git -C "$dir" config user.name t
+    echo "content" > "$dir/file.txt"
+    git -C "$dir" add file.txt
+    git -C "$dir" commit -qm "$msg"
+    git -C "$dir" rev-parse --short=7 HEAD
+}
+
+# Auto-CERTIFY when all SHAs in fixes_applied are in HEAD ancestry AND
+# latest-review.md says CERTIFIED.
+test_precompact_self_heals_on_sha_ancestry_when_review_certified() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 8/10. CERTIFIED.
+No findings.
+MD
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED in commit ${sha} — added validation"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ]; then
+        pass "#257: precompact self-heals on PENDING_RECHECK with SHAs in HEAD + CERTIFIED review (rc=0)"
+    else
+        fail "#257: should self-heal when SHAs in HEAD + review CERTIFIED (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Negative: SHA NOT in HEAD ancestry → must still HOLD
+test_precompact_blocks_when_sha_not_in_head_ancestry() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _precompact_init_repo_with_commit "$tmpdir" >/dev/null
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 8/10. CERTIFIED.
+MD
+    # Cite a SHA that doesn't exist in this repo
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED in commit deadbeefcafe — phantom"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_RECHECK"; then
+        pass "#257: precompact blocks when fixes_applied SHA is NOT in HEAD ancestry (rc=2)"
+    else
+        fail "#257: should block on phantom SHA (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Negative: SHA in HEAD ancestry BUT review NOT CERTIFIED → still HOLD
+test_precompact_blocks_when_sha_in_head_but_review_not_certified() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 4/10. NOT CERTIFIED.
+ID 1: P1 missing validation.
+MD
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED in commit ${sha} — partial fix"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ] && echo "$stderr_out" | grep -q "PENDING_RECHECK"; then
+        pass "#257: precompact blocks when review.md says NOT CERTIFIED even with SHAs in HEAD (rc=2)"
+    else
+        fail "#257: should block on NOT CERTIFIED review (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Negative: missing latest-review.md → still HOLD (path c needs both signals)
+test_precompact_blocks_when_review_md_missing() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    # No latest-review.md
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED in commit ${sha} — no review file"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ]; then
+        pass "#257: precompact blocks when latest-review.md is missing (path c needs both signals)"
+    else
+        fail "#257: should block when latest-review.md missing (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# All SHAs in HEAD: if fixes_applied has multiple SHAs, ALL must be in HEAD.
+# A single phantom SHA blocks the heal.
+test_precompact_blocks_when_any_sha_not_in_head() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 8/10. CERTIFIED.
+MD
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED in commit ${sha} — real",
+    "FIXED in commit deadbeefcafe — phantom"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ]; then
+        pass "#257: precompact blocks when ANY fixes_applied SHA is NOT in HEAD"
+    else
+        fail "#257: should block on partial SHA-ancestry coverage (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Codex round 1 P1: awk's `/\]/` mid-string match terminated the
+# fixes_applied block early on entries like "[x] FIXED in <sha>", letting
+# later phantom SHAs leak past path (c) and false-heal. Bracket extraction
+# must track depth + string literals to terminate ONLY on the array's real
+# closing `]`.
+test_precompact_blocks_on_phantom_sha_after_markdown_checkbox_in_fixes_applied() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 8/10. CERTIFIED.
+MD
+    # First entry uses `[x]` markdown checkbox — naive `/\]/` matching
+    # would terminate the array right after `[x]`, hiding the phantom
+    # SHA on the next line.
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "[x] FIXED in commit ${sha} — real",
+    "[x] FIXED in commit deadbeefcafe — phantom"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ]; then
+        pass "#257 Codex#1: precompact blocks when phantom SHA hides behind '[x]' markdown checkbox in fixes_applied"
+    else
+        fail "#257 Codex#1: '[x]' markdown checkbox should not let phantom SHA past path (c) (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Codex round 1 P2: UUID fragments matched the bare \b[0-9a-f]{7,40}\b
+# regex (e.g. UUID '123e4567-e89b-12d3-a456-426614174000' has '123e4567'
+# and '426614174000' as substrings). Validate each candidate via `git
+# rev-parse --verify` so UUID-style IDs in fixes_applied (mission UUIDs,
+# Linear ticket IDs, etc.) don't false-block a legitimate heal by failing
+# the ancestry check.
+test_precompact_self_heals_with_uuid_in_fixes_applied() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 9/10. CERTIFIED.
+MD
+    # Real SHA + a UUID. UUID fragments would match the SHA regex but
+    # aren't valid git objects, so git rev-parse --verify drops them.
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED ticket 123e4567-e89b-12d3-a456-426614174000 in commit ${sha}"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && [ -z "$stderr_out" ]; then
+        pass "#257 Codex#2: precompact heals when fixes_applied contains UUIDs alongside real SHA (rc=0, silent)"
+    else
+        fail "#257 Codex#2: UUID fragments should not false-block path (c) heal (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+# Path (b) takes precedence when no SHAs are in fixes_applied — i.e. don't
+# break the existing stale-handoff path when the new path can't apply.
+test_precompact_falls_through_to_stale_path_when_no_shas() {
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    _precompact_init_repo_with_commit "$tmpdir" >/dev/null
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/handoff.json" <<'JSON'
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": ["just text without any 7-hex SHA"]
+}
+JSON
+    # File is fresh, but with SDLC_HANDOFF_STALE_DAYS=0 the stale path heals
+    # this. If path (c) erroneously short-circuits when no SHAs are present,
+    # the stale-path warn won't fire.
+    local rc=0 stderr_out
+    stderr_out=$(SDLC_HANDOFF_STALE_DAYS=0 CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 0 ] && echo "$stderr_out" | grep -qi "stale"; then
+        pass "#257: precompact falls through to path (b) stale-warn when fixes_applied has no SHAs"
+    else
+        fail "#257: should fall through to stale path when no SHAs in fixes_applied (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
 # ---- Effort auto-bump signal detection (ROADMAP #195) ----
 # Hook scans UserPromptSubmit payload for LOW-confidence / FAILED-repeatedly /
 # CONFUSED phrases; logs a signal; when ≥2 recent signals accumulate in a
@@ -1418,6 +1682,52 @@ test_precompact_still_blocks_fresh_pending_without_pr_number
 test_precompact_stale_with_pr_number_prefers_self_heal
 test_precompact_stale_threshold_invalid_falls_back
 test_precompact_stale_threshold_override
+test_precompact_self_heals_on_sha_ancestry_when_review_certified
+test_precompact_blocks_when_sha_not_in_head_ancestry
+test_precompact_blocks_when_sha_in_head_but_review_not_certified
+test_precompact_blocks_when_review_md_missing
+test_precompact_blocks_when_any_sha_not_in_head
+test_precompact_blocks_on_phantom_sha_after_markdown_checkbox_in_fixes_applied
+test_precompact_self_heals_with_uuid_in_fixes_applied
+
+# Codex round 2 P1: in_string toggle wasn't escape-aware, so \" inside a
+# JSON string flipped the flag prematurely. An entry containing `\"]`
+# before a later phantom SHA would exit the fixes_applied array early,
+# missing the phantom and false-healing.
+test_precompact_blocks_on_phantom_sha_after_escaped_quote_bracket() {
+    local tmpdir sha
+    tmpdir=$(mktemp -d)
+    sha=$(_precompact_init_repo_with_commit "$tmpdir")
+    mkdir -p "$tmpdir/.reviews"
+    cat > "$tmpdir/.reviews/latest-review.md" <<'MD'
+score: 8/10. CERTIFIED.
+MD
+    # Real SHA in an entry containing escaped-quote + bracket (`\"]`),
+    # then a phantom SHA on the next line. Pre-fix, the array extractor
+    # exited on the `]` after the (mistakenly closed) string and missed
+    # the phantom. Expected behavior: phantom SHA fails ancestry → block.
+    cat > "$tmpdir/.reviews/handoff.json" <<JSON
+{
+  "status": "PENDING_RECHECK",
+  "round": 2,
+  "fixes_applied": [
+    "FIXED in commit ${sha} — replaced \"foo\" with \"bar]\" in test",
+    "FIXED in commit deadbeefcafe — phantom"
+  ]
+}
+JSON
+    local rc=0 stderr_out
+    stderr_out=$(CLAUDE_PROJECT_DIR="$tmpdir" "$HOOKS_DIR/precompact-seam-check.sh" < /dev/null 2>&1 >/dev/null) || rc=$?
+    rm -rf "$tmpdir"
+    if [ "$rc" -eq 2 ]; then
+        pass "#257 Codex#R2: precompact blocks when phantom SHA hides behind escaped-quote + ']' in fixes_applied"
+    else
+        fail "#257 Codex#R2: escaped-quote bracket should not let phantom SHA past path (c) (rc=$rc, stderr='$stderr_out')"
+    fi
+}
+
+test_precompact_blocks_on_phantom_sha_after_escaped_quote_bracket
+test_precompact_falls_through_to_stale_path_when_no_shas
 test_handoff_template_documents_pr_number
 test_effort_bump_logs_signal_on_low_phrase
 test_effort_bump_no_log_on_normal_prompt

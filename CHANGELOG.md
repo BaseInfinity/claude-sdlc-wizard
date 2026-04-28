@@ -4,6 +4,21 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.45.0] - 2026-04-27
+
+### Added
+
+- **PreCompact path (c) — SHA-ancestry self-heal** (closes #257). Consumer reported PreCompact blocking `/compact` even when the cited Codex review WAS actually CERTIFIED — the user just forgot to bump `handoff.json status` from `PENDING_RECHECK` → `CERTIFIED`. Existing self-heals don't cover this solo-developer pattern: path (a) needs `pr_number`, path (b) needs `mtime > 14d`. New path (c) heals when: handoff is `PENDING_*` with no `pr_number`, every SHA cited in `fixes_applied[]` is reachable from HEAD (`git merge-base --is-ancestor`), AND `.reviews/latest-review.md` contains `CERTIFIED` without `NOT CERTIFIED`. Path (b) still runs if (c) abstains (no SHAs / no review file).
+  - **Robust extraction**: awk extracts the `fixes_applied[]` block via bracket-depth + escape-aware string-literal tracking. `]` inside string literals (e.g. `"[x] FIXED..."` markdown checkboxes, `"...\"]"` escaped-quote-bracket) does NOT terminate the array prematurely.
+  - **UUID resilience**: strips 8-4-4-4-12 hex UUIDs before SHA extraction so ticket IDs in fixes_applied entries (Linear, Jira, mission UUIDs) don't false-block the heal.
+  - **Phantom SHA gate**: every cited SHA must pass `git merge-base --is-ancestor` against HEAD. Phantom SHAs (typos, references to other repos) correctly fail and block the heal.
+  - 9 new test-hooks tests (positive heal, phantom blocks, NOT CERTIFIED blocks, missing review.md blocks, partial coverage blocks, fall-through to stale, markdown-checkbox bracket, UUID alongside real SHA, escaped-quote bracket). Codex round 3 CERTIFIED 10/10 (rounds 1-2 surfaced bracket-extraction edge cases — markdown `[x]`, escaped quotes — and UUID false-block; all fixed).
+
+### Files
+
+- `hooks/precompact-seam-check.sh` — new path (c) block with depth-counted + escape-aware awk extraction, sed UUID strip, ancestry check
+- `tests/test-hooks.sh` — `_precompact_init_repo_with_commit` helper + 9 new path (c) tests
+
 ## [1.44.1] - 2026-04-27
 
 ### Fixed
