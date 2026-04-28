@@ -654,13 +654,13 @@ jobs:
           echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
           echo "Verdict: $VERDICT"
 
-      - name: Update CUSUM drift tracking
-        run: |
-          SCORE="${{ steps.phase-a.outputs.score }}"
-          if [ -n "$SCORE" ] && [ "$SCORE" != "0" ]; then
-            ./tests/e2e/cusum.sh --add "$SCORE" || true
-            ./tests/e2e/cusum.sh --status
-          fi
+      # CUSUM drift tracking via `cusum.sh --add` was removed (#227): the
+      # legacy `score-history.txt` path it appends to is tracked by git, so
+      # every weekly run opened a PR whose only diff was a side-file append —
+      # pure noise (per Codex finding PR213-02 on auto-PR #213, 2026-04-23).
+      # Canonical history lives in `score-history.jsonl` written via the CI
+      # Tier 2 persist step in ci.yml. The version-test PR body already cites
+      # Phase A score directly; standalone drift reporting here added no value.
 
       - name: Post version test results to PR
         uses: marocchino/sticky-pull-request-comment@v3
@@ -1127,12 +1127,10 @@ jobs:
           echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
           echo "Verdict: $VERDICT"
 
-      - name: Update CUSUM
-        run: |
-          SCORE="${{ steps.baseline.outputs.score }}"
-          if [ -n "$SCORE" ] && [ "$SCORE" != "0" ]; then
-            ./tests/e2e/cusum.sh --add "$SCORE" || true
-          fi
+      # CUSUM update via `cusum.sh --add` was removed (#227): same reason as
+      # the version-test job above — appends to legacy `score-history.txt`
+      # which is tracked, creating PR-only-diff noise. Score is captured in
+      # the verdict step output and reflected in the PR body below.
 
       - name: Create PR with results
         id: create-community-pr

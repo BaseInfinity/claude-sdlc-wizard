@@ -2579,6 +2579,27 @@ test_skill_no_autofix_bot
 test_ci_max_score_not_hardcoded
 test_ci_gated_expressions_reference_real_outputs
 
+# Test (#227): weekly-update.yml must NOT call `cusum.sh --add` because it
+# appends to legacy score-history.txt, creating PR noise on every run
+# (per Codex finding PR213-02). The canonical history is score-history.jsonl
+# written elsewhere via --add-json.
+test_weekly_update_does_not_call_legacy_cusum_add() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+    # Match `cusum.sh --add ` (with space, NOT --add-json — that's the new path)
+    # The legacy --add writes to .txt; --add-json writes to .jsonl (canonical).
+    if grep -nE 'cusum\.sh[[:space:]]+--add[[:space:]]' "$WORKFLOW"; then
+        fail "#227: weekly-update.yml still calls 'cusum.sh --add' (legacy .txt write — PR-noise source)"
+    else
+        pass "#227: weekly-update.yml does not call legacy 'cusum.sh --add' (no PR noise from score-history.txt)"
+    fi
+}
+
+test_weekly_update_does_not_call_legacy_cusum_add
+
 echo ""
 echo "=== Results ==="
 echo "Passed: $PASSED"
