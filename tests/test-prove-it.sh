@@ -268,34 +268,52 @@ test_no_overlap() {
 test_no_overlap
 
 # ============================================
-# Workflow Integration Tests
+# Local Runner Integration Tests (ROADMAP #231 Phase 2)
+# Replaces the prove-it-test job in weekly-update.yml — that job was deleted
+# when the burning-money cron migrated to a local-Max workflow. The pattern
+# now lives in `local-shepherd.sh --compare-baseline --strip-paths`.
 # ============================================
 
-# Test 11: Workflow has prove-it-test job
-test_workflow_has_job() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+# Test 11: local-shepherd.sh exposes --strip-paths flag
+test_shepherd_has_strip_paths_flag() {
+    local SHEPHERD="$REPO_ROOT/tests/e2e/local-shepherd.sh"
 
-    if grep -q "prove-it-test:" "$WORKFLOW" 2>/dev/null; then
-        pass "weekly-update.yml has prove-it-test job"
+    if grep -qE '\-\-strip-paths' "$SHEPHERD" 2>/dev/null; then
+        pass "local-shepherd.sh exposes --strip-paths flag"
     else
-        fail "weekly-update.yml missing prove-it-test job"
+        fail "local-shepherd.sh missing --strip-paths flag (Phase 2 migration)"
     fi
 }
-test_workflow_has_job
+test_shepherd_has_strip_paths_flag
 
-# Test 12: prove-it-test job has has_overlap conditional
-test_job_has_conditional() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+# Test 12: shepherd sources prove-it.sh (single source of truth for allowlist)
+test_shepherd_uses_prove_it_lib() {
+    local SHEPHERD="$REPO_ROOT/tests/e2e/local-shepherd.sh"
 
-    if grep -q "has_overlap" "$WORKFLOW" 2>/dev/null; then
-        pass "prove-it-test job has has_overlap conditional"
+    if grep -qE 'lib/prove-it\.sh' "$SHEPHERD" 2>/dev/null \
+       && grep -qE 'validate_removable_paths|create_stripped_fixture' "$SHEPHERD" 2>/dev/null; then
+        pass "shepherd sources tests/e2e/lib/prove-it.sh and uses its functions"
     else
-        fail "prove-it-test job missing has_overlap conditional"
+        fail "shepherd must reuse prove-it.sh allowlist (no parallel allowlists)"
     fi
 }
-test_job_has_conditional
+test_shepherd_uses_prove_it_lib
 
-# Test 13: YAML validation of weekly-update.yml
+# Test 13: weekly-update.yml does NOT have the prove-it-test job anymore
+# (Phase 2 migration deleted it. Keeping this test ensures it doesn't sneak
+# back in via merge.)
+test_weekly_update_no_prove_it_job() {
+    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+
+    if [ -f "$WORKFLOW" ] && ! grep -qE '^\s*prove-it-test:' "$WORKFLOW" 2>/dev/null; then
+        pass "weekly-update.yml does not contain prove-it-test job (Phase 2 migration)"
+    else
+        fail "weekly-update.yml still has prove-it-test job — Phase 2 migration incomplete"
+    fi
+}
+test_weekly_update_no_prove_it_job
+
+# Test 14: YAML validation of weekly-update.yml (still valid after job removal)
 test_yaml_valid() {
     local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 

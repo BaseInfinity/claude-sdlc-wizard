@@ -180,7 +180,7 @@ Both use Tier 1 (quick) + Tier 2 (full statistical) evaluation.
 The weekly-update pipeline doubles as plugin/feature discovery automation:
 - Release analysis (`analyze-release.md`) includes a Custom Feature Inventory table comparing wizard features against native CC capabilities
 - `plugin_check.replaces_custom` field flags overlap between wizard custom features and new CC native features
-- When overlap is detected, the `prove-it-test` job runs A/B comparison (wizard vs native) to validate replacement
+- When overlap is detected, the maintainer runs `tests/e2e/local-shepherd.sh <PR> --compare-baseline --strip-paths '[paths]'` locally on Max to A/B compare wizard vs native (ROADMAP #231 Phase 2 — replaces the deleted `prove-it-test` cron job that burned $6-12/run for zero merged artifacts)
 - Community scan covers competitive repos and new tools in the CC ecosystem
 
 No separate marketplace registry exists for Claude Code — the LLM-driven release analysis approach captures all feature information from release notes.

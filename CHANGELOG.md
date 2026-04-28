@@ -4,6 +4,31 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.50.0] - 2026-04-27
+
+### Added
+
+- **`local-shepherd.sh --strip-paths` flag** — closes ROADMAP #231 Phase 2. When CC ships native equivalents to wizard custom features, the maintainer runs `local-shepherd.sh <PR> --compare-baseline --strip-paths '[paths]'` locally on Max to A/B compare wizard-with-features (baseline) vs wizard-without-stripped-features (candidate). Same-commit comparison (no main worktree). Both `BASELINE_DIR` and `CANDIDATE_DIR` are tmpdirs laid out as project roots; the candidate's fixture has the requested paths removed via `create_stripped_fixture` from `tests/e2e/lib/prove-it.sh` (single source of truth for the allowlist). Score-history rows tagged with `comparison_role: "baseline" | "candidate"` (same contract as plain `--compare-baseline`).
+  - **Validation**: paths must be in `REMOVABLE_ALLOWLIST` from `tests/e2e/lib/prove-it.sh`. Non-allowlisted paths (e.g. `/etc/passwd`) are rejected — security against LLM-hallucinated arbitrary deletions.
+  - **Constraint**: `--strip-paths` requires `--compare-baseline` (lone `--strip-paths` exits with a clear error). No silent fall-through to single-run mode.
+  - 8 new quality tests (30/30 total in `test-local-shepherd.sh`).
+
+### Removed
+
+- **`prove-it-test` job in `.github/workflows/weekly-update.yml`** (251 lines) — replaced by the local `--strip-paths` flag. The CI job ran $6-12 per overlap detection with zero merged artifacts in 30 days. Local-Max replacement is $0 (sim leg on subscription) and gives the maintainer richer context to decide KEEP CUSTOM / SWITCH TO NATIVE.
+
+### Changed
+
+- `tests/test-prove-it.sh`: replaced workflow-existence tests (#11-#12) with local-shepherd integration tests; added a regression test that the `prove-it-test` job stays deleted. All 20 tests green.
+- `CI_CD.md` and `plans/AUTO_SELF_UPDATE.md`: updated to document the local replacement workflow. Historical section preserves the deleted CI job's intent.
+
+### Files
+
+- `tests/e2e/local-shepherd.sh` (+105 lines, ~35 changed)
+- `tests/test-local-shepherd.sh` (+~180 lines, +8 tests)
+- `tests/test-prove-it.sh` (replaced 3 tests with 4 better-targeted ones)
+- `.github/workflows/weekly-update.yml` (-251 lines)
+
 ## [1.49.0] - 2026-04-27
 
 ### Added

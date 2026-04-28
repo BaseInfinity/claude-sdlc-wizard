@@ -18,9 +18,20 @@
 #   Unblocks #231 Phase 2 (weekly-update migration). Uses the same scenario
 #   for both runs (delta is meaningful only with apples-to-apples comparison).
 #
+# ROADMAP #231 Phase 2 — `--strip-paths` flag (prove-it pattern, same-commit):
+#   Replaces the deleted prove-it-test job from weekly-update.yml. When CC
+#   ships native equivalents to our custom hooks/skills, this measures the
+#   score delta WITH the custom files intact vs WITHOUT (stripped). Both
+#   runs are on the SAME commit (no main worktree); only the candidate's
+#   fixture has files removed. Paths must pass the prove-it allowlist
+#   (tests/e2e/lib/prove-it.sh) — non-allowlisted paths are rejected to
+#   prevent LLM hallucination from deleting arbitrary files. Requires
+#   --compare-baseline.
+#
 # Usage:
 #   ./tests/e2e/local-shepherd.sh <PR_NUMBER>
 #   ./tests/e2e/local-shepherd.sh <PR_NUMBER> --compare-baseline
+#   ./tests/e2e/local-shepherd.sh <PR_NUMBER> --compare-baseline --strip-paths '[".claude/hooks/X"]'
 #
 # Env overrides (for testing + power users):
 #   SDLC_LOCAL_SHEPHERD_DRY_RUN=1   — skip check-run POST + PR comment
@@ -43,7 +54,7 @@ EVALUATOR="${SDLC_SHEPHERD_EVALUATOR:-$SCRIPT_DIR/evaluate.sh}"
 
 usage() {
     cat >&2 <<EOF
-Usage: $0 <PR_NUMBER> [--compare-baseline]
+Usage: $0 <PR_NUMBER> [--compare-baseline] [--strip-paths '<json-array>']
 
 Runs E2E simulation on the user's Max subscription (via 'claude --print'),
 scores with evaluate.sh, appends to score-history.jsonl with provenance,
@@ -52,6 +63,12 @@ then posts a GitHub check-run + PR comment.
 Flags:
   --compare-baseline    Also run on main (via git worktree) and post the
                         score delta. Same scenario for both runs.
+  --strip-paths JSON    Prove-it mode (requires --compare-baseline): instead
+                        of comparing against main, compare current branch's
+                        intact fixture (baseline) vs stripped fixture
+                        (candidate). JSON is an array of paths from the
+                        prove-it allowlist (tests/e2e/lib/prove-it.sh).
+                        Same-commit comparison.
 
 Requirements: claude CLI, gh CLI (authed), jq, ANTHROPIC_API_KEY (evaluator).
 
@@ -65,21 +82,55 @@ EOF
     exit 1
 }
 
-# Parse args: positional PR_NUMBER + optional --compare-baseline flag.
+# Parse args: positional PR_NUMBER + optional --compare-baseline / --strip-paths.
 PR_NUMBER=""
 COMPARE_BASELINE=0
-for arg in "$@"; do
-    case "$arg" in
-        --compare-baseline) COMPARE_BASELINE=1 ;;
+STRIP_PATHS=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --compare-baseline) COMPARE_BASELINE=1; shift ;;
+        --strip-paths)
+            shift
+            if [ $# -eq 0 ] || [ -z "$1" ]; then
+                echo "Error: --strip-paths requires a JSON array argument (e.g., '[\".claude/hooks/X\"]')" >&2
+                exit 1
+            fi
+            STRIP_PATHS="$1"
+            shift
+            ;;
+        --strip-paths=*)
+            STRIP_PATHS="${1#--strip-paths=}"
+            # Codex P1 #2 round 1: reject the empty `--strip-paths=` form.
+            # The bare-flag form already rejects empty at line 94 above; the
+            # equals form silently set STRIP_PATHS="" which, combined with
+            # the `-n "$STRIP_PATHS"` check below, let a meaningless invocation
+            # fall through to single-run mode.
+            if [ -z "$STRIP_PATHS" ]; then
+                echo "Error: --strip-paths= requires a JSON array argument (e.g., --strip-paths='[\".claude/hooks/X\"]')" >&2
+                exit 1
+            fi
+            shift
+            ;;
         --help|-h) usage ;;
+        --) shift; break ;;
+        -*) echo "Error: unknown flag: $1" >&2; exit 1 ;;
         *)
             if [ -z "$PR_NUMBER" ]; then
-                PR_NUMBER="$arg"
+                PR_NUMBER="$1"
             fi
+            shift
             ;;
     esac
 done
 [ -z "$PR_NUMBER" ] && usage
+
+# --strip-paths requires --compare-baseline. Lone --strip-paths has no
+# meaningful comparison context; bail fast with a clear error rather than
+# silently falling through to single-run mode.
+if [ -n "$STRIP_PATHS" ] && [ "$COMPARE_BASELINE" != "1" ]; then
+    echo "Error: --strip-paths requires --compare-baseline (prove-it semantics need a baseline to compare against)" >&2
+    exit 1
+fi
 
 # Dependency checks
 for bin in claude gh jq git; do
@@ -186,45 +237,128 @@ CLAUDE_CODE_VERSION="$CLI_VERSION"
 AUTH_MODE="subscription"
 EXECUTION_PATH="local-max"
 
-# ---- ROADMAP #230: --compare-baseline — run baseline FIRST in a main worktree ----
+# ---- ROADMAP #230: --compare-baseline — run baseline FIRST ----
+# Two modes:
+#   default (no --strip-paths): cross-commit comparison via git worktree of main
+#   --strip-paths: same-commit prove-it via fixture-strip helpers
 BASELINE_SCORE=""
 BASELINE_MAX=""
+CANDIDATE_DIR=""
 if [ "$COMPARE_BASELINE" = "1" ]; then
-    BASELINE_DIR=$(mktemp -d -t sdlc-baseline.XXXXXX)
-    # `git worktree add` requires the path NOT to exist, so remove the empty
-    # mktemp dir first. Race-window: a concurrent shepherd run could collide,
-    # but that's a pathological case (two compare-baseline runs in the same
-    # second) — accept the tiny window over `--force` which silently overwrites.
-    rmdir "$BASELINE_DIR" 2>/dev/null || rm -rf "$BASELINE_DIR"
-    # Detach so we don't lock main as a branch; --force handles a stale lock
-    # left behind by a previous failed run.
-    if ! git worktree add --detach --force "$BASELINE_DIR" main 2>"$TMPRUN/worktree.err"; then
-        # Fallback to origin/main if the local main ref is missing.
-        if ! git worktree add --detach --force "$BASELINE_DIR" origin/main 2>>"$TMPRUN/worktree.err"; then
-            echo "Error: could not create main worktree (tried 'main' and 'origin/main')" >&2
-            sed -n '1,5p' "$TMPRUN/worktree.err" >&2
+    if [ -n "$STRIP_PATHS" ]; then
+        # ROADMAP #231 Phase 2: same-commit prove-it. Build BASELINE_DIR with
+        # an intact fixture and CANDIDATE_DIR with a stripped fixture. Both
+        # mimic the CI prove-it-test layout (fixture's .claude/ populated
+        # from the wizard's custom features).
+        # shellcheck source=lib/prove-it.sh
+        source "$SCRIPT_DIR/lib/prove-it.sh"
+
+        # Allowlist validation — prevents LLM hallucination from deleting
+        # arbitrary files. Single source of truth: REMOVABLE_ALLOWLIST in
+        # tests/e2e/lib/prove-it.sh.
+        VALID_STRIP=$(validate_removable_paths "$STRIP_PATHS")
+        if [ -z "$VALID_STRIP" ]; then
+            echo "Error: --strip-paths contained no allowlisted paths." >&2
+            echo "       Allowlist source: tests/e2e/lib/prove-it.sh (REMOVABLE_ALLOWLIST)." >&2
+            echo "       Got: $STRIP_PATHS" >&2
             exit 1
         fi
-    fi
-    # Cleanup: prune the worktree on exit. `git worktree remove` may fail if
-    # the dir was deleted out-of-band; fall back to rm + prune so subsequent
-    # runs don't trip on a stale worktree entry.
-    cleanup_baseline_worktree() {
-        if [ -n "${BASELINE_DIR:-}" ] && [ -d "$BASELINE_DIR" ]; then
-            git worktree remove --force "$BASELINE_DIR" 2>/dev/null \
-                || { rm -rf "$BASELINE_DIR"; git worktree prune 2>/dev/null || true; }
+        echo "Strip-paths mode: same-commit prove-it. Stripping (allowlisted): $(echo "$VALID_STRIP" | tr '\n' ' ')" >&2
+
+        # Codex P1 #1 round 1: install the cleanup trap BEFORE creating any
+        # tmpdirs, so an early failure (failed cp, oom, signal) doesn't leak.
+        # All three vars start empty so the cleanup function is safe to call
+        # before they're set. Late-binding: the function reads the current
+        # values at trap-fire time, not at trap-set time.
+        BASELINE_DIR=""
+        CANDIDATE_DIR=""
+        STRIPPED_STAGE=""
+        cleanup_strip_dirs() {
+            [ -n "${BASELINE_DIR:-}" ]   && [ -d "$BASELINE_DIR" ]   && rm -rf "$BASELINE_DIR"
+            [ -n "${CANDIDATE_DIR:-}" ]  && [ -d "$CANDIDATE_DIR" ]  && rm -rf "$CANDIDATE_DIR"
+            [ -n "${STRIPPED_STAGE:-}" ] && [ -d "$STRIPPED_STAGE" ] && rm -rf "$STRIPPED_STAGE"
+        }
+        trap 'cleanup_strip_dirs; rm -rf "$TMPRUN"' EXIT
+
+        # Helper: lay out a project-root tmpdir so claude --print finds
+        # tests/e2e/{scenarios,fixtures,lib} from cwd, just like the worktree
+        # path does. Also populates the fixture's .claude/ with the wizard's
+        # hooks/skills/settings (the "intact" baseline state).
+        _build_strip_dir() {
+            local dst="$1"
+            mkdir -p "$dst/tests/e2e"
+            cp -R "$REPO_ROOT/tests/e2e/scenarios" "$dst/tests/e2e/scenarios"
+            cp -R "$REPO_ROOT/tests/e2e/lib"       "$dst/tests/e2e/lib"
+            cp -R "$REPO_ROOT/tests/e2e/fixtures"  "$dst/tests/e2e/fixtures"
+            # Populate the fixture's .claude/ from the wizard's own .claude/
+            # (matches CI prove-it: copies hooks/skills/settings into fixture)
+            local fix="$dst/tests/e2e/fixtures/test-repo/.claude"
+            mkdir -p "$fix"
+            [ -d "$REPO_ROOT/.claude/hooks" ]         && cp -R "$REPO_ROOT/.claude/hooks"  "$fix/" 2>/dev/null || true
+            [ -d "$REPO_ROOT/.claude/skills" ]        && cp -R "$REPO_ROOT/.claude/skills" "$fix/" 2>/dev/null || true
+            [ -f "$REPO_ROOT/.claude/settings.json" ] && cp    "$REPO_ROOT/.claude/settings.json" "$fix/" 2>/dev/null || true
+        }
+
+        BASELINE_DIR=$(mktemp -d -t sdlc-baseline-strip.XXXXXX)
+        _build_strip_dir "$BASELINE_DIR"
+
+        CANDIDATE_DIR=$(mktemp -d -t sdlc-candidate-strip.XXXXXX)
+        _build_strip_dir "$CANDIDATE_DIR"
+        # Apply the strip to CANDIDATE_DIR's fixture only. create_stripped_fixture
+        # copies SRC→DST and removes the requested paths + prunes settings.json
+        # hook entries that reference removed hook files.
+        STRIPPED_STAGE=$(mktemp -d -t sdlc-cand-stage.XXXXXX)
+        rmdir "$STRIPPED_STAGE" 2>/dev/null || rm -rf "$STRIPPED_STAGE"
+        create_stripped_fixture \
+            "$CANDIDATE_DIR/tests/e2e/fixtures/test-repo" \
+            "$STRIPPED_STAGE" \
+            "$STRIP_PATHS"
+        rm -rf "$CANDIDATE_DIR/tests/e2e/fixtures/test-repo"
+        mv "$STRIPPED_STAGE" "$CANDIDATE_DIR/tests/e2e/fixtures/test-repo"
+        # mv consumed the dir — clear the var so cleanup doesn't try again.
+        STRIPPED_STAGE=""
+    else
+        # ROADMAP #230 default: cross-commit via main worktree.
+        BASELINE_DIR=$(mktemp -d -t sdlc-baseline.XXXXXX)
+        # `git worktree add` requires the path NOT to exist, so remove the empty
+        # mktemp dir first. Race-window: a concurrent shepherd run could collide,
+        # but that's a pathological case (two compare-baseline runs in the same
+        # second) — accept the tiny window over `--force` which silently overwrites.
+        rmdir "$BASELINE_DIR" 2>/dev/null || rm -rf "$BASELINE_DIR"
+        # Detach so we don't lock main as a branch; --force handles a stale lock
+        # left behind by a previous failed run.
+        if ! git worktree add --detach --force "$BASELINE_DIR" main 2>"$TMPRUN/worktree.err"; then
+            # Fallback to origin/main if the local main ref is missing.
+            if ! git worktree add --detach --force "$BASELINE_DIR" origin/main 2>>"$TMPRUN/worktree.err"; then
+                echo "Error: could not create main worktree (tried 'main' and 'origin/main')" >&2
+                sed -n '1,5p' "$TMPRUN/worktree.err" >&2
+                exit 1
+            fi
         fi
-    }
-    # Replace the existing TMPRUN-only trap with a combined one.
-    trap 'cleanup_baseline_worktree; rm -rf "$TMPRUN"' EXIT
+        # Cleanup: prune the worktree on exit. `git worktree remove` may fail if
+        # the dir was deleted out-of-band; fall back to rm + prune so subsequent
+        # runs don't trip on a stale worktree entry.
+        cleanup_baseline_worktree() {
+            if [ -n "${BASELINE_DIR:-}" ] && [ -d "$BASELINE_DIR" ]; then
+                git worktree remove --force "$BASELINE_DIR" 2>/dev/null \
+                    || { rm -rf "$BASELINE_DIR"; git worktree prune 2>/dev/null || true; }
+            fi
+        }
+        # Replace the existing TMPRUN-only trap with a combined one.
+        trap 'cleanup_baseline_worktree; rm -rf "$TMPRUN"' EXIT
+    fi
 
     # Codex P1 #2: nest BASELINE_TMPRUN under TMPRUN so the existing trap
-    # (which now also runs cleanup_baseline_worktree) covers it. Previously
+    # (which now also runs the mode-specific cleanup) covers it. Previously
     # mktemp -d created a sibling dir that leaked on early failures.
     BASELINE_TMPRUN="$TMPRUN/baseline"
     mkdir -p "$BASELINE_TMPRUN"
     BASELINE_OUTPUT="$BASELINE_TMPRUN/claude-execution-output.json"
-    echo "Running baseline simulation in $BASELINE_DIR (main): max-turns=$PARITY_MAX_TURNS" >&2
+    if [ -n "$STRIP_PATHS" ]; then
+        echo "Running baseline simulation in $BASELINE_DIR (intact fixture): max-turns=$PARITY_MAX_TURNS" >&2
+    else
+        echo "Running baseline simulation in $BASELINE_DIR (main): max-turns=$PARITY_MAX_TURNS" >&2
+    fi
     set +e
     ( cd "$BASELINE_DIR" && claude --print \
         --max-turns "$PARITY_MAX_TURNS" \
@@ -263,20 +397,36 @@ if [ "$COMPARE_BASELINE" = "1" ]; then
     # candidate sim+eval succeeds — otherwise a candidate failure leaves an
     # orphan baseline row in history with no comparison partner. Both rows
     # are written together at the end, or neither is.
-    echo "Baseline score: $BASELINE_SCORE/$BASELINE_MAX (main)" >&2
+    if [ -n "$STRIP_PATHS" ]; then
+        echo "Baseline score: $BASELINE_SCORE/$BASELINE_MAX (intact fixture)" >&2
+    else
+        echo "Baseline score: $BASELINE_SCORE/$BASELINE_MAX (main)" >&2
+    fi
 fi
 
 echo "Running simulation: max-turns=$PARITY_MAX_TURNS" >&2
 # LS-002: hard-fail on claude error. Previously `|| true` swallowed failures,
 # so a crashed sim still produced score=0 as if it had completed. Now a
 # non-zero claude exit propagates to the shepherd's exit.
+# In --strip-paths mode, the candidate runs in CANDIDATE_DIR (fixture stripped)
+# instead of REPO_ROOT, so the agent's view of the project mirrors the prove-it
+# semantic. Default mode runs in REPO_ROOT (current branch's working tree).
 set +e
-claude --print \
-    --max-turns "$PARITY_MAX_TURNS" \
-    --allowedTools "$PARITY_ALLOWED_TOOLS" \
-    --add-dir "tests/e2e" \
-    --output-format json \
-    "$PARITY_PROMPT" > "$OUTPUT_FILE" 2>"$TMPRUN/claude.err"
+if [ -n "$CANDIDATE_DIR" ] && [ -d "$CANDIDATE_DIR" ]; then
+    ( cd "$CANDIDATE_DIR" && claude --print \
+        --max-turns "$PARITY_MAX_TURNS" \
+        --allowedTools "$PARITY_ALLOWED_TOOLS" \
+        --add-dir "tests/e2e" \
+        --output-format json \
+        "$PARITY_PROMPT" > "$OUTPUT_FILE" 2>"$TMPRUN/claude.err" )
+else
+    claude --print \
+        --max-turns "$PARITY_MAX_TURNS" \
+        --allowedTools "$PARITY_ALLOWED_TOOLS" \
+        --add-dir "tests/e2e" \
+        --output-format json \
+        "$PARITY_PROMPT" > "$OUTPUT_FILE" 2>"$TMPRUN/claude.err"
+fi
 CLAUDE_RC=$?
 set -e
 if [ "$CLAUDE_RC" -ne 0 ]; then
@@ -394,7 +544,11 @@ if [ "$COMPARE_BASELINE" = "1" ]; then
     DELTA=$((SCORE - BASELINE_SCORE))
     DELTA_SIGN="+"
     [ "$DELTA" -lt 0 ] && DELTA_SIGN=""
-    echo "Comparison: baseline=$BASELINE_SCORE/$BASELINE_MAX, candidate=$SCORE/$MAX_SCORE, delta=${DELTA_SIGN}${DELTA}" >&2
+    if [ -n "$STRIP_PATHS" ]; then
+        echo "Comparison (prove-it, same-commit): intact-fixture=$BASELINE_SCORE/$BASELINE_MAX, stripped-fixture=$SCORE/$MAX_SCORE, delta=${DELTA_SIGN}${DELTA}" >&2
+    else
+        echo "Comparison: baseline=$BASELINE_SCORE/$BASELINE_MAX, candidate=$SCORE/$MAX_SCORE, delta=${DELTA_SIGN}${DELTA}" >&2
+    fi
 fi
 
 # ---- Dry-run: stop before side effects ----
@@ -418,9 +572,18 @@ if [ -z "$HEAD_SHA" ]; then
     exit 1
 fi
 
-# Build check-run + PR-comment fields. In comparison mode, both surfaces show
-# baseline vs candidate vs delta — single-run mode is unchanged.
-if [ "$COMPARE_BASELINE" = "1" ]; then
+# Build check-run + PR-comment fields. Three modes — single-run, cross-commit
+# compare-baseline (main vs PR), and same-commit strip-paths (intact vs stripped).
+# Codex P1 #3 round 1: strip mode must NOT label as "main"/"PR" because both
+# runs are on the same commit; the variable is the fixture's contents.
+PRETTY_STRIPPED=""
+if [ -n "$STRIP_PATHS" ]; then
+    PRETTY_STRIPPED=$(echo "$VALID_STRIP" | tr '\n' ',' | sed 's/,$//;s/,/, /g')
+fi
+if [ "$COMPARE_BASELINE" = "1" ] && [ -n "$STRIP_PATHS" ]; then
+    CHECKRUN_TITLE="E2E Shepherd (prove-it): ${SCORE}/${MAX_SCORE} stripped vs baseline ${BASELINE_SCORE}/${BASELINE_MAX} intact (${DELTA_SIGN}${DELTA})"
+    CHECKRUN_SUMMARY="Local-Max E2E prove-it comparison for PR #$PR_NUMBER on scenario \`$SCENARIO_NAME\`. Baseline (intact fixture): ${BASELINE_SCORE}/${BASELINE_MAX}. Candidate (stripped fixture: ${PRETTY_STRIPPED}): ${SCORE}/${MAX_SCORE}. Delta: ${DELTA_SIGN}${DELTA}. Same-commit comparison. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)."
+elif [ "$COMPARE_BASELINE" = "1" ]; then
     CHECKRUN_TITLE="E2E Shepherd: ${SCORE}/${MAX_SCORE} vs baseline ${BASELINE_SCORE}/${BASELINE_MAX} (${DELTA_SIGN}${DELTA})"
     CHECKRUN_SUMMARY="Local-Max E2E comparison for PR #$PR_NUMBER on scenario \`$SCENARIO_NAME\`. Baseline (main): ${BASELINE_SCORE}/${BASELINE_MAX}. Candidate (PR): ${SCORE}/${MAX_SCORE}. Delta: ${DELTA_SIGN}${DELTA}. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)."
 else
@@ -456,7 +619,32 @@ fi
 
 # ---- Post PR comment ----
 COMMENT_FILE="$TMPRUN/comment.md"
-if [ "$COMPARE_BASELINE" = "1" ]; then
+if [ "$COMPARE_BASELINE" = "1" ] && [ -n "$STRIP_PATHS" ]; then
+    cat > "$COMMENT_FILE" <<EOF
+## Local-Max E2E Shepherd — Prove-It (Intact vs Stripped Fixture)
+
+**Scenario:** \`$SCENARIO_NAME\` (same scenario, same commit, both runs)
+**Baseline (intact fixture):** ${BASELINE_SCORE}/${BASELINE_MAX}
+**Candidate (stripped fixture):** ${SCORE}/${MAX_SCORE}
+**Stripped paths:** \`${PRETTY_STRIPPED}\`
+**Delta:** **${DELTA_SIGN}${DELTA}**
+
+<details><summary>Provenance</summary>
+
+- host: \`$HOST_OS\`
+- claude: \`$CLI_VERSION\`
+- auth: \`$AUTH_MODE\` (sim) / \`api\` (evaluator, ROADMAP #228)
+- execution_path: \`$EXECUTION_PATH\`
+- comparison_role: \`baseline\` + \`candidate\` (rows tagged in score-history.jsonl)
+- mode: same-commit prove-it (no main worktree)
+
+</details>
+
+> One-run-per-side delta — useful as advisory signal, not statistical evidence.
+> For variance-aware comparison, see ROADMAP #212 (i) Prove-It Gate (paired N=15 runs).
+> Run: \`tests/e2e/local-shepherd.sh $PR_NUMBER --compare-baseline --strip-paths '$STRIP_PATHS'\`
+EOF
+elif [ "$COMPARE_BASELINE" = "1" ]; then
     cat > "$COMMENT_FILE" <<EOF
 ## Local-Max E2E Shepherd — Baseline vs Candidate
 
@@ -503,7 +691,9 @@ fi
 gh pr comment "$PR_NUMBER" --body-file "$COMMENT_FILE" >/dev/null 2>&1 || \
     echo "Warning: PR comment failed (non-fatal)" >&2
 
-if [ "$COMPARE_BASELINE" = "1" ]; then
+if [ "$COMPARE_BASELINE" = "1" ] && [ -n "$STRIP_PATHS" ]; then
+    echo "Done: stripped-fixture $SCORE/$MAX_SCORE, intact-fixture $BASELINE_SCORE/$BASELINE_MAX, delta ${DELTA_SIGN}${DELTA} (prove-it, same-commit)" >&2
+elif [ "$COMPARE_BASELINE" = "1" ]; then
     echo "Done: candidate $SCORE/$MAX_SCORE, baseline $BASELINE_SCORE/$BASELINE_MAX, delta ${DELTA_SIGN}${DELTA}" >&2
 else
     echo "Done: score $SCORE/$MAX_SCORE, conclusion=$CONCLUSION" >&2
