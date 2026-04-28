@@ -1,5 +1,5 @@
 #!/bin/bash
-# Local-Max E2E Shepherd (ROADMAP #212)
+# Local-Max E2E Shepherd (ROADMAP #212, #230)
 #
 # Replaces CI's `claude-code-action@v1` simulation with a local `claude --print`
 # run on the maintainer's Max subscription. Preserves parity with the CI config
@@ -12,8 +12,15 @@
 #   (d) GitHub check-run emission so branch protection is satisfied
 #   (e) provenance fields on score-history so local/CI rows are distinguishable
 #
+# ROADMAP #230 — `--compare-baseline` flag:
+#   Runs the same scenario on main (via git worktree) AND the current branch,
+#   computes the score delta, posts a comparison check-run + PR comment.
+#   Unblocks #231 Phase 2 (weekly-update migration). Uses the same scenario
+#   for both runs (delta is meaningful only with apples-to-apples comparison).
+#
 # Usage:
 #   ./tests/e2e/local-shepherd.sh <PR_NUMBER>
+#   ./tests/e2e/local-shepherd.sh <PR_NUMBER> --compare-baseline
 #
 # Env overrides (for testing + power users):
 #   SDLC_LOCAL_SHEPHERD_DRY_RUN=1   — skip check-run POST + PR comment
@@ -36,11 +43,15 @@ EVALUATOR="${SDLC_SHEPHERD_EVALUATOR:-$SCRIPT_DIR/evaluate.sh}"
 
 usage() {
     cat >&2 <<EOF
-Usage: $0 <PR_NUMBER>
+Usage: $0 <PR_NUMBER> [--compare-baseline]
 
 Runs E2E simulation on the user's Max subscription (via 'claude --print'),
 scores with evaluate.sh, appends to score-history.jsonl with provenance,
 then posts a GitHub check-run + PR comment.
+
+Flags:
+  --compare-baseline    Also run on main (via git worktree) and post the
+                        score delta. Same scenario for both runs.
 
 Requirements: claude CLI, gh CLI (authed), jq, ANTHROPIC_API_KEY (evaluator).
 
@@ -54,8 +65,21 @@ EOF
     exit 1
 }
 
-[ $# -lt 1 ] && usage
-PR_NUMBER="$1"
+# Parse args: positional PR_NUMBER + optional --compare-baseline flag.
+PR_NUMBER=""
+COMPARE_BASELINE=0
+for arg in "$@"; do
+    case "$arg" in
+        --compare-baseline) COMPARE_BASELINE=1 ;;
+        --help|-h) usage ;;
+        *)
+            if [ -z "$PR_NUMBER" ]; then
+                PR_NUMBER="$arg"
+            fi
+            ;;
+    esac
+done
+[ -z "$PR_NUMBER" ] && usage
 
 # Dependency checks
 for bin in claude gh jq git; do
@@ -154,6 +178,94 @@ PROMPT_FILE="$TMPRUN/parity-prompt.txt"
 } > "$PROMPT_FILE"
 PARITY_PROMPT=$(cat "$PROMPT_FILE")
 
+# ---- Provenance fields (computed once, reused for baseline + candidate rows) ----
+HOST_OS=$(uname -s 2>/dev/null || echo "unknown")
+CLI_VERSION=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+[ -z "$CLI_VERSION" ] && CLI_VERSION="unknown"
+CLAUDE_CODE_VERSION="$CLI_VERSION"
+AUTH_MODE="subscription"
+EXECUTION_PATH="local-max"
+
+# ---- ROADMAP #230: --compare-baseline — run baseline FIRST in a main worktree ----
+BASELINE_SCORE=""
+BASELINE_MAX=""
+if [ "$COMPARE_BASELINE" = "1" ]; then
+    BASELINE_DIR=$(mktemp -d -t sdlc-baseline.XXXXXX)
+    # `git worktree add` requires the path NOT to exist, so remove the empty
+    # mktemp dir first. Race-window: a concurrent shepherd run could collide,
+    # but that's a pathological case (two compare-baseline runs in the same
+    # second) — accept the tiny window over `--force` which silently overwrites.
+    rmdir "$BASELINE_DIR" 2>/dev/null || rm -rf "$BASELINE_DIR"
+    # Detach so we don't lock main as a branch; --force handles a stale lock
+    # left behind by a previous failed run.
+    if ! git worktree add --detach --force "$BASELINE_DIR" main 2>"$TMPRUN/worktree.err"; then
+        # Fallback to origin/main if the local main ref is missing.
+        if ! git worktree add --detach --force "$BASELINE_DIR" origin/main 2>>"$TMPRUN/worktree.err"; then
+            echo "Error: could not create main worktree (tried 'main' and 'origin/main')" >&2
+            sed -n '1,5p' "$TMPRUN/worktree.err" >&2
+            exit 1
+        fi
+    fi
+    # Cleanup: prune the worktree on exit. `git worktree remove` may fail if
+    # the dir was deleted out-of-band; fall back to rm + prune so subsequent
+    # runs don't trip on a stale worktree entry.
+    cleanup_baseline_worktree() {
+        if [ -n "${BASELINE_DIR:-}" ] && [ -d "$BASELINE_DIR" ]; then
+            git worktree remove --force "$BASELINE_DIR" 2>/dev/null \
+                || { rm -rf "$BASELINE_DIR"; git worktree prune 2>/dev/null || true; }
+        fi
+    }
+    # Replace the existing TMPRUN-only trap with a combined one.
+    trap 'cleanup_baseline_worktree; rm -rf "$TMPRUN"' EXIT
+
+    # Codex P1 #2: nest BASELINE_TMPRUN under TMPRUN so the existing trap
+    # (which now also runs cleanup_baseline_worktree) covers it. Previously
+    # mktemp -d created a sibling dir that leaked on early failures.
+    BASELINE_TMPRUN="$TMPRUN/baseline"
+    mkdir -p "$BASELINE_TMPRUN"
+    BASELINE_OUTPUT="$BASELINE_TMPRUN/claude-execution-output.json"
+    echo "Running baseline simulation in $BASELINE_DIR (main): max-turns=$PARITY_MAX_TURNS" >&2
+    set +e
+    ( cd "$BASELINE_DIR" && claude --print \
+        --max-turns "$PARITY_MAX_TURNS" \
+        --allowedTools "$PARITY_ALLOWED_TOOLS" \
+        --add-dir "tests/e2e" \
+        --output-format json \
+        "$PARITY_PROMPT" > "$BASELINE_OUTPUT" 2>"$BASELINE_TMPRUN/claude.err" )
+    BASELINE_CLAUDE_RC=$?
+    set -e
+    if [ "$BASELINE_CLAUDE_RC" -ne 0 ]; then
+        echo "Error: baseline simulation failed (rc=$BASELINE_CLAUDE_RC)" >&2
+        [ -s "$BASELINE_TMPRUN/claude.err" ] && sed -n '1,5p' "$BASELINE_TMPRUN/claude.err" >&2
+        exit 1
+    fi
+    if [ ! -s "$BASELINE_OUTPUT" ]; then
+        echo "Error: baseline simulation output empty" >&2
+        exit 1
+    fi
+    set +e
+    BASELINE_EVAL=$("$EVALUATOR" "$SCENARIO_FILE" "$BASELINE_OUTPUT" --json 2>"$BASELINE_TMPRUN/eval.err")
+    BASELINE_EVAL_RC=$?
+    set -e
+    if [ "$BASELINE_EVAL_RC" -ne 0 ] || ! echo "$BASELINE_EVAL" | jq empty 2>/dev/null; then
+        echo "Error: baseline evaluator failed (rc=$BASELINE_EVAL_RC)" >&2
+        [ -s "$BASELINE_TMPRUN/eval.err" ] && sed -n '1,5p' "$BASELINE_TMPRUN/eval.err" >&2
+        exit 1
+    fi
+    BASELINE_SCORE=$(echo "$BASELINE_EVAL" | jq -r '.score // 0')
+    BASELINE_MAX=$(echo "$BASELINE_EVAL" | jq -r '.max_score // 10')
+    BASELINE_CRIT=$(echo "$BASELINE_EVAL" | jq -c '.criteria // {}')
+    case "$BASELINE_SCORE" in ''|*[!0-9]*) BASELINE_SCORE=0 ;; esac
+    case "$BASELINE_MAX" in ''|*[!0-9]*) BASELINE_MAX=10 ;; esac
+    [ -z "$BASELINE_CRIT" ] && BASELINE_CRIT='{}'
+
+    # Codex P1 #1: do NOT append the baseline row here. Defer to after the
+    # candidate sim+eval succeeds — otherwise a candidate failure leaves an
+    # orphan baseline row in history with no comparison partner. Both rows
+    # are written together at the end, or neither is.
+    echo "Baseline score: $BASELINE_SCORE/$BASELINE_MAX (main)" >&2
+fi
+
 echo "Running simulation: max-turns=$PARITY_MAX_TURNS" >&2
 # LS-002: hard-fail on claude error. Previously `|| true` swallowed failures,
 # so a crashed sim still produced score=0 as if it had completed. Now a
@@ -219,34 +331,71 @@ case "$SCORE" in ''|*[!0-9]*) SCORE=0 ;; esac
 case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
 [ -z "$CRIT" ] && CRIT='{}'
 
-# ---- Provenance (Codex P1 #5 on #212 plan) ----
-HOST_OS=$(uname -s 2>/dev/null || echo "unknown")
-# Extract a semver-looking token from `claude --version` rather than trusting
-# last-word parsing — some CLI versions embed trailing metadata.
-CLI_VERSION=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-[ -z "$CLI_VERSION" ] && CLI_VERSION="unknown"
-CLAUDE_CODE_VERSION="$CLI_VERSION"
-AUTH_MODE="subscription"     # sim on Max subscription
-EXECUTION_PATH="local-max"
-
-# Append to score-history.jsonl with provenance fields.
+# Provenance fields were computed once before the baseline run (see above).
+# Append history rows. When --compare-baseline is set, both baseline AND
+# candidate rows are written here (deferred from the baseline block per
+# Codex P1 #1 — atomic so a candidate failure can't leave an orphan row).
+# Single-run mode omits comparison_role for backward compat.
 mkdir -p "$(dirname "$HISTORY_FILE")"
-jq -nc \
-    --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg scenario "$SCENARIO_NAME" \
-    --argjson score "$SCORE" \
-    --argjson max_score "$MAX_SCORE" \
-    --argjson criteria "$CRIT" \
-    --arg execution_path "$EXECUTION_PATH" \
-    --arg host_os "$HOST_OS" \
-    --arg cli_version "$CLI_VERSION" \
-    --arg claude_code_version "$CLAUDE_CODE_VERSION" \
-    --arg auth_mode "$AUTH_MODE" \
-    --argjson pr_number "$PR_NUMBER" \
-    '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, pr_number:$pr_number}' \
-    >> "$HISTORY_FILE"
+if [ "$COMPARE_BASELINE" = "1" ]; then
+    # Baseline row first (deferred from baseline block).
+    jq -nc \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg scenario "$SCENARIO_NAME" \
+        --argjson score "$BASELINE_SCORE" \
+        --argjson max_score "$BASELINE_MAX" \
+        --argjson criteria "$BASELINE_CRIT" \
+        --arg execution_path "$EXECUTION_PATH" \
+        --arg host_os "$HOST_OS" \
+        --arg cli_version "$CLI_VERSION" \
+        --arg claude_code_version "$CLAUDE_CODE_VERSION" \
+        --arg auth_mode "$AUTH_MODE" \
+        --arg comparison_role "baseline" \
+        --argjson pr_number "$PR_NUMBER" \
+        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, comparison_role:$comparison_role, pr_number:$pr_number}' \
+        >> "$HISTORY_FILE"
+    # Candidate row second.
+    jq -nc \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg scenario "$SCENARIO_NAME" \
+        --argjson score "$SCORE" \
+        --argjson max_score "$MAX_SCORE" \
+        --argjson criteria "$CRIT" \
+        --arg execution_path "$EXECUTION_PATH" \
+        --arg host_os "$HOST_OS" \
+        --arg cli_version "$CLI_VERSION" \
+        --arg claude_code_version "$CLAUDE_CODE_VERSION" \
+        --arg auth_mode "$AUTH_MODE" \
+        --arg comparison_role "candidate" \
+        --argjson pr_number "$PR_NUMBER" \
+        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, comparison_role:$comparison_role, pr_number:$pr_number}' \
+        >> "$HISTORY_FILE"
+else
+    jq -nc \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg scenario "$SCENARIO_NAME" \
+        --argjson score "$SCORE" \
+        --argjson max_score "$MAX_SCORE" \
+        --argjson criteria "$CRIT" \
+        --arg execution_path "$EXECUTION_PATH" \
+        --arg host_os "$HOST_OS" \
+        --arg cli_version "$CLI_VERSION" \
+        --arg claude_code_version "$CLAUDE_CODE_VERSION" \
+        --arg auth_mode "$AUTH_MODE" \
+        --argjson pr_number "$PR_NUMBER" \
+        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, pr_number:$pr_number}' \
+        >> "$HISTORY_FILE"
+fi
 
 echo "Score $SCORE/$MAX_SCORE appended to $HISTORY_FILE" >&2
+
+# ---- ROADMAP #230: comparison summary (compare-baseline mode) ----
+if [ "$COMPARE_BASELINE" = "1" ]; then
+    DELTA=$((SCORE - BASELINE_SCORE))
+    DELTA_SIGN="+"
+    [ "$DELTA" -lt 0 ] && DELTA_SIGN=""
+    echo "Comparison: baseline=$BASELINE_SCORE/$BASELINE_MAX, candidate=$SCORE/$MAX_SCORE, delta=${DELTA_SIGN}${DELTA}" >&2
+fi
 
 # ---- Dry-run: stop before side effects ----
 if [ "${SDLC_LOCAL_SHEPHERD_DRY_RUN:-0}" = "1" ]; then
@@ -268,6 +417,17 @@ if [ -z "$HEAD_SHA" ]; then
     echo "Error: could not resolve PR head SHA for check-run POST" >&2
     exit 1
 fi
+
+# Build check-run + PR-comment fields. In comparison mode, both surfaces show
+# baseline vs candidate vs delta — single-run mode is unchanged.
+if [ "$COMPARE_BASELINE" = "1" ]; then
+    CHECKRUN_TITLE="E2E Shepherd: ${SCORE}/${MAX_SCORE} vs baseline ${BASELINE_SCORE}/${BASELINE_MAX} (${DELTA_SIGN}${DELTA})"
+    CHECKRUN_SUMMARY="Local-Max E2E comparison for PR #$PR_NUMBER on scenario \`$SCENARIO_NAME\`. Baseline (main): ${BASELINE_SCORE}/${BASELINE_MAX}. Candidate (PR): ${SCORE}/${MAX_SCORE}. Delta: ${DELTA_SIGN}${DELTA}. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)."
+else
+    CHECKRUN_TITLE="E2E Shepherd: $SCORE/$MAX_SCORE ($SCENARIO_NAME)"
+    CHECKRUN_SUMMARY="Local-Max E2E simulation for PR #$PR_NUMBER scored $SCORE/$MAX_SCORE on scenario \`$SCENARIO_NAME\`. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)."
+fi
+
 # LS-002: check-run POST failure is hard-fail. If branch protection is
 # waiting on e2e-local-shepherd, a silent warning isn't enough — we must
 # surface that the gate was never satisfied. Set SDLC_SHEPHERD_SOFT_FAIL=1
@@ -279,8 +439,8 @@ gh api "repos/$REPO_NWO/check-runs" \
     --field "head_sha=$HEAD_SHA" \
     --field "status=completed" \
     --field "conclusion=$CONCLUSION" \
-    --field "output[title]=E2E Shepherd: $SCORE/$MAX_SCORE ($SCENARIO_NAME)" \
-    --field "output[summary]=Local-Max E2E simulation for PR #$PR_NUMBER scored $SCORE/$MAX_SCORE on scenario \`$SCENARIO_NAME\`. Execution path: local-max ($HOST_OS, claude $CLI_VERSION)." \
+    --field "output[title]=$CHECKRUN_TITLE" \
+    --field "output[summary]=$CHECKRUN_SUMMARY" \
     >"$TMPRUN/checkrun.out" 2>"$TMPRUN/checkrun.err"
 CHECKRUN_RC=$?
 set -e
@@ -296,7 +456,31 @@ fi
 
 # ---- Post PR comment ----
 COMMENT_FILE="$TMPRUN/comment.md"
-cat > "$COMMENT_FILE" <<EOF
+if [ "$COMPARE_BASELINE" = "1" ]; then
+    cat > "$COMMENT_FILE" <<EOF
+## Local-Max E2E Shepherd — Baseline vs Candidate
+
+**Scenario:** \`$SCENARIO_NAME\` (same scenario for both runs)
+**Baseline (main):** ${BASELINE_SCORE}/${BASELINE_MAX}
+**Candidate (PR):** ${SCORE}/${MAX_SCORE}
+**Delta:** **${DELTA_SIGN}${DELTA}**
+
+<details><summary>Provenance</summary>
+
+- host: \`$HOST_OS\`
+- claude: \`$CLI_VERSION\`
+- auth: \`$AUTH_MODE\` (sim) / \`api\` (evaluator, ROADMAP #228)
+- execution_path: \`$EXECUTION_PATH\`
+- comparison_role: \`baseline\` + \`candidate\` (rows tagged in score-history.jsonl)
+
+</details>
+
+> One-run-per-side delta — useful as advisory signal, not statistical evidence.
+> For variance-aware comparison, see ROADMAP #212 (i) Prove-It Gate (paired N=15 runs).
+> Run: \`tests/e2e/local-shepherd.sh $PR_NUMBER --compare-baseline\`
+EOF
+else
+    cat > "$COMMENT_FILE" <<EOF
 ## Local-Max E2E Shepherd
 
 **Scenario:** \`$SCENARIO_NAME\`
@@ -314,9 +498,14 @@ cat > "$COMMENT_FILE" <<EOF
 
 > Run: \`tests/e2e/local-shepherd.sh $PR_NUMBER\`
 EOF
+fi
 
 gh pr comment "$PR_NUMBER" --body-file "$COMMENT_FILE" >/dev/null 2>&1 || \
     echo "Warning: PR comment failed (non-fatal)" >&2
 
-echo "Done: score $SCORE/$MAX_SCORE, conclusion=$CONCLUSION" >&2
+if [ "$COMPARE_BASELINE" = "1" ]; then
+    echo "Done: candidate $SCORE/$MAX_SCORE, baseline $BASELINE_SCORE/$BASELINE_MAX, delta ${DELTA_SIGN}${DELTA}" >&2
+else
+    echo "Done: score $SCORE/$MAX_SCORE, conclusion=$CONCLUSION" >&2
+fi
 exit 0

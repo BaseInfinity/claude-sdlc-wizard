@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.48.0
+Latest:    1.49.0
 
 What changed:
+- [1.49.0] local-shepherd.sh --compare-baseline flag (#230)
 - [1.48.0] SKILL.md trim — token bloat audit phase 2 follow-up
 - [1.47.0] Codex review progress wrapper (#259)
 - [1.46.1] npx check surfaces dangling+enabled plugin state (#266)
