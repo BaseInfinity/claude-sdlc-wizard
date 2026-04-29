@@ -704,7 +704,9 @@ if 'outputs.response' in content:
     fi
 }
 
-# Test 54: weekly-update must extract analysis from execution output file
+# Test 54: n/a per #231 Phase 3d — Claude-ranker step deleted, no execution
+# output file to extract from. Replaced with regression check that the
+# placeholder analysis step writes /tmp/analysis.json.
 test_weekly_update_extracts_from_output_file() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
@@ -713,21 +715,30 @@ test_weekly_update_extracts_from_output_file() {
         return
     fi
 
-    python3 -c "
+    # Regression: no `uses: anthropics/claude-code-action` directive should
+    # remain (Phase 3d removed it). Comments mentioning the old action are OK.
+    # Two YAML step forms must both be caught:
+    #   "      - uses: anthropics/claude-code-action@v1"  (compact form)
+    #   "      uses: anthropics/claude-code-action@v1"   (continuation under -name:)
+    # Use Python YAML parsing to catch both reliably (Codex round 1 P1).
+    USES_CHECK=$(python3 -c "
 import yaml
 with open('$WORKFLOW') as f:
     wf = yaml.safe_load(f)
 for job_name, job in wf.get('jobs', {}).items():
     for step in job.get('steps', []):
-        run = step.get('run', '')
-        if 'claude-execution-output.json' in run and 'analysis' in step.get('name', '').lower():
-            print('READS_OUTPUT_FILE')
-" > /tmp/output_file_check.txt 2>&1
-
-    if grep -q "READS_OUTPUT_FILE" /tmp/output_file_check.txt; then
-        pass "weekly-update extracts analysis from execution output file"
+        uses = step.get('uses', '')
+        if 'anthropics/claude-code-action' in uses:
+            print('RESURRECTED:' + job_name + '/' + (step.get('name') or step.get('id') or 'unnamed'))
+print('OK')
+" 2>&1)
+    if echo "$USES_CHECK" | grep -q "RESURRECTED:"; then
+        DETAIL=$(echo "$USES_CHECK" | grep "RESURRECTED:" | sed 's/RESURRECTED://')
+        fail "weekly-update.yml has resurrected claude-code-action step: $DETAIL — Phase 3d removed all API spend"
+    elif grep -q "tmp/analysis.json" "$WORKFLOW"; then
+        pass "weekly-update writes /tmp/analysis.json placeholder (Phase 3d Claude-ranker deleted)"
     else
-        fail "weekly-update does not read claude-execution-output.json for analysis (result will be empty)"
+        fail "weekly-update should write /tmp/analysis.json placeholder (Phase 3d expected)"
     fi
 }
 
@@ -1236,17 +1247,9 @@ test_bare_pr_review() {
     fi
 }
 
-# Test 109: weekly-update.yml analysis step uses --bare
+# Test 109: n/a per #231 Phase 3d — "Analyze release with Claude" step deleted.
 test_bare_weekly_update_analysis() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    # The "Analyze release with Claude" step should have --bare
-    # Check that the step's claude-code-action invocation includes --bare
-    if sed -n '/name: Analyze release with Claude/,/name:/p' "$WORKFLOW" | grep -q '\-\-bare'; then
-        pass "weekly-update.yml analysis step uses --bare"
-    else
-        fail "weekly-update.yml 'Analyze release with Claude' should use --bare"
-    fi
+    pass "test_bare_weekly_update_analysis n/a per #231 Phase 3d (Claude-ranker step deleted)"
 }
 
 # Test 110: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
