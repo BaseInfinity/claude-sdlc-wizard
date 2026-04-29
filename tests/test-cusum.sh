@@ -9,6 +9,15 @@ CUSUM_SCRIPT="$SCRIPT_DIR/e2e/cusum.sh"
 PASSED=0
 FAILED=0
 
+# Hygiene: tests below call `--reset` and `--add-json` which mutate the real
+# score-history.jsonl. Save its contents before testing and restore on exit so
+# the working tree stays clean. (Pre-existing bug — should ideally use a
+# tmpdir-local path, but cusum.sh hardcodes the location.)
+_HISTORY_FILE="$SCRIPT_DIR/e2e/score-history.jsonl"
+_HISTORY_BACKUP="$(mktemp -t cusum-history-backup.XXXXXX)"
+[ -f "$_HISTORY_FILE" ] && cp "$_HISTORY_FILE" "$_HISTORY_BACKUP"
+trap '[ -f "$_HISTORY_BACKUP" ] && cp "$_HISTORY_BACKUP" "$_HISTORY_FILE"; rm -f "$_HISTORY_BACKUP"' EXIT
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

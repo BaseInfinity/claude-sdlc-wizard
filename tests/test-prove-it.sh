@@ -390,27 +390,17 @@ fi
 # Competitive Watchlist Tests
 # ============================================
 
-# Test 18: Weekly community scan includes competitive watchlist (via analyze-community.md)
+# Test 18: analyze-community.md still contains the competitive watchlist
+# (post-#231 Phase 3c the prompt is invoked manually via `claude --print`
+# instead of the deleted scan-community CI job — the prompt content itself
+# remains the single source of truth for the watchlist).
 test_weekly_has_competitive_watchlist() {
-    local WEEKLY_WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
     local COMMUNITY_PROMPT="$REPO_ROOT/.github/prompts/analyze-community.md"
 
-    # The watchlist lives in analyze-community.md which is consumed by the weekly workflow
-    local prompt_has_watchlist=false
-    local weekly_uses_prompt=false
-
     if [ -f "$COMMUNITY_PROMPT" ] && grep -qi "everything-claude-code\|competitive.*watchlist\|competitor" "$COMMUNITY_PROMPT" 2>/dev/null; then
-        prompt_has_watchlist=true
-    fi
-
-    if [ -f "$WEEKLY_WORKFLOW" ] && grep -q "analyze-community.md" "$WEEKLY_WORKFLOW" 2>/dev/null; then
-        weekly_uses_prompt=true
-    fi
-
-    if [ "$prompt_has_watchlist" = "true" ] && [ "$weekly_uses_prompt" = "true" ]; then
-        pass "Weekly community scan includes competitive watchlist via analyze-community.md"
+        pass "analyze-community.md retains competitive watchlist (manual on-Max scan uses this prompt)"
     else
-        fail "Weekly scan should use analyze-community.md which contains the competitive watchlist"
+        fail "analyze-community.md should retain the competitive watchlist for manual on-Max scans"
     fi
 }
 test_weekly_has_competitive_watchlist

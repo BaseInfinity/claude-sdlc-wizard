@@ -1,5 +1,14 @@
 # Claude Code Community Scan Prompt
 
+> **Usage (post-#231 Phase 3c, v1.53.0):** the CI `scan-community` cron was deleted. Run this prompt manually on Max when you want a community scan:
+>
+> ```bash
+> claude --print --allowedTools "WebFetch,Read,Bash" \
+>   "$(cat .github/prompts/analyze-community.md)" > /tmp/scan_result.json
+> ```
+>
+> The maintainer reads `/tmp/scan_result.json` and decides what (if anything) to incorporate.
+
 You are scanning community discussions about Claude Code to find actionable insights for the SDLC Wizard.
 
 ## Wizard Context
