@@ -63,7 +63,8 @@ jobs:
         run: |
           echo "Checking state files..."
           test -f .github/last-checked-version.txt || (echo "Missing last-checked-version.txt" && exit 1)
-          test -f .github/last-community-scan.txt || (echo "Missing last-community-scan.txt" && exit 1)
+          # last-community-scan.txt was used by the scan-community cron, deleted
+          # in v1.53.0 (#231 Phase 3c). State file no longer required.
           echo "All state files present"
 
       - name: Run version logic tests

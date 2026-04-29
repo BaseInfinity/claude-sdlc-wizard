@@ -18,7 +18,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Workflow | Detects | Suggests Changes To | Tests | Output |
 |----------|---------|---------------------|-------|--------|
-| **weekly-update** | New CC version + community patterns | digest issue with findings (auto-apply + E2E both deleted in v1.51.0/v1.52.0) | None in CI; manual local-shepherd handles version regression + community-pattern testing | Issue with findings; PR if maintainer applies + tests locally |
+| **weekly-update** | New CC version (auto-update PR) | nothing in CI — community scanning moved to manual `claude --print` (v1.53.0) | None in CI; manual local-shepherd handles version regression + community-pattern testing | Auto-update PR for new CC versions |
 
 > **Historical (pre-2026-04-24):** `monthly-research` covered trend research → SDLC doc suggestions. Removed per ROADMAP #231 Phase 1 (zero merged artifacts in 30d, "perplexity-as-CI" antipattern). Research now happens inline in a Claude Code session.
 
@@ -52,11 +52,12 @@ The shepherd posts a check-run + PR comment with the baseline-vs-candidate score
 
 ## What's Implemented
 
-### Weekly Update Check + Community Scan (`.github/workflows/weekly-update.yml`)
+### Weekly Update Check (`.github/workflows/weekly-update.yml`, post-#231 Phase 3c)
 - **Trigger:** Weekly schedule (Mondays 9 AM UTC) + manual dispatch
-- **Checks:** Claude Code GitHub releases + Reddit, HN, dev blogs, official channels
-- **Action:** Creates PR for updates (relevance shown in title) + digest issue for notable community findings
-- **E2E Testing:** None remaining in CI. Two-phase version testing was deleted in v1.51.0 (#231 Phase 3a); community-pattern E2E testing was deleted in v1.52.0 (#231 Phase 3b). Replacement for both is manual local-Max via `tests/e2e/local-shepherd.sh <PR> --compare-baseline` after the maintainer reviews the digest issue from `scan-community`.
+- **Checks:** Claude Code GitHub releases only
+- **Action:** Creates auto-update PR with the new version (Claude analyzes release notes for relevance label)
+- **Community scan:** DELETED in v1.53.0 (#231 Phase 3c). Maintainer runs manually on Max: `claude --print --allowedTools "WebFetch,Read,Bash" "$(cat .github/prompts/analyze-community.md)"`.
+- **E2E Testing:** None remaining in CI. Two-phase version testing deleted in v1.51.0 (Phase 3a); community-pattern E2E deleted in v1.52.0 (Phase 3b). Replacement for both is manual local-Max via `tests/e2e/local-shepherd.sh <PR> --compare-baseline`.
 
 ### Monthly Research Deep Dive — REMOVED (ROADMAP #231 Phase 1, 2026-04-24)
 The `.github/workflows/monthly-research.yml` workflow (deep research → issue → Tier 2 E2E) was deleted. Research now happens inline in a Claude Code session when the maintainer wants it.
@@ -75,7 +76,7 @@ The `.github/workflows/monthly-research.yml` workflow (deep research → issue �
 
 | Trigger | Workflow | What It Does |
 |---------|----------|--------------|
-| Manual (cron disabled per #212/#231) | weekly-update.yml | Check releases + scan community → PR/Issue |
+| Weekly cron (Mondays 9 AM UTC) | weekly-update.yml | Check releases → auto-update PR (community scan deleted v1.53.0) |
 | On PR | ci.yml | Run tests + E2E eval |
 | On PR | pr-review.yml | AI code review |
 
@@ -93,8 +94,8 @@ The `.github/workflows/monthly-research.yml` workflow (deep research → issue �
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| Official sources | Weekly | Batched with community scan, saves API costs |
-| Community sources | Weekly | Less urgent, more noise, digest format |
+| Official sources | Weekly | Cron in weekly-update.yml — only remaining CI job after Phase 3 |
+| Community sources | Manual on-Max (post-#231 Phase 3c) | Was weekly cron through v1.52.0 — moved to manual `claude --print` invocation of analyze-community.md |
 | Deep research | ~~Monthly~~ Inline (removed per #231 Phase 1) | Monthly cron produced zero merged artifacts; research happens in a Claude Code session now |
 | State storage | Files in repo | Simple, transparent, version-controlled |
 | Analysis | Claude API | Nuanced understanding of wizard philosophy |
@@ -107,15 +108,17 @@ The `.github/workflows/monthly-research.yml` workflow (deep research → issue �
 ```
 .github/
 ├── workflows/
-│   ├── weekly-update.yml     # Version check + community scan (cron disabled per #212/#231)
+│   ├── weekly-update.yml     # Version check only — community scan deleted in v1.53.0 (#231 Phase 3c)
 │   ├── ci.yml                # Tests + E2E evaluation
 │   └── pr-review.yml         # AI code review
 # historical (removed): monthly-research.yml (#231 Phase 1), ci-self-heal.yml (local shepherd replaces)
 ├── prompts/
-│   ├── analyze-release.md    # Claude prompt for release analysis
-│   └── analyze-community.md  # Claude prompt for community scan
+│   ├── analyze-release.md    # Claude prompt for release analysis (used by weekly-update)
+│   └── analyze-community.md  # Claude prompt for manual on-Max community scan (no longer in CI)
 ├── last-checked-version.txt  # Last processed Claude Code version
-└── last-community-scan.txt   # Last community scan date
+# last-community-scan.txt is orphaned post-#231 Phase 3c — file may still exist
+# in the repo but no workflow reads it. The maintainer can update it manually
+# if they want to track local-scan cadence.
 
 tests/
 ├── test-version-logic.sh     # Version comparison tests
@@ -1133,14 +1136,17 @@ The deleted job ran A/B Tier 2 evals on overlap detection, posted a sticky PR co
 
 > **Historical:** `monthly-research.yml` (~$0.50/month) deleted 2026-04-24 per ROADMAP #231 Phase 1 — zero merged artifacts in 30d.
 
-**The merged weekly workflow does:**
+**The merged weekly workflow does (post-#231 Phase 3 cumulative deletes, v1.53.0+):**
 1. Check for new Claude Code releases since last check
-2. If new: analyze changelog, flag wizard impact, create PR with E2E comparison
-3. If overlap with custom features: run "prove it" side-by-side comparison
-4. Scan community patterns (previously weekly-community behavior)
-5. One PR per week with everything bundled
+2. If new: analyze changelog, flag wizard impact, create auto-update PR
 
-**Why:** Saves API costs ($2.50/week vs $2.50/day) while maintaining quality. Weekly batching doesn't miss anything important.
+**Historical (through v1.50.0):**
+- E2E comparison on auto-update PR (Phase A regression + Phase B improvement) — deleted v1.51.0 (#231 Phase 3a). Replacement: manual `npm i + tests/e2e/local-shepherd.sh <PR> --compare-baseline`.
+- "Prove it" side-by-side when CC overlaps custom features — deleted v1.50.0 (#231 Phase 2). Replacement: `tests/e2e/local-shepherd.sh <PR> --compare-baseline --strip-paths '[paths]'`.
+- Apply community findings + score them — deleted v1.52.0 (#231 Phase 3b). Replacement: manual review of digest issue + manual local-shepherd.
+- Scan community patterns (Reddit/HN/blogs + friction-signal issues) — deleted v1.53.0 (#231 Phase 3c). Replacement: `claude --print --allowedTools "WebFetch,Read,Bash" "$(cat .github/prompts/analyze-community.md)"` on Max.
+
+**Why:** the cumulative cron burn was $25-55/week with zero merged artifacts in 30d (excepting one community-patterns PR). Maintainer-on-Max replacements cost $0 for the simulation legs and let the maintainer skip uninteresting weeks.
 
 ## CI Bug Fixes (found during v1.8.0 catch-up forensic analysis)
 
