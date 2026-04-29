@@ -1,10 +1,13 @@
 name: Weekly Update
 
-# NOTE: cron disabled as of ROADMAP #212 (Option 1). This workflow has 9
-# `anthropics/claude-code-action@v1` blocks that burn API credits every run.
-# Full migration to local-shepherd-based simulation is tracked as a #212
-# follow-up. Until then: manual-only via workflow_dispatch, and only when
-# you have API credit budget.
+# NOTE: cron is currently disabled (per ROADMAP #212 Option 1). After ROADMAP
+# #231 Phase 3a/3b/3c/3d (v1.51.0–v1.54.0), this workflow has ZERO
+# `anthropics/claude-code-action@v1` blocks — all API-burning logic was
+# deleted (version-test, prove-it-test, community-e2e-test, scan-community,
+# and the in-job Claude release-ranker). Only the cheap GH-API release
+# detection + auto-update PR creation remains. Cron can be safely re-enabled
+# now (~$0.30/run); leaving it manual-dispatch until a deliberate Phase 4
+# decision.
 
 on:
   # schedule disabled — see note above. Manual via workflow_dispatch only.
@@ -135,128 +138,29 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build analysis prompt
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        id: build-prompt
-        run: |
-          # Assemble analysis prompt from template + release context
-          RELEASE_COUNT="${{ steps.latest-release.outputs.release_count }}"
-          {
-            cat .github/prompts/analyze-release.md
-            echo ""
-            echo "## Release(s) to Analyze"
-            echo ""
-            if [ "$RELEASE_COUNT" -gt 1 ]; then
-              echo "**Versions:** $RELEASE_COUNT releases from ${{ steps.last-version.outputs.version }} to ${{ steps.latest-release.outputs.latest_version }}"
-            else
-              echo "**Version:** ${{ steps.latest-release.outputs.latest_version }}"
-            fi
-            echo "**Latest Date:** ${{ steps.latest-release.outputs.release_date }}"
-            echo "**URL:** ${{ steps.latest-release.outputs.release_url }}"
-            echo ""
-            echo "**Release Notes:**"
-            cat /tmp/release_body.md
-          } > /tmp/analysis_prompt.md
-
-          # Pass assembled prompt as multi-line output
-          {
-            echo "prompt<<PROMPT_EOF"
-            cat /tmp/analysis_prompt.md
-            echo "PROMPT_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Analyze release with Claude
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        id: analyze
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: ${{ steps.build-prompt.outputs.prompt }}
-          claude_args: "--bare"
-
-      - name: Extract analysis from execution output
+      # ROADMAP #231 Phase 3d (v1.54.0): the in-CI Claude release-ranker was
+      # deleted. The original chain was: Build analysis prompt → Analyze with
+      # claude-code-action@v1 → Extract from execution output → Parse JSON.
+      # That chain made one Anthropic API call per release detection, with no
+      # signal load-bearing on the auto-update PR (relevance label is advisory).
+      #
+      # Replacement: write a placeholder analysis.json with relevance=UNKNOWN
+      # and a summary that tells the maintainer to run analyze-release.md
+      # locally on Max. The PR still gets created; the relevance label is
+      # filled in when the maintainer reviews.
+      - name: Generate placeholder analysis (Claude-ranker moved to manual on-Max)
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
         run: |
-          # claude-code-action saves Claude's response to this file
-          OUTPUT_FILE="${RUNNER_TEMP:-/tmp}/claude-execution-output.json"
-
-          if [ ! -f "$OUTPUT_FILE" ]; then
-            echo "::warning::No execution output file found"
-            echo '{"relevance":"LOW","summary":"Analysis unavailable"}' > /tmp/analysis.json
-            exit 0
-          fi
-
-          # The execution output format varies:
-          # - Array: [{role:"assistant",content:[{type:"text",text:"..."}]}, ...]
-          # - Object: {result:"...", output:"...", ...}
-          IS_ARRAY=$(jq -r 'if type == "array" then "true" else "false" end' "$OUTPUT_FILE" 2>/dev/null || echo "false")
-          echo "Output format: is_array=$IS_ARRAY"
-
-          if [ "$IS_ARRAY" = "true" ]; then
-            # Array of conversation messages — find the last assistant text
-            RESPONSE_TEXT=$(jq -r '
-              [.[] | select(type == "object")] |
-              [.[] | select(.role == "assistant" or .type == "result")] |
-              last |
-              if .content then
-                (if (.content | type) == "array" then
-                  [.content[] | select(.type == "text") | .text] | join("")
-                else
-                  .content
-                end)
-              elif .text then .text
-              elif .result then .result
-              else empty
-              end
-            ' "$OUTPUT_FILE" 2>/dev/null || echo "")
-          else
-            # Direct object with .result or .output
-            RESPONSE_TEXT=$(jq -r '.result // .output // empty' "$OUTPUT_FILE" 2>/dev/null || echo "")
-          fi
-
-          if [ -z "$RESPONSE_TEXT" ]; then
-            echo "::warning::Could not extract text (is_array=$IS_ARRAY)"
-            echo "::warning::First 3 items: $(jq -c '.[0:3] | [.[] | keys]' "$OUTPUT_FILE" 2>/dev/null || echo "N/A")"
-            echo '{"relevance":"LOW","summary":"Analysis extraction failed"}' > /tmp/analysis.json
-            exit 0
-          fi
-
-          echo "Response text length: ${#RESPONSE_TEXT}"
-
-          # The response text contains JSON (possibly wrapped in markdown code blocks)
-          echo "$RESPONSE_TEXT" | sed -n '/^```json/,/^```$/p' | sed '1d;$d' > /tmp/analysis.json 2>/dev/null
-
-          # If no code block, try raw text as JSON
-          if [ ! -s /tmp/analysis.json ]; then
-            echo "$RESPONSE_TEXT" > /tmp/analysis.json
-          fi
-
-          # Validate it's parseable JSON
-          if ! jq empty /tmp/analysis.json 2>/dev/null; then
-            echo "::warning::Not valid JSON, extracting JSON object from text"
-            # Find a line containing a JSON object with relevance key
-            echo "$RESPONSE_TEXT" | python3 -c "
-          import sys, json, re
-          text = sys.stdin.read()
-          # Try to find JSON block in text
-          match = re.search(r'\{[^{}]*\"relevance\"[^{}]*\}', text, re.DOTALL)
-          if not match:
-              # Try multi-line JSON
-              match = re.search(r'\{.*?\"relevance\".*?\}', text, re.DOTALL)
-          if match:
-              try:
-                  obj = json.loads(match.group())
-                  print(json.dumps(obj))
-              except:
-                  print(json.dumps({'relevance':'LOW','summary':'JSON parse failed'}))
-          else:
-              print(json.dumps({'relevance':'LOW','summary':'No JSON found in response'}))
-          " > /tmp/analysis.json
-          fi
-
-          echo "Analysis extracted successfully"
-          jq -r '.relevance // "unknown"' /tmp/analysis.json
+          cat > /tmp/analysis.json <<'JSONEOF'
+          {
+            "relevance": "UNKNOWN",
+            "summary": "Run `claude --print --allowedTools 'WebFetch,Read,Bash' \"$(cat .github/prompts/analyze-release.md)\\n\\n## Release(s) to Analyze\\n\\nVersion: <ver>, URL: <url>\\n\\nRelease Notes:\\n<paste-from-PR-body>\"` locally on Max to generate a real relevance/summary. The auto-update PR is still useful as a notification + the version file bump.",
+            "plugin_check": {"replaces_custom": []}
+          }
+          JSONEOF
+          # Legacy "Extract" step preserved as a no-op shim — the chain below
+          # reads /tmp/analysis.json which we just wrote above.
+          echo "Placeholder analysis written. Maintainer should run analyze-release.md locally."
 
       - name: Parse analysis result
         if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
@@ -298,10 +202,11 @@ jobs:
 
           # Determine relevance indicator
           case "$RELEVANCE" in
-            HIGH)   INDICATOR="HIGH - Action recommended" ;;
-            MEDIUM) INDICATOR="MEDIUM - Review suggested" ;;
-            LOW)    INDICATOR="LOW - Informational only" ;;
-            *)      INDICATOR="$RELEVANCE" ;;
+            HIGH)    INDICATOR="HIGH - Action recommended" ;;
+            MEDIUM)  INDICATOR="MEDIUM - Review suggested" ;;
+            LOW)     INDICATOR="LOW - Informational only" ;;
+            UNKNOWN) INDICATOR="UNKNOWN - run local analysis (see below)" ;;
+            *)       INDICATOR="$RELEVANCE" ;;
           esac
 
           cat > /tmp/pr_body.md << PREOF
@@ -311,31 +216,30 @@ jobs:
           **Relevance:** $INDICATOR
           **Release URL:** ${{ steps.latest-release.outputs.release_url }}
 
-          ### Summary
-          PREOF
+          ### Local Analysis (ROADMAP #231 Phase 3d, v1.54.0+)
 
-          # Append summary from file (sanitized)
-          jq -r '.summary // "No summary"' /tmp/analysis.json >> /tmp/pr_body.md
+          The CI Claude-ranker was deleted in v1.54.0 (#231 Phase 3d) — no API spend on every release. To get HIGH/MEDIUM/LOW relevance, run locally on Max:
+
+          \`\`\`bash
+          gh release view ${{ steps.latest-release.outputs.latest_version }} --repo anthropics/claude-code --json body --jq .body > /tmp/release_notes.md
+          claude --print --allowedTools "Read,Bash" \\
+            "\$(cat .github/prompts/analyze-release.md)\\n\\n## Release to Analyze\\n\\n**Version:** ${{ steps.latest-release.outputs.latest_version }}\\n**URL:** ${{ steps.latest-release.outputs.release_url }}\\n\\n**Release Notes:**\\n\$(cat /tmp/release_notes.md)"
+          \`\`\`
+
+          Update the PR body with the relevance verdict before merging.
+          PREOF
 
           cat >> /tmp/pr_body.md << 'PREOF'
 
           ### Why This PR Exists
 
-          All Claude Code releases get a PR for visibility. The relevance level helps you prioritize:
+          All Claude Code releases get a PR for visibility. Run the local analyze command (above) to get the relevance:
           - **HIGH**: Contains changes that directly affect SDLC enforcement
           - **MEDIUM**: Contains useful improvements worth reviewing
           - **LOW**: Routine update, merge at your convenience
 
-          ### Relevance Analysis
-          ```json
-          PREOF
-
-          cat /tmp/analysis.json >> /tmp/pr_body.md
-
-          cat >> /tmp/pr_body.md << 'PREOF'
-          ```
-
           ### Review Checklist
+          - [ ] Ran local analyze-release.md — relevance set
           - [ ] Aligns with KISS principle
           - [ ] Actually needed for SDLC enforcement
           - [ ] No over-engineering

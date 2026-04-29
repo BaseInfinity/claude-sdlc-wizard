@@ -4,6 +4,34 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.54.0] - 2026-04-29
+
+### Removed
+
+- **In-CI Claude-ranker steps in `.github/workflows/weekly-update.yml`** (~150 lines: Build analysis prompt + Analyze release with Claude + Extract from output + parse). Closes ROADMAP #231 Phase 3d. Replaced with a 12-line placeholder step that writes a stub `/tmp/analysis.json` with `relevance: "UNKNOWN"` and a summary linking the maintainer to the manual command. The auto-update PR body now surfaces the on-Max invocation:
+
+  ```bash
+  gh release view <version> --repo anthropics/claude-code --json body --jq .body > /tmp/release_notes.md
+  claude --print --allowedTools "Read,Bash" \
+    "$(cat .github/prompts/analyze-release.md)\n\n## Release\n\nVersion: <ver>\n\nNotes:\n$(cat /tmp/release_notes.md)"
+  ```
+
+### Phase 3 cumulative (after this release)
+
+- **weekly-update.yml is now zero-API-spend.** No `claude-code-action@v1` calls in the workflow at all. Cron burn down from $25-55/week (pre-Phase 1) to $0/week. Only ~$0.30/run for the GH API release detection itself.
+- 5 jobs/workflows deleted: monthly-research workflow (Phase 1), prove-it-test job (Phase 2), version-test job (Phase 3a), community-e2e-test job (Phase 3b), scan-community job (Phase 3c). Plus the in-job analysis chain in check-updates (Phase 3d).
+- Phase 4 next: shrink weekly-update.yml further (currently 285 lines after Phase 3d) or fold detection into the session-start hook.
+
+### Changed
+
+- `tests/test-workflow-triggers.sh`: 2 tests updated. Test 54 inverted to assert no `uses: anthropics/claude-code-action` directive remains (regression check). Test 109 stubbed (the deleted analysis step's `--bare` flag check is moot).
+
+### Files
+
+- `.github/workflows/weekly-update.yml` (-99 lines net: -150 deleted ranker chain, +51 placeholder + maintainer-instructions PR body)
+- `tests/test-workflow-triggers.sh` (2 tests)
+- Version bump 1.53.0 → 1.54.0
+
 ## [1.53.0] - 2026-04-29
 
 ### Removed
@@ -1076,4 +1104,3 @@ The wizard now tracks completed steps in SDLC.md metadata comments. Old users ru
 - Self-review workflow
 - Testing Diamond philosophy
 - Mini-retro after tasks
-
