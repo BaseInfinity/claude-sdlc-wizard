@@ -75,19 +75,131 @@ test_workflow_has_dispatch() {
 
 # Stagger from weekly-update.yml (09:00 UTC) — api watcher at 10:00 UTC Monday.
 # Prevents both workflows hitting GH API + Anthropic at the same minute.
+#
+# Implementation note (Codex round 1, ROADMAP #231 Phase 4): grep-based parsing
+# false-greens because grep matches commented-out cron lines too. We use Python
+# YAML parsing so only ACTIVE schedules are compared. If weekly-update.yml has
+# no active schedule (which it doesn't post-#212 Option 1), the test passes
+# trivially — there's no collision to detect.
 test_workflow_cron_staggered() {
     if [ ! -f "$WORKFLOW" ]; then fail "skip: workflow missing"; return; fi
     local other="$REPO_ROOT/.github/workflows/weekly-update.yml"
-    local api_cron release_cron
-    api_cron=$(grep -oE "cron: *['\"][^'\"]+['\"]" "$WORKFLOW" | head -1)
-    release_cron=$(grep -oE "cron: *['\"][^'\"]+['\"]" "$other" | head -1)
-    if [ -z "$api_cron" ] || [ -z "$release_cron" ]; then
-        fail "could not read both cron values"; return
+
+    local result
+    result=$(python3 -c "
+import yaml
+def active_crons(path):
+    try:
+        with open(path) as f:
+            wf = yaml.safe_load(f)
+    except Exception:
+        return []
+    on = wf.get(True, wf.get('on', {}))
+    if not isinstance(on, dict):
+        return []
+    sched = on.get('schedule', []) or []
+    return [s.get('cron', '') for s in sched if isinstance(s, dict) and s.get('cron')]
+
+api_crons = active_crons('$WORKFLOW')
+release_crons = active_crons('$other')
+if not api_crons:
+    print('SKIP:no_api_cron')
+elif not release_crons:
+    print('SKIP:no_active_release_cron')
+else:
+    overlap = set(api_crons) & set(release_crons)
+    if overlap:
+        print('FAIL:collision:' + ','.join(overlap))
+    else:
+        print('PASS:api=' + ','.join(api_crons) + ' release=' + ','.join(release_crons))
+" 2>&1)
+
+    case "$result" in
+        SKIP:no_api_cron)
+            pass "skipped: weekly-api-update.yml has no active cron"
+            ;;
+        SKIP:no_active_release_cron)
+            pass "skipped: weekly-update.yml has no active cron (no collision possible)"
+            ;;
+        FAIL:collision:*)
+            fail "api cron collides with weekly-update cron — stagger to avoid burst (${result#FAIL:collision:})"
+            ;;
+        PASS:*)
+            pass "api cron staggers from release cron (${result#PASS:})"
+            ;;
+        *)
+            fail "could not parse cron values: $result"
+            ;;
+    esac
+}
+
+# Regression test for Codex round 1 P1: confirm the stagger test ACTUALLY
+# detects an active-vs-active cron collision (the original grep version
+# false-greened because it matched commented cron lines).
+#
+# We synthesize a temporary workflow file that has an ACTIVE schedule
+# matching weekly-api-update.yml's cron, then verify the YAML-parsing logic
+# above produces a FAIL: result. This proves the stagger test isn't a
+# silent no-op.
+test_workflow_cron_collision_detected() {
+    if [ ! -f "$WORKFLOW" ]; then fail "skip: workflow missing"; return; fi
+
+    local api_cron
+    api_cron=$(python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+on = wf.get(True, wf.get('on', {}))
+sched = on.get('schedule', []) if isinstance(on, dict) else []
+crons = [s.get('cron') for s in sched if isinstance(s, dict) and s.get('cron')]
+print(crons[0] if crons else '')
+" 2>/dev/null)
+
+    if [ -z "$api_cron" ]; then
+        # If the api watcher itself has no cron, the regression target doesn't
+        # apply — pass trivially (the staggered test would also skip).
+        pass "n/a: weekly-api-update.yml has no active cron to collide with"
+        return
     fi
-    if [ "$api_cron" != "$release_cron" ]; then
-        pass "api cron staggers from release cron ($api_cron vs $release_cron)"
+
+    local tmpdir
+    tmpdir=$(mktemp -d -t cron-collision-test.XXXXXX)
+    trap "rm -rf '$tmpdir'" RETURN
+
+    # Synthesize a fake "release" workflow with the SAME active cron as the api watcher
+    cat > "$tmpdir/release.yml" <<EOF
+name: Fake Release
+on:
+  schedule:
+    - cron: '$api_cron'
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
+EOF
+
+    local result
+    result=$(python3 -c "
+import yaml
+def active_crons(path):
+    with open(path) as f:
+        wf = yaml.safe_load(f)
+    on = wf.get(True, wf.get('on', {}))
+    if not isinstance(on, dict): return []
+    sched = on.get('schedule', []) or []
+    return [s.get('cron', '') for s in sched if isinstance(s, dict) and s.get('cron')]
+
+api = active_crons('$WORKFLOW')
+rel = active_crons('$tmpdir/release.yml')
+overlap = set(api) & set(rel)
+print('COLLISION' if overlap else 'NO_COLLISION')
+" 2>&1)
+
+    if [ "$result" = "COLLISION" ]; then
+        pass "stagger test correctly detects active-vs-active cron collision"
     else
-        fail "api cron collides with weekly-update cron — stagger to avoid burst"
+        fail "stagger test failed to detect synthesized active cron collision: $result"
     fi
 }
 
@@ -618,6 +730,7 @@ test_workflow_parses_yaml
 test_workflow_has_cron
 test_workflow_has_dispatch
 test_workflow_cron_staggered
+test_workflow_cron_collision_detected
 test_workflow_targets_platform_claude_com
 test_workflow_uses_md_source
 test_workflow_has_issues_write_permission

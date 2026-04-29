@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.54.0
+Latest:    1.55.0
 
 What changed:
+- [1.55.0] shrink weekly-update.yml dead code (#231 Phase 4) — delete env.VERSION_SCENARIO + has_overlap/overlap_paths outputs + placeholder/parse steps; 289 → 161 lines (-44%)
 - [1.54.0] delete check-updates Claude-ranker (#231 Phase 3d) — weekly-update.yml is now zero-API-spend; auto-update PR body links the manual analyze-release.md command
 - [1.53.0] delete scan-community cron (#231 Phase 3c) — manual `claude --print` invocation of analyze-community.md
 - [1.52.0] delete community-e2e-test cron (#231 Phase 3b) — manual local-shepherd review of scan-community digest
