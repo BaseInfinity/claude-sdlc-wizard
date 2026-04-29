@@ -27,3 +27,7 @@ tests/fixtures/community-scanner/
 /awesome-claude-code-subagents/
 scripts/__pycache__/
 /~/
+
+# tests/e2e/score-history.txt is recreated by test-cusum.sh on each run
+# (test artifact; canonical store is score-history.jsonl)
+tests/e2e/score-history.txt

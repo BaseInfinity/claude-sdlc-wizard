@@ -148,8 +148,7 @@ tests/
     ├── evaluate.sh           # AI-powered scoring (0-10)
     ├── check-compliance.sh   # Pattern-based checks
     ├── cusum.sh              # CUSUM drift detection (total + per-criterion)
-    ├── score-history.txt     # Historical total scores (legacy format)
-    ├── score-history.jsonl   # Historical per-criterion scores (JSON-lines)
+    ├── score-history.jsonl   # Historical per-criterion scores (JSON-lines, canonical store)
     ├── golden-outputs/       # Saved outputs with verified expected scores
     ├── golden-scores.json    # Expected score ranges per golden output
     └── baselines.json        # Baseline scores per scenario
