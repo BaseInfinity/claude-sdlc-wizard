@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.52.0] - 2026-04-28
+
+### Removed
+
+- **`community-e2e-test` job in `.github/workflows/weekly-update.yml`** (231 lines) — closes ROADMAP #231 Phase 3b. The CI job ran "apply community findings → Phase A baseline → Phase B candidate → compare_ci" on every external community finding at $8-15/run. 30-day window: 1 merged artifact (community-patterns/2026-04-23). Replacement: maintainer reviews the digest issue from `scan-community`, manually applies findings, runs `tests/e2e/local-shepherd.sh <PR> --compare-baseline` locally on Max ($0 sim leg).
+
+### Changed
+
+- `tests/test-workflow-triggers.sh`: 3 community-e2e tests stubbed to "n/a per #231 Phase 3b" (Test 70, 70e, 88). Test 86 expanded to assert BOTH version-test AND community-e2e-test stay deleted (renamed to `test_weekly_update_has_two_jobs_post_phase_3b`, expected = ['check-updates', 'scan-community']).
+- `plans/AUTO_SELF_UPDATE.md`: workflow table + E2E Testing line updated to reflect both deletions.
+
+### Files
+
+- `.github/workflows/weekly-update.yml` (-231 lines)
+- `tests/test-workflow-triggers.sh` (3 stubs, 1 test expanded + renamed)
+- `plans/AUTO_SELF_UPDATE.md` (2 lines updated)
+- Version bump 1.51.0 → 1.52.0 across the usual files
+
 ## [1.51.0] - 2026-04-27
 
 ### Removed

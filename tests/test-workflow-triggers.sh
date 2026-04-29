@@ -899,42 +899,16 @@ test_ci_no_dead_token_extraction() {
 # Artifacts preserve data without polluting PR branches.
 test_ci_score_history_uploaded_as_artifact() { pass "test_ci_score_history_uploaded_as_artifact n/a per #212 Option 1 (ci.yml e2e jobs removed)"; }
 
-# Test 70: weekly-update community-e2e-test gates on external findings only
+# Test 70: n/a per #231 Phase 3b — community-e2e-test job deleted
+# (replaced by manual review of scan-community digest issues + maintainer
+# applies findings + runs `tests/e2e/local-shepherd.sh <PR> --compare-baseline`)
 test_weekly_e2e_triggers_on_findings() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    # E2E job should gate on has_external_findings (not has_suggestions or bare findings_count)
-    # Only external community findings should trigger expensive E2E testing
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-jobs = wf.get('jobs', {})
-e2e_job = jobs.get('community-e2e-test', {})
-gate = str(e2e_job.get('if', ''))
-if 'has_external_findings' in gate:
-    print('USES_EXTERNAL')
-elif 'has_suggestions' in gate:
-    print('USES_SUGGESTIONS')
-elif 'has_findings' in gate:
-    print('USES_ALL_FINDINGS')
-else:
-    print('UNKNOWN')
-" > /tmp/weekly_trigger_check.txt 2>&1
-
-    if grep -q "USES_EXTERNAL" /tmp/weekly_trigger_check.txt; then
-        pass "weekly-update community-e2e-test gates on has_external_findings (typed routing)"
-    else
-        fail "weekly-update community-e2e-test should gate on has_external_findings, not has_suggestions"
-    fi
+    pass "test_weekly_e2e_triggers_on_findings n/a per #231 Phase 3b (community-e2e-test deleted)"
 }
 
-# Test 70b: scan-community has typed outputs (has_findings, has_external_findings, scan_payload)
+# Test 70b: scan-community retains has_findings + current_date outputs.
+# has_external_findings + scan_payload were deleted in v1.52.0 (#231 Phase 3b)
+# along with their consumer (community-e2e-test).
 test_scan_community_has_typed_outputs() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
@@ -950,19 +924,26 @@ with open('$WORKFLOW') as f:
 jobs = wf.get('jobs', {})
 scan_job = jobs.get('scan-community', {})
 outputs = scan_job.get('outputs', {})
-required = ['has_findings', 'has_external_findings', 'scan_payload']
+required = ['has_findings', 'current_date']
+deleted = ['has_external_findings', 'scan_payload']
 missing = [k for k in required if k not in outputs]
-if not missing:
+resurrected = [k for k in deleted if k in outputs]
+if not missing and not resurrected:
     print('ALL_PRESENT')
+elif resurrected:
+    print('RESURRECTED: ' + ', '.join(resurrected))
 else:
     print('MISSING: ' + ', '.join(missing))
 " > /tmp/typed_outputs_check.txt 2>&1
 
     if grep -q "ALL_PRESENT" /tmp/typed_outputs_check.txt; then
-        pass "scan-community has typed outputs (has_findings, has_external_findings, scan_payload)"
+        pass "scan-community retains has_findings + current_date (Phase 3b deleted has_external_findings + scan_payload)"
+    elif grep -q "RESURRECTED" /tmp/typed_outputs_check.txt; then
+        DETAIL=$(grep "RESURRECTED:" /tmp/typed_outputs_check.txt | sed 's/RESURRECTED://')
+        fail "scan-community has resurrected dead output(s): $DETAIL"
     else
         DETAIL=$(cat /tmp/typed_outputs_check.txt)
-        fail "scan-community missing typed outputs: $DETAIL"
+        fail "scan-community missing required outputs: $DETAIL"
     fi
 }
 
@@ -1013,21 +994,9 @@ test_digest_gates_on_total_findings() {
     fi
 }
 
-# Test 70e: community-e2e-test receives scan_payload (not just count)
+# Test 70e: n/a per #231 Phase 3b — community-e2e-test deleted
 test_e2e_receives_scan_payload() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    # The "Apply community suggestions" step should reference scan_payload for full data
-    if grep -A 15 "Apply community suggestions" "$WORKFLOW" | grep -q 'scan_payload'; then
-        pass "community-e2e-test receives scan_payload (full data handoff)"
-    else
-        fail "community-e2e-test should receive scan_payload, not just a count"
-    fi
+    pass "test_e2e_receives_scan_payload n/a per #231 Phase 3b (community-e2e-test deleted)"
 }
 
 # Test 70f: parse step uses origin fallback for null-safety
@@ -1144,12 +1113,13 @@ test_ci_score_artifact_has_retention
 # Weekly-Update Consolidation Structure Tests
 # ============================================
 # These tests verify the consolidated weekly-update.yml has the
-# expected jobs after #231 Phase 3a (3 active jobs; version-test deleted).
+# expected jobs after #231 Phase 3a + 3b (2 active jobs; version-test
+# and community-e2e-test deleted).
 
 # Test 86: weekly-update.yml has the still-active jobs after #231 Phase 3a
 # version-test was deleted (function replaced by manual `npm i -g
 # @anthropic-ai/claude-code@v && tests/e2e/local-shepherd.sh <PR>`).
-test_weekly_update_has_three_jobs_post_phase_3a() {
+test_weekly_update_has_two_jobs_post_phase_3b() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
@@ -1162,22 +1132,24 @@ import yaml
 with open('$WORKFLOW') as f:
     wf = yaml.safe_load(f)
 jobs = list(wf.get('jobs', {}).keys())
-# Phase 3a (#231) deleted version-test → 3 jobs remain.
-expected = ['check-updates', 'scan-community', 'community-e2e-test']
+# Phase 3a (#231) deleted version-test, Phase 3b deleted community-e2e-test
+# → 2 active jobs remain.
+expected = ['check-updates', 'scan-community']
 missing = [j for j in expected if j not in jobs]
-# version-test must be absent (regression: it stays deleted)
-if not missing and 'version-test' not in jobs:
+deleted = [j for j in ('version-test', 'community-e2e-test') if j in jobs]
+if not missing and not deleted:
     print('ALL_PRESENT')
-elif 'version-test' in jobs:
-    print('VERSION_TEST_RESURRECTED')
+elif deleted:
+    print('RESURRECTED:' + ','.join(deleted))
 else:
     print('MISSING:' + ','.join(missing))
 " > /tmp/weekly_jobs_check.txt 2>&1
 
     if grep -q "ALL_PRESENT" /tmp/weekly_jobs_check.txt; then
-        pass "weekly-update.yml has 3 active jobs (version-test deleted per Phase 3a)"
-    elif grep -q "VERSION_TEST_RESURRECTED" /tmp/weekly_jobs_check.txt; then
-        fail "weekly-update.yml has resurrected version-test — Phase 3a deletion was undone"
+        pass "weekly-update.yml has 2 active jobs (version-test + community-e2e-test deleted per Phase 3a/3b)"
+    elif grep -q "RESURRECTED" /tmp/weekly_jobs_check.txt; then
+        RESURRECTED=$(grep "RESURRECTED:" /tmp/weekly_jobs_check.txt | sed 's/RESURRECTED://')
+        fail "weekly-update.yml has resurrected deleted job(s): $RESURRECTED"
     else
         MISSING=$(grep "MISSING:" /tmp/weekly_jobs_check.txt | sed 's/MISSING://')
         fail "weekly-update.yml missing jobs: $MISSING"
@@ -1190,35 +1162,9 @@ test_weekly_update_version_test_needs_check_updates() {
     pass "n/a per #231 Phase 3a — version-test deleted (manual local-shepherd replaces it)"
 }
 
-# Test 88: weekly-update.yml community-e2e-test depends on scan-community
+# Test 88: n/a per #231 Phase 3b — community-e2e-test deleted, no dependency to check.
 test_weekly_update_community_e2e_needs_scan() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-jobs = wf.get('jobs', {})
-community_e2e = jobs.get('community-e2e-test', {})
-needs = community_e2e.get('needs', [])
-if isinstance(needs, str):
-    needs = [needs]
-if 'scan-community' in needs:
-    print('DEP_OK')
-else:
-    print('DEP_MISSING')
-" > /tmp/weekly_dep_check2.txt 2>&1
-
-    if grep -q "DEP_OK" /tmp/weekly_dep_check2.txt; then
-        pass "weekly-update.yml community-e2e-test depends on scan-community"
-    else
-        fail "weekly-update.yml community-e2e-test missing 'needs: scan-community' dependency"
-    fi
+    pass "test_weekly_update_community_e2e_needs_scan n/a per #231 Phase 3b (community-e2e-test deleted)"
 }
 
 # Test 89: weekly-update.yml has issues: write permission (needed for community digest)
@@ -1246,7 +1192,7 @@ test_tier2_comment_matches_trial_count() { pass "test_tier2_comment_matches_tria
 # Test 92: CI Tier 2 cleans stale output between baseline and candidate sims
 test_tier2_cleans_stale_output() { pass "test_tier2_cleans_stale_output n/a per #212 Option 1 (ci.yml e2e jobs removed)"; }
 
-test_weekly_update_has_three_jobs_post_phase_3a
+test_weekly_update_has_two_jobs_post_phase_3b
 test_weekly_update_version_test_needs_check_updates
 test_weekly_update_community_e2e_needs_scan
 test_weekly_update_has_issues_permission

@@ -18,7 +18,7 @@ Detect something new → Suggest changes → Test with E2E → Create PR with re
 
 | Workflow | Detects | Suggests Changes To | Tests | Output |
 |----------|---------|---------------------|-------|--------|
-| **weekly-update** | New CC version + community patterns | community patterns only (version-test deleted in v1.51.0 — see below) | Community pattern testing (Tier 2); manual local-shepherd handles version regression checks | PR with scores |
+| **weekly-update** | New CC version + community patterns | digest issue with findings (auto-apply + E2E both deleted in v1.51.0/v1.52.0) | None in CI; manual local-shepherd handles version regression + community-pattern testing | Issue with findings; PR if maintainer applies + tests locally |
 
 > **Historical (pre-2026-04-24):** `monthly-research` covered trend research → SDLC doc suggestions. Removed per ROADMAP #231 Phase 1 (zero merged artifacts in 30d, "perplexity-as-CI" antipattern). Research now happens inline in a Claude Code session.
 
@@ -56,7 +56,7 @@ The shepherd posts a check-run + PR comment with the baseline-vs-candidate score
 - **Trigger:** Weekly schedule (Mondays 9 AM UTC) + manual dispatch
 - **Checks:** Claude Code GitHub releases + Reddit, HN, dev blogs, official channels
 - **Action:** Creates PR for updates (relevance shown in title) + digest issue for notable community findings
-- **E2E Testing:** Community pattern testing (Tier 2) only. Two-phase version testing was deleted in v1.51.0 (#231 Phase 3a) — replaced by manual `npm i + local-shepherd.sh --compare-baseline` (see Two-Phase Version Testing section above).
+- **E2E Testing:** None remaining in CI. Two-phase version testing was deleted in v1.51.0 (#231 Phase 3a); community-pattern E2E testing was deleted in v1.52.0 (#231 Phase 3b). Replacement for both is manual local-Max via `tests/e2e/local-shepherd.sh <PR> --compare-baseline` after the maintainer reviews the digest issue from `scan-community`.
 
 ### Monthly Research Deep Dive — REMOVED (ROADMAP #231 Phase 1, 2026-04-24)
 The `.github/workflows/monthly-research.yml` workflow (deep research → issue → Tier 2 E2E) was deleted. Research now happens inline in a Claude Code session when the maintainer wants it.
