@@ -1,0 +1,22 @@
+{
+  "data": {
+    "children": [
+      {
+        "data": {
+          "title": "New /sparkle command in CC 2.1.119",
+          "selftext": "Anyone else notice /sparkle? It auto-cleans your CLAUDE.md. Better than /clear for memory.",
+          "permalink": "/r/ClaudeCode/comments/abc/new_sparkle/",
+          "id": "abc"
+        }
+      },
+      {
+        "data": {
+          "title": "Just using /help today",
+          "selftext": "Nothing new. Used /compact and /model. Standard stuff.",
+          "permalink": "/r/ClaudeCode/comments/def/just_using/",
+          "id": "def"
+        }
+      }
+    ]
+  }
+}

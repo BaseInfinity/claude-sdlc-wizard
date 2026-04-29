@@ -1,0 +1,16 @@
+{
+  "hits": [
+    {
+      "title": "Claude Code 2.1.119 ships /lattice for transcript folding",
+      "story_text": "The new /lattice command is buried in the changelog. Useful for long sessions.",
+      "url": "https://news.ycombinator.com/item?id=12345",
+      "objectID": "12345"
+    },
+    {
+      "title": "Why I switched off Cursor to Claude Code",
+      "story_text": "I find /sdlc + /code-review combo more reliable. /compact is also great.",
+      "url": "https://news.ycombinator.com/item?id=12346",
+      "objectID": "12346"
+    }
+  ]
+}
