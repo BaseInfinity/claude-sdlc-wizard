@@ -4,6 +4,35 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.56.0] - 2026-04-29
+
+### Added
+
+- **`tests/e2e/fetch-community.sh`** — closes ROADMAP **#207**. Pulls public threads from Reddit (r/ClaudeCode + r/ClaudeAI) and HN Algolia ("claude code" stories), emits combined transcript text to stdout. Pipe to `scan-community.sh` to surface candidate `/slash-command` mentions that the wizard doesn't already know.
+
+  Usage:
+  ```bash
+  ./tests/e2e/fetch-community.sh --reddit ClaudeCode,ClaudeAI --hn | ./tests/e2e/scan-community.sh -
+  ```
+
+  Live mode hits Reddit's public JSON API + HN Algolia (no auth, no API spend on the Anthropic side). `--offline DIR` reads fixture JSON from `DIR/reddit-${sub}.json` + `DIR/hn-claudecode.json` for tests + offline-on-laptop runs. 11 quality tests in `tests/test-community-fetch.sh` (all mocked HTTP via fixtures, runs offline).
+
+  Pairs with the existing `scan-community.sh` (which was the manual-input piece): the maintainer no longer has to copy-paste threads. Discord skipped (requires bot/OAuth) and GH Discussions deferred (GraphQL-only, low marginal value over Reddit+HN coverage).
+
+### Security
+
+- **P0 fix during Codex round 1**: `parse_or_die` originally interpolated the path into `python3 -c` source. A crafted subreddit name with single quote + Python could escape the string and execute. Rewritten to pass the path via `JSON_PATH` environment variable. New regression test (`test_offline_fixture_path_injection_blocked`) creates a fixture with an injection-payload subreddit name and asserts the sentinel file is NOT created.
+- **P2 fix during Codex round 1**: `--reddit` and `--offline` previously silently exited 1 when called without a value. Both flags now validate `${2:-}` is non-empty before consuming + emit a clear flag-specific error. Two new tests cover the missing-value paths.
+
+### Files
+
+- `tests/e2e/fetch-community.sh` (new, ~180 lines after round-1 P0/P2 fixes)
+- `tests/test-community-fetch.sh` (new, 14 tests — 11 happy/error-path + 3 round-1 P0/P2 regressions)
+- `tests/fixtures/community-fetch/*.json` (new, 5 fixtures: reddit-claudecode, reddit-claudeai, hn-claudecode, reddit-empty, plus malformed.json for parse-error testing)
+- `.github/workflows/ci.yml` (+1 step: `Run community fetcher tests`)
+- `CONTRIBUTING.md` (test list updated)
+- Version bump 1.55.0 → 1.56.0
+
 ## [1.55.0] - 2026-04-29
 
 ### Removed
