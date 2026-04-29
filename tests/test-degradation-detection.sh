@@ -373,13 +373,13 @@ test_anti_laziness_mechanisms() {
 echo ""
 echo "--- Integration ---"
 
-# Test 13: Weekly-update workflow calls cusum.sh
+# Test 13: n/a per #231 Phase 3a/3b — version-test + community-e2e-test (the
+# cusum callers in weekly-update.yml) were deleted. CUSUM drift detection now
+# lives only in tests/e2e/cusum.sh and tests/test-cusum.sh; CI side migrated
+# to manual `tests/e2e/local-shepherd.sh` which writes to score-history.jsonl
+# without the cusum hook (cusum is run on-demand by the maintainer).
 test_weekly_update_cusum() {
-    if grep -q "cusum.sh" "$REPO_ROOT/.github/workflows/weekly-update.yml"; then
-        pass "Weekly-update workflow calls cusum.sh"
-    else
-        fail "Weekly-update workflow must call cusum.sh for drift detection"
-    fi
+    pass "test_weekly_update_cusum n/a per #231 Phase 3a/3b (cusum callers deleted, run on-demand now)"
 }
 
 # Test 14: cusum.sh --add-json accepts score field (matches CI schema)
