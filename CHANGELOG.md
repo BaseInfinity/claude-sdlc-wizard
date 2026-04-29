@@ -4,6 +4,33 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.55.0] - 2026-04-29
+
+### Removed
+
+- **Dead leftovers in `.github/workflows/weekly-update.yml`** — closes ROADMAP #231 Phase 4. After Phase 3d, the workflow still carried code that was wired to nothing:
+  - `env.VERSION_SCENARIO` — flagged as a "no-op marker" since Phase 3a (version-test deleted)
+  - `outputs.has_overlap` / `outputs.overlap_paths` job-level outputs — set by the placeholder analysis step but consumed by no downstream job (prove-it-test was already deleted in Phase 2)
+  - `Generate placeholder analysis` step — wrote `/tmp/analysis.json` with `relevance: "UNKNOWN"` purely so the next step could parse it back out
+  - `Parse analysis result` step — read the placeholder and wrote outputs that are now hardcoded
+  - `Build PR body` step + the `case "$RELEVANCE"` switch — relevance is always `UNKNOWN` post-Phase-3d, so the case statement and templated title/label collapsed to a literal `[UNKNOWN]` / `relevance-UNKNOWN`
+
+### Changed
+
+- `.github/workflows/weekly-update.yml`: 289 → 161 lines (-44%). Steps consolidated: 10 → 5 operational (6 YAML steps including checkout). Detection + version compare + existing-PR check fold into one `detect` step. PR body inlined as a `body: |` block on the create-pull-request action (was a separate Build PR body step writing /tmp/pr_body.md). The disabled cron line stays as a documented comment, but cron-collision tests now use Python YAML parsing (Codex round 1 P1) so they only compare ACTIVE schedules.
+- `tests/test-workflow-triggers.sh`: Test 17 updated to grep for the new pattern (`gh pr list --head` + `skip=true`) since the dedicated `existing-pr` step ID was consolidated. Test 54 simplified — the placeholder is gone, so the regression check is now just "no `claude-code-action@v1` directive resurrects." 3 new Phase 4 regression tests added (`test_weekly_update_no_dead_version_scenario_env`, `_no_has_overlap_output`, `_no_overlap_paths_output`).
+
+### Phase 3 + Phase 4 cumulative
+
+- weekly-update.yml has shrunk from ~1670 lines (pre-Phase 3) to 161 lines (-90%). Five jobs/workflows + one in-job ranker chain + Phase 4 dead-code removed. Zero `claude-code-action@v1` references. Cron burn $25-55/week → $0/week.
+- ROADMAP #231 closes here. Detection-only workflow stays at ~150 lines as documented in the Phase 4 plan; folding into the session-start hook would lose the GitHub PR audit trail (which is the only place the maintainer sees a new release while away from a session).
+
+### Files
+
+- `.github/workflows/weekly-update.yml` (-128 lines net)
+- `tests/test-workflow-triggers.sh` (+86 lines: 3 new regression tests, 2 tests updated)
+- Version bump 1.54.0 → 1.55.0
+
 ## [1.54.0] - 2026-04-29
 
 ### Removed

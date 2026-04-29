@@ -1,281 +1,154 @@
 name: Weekly Update
 
-# NOTE: cron is currently disabled (per ROADMAP #212 Option 1). After ROADMAP
-# #231 Phase 3a/3b/3c/3d (v1.51.0–v1.54.0), this workflow has ZERO
-# `anthropics/claude-code-action@v1` blocks — all API-burning logic was
-# deleted (version-test, prove-it-test, community-e2e-test, scan-community,
-# and the in-job Claude release-ranker). Only the cheap GH-API release
-# detection + auto-update PR creation remains. Cron can be safely re-enabled
-# now (~$0.30/run); leaving it manual-dispatch until a deliberate Phase 4
-# decision.
+# Detect new claude-code releases and open an auto-update PR with the
+# version-file bump. Zero Anthropic API spend — the in-CI Claude-ranker
+# was deleted in #231 Phase 3d (v1.54.0). To get HIGH/MEDIUM/LOW
+# relevance, the maintainer runs the manual analyze-release command
+# documented in the auto-update PR body locally on Max.
+#
+# Cron stays disabled (#212 Option 1); workflow_dispatch only.
 
 on:
   # schedule disabled — see note above. Manual via workflow_dispatch only.
-  # - cron: '0 9 * * 1'
+  # - cron: '0 9 * * 1'  # Monday 09:00 UTC (kept commented as documentation
+  #                         and so cron-collision tests can read the
+  #                         intended slot vs other workflows like
+  #                         weekly-api-update.yml at 10:00 UTC Monday).
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
-  # issues: write was needed by the deleted scan-community job's digest issue
-  # creation step (#231 Phase 3c, v1.53.0). Dropped — auto-update PR creation
-  # only needs contents+pull-requests+actions.
   actions: write
-
-env:
-  # VERSION_SCENARIO was used by the deleted version-test job (#231 Phase 3a).
-  # Retained here as a no-op marker until the next workflow refactor; harmless.
-  VERSION_SCENARIO: version-upgrade
 
 jobs:
   check-updates:
     runs-on: ubuntu-latest
 
     outputs:
-      needs_update: ${{ steps.check-update.outputs.needs_update }}
-      latest_version: ${{ steps.latest-release.outputs.latest_version }}
-      skip: ${{ steps.existing-pr.outputs.skip }}
-      has_overlap: ${{ steps.parse.outputs.has_overlap }}
-      overlap_paths: ${{ steps.parse.outputs.overlap_paths }}
+      needs_update: ${{ steps.detect.outputs.needs_update }}
+      latest_version: ${{ steps.detect.outputs.latest_version }}
+      skip: ${{ steps.detect.outputs.skip }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Read last checked version
-        id: last-version
-        run: |
-          if [ -f .github/last-checked-version.txt ]; then
-            VERSION=$(cat .github/last-checked-version.txt | tr -d '\n')
-          else
-            VERSION="v0.0.0"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Last checked version: $VERSION"
-
-      - name: Fetch Claude Code releases
-        id: latest-release
+      - name: Detect new release
+        id: detect
         env:
           GH_TOKEN: ${{ github.token }}
-          LAST_VERSION: ${{ steps.last-version.outputs.version }}
         run: |
-          # Fetch recent releases (one API call, covers any realistic weekly gap)
-          RELEASES_JSON=$(gh api "repos/anthropics/claude-code/releases?per_page=100" 2>/dev/null) || {
+          set -euo pipefail
+
+          # Read last-checked version (default to v0.0.0 on first run)
+          if [ -f .github/last-checked-version.txt ]; then
+            LAST=$(cat .github/last-checked-version.txt | tr -d '\n')
+          else
+            LAST="v0.0.0"
+          fi
+          echo "Last checked: $LAST"
+
+          # Fetch the most recent release
+          RELEASES_JSON=$(gh api "repos/anthropics/claude-code/releases?per_page=1" 2>/dev/null) || {
             echo "::error::Failed to fetch Claude Code releases from GitHub API"
             exit 1
           }
-
-          # Extract latest version (first entry = most recent)
-          LATEST_VERSION=$(echo "$RELEASES_JSON" | jq -r '.[0].tag_name')
-          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+          LATEST=$(echo "$RELEASES_JSON" | jq -r '.[0].tag_name')
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
             echo "::error::Could not parse tag_name from releases JSON"
             exit 1
           fi
+          DATE=$(echo "$RELEASES_JSON" | jq -r '.[0].published_at // "unknown"')
+          URL=$(echo "$RELEASES_JSON" | jq -r '.[0].html_url // ""')
 
-          RELEASE_DATE=$(echo "$RELEASES_JSON" | jq -r '.[0].published_at // "unknown"')
-          RELEASE_URL=$(echo "$RELEASES_JSON" | jq -r '.[0].html_url // ""')
-
-          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
-          echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
-
-          # Filter to releases newer than last-checked-version (jq semver comparison)
-          echo "$RELEASES_JSON" | jq --arg last "$LAST_VERSION" '
-            [.[] | select(.tag_name != $last) | select(
-              (.tag_name | ltrimstr("v") | split(".") | map(tonumber)) as $ver |
-              ($last | ltrimstr("v") | split(".") | map(tonumber)) as $chk |
-              ($ver[0] > $chk[0]) or
-              ($ver[0] == $chk[0] and $ver[1] > $chk[1]) or
-              ($ver[0] == $chk[0] and $ver[1] == $chk[1] and $ver[2] > $chk[2])
-            )] | reverse
-          ' > /tmp/new_releases.json
-
-          RELEASE_COUNT=$(jq 'length' /tmp/new_releases.json)
-          echo "release_count=$RELEASE_COUNT" >> $GITHUB_OUTPUT
-          echo "Found $RELEASE_COUNT new release(s) since $LAST_VERSION"
-          echo "Latest version: $LATEST_VERSION ($RELEASE_DATE)"
-
-          # Build combined release body for analysis
-          if [ "$RELEASE_COUNT" -eq 0 ]; then
-            echo "" > /tmp/release_body.md
-          elif [ "$RELEASE_COUNT" -eq 1 ]; then
-            # Single release: plain body (backward compatible)
-            jq -r '.[0].body // ""' /tmp/new_releases.json > /tmp/release_body.md
-          else
-            # Multiple releases: numbered sections, oldest-first
-            jq -r '
-              to_entries | .[] |
-              "## Release \(.key + 1): \(.value.tag_name) (\(.value.published_at // "unknown"))\n\(.value.body // "(no release notes)")\n\n---\n"
-            ' /tmp/new_releases.json > /tmp/release_body.md
-          fi
-
-      - name: Check if update needed
-        id: check-update
-        run: |
-          LAST="${{ steps.last-version.outputs.version }}"
-          LATEST="${{ steps.latest-release.outputs.latest_version }}"
+          echo "latest_version=$LATEST" >> $GITHUB_OUTPUT
+          echo "release_date=$DATE" >> $GITHUB_OUTPUT
+          echo "release_url=$URL" >> $GITHUB_OUTPUT
 
           if [ "$LAST" = "$LATEST" ]; then
-            echo "No new release. Last: $LAST, Latest: $LATEST"
             echo "needs_update=false" >> $GITHUB_OUTPUT
-          else
-            echo "New release found! $LAST -> $LATEST"
-            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Up to date ($LATEST)"
+            exit 0
           fi
+          echo "needs_update=true" >> $GITHUB_OUTPUT
+          echo "New release: $LAST -> $LATEST"
 
-      - name: Check for existing PR for this version
-        if: steps.check-update.outputs.needs_update == 'true'
-        id: existing-pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${{ steps.latest-release.outputs.latest_version }}"
-          EXISTING=$(gh pr list --head "auto-update/claude-code-${VERSION}" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+          # Skip if a PR for this version already exists
+          BRANCH="auto-update/claude-code-${LATEST}"
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
-            echo "PR #$EXISTING already exists for $VERSION - skipping"
+            echo "PR #$EXISTING already exists for $LATEST — skipping"
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      # ROADMAP #231 Phase 3d (v1.54.0): the in-CI Claude release-ranker was
-      # deleted. The original chain was: Build analysis prompt → Analyze with
-      # claude-code-action@v1 → Extract from execution output → Parse JSON.
-      # That chain made one Anthropic API call per release detection, with no
-      # signal load-bearing on the auto-update PR (relevance label is advisory).
-      #
-      # Replacement: write a placeholder analysis.json with relevance=UNKNOWN
-      # and a summary that tells the maintainer to run analyze-release.md
-      # locally on Max. The PR still gets created; the relevance label is
-      # filled in when the maintainer reviews.
-      - name: Generate placeholder analysis (Claude-ranker moved to manual on-Max)
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        run: |
-          cat > /tmp/analysis.json <<'JSONEOF'
-          {
-            "relevance": "UNKNOWN",
-            "summary": "Run `claude --print --allowedTools 'WebFetch,Read,Bash' \"$(cat .github/prompts/analyze-release.md)\\n\\n## Release(s) to Analyze\\n\\nVersion: <ver>, URL: <url>\\n\\nRelease Notes:\\n<paste-from-PR-body>\"` locally on Max to generate a real relevance/summary. The auto-update PR is still useful as a notification + the version file bump.",
-            "plugin_check": {"replaces_custom": []}
-          }
-          JSONEOF
-          # Legacy "Extract" step preserved as a no-op shim — the chain below
-          # reads /tmp/analysis.json which we just wrote above.
-          echo "Placeholder analysis written. Maintainer should run analyze-release.md locally."
-
-      - name: Parse analysis result
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        id: parse
-        run: |
-          # Read from file (safe) instead of shell variable interpolation
-          RELEVANCE=$(jq -r '.relevance // "LOW"' /tmp/analysis.json 2>/dev/null || echo "LOW")
-          SUMMARY=$(jq -r '.summary // "Unable to parse summary"' /tmp/analysis.json 2>/dev/null || echo "Unable to parse summary")
-
-          echo "relevance=$RELEVANCE" >> $GITHUB_OUTPUT
-
-          # Safely encode summary for output (escape newlines)
-          SAFE_SUMMARY=$(echo "$SUMMARY" | tr '\n' ' ' | head -c 500)
-          echo "summary=$SAFE_SUMMARY" >> $GITHUB_OUTPUT
-
-          # Parse overlap signal from replaces_custom
-          OVERLAP_PATHS=$(jq -c '.plugin_check.replaces_custom // []' /tmp/analysis.json 2>/dev/null || echo "[]")
-          OVERLAP_COUNT=$(echo "$OVERLAP_PATHS" | jq 'length' 2>/dev/null || echo "0")
-          if [ "$OVERLAP_COUNT" -gt 0 ]; then
-            echo "has_overlap=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_overlap=false" >> $GITHUB_OUTPUT
-          fi
-          echo "overlap_paths=$OVERLAP_PATHS" >> $GITHUB_OUTPUT
-
-          echo "Relevance: $RELEVANCE"
-          echo "Summary: $SAFE_SUMMARY"
-          echo "Overlap: $OVERLAP_COUNT path(s)"
-
       - name: Update version file
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        run: |
-          echo "${{ steps.latest-release.outputs.latest_version }}" > .github/last-checked-version.txt
-
-      - name: Build PR body
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
-        run: |
-          RELEVANCE="${{ steps.parse.outputs.relevance }}"
-
-          # Determine relevance indicator
-          case "$RELEVANCE" in
-            HIGH)    INDICATOR="HIGH - Action recommended" ;;
-            MEDIUM)  INDICATOR="MEDIUM - Review suggested" ;;
-            LOW)     INDICATOR="LOW - Informational only" ;;
-            UNKNOWN) INDICATOR="UNKNOWN - run local analysis (see below)" ;;
-            *)       INDICATOR="$RELEVANCE" ;;
-          esac
-
-          cat > /tmp/pr_body.md << PREOF
-          ## Auto-Update: Claude Code ${{ steps.latest-release.outputs.latest_version }}
-
-          **Release:** ${{ steps.latest-release.outputs.latest_version }} (${{ steps.latest-release.outputs.release_date }})
-          **Relevance:** $INDICATOR
-          **Release URL:** ${{ steps.latest-release.outputs.release_url }}
-
-          ### Local Analysis (ROADMAP #231 Phase 3d, v1.54.0+)
-
-          The CI Claude-ranker was deleted in v1.54.0 (#231 Phase 3d) — no API spend on every release. To get HIGH/MEDIUM/LOW relevance, run locally on Max:
-
-          \`\`\`bash
-          gh release view ${{ steps.latest-release.outputs.latest_version }} --repo anthropics/claude-code --json body --jq .body > /tmp/release_notes.md
-          claude --print --allowedTools "Read,Bash" \\
-            "\$(cat .github/prompts/analyze-release.md)\\n\\n## Release to Analyze\\n\\n**Version:** ${{ steps.latest-release.outputs.latest_version }}\\n**URL:** ${{ steps.latest-release.outputs.release_url }}\\n\\n**Release Notes:**\\n\$(cat /tmp/release_notes.md)"
-          \`\`\`
-
-          Update the PR body with the relevance verdict before merging.
-          PREOF
-
-          cat >> /tmp/pr_body.md << 'PREOF'
-
-          ### Why This PR Exists
-
-          All Claude Code releases get a PR for visibility. Run the local analyze command (above) to get the relevance:
-          - **HIGH**: Contains changes that directly affect SDLC enforcement
-          - **MEDIUM**: Contains useful improvements worth reviewing
-          - **LOW**: Routine update, merge at your convenience
-
-          ### Review Checklist
-          - [ ] Ran local analyze-release.md — relevance set
-          - [ ] Aligns with KISS principle
-          - [ ] Actually needed for SDLC enforcement
-          - [ ] No over-engineering
-          - [ ] If replacing custom code, removal is clean
-
-          ---
-          *Generated by weekly-update workflow. You always decide what merges.*
-          PREOF
+        if: steps.detect.outputs.needs_update == 'true' && steps.detect.outputs.skip != 'true'
+        run: echo "${{ steps.detect.outputs.latest_version }}" > .github/last-checked-version.txt
 
       - name: Close stale auto-update PRs
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
+        if: steps.detect.outputs.needs_update == 'true' && steps.detect.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Find open PRs with auto-update label (will be superseded by new one)
+          # Older auto-update PRs are superseded; close them with a comment
           STALE_PRS=$(gh pr list --label "auto-update" --state open --json number --jq '.[].number' 2>/dev/null || echo "")
-
           for pr in $STALE_PRS; do
-            echo "Closing stale PR #$pr (superseded by ${{ steps.latest-release.outputs.latest_version }})"
-            gh pr close "$pr" --comment "Superseded by newer version update: ${{ steps.latest-release.outputs.latest_version }}" || true
+            echo "Closing stale PR #$pr"
+            gh pr close "$pr" --comment "Superseded by ${{ steps.detect.outputs.latest_version }}" || true
           done
 
-      - name: Create PR for all updates
+      - name: Create auto-update PR
         id: create-update-pr
-        if: steps.check-update.outputs.needs_update == 'true' && steps.existing-pr.outputs.skip != 'true'
+        if: steps.detect.outputs.needs_update == 'true' && steps.detect.outputs.skip != 'true'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update last-checked-version to ${{ steps.latest-release.outputs.latest_version }}"
-          title: "[${{ steps.parse.outputs.relevance }}] Auto-Update: Claude Code ${{ steps.latest-release.outputs.latest_version }}"
-          body-path: /tmp/pr_body.md
-          branch: auto-update/claude-code-${{ steps.latest-release.outputs.latest_version }}
+          commit-message: "chore: update last-checked-version to ${{ steps.detect.outputs.latest_version }}"
+          title: "[UNKNOWN] Auto-Update: Claude Code ${{ steps.detect.outputs.latest_version }}"
+          branch: auto-update/claude-code-${{ steps.detect.outputs.latest_version }}
+          delete-branch: true
           labels: |
             auto-update
-            relevance-${{ steps.parse.outputs.relevance }}
-          delete-branch: true
+            relevance-UNKNOWN
+          body: |
+            ## Auto-Update: Claude Code ${{ steps.detect.outputs.latest_version }}
+
+            **Release:** ${{ steps.detect.outputs.latest_version }} (${{ steps.detect.outputs.release_date }})
+            **Relevance:** UNKNOWN — run local analysis (see below)
+            **Release URL:** ${{ steps.detect.outputs.release_url }}
+
+            ### Local Analysis (#231 Phase 3d, v1.54.0+)
+
+            The CI Claude-ranker was deleted — no API spend on every release. To get HIGH/MEDIUM/LOW relevance, run locally on Max:
+
+            ```bash
+            gh release view ${{ steps.detect.outputs.latest_version }} --repo anthropics/claude-code --json body --jq .body > /tmp/release_notes.md
+            claude --print --allowedTools "Read,Bash" \
+              "$(cat .github/prompts/analyze-release.md)\n\n## Release to Analyze\n\n**Version:** ${{ steps.detect.outputs.latest_version }}\n**URL:** ${{ steps.detect.outputs.release_url }}\n\n**Release Notes:**\n$(cat /tmp/release_notes.md)"
+            ```
+
+            Update the PR title prefix and `relevance-*` label with the verdict before merging.
+
+            ### Why This PR Exists
+
+            All Claude Code releases get a PR for visibility. The relevance verdict comes from the local analyze command above:
+            - **HIGH**: Changes that directly affect SDLC enforcement
+            - **MEDIUM**: Useful improvements worth reviewing
+            - **LOW**: Routine update, merge at your convenience
+
+            ### Review Checklist
+            - [ ] Ran local analyze-release.md — relevance set
+            - [ ] Aligns with KISS principle
+            - [ ] Actually needed for SDLC enforcement
+            - [ ] No over-engineering
+            - [ ] If replacing custom code, removal is clean
+
+            ---
+            *Generated by weekly-update workflow. You always decide what merges.*
 
       - name: Trigger CI on new PR
         if: steps.create-update-pr.outputs.pull-request-number
@@ -285,4 +158,4 @@ jobs:
           # GITHUB_TOKEN PRs don't trigger pull_request events (anti-loop protection).
           # Dispatch CI manually so auto-update PRs get checked.
           echo "Dispatching CI for PR #${{ steps.create-update-pr.outputs.pull-request-number }}..."
-          gh workflow run ci.yml --ref auto-update/claude-code-${{ steps.latest-release.outputs.latest_version }} || true
+          gh workflow run ci.yml --ref auto-update/claude-code-${{ steps.detect.outputs.latest_version }} || true

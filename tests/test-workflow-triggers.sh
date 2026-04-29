@@ -250,7 +250,10 @@ test_cleanup_labeled_guard() {
     fi
 }
 
-# Test 17: Weekly-update workflow checks for existing PR before creating
+# Test 17: Weekly-update workflow checks for existing PR before creating.
+# Phase 4 (#231) consolidated the dedicated `existing-pr` step into the
+# combined `detect` step. The check now greps for the actual pattern
+# (`gh pr list --head` + `skip` output write) rather than a step ID.
 test_weekly_existing_pr_check() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
@@ -259,10 +262,10 @@ test_weekly_existing_pr_check() {
         return
     fi
 
-    if grep -q "existing-pr" "$WORKFLOW" && grep -q "skip" "$WORKFLOW"; then
+    if grep -q 'gh pr list --head' "$WORKFLOW" && grep -q 'skip=true' "$WORKFLOW"; then
         pass "weekly-update.yml checks for existing PR before creating"
     else
-        fail "weekly-update.yml missing existing PR check"
+        fail "weekly-update.yml missing existing PR check (gh pr list --head + skip output)"
     fi
 }
 
@@ -734,11 +737,13 @@ print('OK')
 " 2>&1)
     if echo "$USES_CHECK" | grep -q "RESURRECTED:"; then
         DETAIL=$(echo "$USES_CHECK" | grep "RESURRECTED:" | sed 's/RESURRECTED://')
-        fail "weekly-update.yml has resurrected claude-code-action step: $DETAIL — Phase 3d removed all API spend"
-    elif grep -q "tmp/analysis.json" "$WORKFLOW"; then
-        pass "weekly-update writes /tmp/analysis.json placeholder (Phase 3d Claude-ranker deleted)"
+        fail "weekly-update.yml has RESURRECTED claude-code-action step: $DETAIL — Phase 3d removed all API spend"
     else
-        fail "weekly-update should write /tmp/analysis.json placeholder (Phase 3d expected)"
+        # Phase 4 (#231) eliminated the /tmp/analysis.json placeholder (it was
+        # consumed by nothing once the relevance label became hardcoded
+        # UNKNOWN). Regression check is now just: no claude-code-action@v1
+        # directive resurrects.
+        pass "weekly-update.yml has no claude-code-action@v1 directive (Phase 3d/4 zero-API-spend)"
     fi
 }
 
@@ -1087,6 +1092,94 @@ test_weekly_update_version_test_needs_check_updates
 test_weekly_update_community_e2e_needs_scan
 test_weekly_update_has_issues_permission
 test_weekly_update_single_cron
+
+# ============================================
+# #231 Phase 4: weekly-update.yml shrink regression checks
+# ============================================
+# After Phase 3d, several leftovers were dead-weight: the VERSION_SCENARIO
+# env var (used by the deleted version-test job), and the has_overlap /
+# overlap_paths job-level outputs (set by the now-deleted analysis chain
+# but consumed by nobody). Phase 4 deletes these. Tests here are
+# regression checks — they fail if the dead code resurrects.
+
+# Test 92a: VERSION_SCENARIO env block must NOT exist (dead since Phase 3a)
+test_weekly_update_no_dead_version_scenario_env() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    # Use Python YAML so we look at the actual top-level env, not a comment
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+env = wf.get('env', {}) or {}
+if 'VERSION_SCENARIO' in env:
+    print('FOUND')
+" > /tmp/version_scenario_check.txt 2>&1
+
+    if grep -q "FOUND" /tmp/version_scenario_check.txt; then
+        fail "weekly-update.yml still has VERSION_SCENARIO env var (#231 Phase 4: dead since version-test deleted)"
+    else
+        pass "weekly-update.yml has no dead VERSION_SCENARIO env (Phase 4)"
+    fi
+}
+
+# Test 92b: has_overlap job output must NOT exist (consumed by nothing post-3d)
+test_weekly_update_no_has_overlap_output() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+for job_name, job in wf.get('jobs', {}).items():
+    outputs = job.get('outputs', {}) or {}
+    if 'has_overlap' in outputs:
+        print('FOUND:' + job_name)
+" > /tmp/has_overlap_check.txt 2>&1
+
+    if grep -q "FOUND:" /tmp/has_overlap_check.txt; then
+        fail "weekly-update.yml still has has_overlap job output (#231 Phase 4: dead since prove-it-test deleted)"
+    else
+        pass "weekly-update.yml has no dead has_overlap output (Phase 4)"
+    fi
+}
+
+# Test 92c: overlap_paths job output must NOT exist (same reason as has_overlap)
+test_weekly_update_no_overlap_paths_output() {
+    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
+    if [ ! -f "$WORKFLOW" ]; then
+        fail "weekly-update.yml not found"
+        return
+    fi
+
+    python3 -c "
+import yaml
+with open('$WORKFLOW') as f:
+    wf = yaml.safe_load(f)
+for job_name, job in wf.get('jobs', {}).items():
+    outputs = job.get('outputs', {}) or {}
+    if 'overlap_paths' in outputs:
+        print('FOUND:' + job_name)
+" > /tmp/overlap_paths_check.txt 2>&1
+
+    if grep -q "FOUND:" /tmp/overlap_paths_check.txt; then
+        fail "weekly-update.yml still has overlap_paths job output (#231 Phase 4: dead since prove-it-test deleted)"
+    else
+        pass "weekly-update.yml has no dead overlap_paths output (Phase 4)"
+    fi
+}
+
+test_weekly_update_no_dead_version_scenario_env
+test_weekly_update_no_has_overlap_output
+test_weekly_update_no_overlap_paths_output
 test_tier2_comment_matches_trial_count
 test_tier2_cleans_stale_output
 
