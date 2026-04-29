@@ -140,18 +140,22 @@ CI-level token tracking was removed in PR #33 — `claude-code-action@v1` does n
 
 ## Weekly Update Workflow (`weekly-update.yml`)
 
-### What It Does
+### What It Does (post-#231 Phase 3 cumulative deletes — v1.53.0+)
 
 1. Reads last checked version from state file
 2. Fetches latest Claude Code release from GitHub API
 3. Validates version format (security: prevents injection)
 4. Compares versions
-5. If different: Analyzes release with Claude
-6. Creates PR with analysis and relevance level
+5. If different: analyzes release with Claude (still in CI — Claude-ranker)
+6. Creates auto-update PR with analysis and relevance level
 7. Closes stale auto-update PRs
-8. Scans GitHub for Claude Code community patterns (includes competitive watchlist via `analyze-community.md`)
-9. Feeds open `friction-signal` issues into the scan for internal feedback
-10. Creates digest issues for notable findings
+
+**Removed via ROADMAP #231 Phase 3a/3b/3c (2026-04-27 → 2026-04-29):**
+- `version-test` job (Phase 3a) — manual `npm i -g @anthropic-ai/claude-code@<v> && tests/e2e/local-shepherd.sh <PR> --compare-baseline` replaces it
+- `community-e2e-test` job (Phase 3b) — maintainer reviews scan-community digest, applies findings, runs local-shepherd
+- `scan-community` job (Phase 3c, v1.53.0) — manual `claude --print --allowedTools "WebFetch,Read,Bash" "$(cat .github/prompts/analyze-community.md)"` replaces it
+- `friction-signal` issue feedback loop — folded into the manual `claude --print` invocation when the maintainer scans
+- Digest issues for notable findings — maintainer creates them via the manual scan output if desired
 
 ### Two-Phase Version Testing — DELETED (ROADMAP #231 Phase 3a, v1.51.0)
 

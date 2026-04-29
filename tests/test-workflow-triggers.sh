@@ -768,64 +768,20 @@ for job_name, job in wf.get('jobs', {}).items():
     fi
 }
 
-# Test 56: weekly-update must extract community scan result from execution output file
+# Test 56: n/a per #231 Phase 3c — scan-community deleted, no execution-output extraction step remains.
 test_weekly_update_extracts_scan_from_output_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-for job_name, job in wf.get('jobs', {}).items():
-    for step in job.get('steps', []):
-        run = step.get('run', '')
-        name = step.get('name', '').lower()
-        if 'claude-execution-output.json' in run and ('scan' in name or 'extract' in name or 'save' in name):
-            print('READS_OUTPUT_FILE')
-" > /tmp/weekly_output_file_check.txt 2>&1
-
-    if grep -q "READS_OUTPUT_FILE" /tmp/weekly_output_file_check.txt; then
-        pass "weekly-update extracts community scan result from execution output file"
-    else
-        fail "weekly-update does not read claude-execution-output.json for community scan result"
-    fi
+    pass "test_weekly_update_extracts_scan_from_output_file n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
-# Test 57: weekly-update community scan references last-community-scan.txt state file
+# Test 57: n/a per #231 Phase 3c — scan-community job deleted (state file no longer used in CI).
+# The maintainer can still maintain `.github/last-community-scan.txt` manually for local scans.
 test_weekly_update_community_state_file() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    if grep -q "last-community-scan.txt" "$WORKFLOW"; then
-        pass "weekly-update references community scan state file"
-    else
-        fail "weekly-update missing last-community-scan.txt reference"
-    fi
+    pass "test_weekly_update_community_state_file n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
-# Test 58: weekly-update creates GitHub issues for community digest
+# Test 58: n/a per #231 Phase 3c — digest issue creation step was inside scan-community (deleted).
 test_weekly_update_creates_issues() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    if grep -q "gh issue create\|issues:" "$WORKFLOW"; then
-        pass "weekly-update has issue creation capability"
-    else
-        fail "weekly-update missing issue creation for community digest"
-    fi
+    pass "test_weekly_update_creates_issues n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
 # Test 59: weekly-update uses peter-evans/create-pull-request for version update PRs
@@ -906,92 +862,21 @@ test_weekly_e2e_triggers_on_findings() {
     pass "test_weekly_e2e_triggers_on_findings n/a per #231 Phase 3b (community-e2e-test deleted)"
 }
 
-# Test 70b: scan-community retains has_findings + current_date outputs.
-# has_external_findings + scan_payload were deleted in v1.52.0 (#231 Phase 3b)
-# along with their consumer (community-e2e-test).
+# Test 70b: n/a per #231 Phase 3c — scan-community job deleted entirely.
+# Replaced by manual `claude --print` invocation when the maintainer wants
+# a community scan, with `.github/prompts/analyze-community.md` as the prompt.
 test_scan_community_has_typed_outputs() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-jobs = wf.get('jobs', {})
-scan_job = jobs.get('scan-community', {})
-outputs = scan_job.get('outputs', {})
-required = ['has_findings', 'current_date']
-deleted = ['has_external_findings', 'scan_payload']
-missing = [k for k in required if k not in outputs]
-resurrected = [k for k in deleted if k in outputs]
-if not missing and not resurrected:
-    print('ALL_PRESENT')
-elif resurrected:
-    print('RESURRECTED: ' + ', '.join(resurrected))
-else:
-    print('MISSING: ' + ', '.join(missing))
-" > /tmp/typed_outputs_check.txt 2>&1
-
-    if grep -q "ALL_PRESENT" /tmp/typed_outputs_check.txt; then
-        pass "scan-community retains has_findings + current_date (Phase 3b deleted has_external_findings + scan_payload)"
-    elif grep -q "RESURRECTED" /tmp/typed_outputs_check.txt; then
-        DETAIL=$(grep "RESURRECTED:" /tmp/typed_outputs_check.txt | sed 's/RESURRECTED://')
-        fail "scan-community has resurrected dead output(s): $DETAIL"
-    else
-        DETAIL=$(cat /tmp/typed_outputs_check.txt)
-        fail "scan-community missing required outputs: $DETAIL"
-    fi
+    pass "test_scan_community_has_typed_outputs n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
-# Test 70c: scan-community no longer has has_suggestions output (replaced by typed routing)
+# Test 70c: n/a per #231 Phase 3c — scan-community job deleted entirely.
 test_scan_community_no_count_only_gate() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    python3 -c "
-import yaml
-with open('$WORKFLOW') as f:
-    wf = yaml.safe_load(f)
-jobs = wf.get('jobs', {})
-scan_job = jobs.get('scan-community', {})
-outputs = scan_job.get('outputs', {})
-if 'has_suggestions' in outputs:
-    print('HAS_SUGGESTIONS_PRESENT')
-else:
-    print('REMOVED')
-" > /tmp/no_suggestions_check.txt 2>&1
-
-    if grep -q "REMOVED" /tmp/no_suggestions_check.txt; then
-        pass "scan-community no longer has has_suggestions output (typed routing replaces it)"
-    else
-        fail "scan-community still has has_suggestions output — should use has_findings + has_external_findings"
-    fi
+    pass "test_scan_community_no_count_only_gate n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
-# Test 70d: digest issue creation gates on total_findings (includes friction signals)
+# Test 70d: n/a per #231 Phase 3c — digest issue creation step gone with scan-community job.
 test_digest_gates_on_total_findings() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    # The "Create digest issue" step should gate on total_findings, not findings_count
-    # This ensures friction-only weeks still create digest issues
-    if grep -A 1 "Create digest issue" "$WORKFLOW" | grep -q 'total_findings'; then
-        pass "digest issue creation gates on total_findings (friction signals visible)"
-    else
-        fail "digest issue creation should gate on total_findings to include friction signals"
-    fi
+    pass "test_digest_gates_on_total_findings n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
 # Test 70e: n/a per #231 Phase 3b — community-e2e-test deleted
@@ -999,22 +884,9 @@ test_e2e_receives_scan_payload() {
     pass "test_e2e_receives_scan_payload n/a per #231 Phase 3b (community-e2e-test deleted)"
 }
 
-# Test 70f: parse step uses origin fallback for null-safety
+# Test 70f: n/a per #231 Phase 3c — parse step gone with scan-community job.
 test_origin_fallback_in_parse() {
-    WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if [ ! -f "$WORKFLOW" ]; then
-        fail "weekly-update.yml not found"
-        return
-    fi
-
-    # The jq filter for external count should use // "external" fallback
-    # so findings without an origin field are treated as external (conservative)
-    if grep -q '// "external"' "$WORKFLOW"; then
-        pass "parse step uses origin fallback (missing origin defaults to external)"
-    else
-        fail "parse step should use // \"external\" null-coalescing for missing origin field"
-    fi
+    pass "test_origin_fallback_in_parse n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
 # Test 71: DELETED — monthly-research.yml removed per ROADMAP #231 Phase 1
@@ -1113,13 +985,12 @@ test_ci_score_artifact_has_retention
 # Weekly-Update Consolidation Structure Tests
 # ============================================
 # These tests verify the consolidated weekly-update.yml has the
-# expected jobs after #231 Phase 3a + 3b (2 active jobs; version-test
-# and community-e2e-test deleted).
+# expected jobs after #231 Phase 3a + 3b + 3c (1 active job; version-test,
+# community-e2e-test, and scan-community all deleted).
 
-# Test 86: weekly-update.yml has the still-active jobs after #231 Phase 3a
-# version-test was deleted (function replaced by manual `npm i -g
-# @anthropic-ai/claude-code@v && tests/e2e/local-shepherd.sh <PR>`).
-test_weekly_update_has_two_jobs_post_phase_3b() {
+# Test 86: weekly-update.yml has only check-updates after Phase 3a/3b/3c.
+# Asserts NONE of the deleted jobs reappear.
+test_weekly_update_has_one_job_post_phase_3c() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
     if [ ! -f "$WORKFLOW" ]; then
@@ -1132,11 +1003,11 @@ import yaml
 with open('$WORKFLOW') as f:
     wf = yaml.safe_load(f)
 jobs = list(wf.get('jobs', {}).keys())
-# Phase 3a (#231) deleted version-test, Phase 3b deleted community-e2e-test
-# → 2 active jobs remain.
-expected = ['check-updates', 'scan-community']
+# Phase 3a (#231) deleted version-test, 3b deleted community-e2e-test,
+# 3c deleted scan-community → 1 active job remains.
+expected = ['check-updates']
 missing = [j for j in expected if j not in jobs]
-deleted = [j for j in ('version-test', 'community-e2e-test') if j in jobs]
+deleted = [j for j in ('version-test', 'community-e2e-test', 'scan-community') if j in jobs]
 if not missing and not deleted:
     print('ALL_PRESENT')
 elif deleted:
@@ -1146,7 +1017,7 @@ else:
 " > /tmp/weekly_jobs_check.txt 2>&1
 
     if grep -q "ALL_PRESENT" /tmp/weekly_jobs_check.txt; then
-        pass "weekly-update.yml has 2 active jobs (version-test + community-e2e-test deleted per Phase 3a/3b)"
+        pass "weekly-update.yml has 1 active job (version-test + community-e2e-test + scan-community deleted per Phase 3a/3b/3c)"
     elif grep -q "RESURRECTED" /tmp/weekly_jobs_check.txt; then
         RESURRECTED=$(grep "RESURRECTED:" /tmp/weekly_jobs_check.txt | sed 's/RESURRECTED://')
         fail "weekly-update.yml has resurrected deleted job(s): $RESURRECTED"
@@ -1167,7 +1038,9 @@ test_weekly_update_community_e2e_needs_scan() {
     pass "test_weekly_update_community_e2e_needs_scan n/a per #231 Phase 3b (community-e2e-test deleted)"
 }
 
-# Test 89: weekly-update.yml has issues: write permission (needed for community digest)
+# Test 89: n/a per #231 Phase 3c — issues: write permission dropped along with
+# the digest-issue-creating scan-community job. Regression test: ensure the
+# permission stays REMOVED so we don't silently re-grant it.
 test_weekly_update_has_issues_permission() {
     WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
 
@@ -1176,10 +1049,16 @@ test_weekly_update_has_issues_permission() {
         return
     fi
 
-    if grep -q "issues: write" "$WORKFLOW"; then
-        pass "weekly-update.yml has issues: write permission"
+    # Per Phase 3c, issues: write must NOT be in the permissions block.
+    # Extract just the permissions block: lines BETWEEN `permissions:` and the
+    # next top-level key. The naive awk range `/^permissions:/,/^[a-z]/` ends
+    # on the `permissions:` line itself (since it matches `^[a-z]`); use a
+    # flag-based scan instead.
+    PERM_BLOCK=$(awk '/^permissions:/{flag=1; next} flag && /^[a-zA-Z]/{flag=0} flag' "$WORKFLOW")
+    if echo "$PERM_BLOCK" | grep -qE "^\s*issues:\s*write\s*$"; then
+        fail "weekly-update.yml has resurrected 'issues: write' permission (#231 Phase 3c removed it)"
     else
-        fail "weekly-update.yml missing issues: write permission (community digest creates issues)"
+        pass "weekly-update.yml has no issues: write permission (Phase 3c regression check)"
     fi
 }
 
@@ -1192,7 +1071,7 @@ test_tier2_comment_matches_trial_count() { pass "test_tier2_comment_matches_tria
 # Test 92: CI Tier 2 cleans stale output between baseline and candidate sims
 test_tier2_cleans_stale_output() { pass "test_tier2_cleans_stale_output n/a per #212 Option 1 (ci.yml e2e jobs removed)"; }
 
-test_weekly_update_has_two_jobs_post_phase_3b
+test_weekly_update_has_one_job_post_phase_3c
 test_weekly_update_version_test_needs_check_updates
 test_weekly_update_community_e2e_needs_scan
 test_weekly_update_has_issues_permission
@@ -1438,15 +1317,9 @@ test_pr_review_opus_model
 
 # --- Bug fix tests (weekly-update/monthly-research workflow issues) ---
 
-# Test 113: scan-community push to main is non-blocking (|| true)
+# Test 113: n/a per #231 Phase 3c — scan-community job deleted (no git push step left).
 test_scan_community_push_nonblocking() {
-    local WORKFLOW="$REPO_ROOT/.github/workflows/weekly-update.yml"
-
-    if grep -q 'git push.*|| true' "$WORKFLOW"; then
-        pass "scan-community git push is non-blocking (|| true)"
-    else
-        fail "scan-community git push should be non-blocking (protected branch blocks direct push)"
-    fi
+    pass "test_scan_community_push_nonblocking n/a per #231 Phase 3c (scan-community job deleted)"
 }
 
 # Test 114: No working_directory input in weekly-update (not a valid claude-code-action input)
@@ -2084,15 +1957,7 @@ test_readme_setup_not_proven() {
 
 # Test 164: Weekly community scan fetches open friction-signal issues
 test_weekly_fetches_friction_issues() {
-    local WF="$REPO_ROOT/.github/workflows/weekly-update.yml"
-    if [ ! -f "$WF" ]; then fail "weekly-update.yml not found"; return; fi
-
-    # The weekly workflow must query friction-signal issues to feed them into the scan prompt
-    if grep -q 'friction-signal' "$WF" && grep -q 'gh issue list' "$WF"; then
-        pass "Weekly scan fetches friction-signal issues for prompt"
-    else
-        fail "Weekly scan should fetch friction-signal issues to close the feedback loop"
-    fi
+    pass "test_weekly_fetches_friction_issues n/a per #231 Phase 3c (scan-community job deleted; manual scan)"
 }
 
 # Test 165: README setup claim scopes to generated-asset validation (not setup flow)
@@ -2108,24 +1973,23 @@ test_readme_setup_scopes_generated_assets() {
     fi
 }
 
-# Test 166: COMPETITIVE_AUDIT.md says Weekly (not Monthly) for watchlist review cadence
+# Test 166: n/a per #231 Phase 3c — competitive watchlist now lives only in
+# analyze-community.md (manual on-Max prompt), no longer in a weekly CI cron.
 test_competitive_audit_says_weekly() {
-    local AUDIT="$REPO_ROOT/COMPETITIVE_AUDIT.md"
-    if [ ! -f "$AUDIT" ]; then fail "COMPETITIVE_AUDIT.md not found"; return; fi
-
-    if grep -qi 'next review.*weekly' "$AUDIT"; then
-        pass "COMPETITIVE_AUDIT.md correctly says weekly review cadence"
-    else
-        fail "COMPETITIVE_AUDIT.md should say Weekly review cadence (watchlist is in weekly scan)"
-    fi
+    pass "test_competitive_audit_says_weekly n/a per #231 Phase 3c (watchlist is manual via analyze-community.md prompt)"
 }
 
-# Test 167: CI_CD.md weekly section mentions competitive watchlist
+# Test 167: n/a per #231 Phase 3c — CI_CD.md weekly section no longer covers the watchlist
+# (the watchlist moved to manual on-Max usage of analyze-community.md).
 test_cicd_weekly_mentions_watchlist() {
+    pass "test_cicd_weekly_mentions_watchlist n/a per #231 Phase 3c (watchlist moved to manual prompt)"
+}
+
+# Original test logic preserved here for reference if the watchlist ever returns to a CI workflow.
+test_cicd_weekly_mentions_watchlist_DEPRECATED() {
     local CICD="$REPO_ROOT/CI_CD.md"
     if [ ! -f "$CICD" ]; then fail "CI_CD.md not found"; return; fi
 
-    # The weekly workflow section should mention competitive watchlist since that's where it runs
     local section
     section=$(sed -n '/## Weekly Update/,/## Monthly/p' "$CICD")
     if [ -z "$section" ]; then

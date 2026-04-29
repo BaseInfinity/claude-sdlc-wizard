@@ -4,6 +4,31 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.53.0] - 2026-04-29
+
+### Removed
+
+- **`scan-community` job in `.github/workflows/weekly-update.yml`** (252 lines including its surrounding header comment block) — closes ROADMAP #231 Phase 3c. The CI cron ran a Claude scan of Reddit/HN/blogs + friction-signal issues at $2-5/run. After Phase 3b deleted its consumer (community-e2e-test), it only created digest issues — value didn't justify the cost. Replacement: maintainer runs `claude --print --allowedTools "WebFetch,Read,Bash" "$(cat .github/prompts/analyze-community.md)"` on Max ($0 sim leg) when interested.
+
+### Changed
+
+- `.github/prompts/analyze-community.md`: header rewritten with usage block describing the manual `claude --print` invocation. The competitive watchlist is unchanged.
+- `tests/test-workflow-triggers.sh`: 7 tests stubbed (Tests 57, 70b, 70c, 70d, 70f, 113, 164). Test 86 expanded to assert ALL three deleted jobs (version-test, community-e2e-test, scan-community) stay deleted; renamed `_has_two_jobs_post_phase_3b` → `_has_one_job_post_phase_3c`.
+- `tests/test-prove-it.sh`: Test 18 (competitive watchlist) reframed — checks only that `analyze-community.md` retains the watchlist content, not that any CI workflow consumes it.
+- `plans/AUTO_SELF_UPDATE.md`: workflow table updated.
+
+### Files
+
+- `.github/workflows/weekly-update.yml` (-252 lines)
+- `.github/prompts/analyze-community.md` (+10 lines header)
+- `tests/test-workflow-triggers.sh` (7 stubs, 1 test expanded + renamed)
+- `tests/test-prove-it.sh` (1 test reframed)
+- `plans/AUTO_SELF_UPDATE.md` (1 line updated)
+- Version bump 1.52.0 → 1.53.0
+
+### Phase 3 cumulative
+After v1.53.0, weekly-update.yml has only `check-updates` (the cheap detection cron, ~$0.30/run). Phase 3d (split check-updates into detection + Claude-ranker) is the last remaining slice before Phase 4 (full deletion or ~50-line minimum).
+
 ## [1.52.0] - 2026-04-28
 
 ### Removed
