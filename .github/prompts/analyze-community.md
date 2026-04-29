@@ -92,4 +92,4 @@ Respond with valid JSON:
 - Don't recommend adding features just because they're popular
 - Focus on what aligns with wizard philosophy
 - Human decides what (if anything) to incorporate
-- **Origin field:** Use `"external"` for community discussions (Reddit, HN, blogs). Use `"internal-friction"` for friction-signal issues from CI. This controls downstream routing — external findings trigger E2E testing, friction findings create digest visibility only.
+- **Origin field:** Use `"external"` for community discussions (Reddit, HN, blogs). Use `"internal-friction"` for friction-signal issues from CI. The origin field used to gate CI E2E testing (deleted in v1.52.0, ROADMAP #231 Phase 3b). It still controls digest categorization so the maintainer can review external findings on-Max via `tests/e2e/local-shepherd.sh <PR> --compare-baseline` and treat friction findings as visibility-only signals.

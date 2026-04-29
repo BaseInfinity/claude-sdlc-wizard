@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.51.0
+Latest:    1.52.0
 
 What changed:
+- [1.52.0] delete community-e2e-test cron (#231 Phase 3b) — manual local-shepherd review of scan-community digest
 - [1.51.0] delete version-test cron (#231 Phase 3a) — manual local-Max replacement via npm i + local-shepherd
 - [1.50.0] local-shepherd.sh --strip-paths flag (#231 Phase 2 — replaces deleted prove-it-test cron)
 - [1.49.0] local-shepherd.sh --compare-baseline flag (#230)
