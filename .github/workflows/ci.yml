@@ -211,6 +211,9 @@ jobs:
       - name: Run community fetcher tests (#207)
         run: ./tests/test-community-fetch.sh
 
+      - name: Run ground-truth verification tests (#96 Phase 2)
+        run: ./tests/test-ground-truth.sh
+
       - name: Run update-skill Step 7.7 hoist tests (v1.39.1)
         run: ./tests/test-update-skill-step-7-7.sh
 
