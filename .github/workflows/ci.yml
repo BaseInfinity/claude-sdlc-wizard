@@ -124,6 +124,9 @@ jobs:
       - name: Run evaluate bug fix tests
         run: ./tests/test-evaluate-bugs.sh
 
+      - name: Run evaluator CLI-mode tests (#228)
+        run: ./tests/test-evaluate-cli-mode.sh
+
       - name: Run SDP calculation tests
         run: ./tests/test-sdp-calculation.sh
 

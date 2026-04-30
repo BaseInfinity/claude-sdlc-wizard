@@ -4,6 +4,33 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.59.0] - 2026-04-30
+
+### Added
+
+- **Evaluator runs on Max via `claude --print` — closes ROADMAP #228.** New `EVAL_USE_CLI=1` mode in `tests/e2e/evaluate.sh` swaps the per-criterion judge transport from `curl` → `api.anthropic.com` to `claude --print --output-format json` against the user's Max subscription. Same model (`claude-opus-4-7`), same prompts, same JSON parsing — only the auth/billing path differs. `local-shepherd.sh` sets it by default and drops the `ANTHROPIC_API_KEY` hard-fail, so the local-Max shepherd is now **honestly zero-API**: simulation, evaluator, and orchestration all on Max quota. CI keeps the curl path (default) for paths without an authed CLI.
+
+  Why: the local-shepherd previously claimed "zero-API" but the evaluator still hit the paid API for per-criterion scoring (~$0.40/PR). Codex flagged this in the #212 review as the gap to close. With #228 done, the local-Max path is end-to-end on subscription quota.
+
+  CLI invocation flags: `--print --output-format json --max-turns 1 --model claude-opus-4-7 --tools "" --setting-sources user --mcp-config '{"mcpServers":{}}' --strict-mcp-config`. Single-shot, model pinned to match curl path, no built-in tool use (`--tools ""`), no MCP tool exposure (Codex round 1 P1 #1 — `--tools ""` alone leaves user MCP servers like `mcp__playwright__*` reachable; the criterion prompt embeds untrusted simulation output, so prompt-injection could otherwise reach them), settings limited to user-level so this repo's hooks (sdlc-prompt-check, etc.) don't fire and pollute the criterion prompt with SDLC-baseline reminders. Runs from a clean `mktemp -d` cwd for the same reason. Retry-once preserved from the curl path.
+
+  Score parity: same model, same prompts. Stochastic variance is the only expected delta (±1-2 pts per criterion). Statistical parity proof (Prove-It Gate, paired N=15 runs) is **deferred to ROADMAP #212(i)** — implementation here is engineering, not a parity claim.
+
+### Tests
+
+- New `tests/test-evaluate-cli-mode.sh` (15 tests): EVAL_USE_CLI branch present, calls `claude --print --output-format json --max-turns 1 --tools ""`, runs from clean cwd, retries on failure, extracts `.result` via jq selector tolerant of array+object shapes, gates ANTHROPIC_API_KEY check, API path intact, shepherd exports the env var, shepherd no longer hard-fails on missing key, MCP isolated via `--mcp-config '{}' --strict-mcp-config` on both calls (Codex round 1 P1 #1), `--model claude-opus-4-7` pinned on both calls (Codex round 1 P1 #2).
+- `tests/test-local-shepherd.sh`: replaced obsolete `test_shepherd_aborts_on_missing_api_key` with `test_shepherd_runs_without_api_key` (positive contract — shepherd no longer cares about API key when CLI mode is on).
+- Wired into `ci.yml` (new step "Run evaluator CLI-mode tests (#228)").
+
+### Files
+
+- `tests/e2e/evaluate.sh` (new `call_criterion_cli()` helper, branch in `call_criterion_api()`, conditional API-key check)
+- `tests/e2e/local-shepherd.sh` (drop API-key requirement, export `EVAL_USE_CLI=1`, update stale provenance comments to reflect closed #228)
+- `tests/test-evaluate-cli-mode.sh` (new, 15 tests)
+- `tests/test-local-shepherd.sh` (replace obsolete API-key abort test with positive zero-API contract)
+- `.github/workflows/ci.yml` (new test step)
+- `CHANGELOG.md`, `package.json`, `SDLC.md`, `CLAUDE_CODE_SDLC_WIZARD.md`, `.claude-plugin/plugin.json` + `marketplace.json`, `skills/update/SKILL.md`, `.claude/skills/update/SKILL.md` (1.58.0 → 1.59.0)
+
 ## [1.58.0] - 2026-04-30
 
 ### Added
