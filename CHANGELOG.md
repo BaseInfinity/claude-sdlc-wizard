@@ -4,6 +4,35 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.62.0] - 2026-04-30
+
+### Fixed
+
+- **Backfilled 5 corrupted rows in `tests/e2e/score-history.jsonl`** — closes ROADMAP #211. UI-scenario rows (`add-ui-component`, `ui-styling-change`) had `score:11, max_score:10` because the design_system criterion adds an 11th point but the historical writer capped max at 10. Live scoring code was already correct (PR #216, v1.36.0); this PR backfills the historical data so trend analytics aren't poisoned. Found via Codex strategic-priority review: 5 rows on lines 22–25 + 30 fixed via single `sed -i 's/"score":11,"max_score":10/"score":11,"max_score":11/g'`. JSON validity preserved on all 5 rows (verified via per-line `jq empty`).
+
+### Closed (paperwork — already shipped, table rows were stale)
+
+Codex strategic-priority review (`.reviews/grouping-review.md`) audited the open ROADMAP table and found 6 rows still presented as open despite shipping in earlier releases:
+
+- **#207** — Community feature-discovery scanner (scanner shipped v1.39.0, fetcher v1.56.0 PR #286)
+- **#215** — Tier 2 dead persist step (fixed v1.36.0; Tier 2 jobs subsequently deleted entirely per #212 Option 1)
+- **#217** — `model-effort-check.sh` loud warning below xhigh (shipped 2026-04-24; three-tier logic at `hooks/model-effort-check.sh:44`)
+- **#78** — Firmware E2E fixture (shipped earlier)
+- **#79** — Domain-Adaptive Testing Diamond (shipped earlier)
+- **#80** — SDLC Effectiveness Scoreboard (shipped earlier)
+
+All six table rows now properly tombstoned with the shipping release reference. Reduces roadmap noise so future "what's next?" reads are honest.
+
+### Verified (config-side)
+
+- **#219 — model-pin guidance against CC 2.1.117+ persistence change.** Verified locally on CC 2.1.118 (npm latest 2.1.123): both `cli/templates/settings.json` and `.claude/settings.json` have `has("model") == false`. The new persistence semantics (session-picked model now remembered across restarts) are orthogonal to #198's recommendation to omit the pin. `tests/test-cli.sh:1155` already asserts no default model pin so no new test needed. Optional manual UX check noted in roadmap row.
+
+### Files
+
+- `tests/e2e/score-history.jsonl` (5 rows backfilled, lines 22–25 + 30)
+- `ROADMAP.md` (8 stale rows tombstoned)
+- `CHANGELOG.md`, `SDLC.md`, `CLAUDE_CODE_SDLC_WIZARD.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json` (1.61.0 → 1.62.0)
+
 ## [1.61.0] - 2026-04-30
 
 ### Added
