@@ -196,7 +196,12 @@ test_shepherd_aborts_on_fork_pr() {
     fi
 }
 
-test_shepherd_aborts_on_missing_api_key() {
+test_shepherd_runs_without_api_key() {
+    # ROADMAP #228 closed: evaluator runs on Max via `claude --print`, so the
+    # shepherd no longer hard-fails on missing ANTHROPIC_API_KEY. Mock claude
+    # to return both the sim output AND the criterion JSON (the CLI evaluator
+    # parses .result, the sim path reads any text). Verify the shepherd
+    # progresses past the dep check (does NOT exit on api-key grounds).
     local tmpdir bindir
     tmpdir=$(mktemp -d)
     bindir="$tmpdir/bin"
@@ -204,15 +209,16 @@ test_shepherd_aborts_on_missing_api_key() {
     _mock_git "$bindir"
     _mock_claude "$bindir" "$tmpdir/claude.log"
     _mock_curl "$bindir"
-    # Evaluator needs API key; shepherd should refuse without it.
     local rc=0 out
     out=$(PATH="$bindir:$PATH" ANTHROPIC_API_KEY="" \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 \
+        SDLC_SHEPHERD_SKIP_SHA_CHECK=1 \
         CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 2>&1) || rc=$?
     rm -rf "$tmpdir"
-    if [ "$rc" -ne 0 ] && echo "$out" | grep -qiE 'api.*key|anthropic_api_key'; then
-        pass "shepherd aborts without ANTHROPIC_API_KEY (evaluator dep)"
+    if echo "$out" | grep -qiE 'ANTHROPIC_API_KEY (env|environment).*not set'; then
+        fail "shepherd still hard-fails on missing ANTHROPIC_API_KEY — #228 not closed (out='$out')"
     else
-        fail "shepherd must require api key for evaluator (rc=$rc, out='$out')"
+        pass "shepherd no longer hard-fails on missing ANTHROPIC_API_KEY (#228 closed)"
     fi
 }
 
@@ -1125,7 +1131,7 @@ test_strip_paths_pr_comment_uses_intact_stripped_labels() {
 test_shepherd_script_exists
 test_shepherd_usage_on_no_args
 test_shepherd_aborts_on_fork_pr
-test_shepherd_aborts_on_missing_api_key
+test_shepherd_runs_without_api_key
 test_shepherd_calls_claude_with_parity_flags
 test_shepherd_appends_score_history_with_provenance
 test_shepherd_posts_check_run

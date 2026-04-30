@@ -8,7 +8,7 @@
 # Scope (from ROADMAP #212 revised architecture):
 #   (a) trusted same-repo PRs only — fork PRs stay on CI-API path (trust boundary)
 #   (b) simulation leg on Max ($0 after cap)
-#   (c) evaluator still on API (ROADMAP #228 migrates it)
+#   (c) evaluator on Max via `claude --print` (ROADMAP #228 closed; EVAL_USE_CLI=1)
 #   (d) GitHub check-run emission so branch protection is satisfied
 #   (e) provenance fields on score-history so local/CI rows are distinguishable
 #
@@ -107,7 +107,7 @@ Flags:
                         prove-it allowlist (tests/e2e/lib/prove-it.sh).
                         Same-commit comparison.
 
-Requirements: claude CLI, gh CLI (authed), jq, ANTHROPIC_API_KEY (evaluator).
+Requirements: claude CLI (authed for sim + evaluator on Max), gh CLI (authed), jq.
 
 Env:
   SDLC_LOCAL_SHEPHERD_DRY_RUN=1   skip post-run side effects (check-run, comment)
@@ -200,11 +200,11 @@ if [ "${SDLC_SHEPHERD_SKIP_SHA_CHECK:-0}" != "1" ] && [ "$PR_HEAD_SHA" != "$LOCA
     exit 1
 fi
 
-# Evaluator still hits Anthropic API (ROADMAP #228 will migrate).
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Error: ANTHROPIC_API_KEY not set. The evaluator still hits the Anthropic API (#228 tracks migration)." >&2
-    exit 1
-fi
+# Evaluator runs on Max via `claude --print` (ROADMAP #228 closed).
+# EVAL_USE_CLI=1 swaps evaluate.sh's per-criterion judge transport from
+# curl-to-API to `claude --print --output-format json`. No API key required.
+# The shepherd is now honestly zero-API for the maintainer's path.
+export EVAL_USE_CLI=1
 
 # Pick scenario round-robin by PR number (same logic as CI).
 # shellcheck source=lib/scenario-selector.sh
@@ -721,7 +721,7 @@ if [ "$COMPARE_BASELINE" = "1" ] && [ -n "$STRIP_PATHS" ]; then
 
 - host: \`$HOST_OS\`
 - claude: \`$CLI_VERSION\`
-- auth: \`$AUTH_MODE\` (sim) / \`api\` (evaluator, ROADMAP #228)
+- auth: \`$AUTH_MODE\` (sim + evaluator, ROADMAP #228 closed v1.59.0)
 - execution_path: \`$EXECUTION_PATH\`
 - comparison_role: \`baseline\` + \`candidate\` (rows tagged in score-history.jsonl)
 - mode: same-commit prove-it (no main worktree)
@@ -745,7 +745,7 @@ elif [ "$COMPARE_BASELINE" = "1" ]; then
 
 - host: \`$HOST_OS\`
 - claude: \`$CLI_VERSION\`
-- auth: \`$AUTH_MODE\` (sim) / \`api\` (evaluator, ROADMAP #228)
+- auth: \`$AUTH_MODE\` (sim + evaluator, ROADMAP #228 closed v1.59.0)
 - execution_path: \`$EXECUTION_PATH\`
 - comparison_role: \`baseline\` + \`candidate\` (rows tagged in score-history.jsonl)
 
@@ -767,7 +767,7 @@ else
 
 - host: \`$HOST_OS\`
 - claude: \`$CLI_VERSION\`
-- auth: \`$AUTH_MODE\` (sim) / \`api\` (evaluator, ROADMAP #228)
+- auth: \`$AUTH_MODE\` (sim + evaluator, ROADMAP #228 closed v1.59.0)
 - execution_path: \`$EXECUTION_PATH\`
 
 </details>

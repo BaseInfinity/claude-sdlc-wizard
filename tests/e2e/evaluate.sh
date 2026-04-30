@@ -9,10 +9,19 @@
 # Usage:
 #   ./evaluate.sh <scenario_file> <output_file> [--json]
 #
+# Two judge transports:
+#   - Default (CI): per-criterion `curl` to api.anthropic.com (needs
+#     ANTHROPIC_API_KEY).
+#   - EVAL_USE_CLI=1 (local-Max shepherd, ROADMAP #228): per-criterion
+#     `claude --print --output-format json` against the user's Max
+#     subscription. No API key required, no per-criterion API spend.
+#     Same model + same prompts; only the auth/billing path differs.
+#
 # Requires:
-#   - ANTHROPIC_API_KEY environment variable
-#   - jq for JSON parsing
-#   - curl for API calls
+#   - jq
+#   - either ANTHROPIC_API_KEY (default mode) OR an authed `claude` CLI on
+#     PATH (EVAL_USE_CLI=1 mode)
+#   - curl (default mode only)
 #
 # SDP Scoring:
 #   - Raw Score: Our E2E result (Layer 2 - SDLC compliance)
@@ -70,8 +79,15 @@ if [ ! -f "$OUTPUT_FILE" ]; then
     exit 1
 fi
 
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Error: ANTHROPIC_API_KEY environment variable not set"
+# EVAL_USE_CLI=1 swaps per-criterion judge calls to `claude --print`
+# (Max-subsidized) instead of curl. Only require ANTHROPIC_API_KEY in the
+# default (curl) path. ROADMAP #228.
+if [ "${EVAL_USE_CLI:-0}" != "1" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "Error: ANTHROPIC_API_KEY environment variable not set (set EVAL_USE_CLI=1 to use 'claude --print' on Max instead)"
+    exit 1
+fi
+if [ "${EVAL_USE_CLI:-0}" = "1" ] && ! command -v claude >/dev/null 2>&1; then
+    echo "Error: EVAL_USE_CLI=1 set but 'claude' CLI not found on PATH"
     exit 1
 fi
 
@@ -99,10 +115,96 @@ fi
 LLM_CRITERIA=$(get_llm_criteria "$SCENARIO_TYPE")
 echo "Scoring criteria: $LLM_CRITERIA" >&2
 
-# API call helper — takes a prompt, returns response text
+# Judge call helper — takes a prompt, returns response text.
+#
+# Two transports (see header):
+#   - EVAL_USE_CLI=1: `claude --print --output-format json` against the user's
+#     Max subscription (no API key, no per-criterion API spend).
+#   - default: per-criterion curl to api.anthropic.com.
+#
+# CLI mode runs from a clean tmpdir cwd (`--setting-sources user`) so this
+# repo's `.claude/settings.json` hooks (sdlc-prompt-check, etc.) don't fire
+# and pollute the criterion prompt with SDLC baseline reminders.
+#
+# `--tools ""` only blocks built-in tools — MCP tools (e.g. mcp__playwright__*)
+# still appear in `system.init.tools` unless we also pass an empty MCP config
+# with `--strict-mcp-config`. The criterion prompt embeds untrusted simulation
+# output (per `eval-criteria.sh`), so prompt-injection can otherwise reach
+# user-configured MCP servers. (Codex round 1 P1 #1.)
+#
+# `--model claude-opus-4-7` pins the judge model so it matches the curl path's
+# hard-coded model. Without this, the CLI defers to the user's default which
+# defeats the "same model" parity claim. (Codex round 1 P1 #2.)
+call_criterion_cli() {
+    local prompt="$1"
+    local clean_cwd
+    clean_cwd=$(mktemp -d)
+    local cli_output raw_text=""
+    set +e
+    cli_output=$(cd "$clean_cwd" && claude --print \
+        --output-format json \
+        --max-turns 1 \
+        --model claude-opus-4-7 \
+        --tools "" \
+        --setting-sources user \
+        --mcp-config '{"mcpServers":{}}' \
+        --strict-mcp-config \
+        "$prompt" 2>/dev/null)
+    set -e
+    if [ -n "$cli_output" ]; then
+        # Real `claude --print --output-format json` returns an array of
+        # system/assistant/result entries; the response text is on the
+        # result-typed entry's `.result` field. Tolerate single-object
+        # form too so tests can mock with a flat object without invented
+        # array wrapping.
+        raw_text=$(echo "$cli_output" | jq -r '
+            if type == "array" then
+                ([.[] | select(.type == "result") | .result] | first // empty)
+            else
+                (.result // .content[0].text // empty)
+            end
+        ' 2>/dev/null)
+    fi
+
+    # Retry once on failure
+    if [ -z "$raw_text" ]; then
+        echo "  Retry CLI call for criterion..." >&2
+        sleep 3
+        set +e
+        cli_output=$(cd "$clean_cwd" && claude --print \
+            --output-format json \
+            --max-turns 1 \
+            --model claude-opus-4-7 \
+            --tools "" \
+            --setting-sources user \
+            --mcp-config '{"mcpServers":{}}' \
+            --strict-mcp-config \
+            "$prompt" 2>/dev/null)
+        set -e
+        if [ -n "$cli_output" ]; then
+            raw_text=$(echo "$cli_output" | jq -r '
+                if type == "array" then
+                    ([.[] | select(.type == "result") | .result] | first // empty)
+                else
+                    (.result // .content[0].text // empty)
+                end
+            ' 2>/dev/null)
+        fi
+    fi
+
+    rm -rf "$clean_cwd"
+    echo "$raw_text"
+}
+
 # Writes request to temp file to avoid "Argument list too long" with large outputs
 call_criterion_api() {
     local prompt="$1"
+
+    if [ "${EVAL_USE_CLI:-0}" = "1" ]; then
+        call_criterion_cli "$prompt"
+        return
+    fi
+
     local escaped
     escaped=$(echo "$prompt" | jq -Rs .)
 

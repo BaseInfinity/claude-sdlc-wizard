@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.58.0
+Latest:    1.59.0
 
 What changed:
+- [1.59.0] evaluator on Max via `claude --print` (#228) — `EVAL_USE_CLI=1` swaps `evaluate.sh`'s per-criterion judge transport from `curl` → API to `claude --print --output-format json`. local-shepherd.sh sets it by default, so the local path is honestly zero-API
 - [1.58.0] ground-truth gate for E2E benchmark (#96 Phase 2) — `tests/e2e/ground-truth.sh` runs `npm test` post-sim; final score capped at 5 if tests fail. Catches "agent followed protocol but produced broken code"
 - [1.57.0] de-coach E2E benchmark prompt (#96 Phase 1) — remove answer-key leakage that saturated benchmark scores at 10/10; new neutral task framing measures organic SDLC behavior
 - [1.56.0] community feature-discovery fetcher (#207) — `tests/e2e/fetch-community.sh` pulls Reddit + HN; pipe to `scan-community.sh` to surface candidate /slash-commands
