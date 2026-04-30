@@ -4,6 +4,33 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.61.0] - 2026-04-30
+
+### Added
+
+- **Calibration scenario suite — closes ROADMAP #96 Phase 3 PR 2.** New `tests/e2e/scenarios/calibration-careful-read.md` is the first scenario in a new `calibration-*` family designed specifically to reward self-review and punish rushed implementations. Builds on PR 1 (the lift-proof harness, v1.60.0).
+
+  The scenario asks the agent to add a `parsePrice(input)` utility that handles five distinct formats (standard, cents-only, comma thousand-separator, surrounding whitespace, invalid). A self-reviewing agent reads all five requirements before coding; a rushed agent skims the first example and ships `parseFloat(s.replace('$', ''))` — which silently corrupts `'$1,000.00'` to `1` (a thousand-fold pricing bug). The score delta between these two agent profiles on this scenario is a load-bearing **calibration signal** for `lift-proof.sh`.
+
+  Out of scope: actual end-to-end calibration verification (does a low-effort agent actually score lower on this scenario than an xhigh agent?). That's deferred to ROADMAP #212(i) Prove-It Gate paired runs. PR 2 ships the scenario; #212(i) runs the comparison.
+
+### Tests
+
+- New `tests/test-calibration-scenarios.sh` (6 tests): asserts a `calibration-*.md` exists, has the standard scenario format (`# Scenario:`, `## Task`, `## Fixture:`, calibration-signal docs), and lists ≥2 numbered requirements (the careful-read multi-path signal).
+- Wired into `ci.yml` and `CONTRIBUTING.md` test list.
+
+### Files
+
+- `tests/e2e/scenarios/calibration-careful-read.md` (new) — the parsePrice scenario
+- `tests/test-calibration-scenarios.sh` (new) — format validator
+- `.github/workflows/ci.yml` — new test step
+- `CONTRIBUTING.md` — test list parity
+- `CHANGELOG.md`, `ROADMAP.md`, `SDLC.md`, `CLAUDE_CODE_SDLC_WIZARD.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json` (1.60.0 → 1.61.0)
+
+### What's still TBD
+
+The `calibration-*` family is intentionally extensible. Future scenarios could test other SDLC virtues — scope guard (don't fix things outside the task), TDD discipline (write tests before implementation), regression hygiene (don't break existing tests). Each new calibration scenario is a separate PR; PR 2 establishes the format.
+
 ## [1.60.0] - 2026-04-30
 
 ### Added
