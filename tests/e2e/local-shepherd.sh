@@ -196,36 +196,36 @@ OUTPUT_FILE="$TMPRUN/claude-execution-output.json"
 REL_SCENARIO="tests/e2e/scenarios/$SCENARIO_NAME.md"
 FIXTURES_REL="tests/e2e/fixtures/test-repo"
 
-# Full prompt — byte-equivalent to .github/workflows/ci.yml:338-361 modulo
-# the pr-branch/ prefix that only exists in CI's checked-out-artifact layout.
-# bash 3.2 on macOS has a heredoc-in-$() parsing bug when the body contains
-# backticks (even inside a 'PROMPT'-quoted delimiter), so we write the prompt
-# to a temp file line-by-line and read it back. Ugly but bash-3.2 safe.
+# Neutral task prompt (#96 Phase 1, ROADMAP fix). The previous version
+# coached the agent on every scored behavior — which is why the benchmark
+# saturated at 10/10 and the v1.32.0 cross-model audit rated it 2/10
+# NOT CERTIFIED. Removing the cheat sheet measures whether agents
+# practice SDLC organically. A wizard-installed fixture (Phase 3,
+# future) will then demonstrate that wizard installation lifts
+# organic-low scores back up. Test #96-Phase-1 in
+# tests/test-local-shepherd.sh asserts cheat-sheet phrases do not
+# resurrect — that's why this comment paraphrases instead of quoting.
+#
+# bash 3.2 on macOS has a heredoc-in-$() parsing bug when the body
+# contains backticks (even inside a 'PROMPT'-quoted delimiter), so we
+# write the prompt to a temp file line-by-line and read it back. Ugly
+# but bash-3.2 safe.
 PROMPT_FILE="$TMPRUN/parity-prompt.txt"
 {
-    printf '%s\n' "You are running an E2E SDLC simulation. Your goal is to complete a coding task"
-    printf '%s\n' "while demonstrating proper SDLC practices."
+    printf '%s\n' "You are completing a coding task in a real working directory."
     printf '%s\n' ""
     printf '%s\n' "Working directory: $FIXTURES_REL"
     printf '%s\n' "Scenario file: $REL_SCENARIO"
     printf '%s\n' ""
-    printf '%s\n' "STEPS:"
-    printf '%s\n' "1. Read the scenario file to understand the task and complexity"
-    printf '%s\n' "2. Use TodoWrite or TaskCreate to track your work"
-    printf '%s\n' '3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"'
-    printf '%s\n' "4. For medium/hard tasks, plan your approach before coding (outline steps in a message)"
-    printf '%s\n' "5. Follow TDD: write/update tests FIRST, verify they fail, then implement"
-    printf '6. Run %cnpm test%c to verify all tests pass\n' 96 96
-    printf '%s\n' "7. Self-review: use Read to read back the files you modified, check for issues"
+    printf '%s\n' "Read the scenario file for the task spec. Complete it however you'\''d"
+    printf '%s\n' "normally complete a coding task — using whatever practices your tooling,"
+    printf '%s\n' "skills, or instructions teach you. The result will be evaluated"
+    printf '%s\n' "independently."
     printf '%s\n' ""
-    printf '%s\n' "IMPORTANT:"
-    printf '%s\n' "- You MUST use TodoWrite or TaskCreate (scored by automated checks)"
-    printf '%s\n' '- You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)'
-    printf '%s\n' "- Write or edit test files BEFORE implementation files (TDD RED phase is scored)"
-    printf '%s\n' "- You MUST self-review by using Read on files you modified before finishing (scored by automated checks)"
-    printf '%s\n' "- All files you need are in the working directory — do not search elsewhere"
-    printf '%s\n' "- Be efficient with your turns — execute, don't just plan"
-    printf '%s\n' "- Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead"
+    printf '%s\n' "Constraints:"
+    printf '%s\n' "- All files you need are in the working directory; do not search elsewhere."
+    printf '%s\n' "- Do NOT use EnterPlanMode or ExitPlanMode — plan inline in messages."
+    printf '%s\n' "- Be efficient — execute, don'\''t just plan."
 } > "$PROMPT_FILE"
 PARITY_PROMPT=$(cat "$PROMPT_FILE")
 
