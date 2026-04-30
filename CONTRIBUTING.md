@@ -17,6 +17,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-audit-session-load.sh && \
    ./tests/test-compliance.sh && ./tests/test-sdp-calculation.sh && \
    ./tests/test-evaluate-bugs.sh && ./tests/test-evaluate-cli-mode.sh && \
+   ./tests/test-wizard-installer.sh && \
    ./tests/test-score-analytics.sh && \
    ./tests/test-prove-it.sh && ./tests/test-self-update.sh && \
    ./tests/test-external-benchmark.sh && \
@@ -185,6 +186,7 @@ python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
 ./tests/test-sdp-calculation.sh
 ./tests/test-evaluate-bugs.sh
 ./tests/test-evaluate-cli-mode.sh
+./tests/test-wizard-installer.sh
 ./tests/test-score-analytics.sh
 ./tests/test-prove-it.sh
 ./tests/test-self-update.sh
