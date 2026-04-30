@@ -462,6 +462,148 @@ test_hook_warns_on_spike() {
     rm -rf "$tmp"
 }
 
+# --- Cache-miss regression test (ROADMAP #204 prove-it gate, v1.63.0) ---
+#
+# #204 was concerned with HN PSA-style 10-20× prompt-cache-cost blowups: when
+# cache hits drop unexpectedly (mid-session edits to CLAUDE.md, idle pruning,
+# or upstream caching bugs like Anthropic's 2026-04-23 thinking-block drop),
+# cache_read collapses and cache_creation spikes. The cost surprise is silent
+# — only visible on the invoice. #220's costly_tokens metric (input +
+# cache_creation + output, EXCLUDING cache_read) is exactly designed to
+# catch this. This test proves the absorption: build a baseline of healthy
+# sessions (low cache_creation, high cache_read, low costly_tokens), then
+# append a cache-miss session (cache_read=0, cache_creation high, costly
+# spike), and assert the spike warning fires. Without this test, we'd be
+# claiming #204 is absorbed without proof.
+
+test_cache_miss_pattern_triggers_spike_warning() {
+    # End-to-end test: write fixture transcripts with raw cache fields,
+    # let `--ingest` compute costly_tokens, then `--check` for the spike.
+    # This exercises the FULL chain (ingest → costly_tokens calc → spike
+    # detect), so mutating cache_creation_input_tokens here actually moves
+    # the test's outcome (Codex round 1 P1 fix).
+    #
+    # Two-phase ingest: baseline transcripts first, cache-miss transcript
+    # second, so the cache-miss row is the LAST line in history (the
+    # `--check` candidate is `tail -n 1`).
+    local tmp
+    tmp=$(make_tmp_workspace)
+    local hist="$tmp/.metrics/token-history.jsonl"
+    mkdir -p "$tmp/baseline" "$tmp/candidate"
+
+    # Baseline: 20 healthy cache-hit-heavy sessions.
+    # Each: 5 messages × (input=20, output=20, cache_creation=20, cache_read=2000)
+    # costly_tokens per session = 5 × (20 + 20 + 20) = 300
+    local i
+    for ((i=1; i<=20; i++)); do
+        make_transcript "$tmp/baseline/healthy-$i.jsonl" "healthy-$i" 20 20 20 2000 5
+    done
+
+    # Cache-miss session: prefix had to be re-uploaded.
+    # 5 messages × (input=20, output=20, cache_creation=10000, cache_read=0)
+    # costly_tokens = 5 × (20 + 20 + 10000) = 50200
+    make_transcript "$tmp/candidate/cache-miss.jsonl" "cache-miss" 20 20 10000 0 5
+
+    # Phase 1: ingest baseline.
+    "$ANALYTICS" --history "$hist" \
+        --transcript-dir "$tmp/baseline" \
+        --ingest --no-skip-recent > /dev/null 2>&1 || true
+
+    # Phase 2: ingest cache-miss. Appended after baseline → physically last.
+    "$ANALYTICS" --history "$hist" \
+        --transcript-dir "$tmp/candidate" \
+        --ingest --no-skip-recent > /dev/null 2>&1 || true
+
+    # Verify ingest captured the cache-miss session with the expected fields.
+    local cm_costly cm_creation cm_read
+    cm_costly=$(jq -r 'select(.session_id == "cache-miss") | .costly_tokens' "$hist" | head -1)
+    cm_creation=$(jq -r 'select(.session_id == "cache-miss") | .cache_creation_tokens' "$hist" | head -1)
+    cm_read=$(jq -r 'select(.session_id == "cache-miss") | .cache_read_tokens' "$hist" | head -1)
+
+    if [ "$cm_costly" != "50200" ] || [ "$cm_creation" != "50000" ] || [ "$cm_read" != "0" ]; then
+        fail "ingest did not produce expected cache-miss record (costly=$cm_costly creation=$cm_creation read=$cm_read; expected 50200/50000/0)"
+        rm -rf "$tmp"
+        return
+    fi
+
+    # Confirm cache-miss is the last line (--check uses `tail -n 1`).
+    local last_sid
+    last_sid=$(tail -n 1 "$hist" | jq -r '.session_id')
+    if [ "$last_sid" != "cache-miss" ]; then
+        fail "cache-miss is not the last history row (saw '$last_sid'); --check candidate selection broken"
+        rm -rf "$tmp"
+        return
+    fi
+
+    local out
+    out=$("$ANALYTICS" --history "$hist" --check 2>&1 || true)
+
+    if echo "$out" | grep -qiE 'spike|anomal|warning|exceed'; then
+        pass "cache-miss pattern triggers spike warning (E2E: transcript→ingest→check, #204 absorbed)"
+    else
+        fail "cache-miss spike not detected. costly=$cm_costly. Output: $out"
+    fi
+    rm -rf "$tmp"
+}
+
+# Negative control: a session with the OPPOSITE pattern — high cache_read
+# and steady cache_creation — must NOT fire. Proves the detector is keying
+# on costly_tokens (the cost-bearing fields), not on raw token count.
+# Same end-to-end path: transcripts → ingest → check.
+test_high_cache_read_no_warning() {
+    local tmp
+    tmp=$(make_tmp_workspace)
+    local hist="$tmp/.metrics/token-history.jsonl"
+    mkdir -p "$tmp/baseline" "$tmp/candidate"
+
+    # Baseline: 20 healthy sessions, costly=300 each.
+    local i
+    for ((i=1; i<=20; i++)); do
+        make_transcript "$tmp/baseline/healthy-$i.jsonl" "healthy-$i" 20 20 20 2000 5
+    done
+
+    # Hot-cache: cache_read 100× per-message (200000 vs 2000); 5 messages
+    # × 200000 = 1,000,000 total cache_read. cache_creation + input + output
+    # unchanged → costly_tokens stays 300. Cheaper-per-token, not expensive.
+    make_transcript "$tmp/candidate/hot-cache.jsonl" "hot-cache" 20 20 20 200000 5
+
+    "$ANALYTICS" --history "$hist" \
+        --transcript-dir "$tmp/baseline" \
+        --ingest --no-skip-recent > /dev/null 2>&1 || true
+    "$ANALYTICS" --history "$hist" \
+        --transcript-dir "$tmp/candidate" \
+        --ingest --no-skip-recent > /dev/null 2>&1 || true
+
+    local hc_costly hc_read
+    hc_costly=$(jq -r 'select(.session_id == "hot-cache") | .costly_tokens' "$hist" | head -1)
+    hc_read=$(jq -r 'select(.session_id == "hot-cache") | .cache_read_tokens' "$hist" | head -1)
+
+    # 5 messages × 200000 cache_read = 1,000,000 total.
+    if [ "$hc_costly" != "300" ] || [ "$hc_read" != "1000000" ]; then
+        fail "ingest did not produce expected hot-cache record (costly=$hc_costly read=$hc_read; expected 300/1000000)"
+        rm -rf "$tmp"
+        return
+    fi
+
+    local last_sid
+    last_sid=$(tail -n 1 "$hist" | jq -r '.session_id')
+    if [ "$last_sid" != "hot-cache" ]; then
+        fail "hot-cache is not the last history row (saw '$last_sid')"
+        rm -rf "$tmp"
+        return
+    fi
+
+    local out
+    out=$("$ANALYTICS" --history "$hist" --check 2>&1 || true)
+
+    if echo "$out" | grep -qiE 'spike|anomal'; then
+        fail "false positive on healthy hot-cache (costly=$hc_costly, raw_reads=$hc_read). Output: $out"
+    else
+        pass "high cache_read does NOT fire warning (cost-aware metric, not raw-count)"
+    fi
+    rm -rf "$tmp"
+}
+
 # --- Run all ---
 
 test_analytics_exists
@@ -478,6 +620,8 @@ test_privacy_string_values_coerced_to_zero
 test_concurrent_ingest_no_duplicate_session
 test_hook_silent_without_metrics_dir
 test_hook_warns_on_spike
+test_cache_miss_pattern_triggers_spike_warning
+test_high_cache_read_no_warning
 
 echo ""
 echo "=== Results ==="
