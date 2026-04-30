@@ -51,6 +51,43 @@ SCENARIOS_DIR="$SCRIPT_DIR/scenarios"
 DEFAULT_HISTORY="$SCRIPT_DIR/score-history.jsonl"
 HISTORY_FILE="${SDLC_SHEPHERD_HISTORY_FILE:-$DEFAULT_HISTORY}"
 EVALUATOR="${SDLC_SHEPHERD_EVALUATOR:-$SCRIPT_DIR/evaluate.sh}"
+GROUND_TRUTH="${SDLC_SHEPHERD_GROUND_TRUTH:-$SCRIPT_DIR/ground-truth.sh}"
+
+# ROADMAP #96 Phase 2: ground-truth gate helper. Runs the fixture's own
+# test suite and gates the judge score: tests-fail caps at
+# GROUND_TRUTH_FAIL_CAP (default 5). Re-used by single-mode AND compare-
+# baseline mode (Codex F-02). Path resolution:
+#   - single mode: cwd-relative tests/e2e/fixtures/test-repo
+#   - compare-baseline: $BASELINE_DIR/.../test-repo for baseline,
+#     $CANDIDATE_DIR/.../test-repo for candidate (Codex F-01).
+#
+# Usage:  run_gate <fixture_dir> <judge_score>
+# Echoes: "tests_run|tests_pass|final_score|gated"
+run_gate() {
+    local fixture_dir="$1"
+    local judge_score="$2"
+    local cap="${GROUND_TRUTH_FAIL_CAP:-5}"
+    local gt_json='{"tests_run":false,"reason":"ground_truth_disabled"}'
+    if [ "${SDLC_SHEPHERD_SKIP_GROUND_TRUTH:-0}" != "1" ] && [ -x "$GROUND_TRUTH" ]; then
+        set +e
+        gt_json=$("$GROUND_TRUTH" "$fixture_dir" 2>/dev/null)
+        local rc=$?
+        set -e
+        if [ "$rc" -ne 0 ] || ! echo "$gt_json" | jq empty 2>/dev/null; then
+            gt_json='{"tests_run":false,"reason":"ground_truth_error"}'
+        fi
+    fi
+    local tr tp final gated
+    tr=$(echo "$gt_json" | jq -r '.tests_run // false')
+    tp=$(echo "$gt_json" | jq -r '.tests_pass // false')
+    final="$judge_score"
+    gated=false
+    if [ "$tr" = "true" ] && [ "$tp" = "false" ] && [ "$judge_score" -gt "$cap" ]; then
+        final="$cap"
+        gated=true
+    fi
+    echo "$tr|$tp|$final|$gated"
+}
 
 usage() {
     cat >&2 <<EOF
@@ -393,6 +430,21 @@ if [ "$COMPARE_BASELINE" = "1" ]; then
     case "$BASELINE_MAX" in ''|*[!0-9]*) BASELINE_MAX=10 ;; esac
     [ -z "$BASELINE_CRIT" ] && BASELINE_CRIT='{}'
 
+    # ROADMAP #96 Phase 2 (Codex F-01/F-02): ground-truth gate on baseline.
+    # Path resolves relative to $BASELINE_DIR (which contains a fresh
+    # checkout — for non-strip mode) or the intact-fixture sibling (strip
+    # mode). Fixture lives at tests/e2e/fixtures/test-repo within either.
+    BASELINE_ORIGINAL_SCORE="$BASELINE_SCORE"
+    BASELINE_GT_FIXTURE="${SDLC_SHEPHERD_BASELINE_FIXTURE_DIR:-$BASELINE_DIR/tests/e2e/fixtures/test-repo}"
+    BASELINE_GATE_RESULT=$(run_gate "$BASELINE_GT_FIXTURE" "$BASELINE_SCORE")
+    BASELINE_TESTS_RUN=$(echo "$BASELINE_GATE_RESULT" | cut -d'|' -f1)
+    BASELINE_TESTS_PASS=$(echo "$BASELINE_GATE_RESULT" | cut -d'|' -f2)
+    BASELINE_SCORE=$(echo "$BASELINE_GATE_RESULT" | cut -d'|' -f3)
+    BASELINE_GATED=$(echo "$BASELINE_GATE_RESULT" | cut -d'|' -f4)
+    if [ "$BASELINE_GATED" = "true" ]; then
+        echo "Baseline ground-truth gate: tests failed → score capped (judge gave $BASELINE_ORIGINAL_SCORE/$BASELINE_MAX)" >&2
+    fi
+
     # Codex P1 #1: do NOT append the baseline row here. Defer to after the
     # candidate sim+eval succeeds — otherwise a candidate failure leaves an
     # orphan baseline row in history with no comparison partner. Both rows
@@ -481,6 +533,29 @@ case "$SCORE" in ''|*[!0-9]*) SCORE=0 ;; esac
 case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
 [ -z "$CRIT" ] && CRIT='{}'
 
+# ---- ROADMAP #96 Phase 2: ground-truth gate (candidate / single-mode) ----
+# Path resolves to $CANDIDATE_DIR/.../test-repo in compare-baseline mode
+# (Codex F-01) or cwd-relative in single-mode. Override with
+# SDLC_SHEPHERD_FIXTURE_DIR for tests.
+ORIGINAL_SCORE="$SCORE"
+if [ "$COMPARE_BASELINE" = "1" ] && [ -n "$CANDIDATE_DIR" ]; then
+    # --strip-paths mode: candidate sim ran in $CANDIDATE_DIR (Codex F-01).
+    # The fixture's there too; the agent's edits don't touch the working repo.
+    GT_FIXTURE_DIR="${SDLC_SHEPHERD_FIXTURE_DIR:-$CANDIDATE_DIR/tests/e2e/fixtures/test-repo}"
+else
+    # Single mode OR default --compare-baseline: candidate sim runs in REPO_ROOT
+    # (current branch's working tree) → cwd-relative fixture path.
+    GT_FIXTURE_DIR="${SDLC_SHEPHERD_FIXTURE_DIR:-tests/e2e/fixtures/test-repo}"
+fi
+GATE_RESULT=$(run_gate "$GT_FIXTURE_DIR" "$SCORE")
+TESTS_RUN=$(echo "$GATE_RESULT" | cut -d'|' -f1)
+TESTS_PASS=$(echo "$GATE_RESULT" | cut -d'|' -f2)
+SCORE=$(echo "$GATE_RESULT" | cut -d'|' -f3)
+GROUND_TRUTH_GATED=$(echo "$GATE_RESULT" | cut -d'|' -f4)
+if [ "$GROUND_TRUTH_GATED" = "true" ]; then
+    echo "Ground-truth gate: tests failed → score capped (judge gave $ORIGINAL_SCORE/$MAX_SCORE)" >&2
+fi
+
 # Provenance fields were computed once before the baseline run (see above).
 # Append history rows. When --compare-baseline is set, both baseline AND
 # candidate rows are written here (deferred from the baseline block per
@@ -488,7 +563,8 @@ case "$MAX_SCORE" in ''|*[!0-9]*) MAX_SCORE=10 ;; esac
 # Single-run mode omits comparison_role for backward compat.
 mkdir -p "$(dirname "$HISTORY_FILE")"
 if [ "$COMPARE_BASELINE" = "1" ]; then
-    # Baseline row first (deferred from baseline block).
+    # Baseline row first (deferred from baseline block). Includes ground-
+    # truth telemetry from the per-row gate (Codex F-02).
     jq -nc \
         --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --arg scenario "$SCENARIO_NAME" \
@@ -502,7 +578,11 @@ if [ "$COMPARE_BASELINE" = "1" ]; then
         --arg auth_mode "$AUTH_MODE" \
         --arg comparison_role "baseline" \
         --argjson pr_number "$PR_NUMBER" \
-        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, comparison_role:$comparison_role, pr_number:$pr_number}' \
+        --argjson original_judge_score "$BASELINE_ORIGINAL_SCORE" \
+        --argjson tests_run "$BASELINE_TESTS_RUN" \
+        --argjson tests_pass "$BASELINE_TESTS_PASS" \
+        --argjson ground_truth_gated "$BASELINE_GATED" \
+        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, comparison_role:$comparison_role, pr_number:$pr_number, original_judge_score:$original_judge_score, tests_run:$tests_run, tests_pass:$tests_pass, ground_truth_gated:$ground_truth_gated}' \
         >> "$HISTORY_FILE"
     # Candidate row second.
     jq -nc \
@@ -518,7 +598,11 @@ if [ "$COMPARE_BASELINE" = "1" ]; then
         --arg auth_mode "$AUTH_MODE" \
         --arg comparison_role "candidate" \
         --argjson pr_number "$PR_NUMBER" \
-        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, comparison_role:$comparison_role, pr_number:$pr_number}' \
+        --argjson original_judge_score "$ORIGINAL_SCORE" \
+        --argjson tests_run "$TESTS_RUN" \
+        --argjson tests_pass "$TESTS_PASS" \
+        --argjson ground_truth_gated "$GROUND_TRUTH_GATED" \
+        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, comparison_role:$comparison_role, pr_number:$pr_number, original_judge_score:$original_judge_score, tests_run:$tests_run, tests_pass:$tests_pass, ground_truth_gated:$ground_truth_gated}' \
         >> "$HISTORY_FILE"
 else
     jq -nc \
@@ -533,7 +617,11 @@ else
         --arg claude_code_version "$CLAUDE_CODE_VERSION" \
         --arg auth_mode "$AUTH_MODE" \
         --argjson pr_number "$PR_NUMBER" \
-        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, pr_number:$pr_number}' \
+        --argjson original_score "$ORIGINAL_SCORE" \
+        --argjson tests_run "$TESTS_RUN" \
+        --argjson tests_pass "$TESTS_PASS" \
+        --argjson ground_truth_gated "$GROUND_TRUTH_GATED" \
+        '{timestamp:$ts, scenario:$scenario, score:$score, max_score:$max_score, criteria:$criteria, execution_path:$execution_path, host_os:$host_os, cli_version:$cli_version, claude_code_version:$claude_code_version, auth_mode:$auth_mode, pr_number:$pr_number, original_judge_score:$original_score, tests_run:$tests_run, tests_pass:$tests_pass, ground_truth_gated:$ground_truth_gated}' \
         >> "$HISTORY_FILE"
 fi
 

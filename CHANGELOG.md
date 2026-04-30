@@ -4,6 +4,42 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.58.0] - 2026-04-30
+
+### Added
+
+- **Ground-truth gate for the E2E benchmark — closes ROADMAP #96 Phase 2.** New `tests/e2e/ground-truth.sh` runs the fixture's own test suite (`npm test`) post-simulation and emits structured JSON: `{tests_run, tests_pass, tests_rc, tests_tail}`. `local-shepherd.sh` calls it after the evaluator, before the score-history append. If tests fail, the final score is **capped at 5/10** (configurable via `GROUND_TRUTH_FAIL_CAP`) — the judge can't tell if `npm test` actually passes; only running it can.
+
+  Combined with Phase 1's de-coaching (v1.57.0), the benchmark now requires **both** judge approval **and** real test passage. Catches "agent followed protocol but produced broken code" false-positives — exactly the failure mode the v1.32.0 cross-model audit warned about.
+
+  Score-history rows now record `original_judge_score`, `tests_run`, `tests_pass`, `ground_truth_gated` so trend analytics can distinguish judge noise from real regressions.
+
+  Cross-platform timeout: uses `timeout` if available, falls back to `gtimeout` (coreutils on macOS), and finally a portable `perl` fallback for stock systems. Default `GROUND_TRUTH_TIMEOUT=120s`.
+
+  Escape hatches:
+  - `SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1` — disables the gate entirely (raw judge scores)
+  - `SDLC_SHEPHERD_FIXTURE_DIR=...` — override fixture location (default `tests/e2e/fixtures/test-repo`)
+  - `SDLC_SHEPHERD_GROUND_TRUTH=...` — override script path (used by tests)
+
+### Tests
+
+- New `tests/test-ground-truth.sh` (11 tests): passing/failing/no-test/no-package/missing-dir/no-args/help/JSON-validity/timeout-enforcement.
+- 4 new integration tests in `tests/test-local-shepherd.sh` (38 total): gate caps judge=9 to score=5, gate leaves passing judge alone, no-tests fixture skips gate, `SKIP_GROUND_TRUTH` env var fully disables gate.
+- Wired into `ci.yml` and `CONTRIBUTING.md` test list.
+
+### Files
+
+- `tests/e2e/ground-truth.sh` (new, 105 lines)
+- `tests/test-ground-truth.sh` (new, 11 tests)
+- `tests/e2e/local-shepherd.sh` (gate logic + new score-history fields)
+- `tests/test-local-shepherd.sh` (4 new integration tests)
+- `.github/workflows/ci.yml` + `CONTRIBUTING.md` (test list)
+- Version bump 1.57.0 → 1.58.0
+
+### Phase 3 (future)
+
+- Install wizard files into the local-shepherd test fixture so the simulation tests "wizard-installed agent" vs "wizard-less agent." That's the actual *"does the wizard work?"* test — pairs with calibration scenarios that include subtle bugs to test self-review effectiveness.
+
 ## [1.57.0] - 2026-04-30
 
 ### Fixed

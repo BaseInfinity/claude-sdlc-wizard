@@ -39,6 +39,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-prompt-hook-fires-once.sh && \
    ./tests/test-community-scanner.sh && \
    ./tests/test-community-fetch.sh && \
+   ./tests/test-ground-truth.sh && \
    ./tests/test-update-skill-step-7-7.sh && \
    ./tests/test-update-skill-cli-version.sh && \
    ./tests/test-cleanup-period-guidance.sh && \
