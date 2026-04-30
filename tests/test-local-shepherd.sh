@@ -563,9 +563,14 @@ fi
 EOF
     chmod +x "$evaluator"
     rm -f "$state_file"
+    # SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1: pre-existing compare-baseline tests
+    # were written before the ground-truth gate (#96 Phase 2). They assert
+    # raw judge scores, not gated ones. Skip gate here; gate-specific tests
+    # set their own SDLC_SHEPHERD_GROUND_TRUTH mock.
     PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
         SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
         SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 \
         SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
         CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
         > "$tmpdir/stdout.log" 2> "$tmpdir/stderr.log" || true
@@ -833,9 +838,11 @@ fi
 EOF
     chmod +x "$evaluator"
     rm -f "$state_file"
+    # SKIP_GROUND_TRUTH for the same reason as _compare_baseline_run.
     PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
         SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
         SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 \
         SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
         CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
         --compare-baseline --strip-paths "$strip_arg" \
