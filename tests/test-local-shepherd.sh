@@ -490,23 +490,36 @@ EOF
 test_shepherd_prompt_has_required_signatures() {
     # Originally LS-003 P1 (parity with ci.yml). After ROADMAP #212 Option 1
     # removed the e2e jobs from ci.yml, parity with a deleted block is moot.
-    # Keep the test — assert shepherd itself has the required signature lines,
-    # so that if someone guts the prompt, tests fail.
+    # ROADMAP #96 Phase 1 (de-coaching): the old prompt told the agent
+    # exactly what was scored ("MUST use TodoWrite (scored by automated
+    # checks)" etc.) which saturated the benchmark at 10/10. The new
+    # prompt is neutral task framing — the agent must practice SDLC
+    # organically. Test asserts the new neutral signatures so a future
+    # regression that re-introduces the cheat sheet shows up here.
     local miss=""
     for sig in \
-        "You are running an E2E SDLC simulation" \
-        "Use TodoWrite or TaskCreate to track your work" \
-        "Follow TDD: write/update tests FIRST" \
+        "You are completing a coding task" \
+        "Working directory:" \
+        "Scenario file:" \
         "Do NOT use EnterPlanMode or ExitPlanMode"; do
         if ! grep -qF "$sig" "$SHEPHERD"; then
             miss="$miss|missing-in-shepherd: $sig"
+        fi
+    done
+    # Negative assertion: cheat-sheet phrases must NOT resurrect.
+    for forbidden in \
+        "scored by automated checks" \
+        "MUST use TodoWrite" \
+        "TDD RED phase is scored"; do
+        if grep -qF "$forbidden" "$SHEPHERD"; then
+            miss="$miss|cheat-sheet phrase resurrected: $forbidden"
         fi
     done
     if ! grep -qF -- "--add-dir" "$SHEPHERD"; then miss="$miss|shepherd missing --add-dir"; fi
     if ! grep -qF -- "--max-turns" "$SHEPHERD"; then miss="$miss|shepherd missing --max-turns"; fi
     if ! grep -qF -- "--allowedTools" "$SHEPHERD"; then miss="$miss|shepherd missing --allowedTools"; fi
     if [ -z "$miss" ]; then
-        pass "shepherd embeds all required prompt signature lines + parity flags"
+        pass "shepherd has neutral task prompt + parity flags (no answer-key coaching)"
     else
         fail "shepherd prompt drift:$miss"
     fi
