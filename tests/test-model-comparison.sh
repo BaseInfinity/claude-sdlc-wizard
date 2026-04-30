@@ -335,16 +335,31 @@ test_integrity_check() {
     fi
 }
 
-# Test 22: Simulation prompt includes TDD and confidence instructions
+# Test 22: Simulation prompt is neutral (no answer-key coaching)
+# ROADMAP #96 Phase 1: the previous prompt explicitly told the agent
+# what was scored ("MUST use TodoWrite (scored by automated checks)"
+# etc.) which saturated the benchmark at 10/10 (v1.32.0 audit: 2/10
+# NOT CERTIFIED). The wizard is installed into the test fixture in
+# Test 23 — the wizard's SDLC skill is what should drive TDD /
+# confidence behavior, not a cheat sheet in the prompt. This test
+# inverts: confirm cheat-sheet phrases are NOT in the workflow.
 test_prompt_quality() {
     if [ ! -f "$WORKFLOW" ]; then fail "Workflow file missing"; return; fi
-    local has_tdd has_conf
-    has_tdd=$(grep -ci "TDD\|test.*first\|test.*BEFORE" "$WORKFLOW" || true)
-    has_conf=$(grep -ci "confidence\|Confidence:" "$WORKFLOW" || true)
-    if [ "$has_tdd" -gt 0 ] && [ "$has_conf" -gt 0 ]; then
-        pass "Simulation prompt includes TDD and confidence instructions"
+    local resurrected=""
+    for forbidden in \
+        "scored by automated checks" \
+        "MUST use TodoWrite" \
+        "MUST state confidence" \
+        "TDD RED phase is scored" \
+        "MUST self-review"; do
+        if grep -qF "$forbidden" "$WORKFLOW"; then
+            resurrected="$resurrected|$forbidden"
+        fi
+    done
+    if [ -z "$resurrected" ]; then
+        pass "Simulation prompt has no answer-key coaching (#96 Phase 1)"
     else
-        fail "Simulation prompt missing TDD ($has_tdd) or confidence ($has_conf) instructions"
+        fail "Cheat-sheet phrase resurrected in workflow prompt: ${resurrected}"
     fi
 }
 
