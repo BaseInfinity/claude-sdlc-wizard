@@ -563,9 +563,14 @@ fi
 EOF
     chmod +x "$evaluator"
     rm -f "$state_file"
+    # SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1: pre-existing compare-baseline tests
+    # were written before the ground-truth gate (#96 Phase 2). They assert
+    # raw judge scores, not gated ones. Skip gate here; gate-specific tests
+    # set their own SDLC_SHEPHERD_GROUND_TRUTH mock.
     PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
         SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
         SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 \
         SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
         CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
         > "$tmpdir/stdout.log" 2> "$tmpdir/stderr.log" || true
@@ -833,9 +838,11 @@ fi
 EOF
     chmod +x "$evaluator"
     rm -f "$state_file"
+    # SKIP_GROUND_TRUTH for the same reason as _compare_baseline_run.
     PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
         SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
         SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 \
         SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
         CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
         --compare-baseline --strip-paths "$strip_arg" \
@@ -1149,6 +1156,348 @@ test_strip_paths_equals_form_rejects_empty
 test_strip_paths_no_leak_on_setup_failure
 test_strip_paths_trap_set_before_tmpdir
 test_strip_paths_pr_comment_uses_intact_stripped_labels
+
+# ---- ROADMAP #96 Phase 2: ground-truth gate integration tests ----
+# The shepherd runs ground-truth.sh post-simulation. If `npm test` fails,
+# the score gets capped at GROUND_TRUTH_FAIL_CAP (default 5). Score-
+# history rows record tests_run/tests_pass/ground_truth_gated/
+# original_judge_score so trend analytics can distinguish judge-noise
+# from real regression.
+test_ground_truth_gate_caps_score_when_tests_fail() {
+    local tmpdir bindir history_file evaluator gt
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    history_file="$tmpdir/score-history.jsonl"
+    evaluator="$tmpdir/mock-evaluator.sh"
+    gt="$tmpdir/mock-ground-truth.sh"
+    touch "$history_file"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    # Judge gives 9/10
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":9,"max_score":10,"criteria":{}}'
+EOF
+    # But ground-truth says tests fail
+    cat > "$gt" <<'EOF'
+#!/bin/bash
+echo '{"tests_run":true,"tests_pass":false,"tests_rc":1,"tests_tail":"AssertionError"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$history_file" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 >/dev/null 2>&1 || true
+    local row
+    row=$(tail -1 "$history_file" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$row" | jq -e '.score == 5 and .original_judge_score == 9 and .ground_truth_gated == true and .tests_pass == false' >/dev/null 2>&1; then
+        pass "ground-truth gate caps judge=9 to score=5 when tests fail"
+    else
+        fail "ground-truth gate did not apply. row=$row"
+    fi
+}
+test_ground_truth_gate_caps_score_when_tests_fail
+
+test_ground_truth_gate_passes_through_when_tests_pass() {
+    local tmpdir bindir history_file evaluator gt
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    history_file="$tmpdir/score-history.jsonl"
+    evaluator="$tmpdir/mock-evaluator.sh"
+    gt="$tmpdir/mock-ground-truth.sh"
+    touch "$history_file"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":8,"max_score":10,"criteria":{}}'
+EOF
+    cat > "$gt" <<'EOF'
+#!/bin/bash
+echo '{"tests_run":true,"tests_pass":true,"tests_rc":0,"tests_tail":"OK"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$history_file" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 >/dev/null 2>&1 || true
+    local row
+    row=$(tail -1 "$history_file" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$row" | jq -e '.score == 8 and .ground_truth_gated == false and .tests_pass == true' >/dev/null 2>&1; then
+        pass "ground-truth gate leaves judge score alone when tests pass"
+    else
+        fail "ground-truth gate misfired. row=$row"
+    fi
+}
+test_ground_truth_gate_passes_through_when_tests_pass
+
+test_ground_truth_skipped_when_no_tests_configured() {
+    # Fixture without test script → tests_run=false → no gate applied,
+    # judge score stands alone.
+    local tmpdir bindir history_file evaluator gt
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    history_file="$tmpdir/score-history.jsonl"
+    evaluator="$tmpdir/mock-evaluator.sh"
+    gt="$tmpdir/mock-ground-truth.sh"
+    touch "$history_file"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    cat > "$gt" <<'EOF'
+#!/bin/bash
+echo '{"tests_run":false,"reason":"no_test_script"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$history_file" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 >/dev/null 2>&1 || true
+    local row
+    row=$(tail -1 "$history_file" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$row" | jq -e '.score == 7 and .ground_truth_gated == false and .tests_run == false' >/dev/null 2>&1; then
+        pass "no-tests fixture → judge score stands alone (no gate)"
+    else
+        fail "no-tests path misfired. row=$row"
+    fi
+}
+test_ground_truth_skipped_when_no_tests_configured
+
+test_ground_truth_skip_env_var() {
+    # SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 disables gate entirely (escape
+    # hatch for users who don't have a fixture or want raw judge scores).
+    local tmpdir bindir history_file evaluator
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    history_file="$tmpdir/score-history.jsonl"
+    evaluator="$tmpdir/mock-evaluator.sh"
+    touch "$history_file"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":9,"max_score":10,"criteria":{}}'
+EOF
+    chmod +x "$evaluator"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_SKIP_GROUND_TRUTH=1 \
+        SDLC_SHEPHERD_HISTORY_FILE="$history_file" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 >/dev/null 2>&1 || true
+    local row
+    row=$(tail -1 "$history_file" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$row" | jq -e '.score == 9 and .tests_run == false and .ground_truth_gated == false' >/dev/null 2>&1; then
+        pass "SDLC_SHEPHERD_SKIP_GROUND_TRUTH disables gate entirely"
+    else
+        fail "skip env var did not disable gate. row=$row"
+    fi
+}
+test_ground_truth_skip_env_var
+
+# ---- ROADMAP #96 Phase 2 (Codex F-01/F-02): compare-baseline gate ----
+# The gate must apply per-row in compare-baseline mode AND test the
+# CANDIDATE_DIR fixture, not the repo-root fixture. Round 1 missed
+# both gaps; round 2 wires baseline/candidate gates separately.
+test_compare_baseline_gate_caps_candidate_when_tests_fail() {
+    local tmpdir bindir evaluator gt
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    evaluator="$tmpdir/eval.sh"
+    gt="$tmpdir/ground-truth.sh"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    # Both legs return judge=9 (above cap)
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":9,"max_score":10,"criteria":{}}'
+EOF
+    # Both legs: tests fail
+    cat > "$gt" <<'EOF'
+#!/bin/bash
+echo '{"tests_run":true,"tests_pass":false,"tests_rc":1,"tests_tail":"failed"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
+        >/dev/null 2>&1 || true
+    local baseline_row candidate_row
+    baseline_row=$(grep '"comparison_role":"baseline"' "$tmpdir/score-history.jsonl" 2>/dev/null)
+    candidate_row=$(grep '"comparison_role":"candidate"' "$tmpdir/score-history.jsonl" 2>/dev/null)
+    rm -rf "$tmpdir"
+    local ok_baseline ok_candidate
+    ok_baseline=$(echo "$baseline_row" | jq -e '.score == 5 and .original_judge_score == 9 and .ground_truth_gated == true and .tests_pass == false' >/dev/null 2>&1 && echo yes || echo no)
+    ok_candidate=$(echo "$candidate_row" | jq -e '.score == 5 and .original_judge_score == 9 and .ground_truth_gated == true and .tests_pass == false' >/dev/null 2>&1 && echo yes || echo no)
+    if [ "$ok_baseline" = "yes" ] && [ "$ok_candidate" = "yes" ]; then
+        pass "compare-baseline gate caps BOTH baseline + candidate when tests fail"
+    else
+        fail "compare-baseline gate misfired. baseline=$ok_baseline ($baseline_row) candidate=$ok_candidate ($candidate_row)"
+    fi
+}
+test_compare_baseline_gate_caps_candidate_when_tests_fail
+
+test_compare_baseline_gate_no_cap_when_judge_below_cap() {
+    # Edge case: judge=4 already below cap. Tests fail. Score stays 4.
+    # ground_truth_gated must be false (cap didn't apply).
+    local tmpdir bindir evaluator gt
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    evaluator="$tmpdir/eval.sh"
+    gt="$tmpdir/ground-truth.sh"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":4,"max_score":10,"criteria":{}}'
+EOF
+    cat > "$gt" <<'EOF'
+#!/bin/bash
+echo '{"tests_run":true,"tests_pass":false,"tests_rc":1,"tests_tail":"failed"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
+        >/dev/null 2>&1 || true
+    local candidate_row
+    candidate_row=$(grep '"comparison_role":"candidate"' "$tmpdir/score-history.jsonl" 2>/dev/null)
+    rm -rf "$tmpdir"
+    if echo "$candidate_row" | jq -e '.score == 4 and .original_judge_score == 4 and .ground_truth_gated == false and .tests_pass == false' >/dev/null 2>&1; then
+        pass "compare-baseline: judge=4 + tests-fail leaves score=4, gated=false"
+    else
+        fail "compare-baseline cap-boundary semantics wrong. row=$candidate_row"
+    fi
+}
+test_compare_baseline_gate_no_cap_when_judge_below_cap
+
+test_compare_baseline_gate_baseline_uses_baseline_dir() {
+    # F-01 regression (default compare-baseline mode): the BASELINE leg
+    # of the gate must invoke ground-truth with $BASELINE_DIR fixture,
+    # not the repo-root path. Candidate runs in REPO_ROOT in default
+    # mode, so candidate-side path being repo-root is CORRECT —
+    # only the baseline-side has to point at the worktree.
+    local tmpdir bindir evaluator gt gt_log
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    evaluator="$tmpdir/eval.sh"
+    gt="$tmpdir/ground-truth.sh"
+    gt_log="$tmpdir/gt.log"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    cat > "$gt" <<EOF
+#!/bin/bash
+echo "\$@" >> "$gt_log"
+echo '{"tests_run":true,"tests_pass":true,"tests_rc":0,"tests_tail":"ok"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 227 --compare-baseline \
+        >/dev/null 2>&1 || true
+    local logged baseline_path candidate_path
+    logged=$(cat "$gt_log" 2>/dev/null)
+    baseline_path=$(echo "$logged" | sed -n '1p')
+    candidate_path=$(echo "$logged" | sed -n '2p')
+    rm -rf "$tmpdir"
+    # Baseline path must be an absolute path containing 'sdlc-baseline'
+    # (the mktemp prefix) — proving it points to BASELINE_DIR, not repo-root.
+    if echo "$baseline_path" | grep -qE 'sdlc-baseline.*tests/e2e/fixtures/test-repo$' \
+       && [ "$candidate_path" = "tests/e2e/fixtures/test-repo" ]; then
+        pass "compare-baseline gate paths: baseline=BASELINE_DIR (Codex F-01), candidate=repo-root (CWD)"
+    else
+        fail "gate path resolution wrong. baseline='$baseline_path' candidate='$candidate_path'"
+    fi
+}
+test_compare_baseline_gate_baseline_uses_baseline_dir
+
+test_strip_paths_gate_uses_candidate_strip_dir() {
+    # Codex F-01 round 2 nit: in --strip-paths mode, the candidate gate
+    # must invoke ground-truth with $CANDIDATE_DIR/.../test-repo (the
+    # stripped-fixture worktree). Without this, the gate would test the
+    # repo's working-tree fixture even though the agent ran against a
+    # stripped copy. Mock ground-truth records argv to verify the path.
+    local tmpdir bindir evaluator gt gt_log
+    tmpdir=$(mktemp -d)
+    bindir="$tmpdir/bin"
+    evaluator="$tmpdir/eval.sh"
+    gt="$tmpdir/ground-truth.sh"
+    gt_log="$tmpdir/gt.log"
+    _mock_gh "$bindir" "false" "$tmpdir/gh.log"
+    _mock_git "$bindir" "abcd1234" "$tmpdir/git.log"
+    _mock_claude "$bindir" "$tmpdir/claude.log"
+    _mock_curl "$bindir"
+    cat > "$evaluator" <<'EOF'
+#!/bin/bash
+echo '{"score":7,"max_score":10,"criteria":{}}'
+EOF
+    cat > "$gt" <<EOF
+#!/bin/bash
+echo "\$@" >> "$gt_log"
+echo '{"tests_run":true,"tests_pass":true,"tests_rc":0,"tests_tail":"ok"}'
+EOF
+    chmod +x "$evaluator" "$gt"
+    PATH="$bindir:$PATH" ANTHROPIC_API_KEY=test-key \
+        SDLC_LOCAL_SHEPHERD_DRY_RUN=1 \
+        SDLC_SHEPHERD_EVALUATOR="$evaluator" \
+        SDLC_SHEPHERD_GROUND_TRUTH="$gt" \
+        SDLC_SHEPHERD_HISTORY_FILE="$tmpdir/score-history.jsonl" \
+        CLAUDE_PROJECT_DIR="$REPO_ROOT" "$SHEPHERD" 231 \
+        --compare-baseline \
+        --strip-paths '[".claude/hooks/sdlc-prompt-check.sh"]' \
+        >/dev/null 2>&1 || true
+    local logged baseline_path candidate_path
+    logged=$(cat "$gt_log" 2>/dev/null)
+    baseline_path=$(echo "$logged" | sed -n '1p')
+    candidate_path=$(echo "$logged" | sed -n '2p')
+    rm -rf "$tmpdir"
+    # Both paths must point to mktemp-style strip worktree dirs (not
+    # repo-root). Baseline mktemp prefix: "sdlc-baseline-strip", candidate:
+    # "sdlc-candidate-strip". Both end in tests/e2e/fixtures/test-repo.
+    if echo "$baseline_path" | grep -qE 'sdlc-baseline-strip.*tests/e2e/fixtures/test-repo$' \
+       && echo "$candidate_path" | grep -qE 'sdlc-candidate-strip.*tests/e2e/fixtures/test-repo$'; then
+        pass "strip-paths gate: baseline=BASELINE_DIR (intact), candidate=CANDIDATE_DIR (stripped) [Codex F-01]"
+    else
+        fail "strip-paths gate path resolution wrong. baseline='$baseline_path' candidate='$candidate_path'"
+    fi
+}
+test_strip_paths_gate_uses_candidate_strip_dir
 
 echo ""
 echo "=== Results ==="
