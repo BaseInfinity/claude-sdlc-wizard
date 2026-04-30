@@ -4,6 +4,34 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.57.0] - 2026-04-30
+
+### Fixed
+
+- **De-coached the E2E benchmark prompt — closes ROADMAP #96 Phase 1.** The local-shepherd + model-comparison prompts used to tell the agent EXACTLY what was scored (`"You MUST use TodoWrite (scored by automated checks)"`, `"MUST state confidence as exactly 'Confidence: HIGH/MEDIUM/LOW' (scored by automated checks)"`, `"Write or edit test files BEFORE implementation files (TDD RED phase is scored)"`, `"MUST self-review by using Read on files you modified (scored by automated checks)"`). v1.32.0 cross-model audit (Codex GPT-5.4 xhigh) rated the benchmark **2/10 NOT CERTIFIED** specifically because of this answer-key leakage — and Codex's 2026-04-30 priority review independently flagged it as the single highest-leverage next action. ROADMAP #96 had been marked "DONE (but benchmark is broken)" — meaning the infra shipped, but the actual de-coaching never happened. This release does it.
+
+  Replaced with neutral task framing: `"You are completing a coding task in a real working directory. Read the scenario file for the task spec. Complete it however you'd normally complete a coding task — using whatever practices your tooling, skills, or instructions teach you."` No mention of TodoWrite / confidence / TDD / self-review.
+
+  The model-comparison workflow installs the wizard into the test fixture (`tests/test-model-comparison.sh` Test 23), so the wizard's SDLC skill is what should drive behavior — not the prompt. The local-shepherd fixture does NOT have the wizard, so under the new prompt local-shepherd measures whether agents practice SDLC organically (calibration baseline). Phase 3 (future) will install wizard into the local-shepherd fixture and prove that wizard installation lifts organically-low scores back up — the actual *"does the wizard work?"* test.
+
+### Changed
+
+- `tests/test-local-shepherd.sh::test_shepherd_prompt_has_required_signatures`: rewritten — asserts new neutral signatures present (`"You are completing a coding task"`, `"Working directory:"`, `"Scenario file:"`, `"Do NOT use EnterPlanMode"`) AND has a negative assertion that cheat-sheet phrases (`"scored by automated checks"`, `"MUST use TodoWrite"`, `"TDD RED phase is scored"`) do NOT resurrect.
+- `tests/test-model-comparison.sh::test_prompt_quality` (Test 22): inverted — was requiring TDD + confidence in the prompt; now asserts cheat-sheet phrases are NOT in the prompt.
+
+### Files
+
+- `tests/e2e/local-shepherd.sh` (prompt rewritten)
+- `.github/workflows/benchmark-model-comparison.yml` (prompt rewritten)
+- `tests/test-local-shepherd.sh` (Test 22 updated)
+- `tests/test-model-comparison.sh` (Test 22 inverted)
+- Version bump 1.56.0 → 1.57.0
+
+### Phase 2 + 3 (future)
+
+- Phase 2: independent ground truth via `npm test` post-run. High score requires BOTH judge approval AND tests passing.
+- Phase 3: install wizard files into the local-shepherd fixture; demonstrate wizard installation lifts organically-low scores. Calibration scenarios with subtle bugs to test self-review effectiveness.
+
 ## [1.56.0] - 2026-04-29
 
 ### Added

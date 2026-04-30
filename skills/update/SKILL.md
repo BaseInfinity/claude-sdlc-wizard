@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.56.0
+Latest:    1.57.0
 
 What changed:
+- [1.57.0] de-coach E2E benchmark prompt (#96 Phase 1) — remove answer-key leakage that saturated benchmark scores at 10/10; new neutral task framing measures organic SDLC behavior
 - [1.56.0] community feature-discovery fetcher (#207) — `tests/e2e/fetch-community.sh` pulls Reddit + HN; pipe to `scan-community.sh` to surface candidate /slash-commands
 - [1.55.0] shrink weekly-update.yml dead code (#231 Phase 4) — delete env.VERSION_SCENARIO + has_overlap/overlap_paths outputs + placeholder/parse steps; 289 → 161 lines (-44%)
 - [1.54.0] delete check-updates Claude-ranker (#231 Phase 3d) — weekly-update.yml is now zero-API-spend; auto-update PR body links the manual analyze-release.md command
