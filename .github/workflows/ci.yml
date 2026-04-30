@@ -127,6 +127,9 @@ jobs:
       - name: Run evaluator CLI-mode tests (#228)
         run: ./tests/test-evaluate-cli-mode.sh
 
+      - name: Run wizard installer + lift-proof tests (#96 Phase 3)
+        run: ./tests/test-wizard-installer.sh
+
       - name: Run SDP calculation tests
         run: ./tests/test-sdp-calculation.sh
 

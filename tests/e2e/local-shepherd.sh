@@ -317,23 +317,27 @@ if [ "$COMPARE_BASELINE" = "1" ]; then
         }
         trap 'cleanup_strip_dirs; rm -rf "$TMPRUN"' EXIT
 
+        # ROADMAP #96 Phase 3 PR 1: extracted the wizard-install logic to
+        # lib/wizard-installer.sh:install_wizard_into_fixture so lift-proof.sh
+        # and any future orchestrator can reuse the same install semantic.
+        # shellcheck source=lib/wizard-installer.sh
+        source "$SCRIPT_DIR/lib/wizard-installer.sh"
+
         # Helper: lay out a project-root tmpdir so claude --print finds
         # tests/e2e/{scenarios,fixtures,lib} from cwd, just like the worktree
-        # path does. Also populates the fixture's .claude/ with the wizard's
-        # hooks/skills/settings (the "intact" baseline state).
+        # path does. Also installs the wizard into the fixture's .claude/.
         _build_strip_dir() {
             local dst="$1"
             mkdir -p "$dst/tests/e2e"
             cp -R "$REPO_ROOT/tests/e2e/scenarios" "$dst/tests/e2e/scenarios"
             cp -R "$REPO_ROOT/tests/e2e/lib"       "$dst/tests/e2e/lib"
             cp -R "$REPO_ROOT/tests/e2e/fixtures"  "$dst/tests/e2e/fixtures"
-            # Populate the fixture's .claude/ from the wizard's own .claude/
-            # (matches CI prove-it: copies hooks/skills/settings into fixture)
-            local fix="$dst/tests/e2e/fixtures/test-repo/.claude"
-            mkdir -p "$fix"
-            [ -d "$REPO_ROOT/.claude/hooks" ]         && cp -R "$REPO_ROOT/.claude/hooks"  "$fix/" 2>/dev/null || true
-            [ -d "$REPO_ROOT/.claude/skills" ]        && cp -R "$REPO_ROOT/.claude/skills" "$fix/" 2>/dev/null || true
-            [ -f "$REPO_ROOT/.claude/settings.json" ] && cp    "$REPO_ROOT/.claude/settings.json" "$fix/" 2>/dev/null || true
+            # Install the wizard into the fixture's .claude/ — matches CI
+            # prove-it: hooks/skills/settings copied from $REPO_ROOT/.claude.
+            # Codex round 1 P0: do NOT suppress errors here. If the installer
+            # fails, strip-paths comparisons would silently run without a
+            # wizard-installed fixture and produce meaningless deltas. Hard-fail.
+            install_wizard_into_fixture "$REPO_ROOT" "$dst/tests/e2e/fixtures/test-repo"
         }
 
         BASELINE_DIR=$(mktemp -d -t sdlc-baseline-strip.XXXXXX)
