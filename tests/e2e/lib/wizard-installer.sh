@@ -51,21 +51,34 @@ install_wizard_into_fixture() {
     local target_claude="$target_dir/.claude"
     mkdir -p "$target_claude"
 
-    # Copy hooks dir (executable shell scripts that wire the SDLC loop).
-    if [ -d "$source_dir/.claude/hooks" ]; then
+    # Hooks: prefer the top-level `hooks/` (checked in), fall back to
+    # `.claude/hooks/` (gitignored dogfood copy that exists on dev machines
+    # but NOT in fresh checkouts like GitHub Actions runners).
+    if [ -d "$source_dir/hooks" ]; then
+        mkdir -p "$target_claude/hooks"
+        cp -R "$source_dir/hooks/." "$target_claude/hooks/"
+    elif [ -d "$source_dir/.claude/hooks" ]; then
         cp -R "$source_dir/.claude/hooks" "$target_claude/"
     fi
 
-    # Copy skills dir (markdown skill defs — sdlc, setup, update, feedback).
-    # NOTE: the canonical .claude/skills entries are symlinks to ../../skills/.
-    # cp -R follows symlinks by default on macOS bash, so this lands real files.
-    if [ -d "$source_dir/.claude/skills" ]; then
+    # Skills: prefer top-level `skills/` (checked in canonical files), fall
+    # back to `.claude/skills/` (symlinks to top-level — works only when the
+    # symlinks resolve, which they do on the dev machine).
+    if [ -d "$source_dir/skills" ]; then
+        mkdir -p "$target_claude/skills"
+        cp -R "$source_dir/skills/." "$target_claude/skills/"
+    elif [ -d "$source_dir/.claude/skills" ]; then
+        # Follow symlinks so installed copy is real files.
         cp -RL "$source_dir/.claude/skills" "$target_claude/" 2>/dev/null \
             || cp -R "$source_dir/.claude/skills" "$target_claude/"
     fi
 
-    # Copy settings.json (hook registration + permissions).
-    if [ -f "$source_dir/.claude/settings.json" ]; then
+    # Settings.json: prefer the wizard's CLI install template (canonical
+    # source for what gets shipped to consumer projects). Fall back to the
+    # local dogfood copy at `.claude/settings.json` if templates dir absent.
+    if [ -f "$source_dir/cli/templates/settings.json" ]; then
+        cp "$source_dir/cli/templates/settings.json" "$target_claude/"
+    elif [ -f "$source_dir/.claude/settings.json" ]; then
         cp "$source_dir/.claude/settings.json" "$target_claude/"
     fi
 
