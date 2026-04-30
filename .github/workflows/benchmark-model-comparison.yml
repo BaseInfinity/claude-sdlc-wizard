@@ -166,30 +166,24 @@ jobs:
             --max-turns ${{ inputs.max_turns }}
             --allowedTools "Read,Edit,Write,Bash(npm *),Bash(node *),Bash(git *),Glob,Grep,TodoWrite,TaskCreate,Task"
             --add-dir tests/e2e
+          # Neutral task prompt (#96 Phase 1). Previous version coached
+          # the agent on every scored behavior — benchmark saturated 10/10.
+          # See tests/e2e/local-shepherd.sh for the same fix and rationale.
           prompt: |
-            You are running an E2E SDLC simulation. Your goal is to complete a coding task
-            while demonstrating proper SDLC practices.
+            You are completing a coding task in a real working directory.
 
             Working directory: tests/e2e/fixtures/test-repo
             Scenario file: tests/e2e/scenarios/${{ matrix.scenario }}.md
 
-            STEPS:
-            1. Read the scenario file to understand the task and complexity
-            2. Use TodoWrite or TaskCreate to track your work
-            3. State your confidence level explicitly: "Confidence: HIGH", "Confidence: MEDIUM", or "Confidence: LOW"
-            4. For medium/hard tasks, plan your approach before coding (outline steps in a message)
-            5. Follow TDD: write/update tests FIRST, verify they fail, then implement
-            6. Run `npm test` to verify all tests pass
-            7. Self-review: use Read to read back the files you modified, check for issues
+            Read the scenario file for the task spec. Complete it however you'd
+            normally complete a coding task — using whatever practices your tooling,
+            skills, or instructions teach you. The result will be evaluated
+            independently.
 
-            IMPORTANT:
-            - You MUST use TodoWrite or TaskCreate (scored by automated checks)
-            - You MUST state confidence as exactly "Confidence: HIGH/MEDIUM/LOW" (scored by automated checks)
-            - Write or edit test files BEFORE implementation files (TDD RED phase is scored)
-            - You MUST self-review by using Read on files you modified before finishing (scored by automated checks)
-            - All files you need are in the working directory — do not search elsewhere
-            - Be efficient with your turns — execute, don't just plan
-            - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in your messages instead
+            Constraints:
+            - All files you need are in the working directory; do not search elsewhere.
+            - Do NOT use EnterPlanMode or ExitPlanMode — plan inline in messages.
+            - Be efficient — execute, don't just plan.
 
       - name: Integrity check simulation
         run: |
