@@ -4,6 +4,43 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.60.0] - 2026-04-30
+
+### Added
+
+- **Wizard-installation lift-proof harness — closes ROADMAP #96 Phase 3 PR 1.** The benchmark series goes:
+  - **Phase 1** (v1.57.0): de-coached the simulation prompt so the agent isn't told what's scored.
+  - **Phase 2** (v1.58.0): added the ground-truth gate so the judge can't pass broken code.
+  - **Phase 3 PR 1** (this): measures **the wizard's contribution itself** by running the same scenario against a **bare** fixture (no `.claude/`) and a **wizard-installed** fixture, then emitting the score delta. Positive delta = the wizard lifts organic SDLC behavior. That's the load-bearing claim of the entire harness.
+
+  New script `tests/e2e/lift-proof.sh`:
+  - Two legs in tmp dirs — bare (empty `.claude/`) and wizard-installed (`hooks/skills/settings.json` copied from `$REPO_ROOT/.claude/`).
+  - Same parity flags as `local-shepherd.sh` (`--max-turns 55 --output-format json --add-dir tests/e2e`).
+  - Both legs invoke `evaluate.sh` under `EVAL_USE_CLI=1` (#228) — honestly zero-API end-to-end.
+  - Emits structured JSON artifact at `.benchmark/lift-proof-<timestamp>.json` with `bare_score`, `wizard_score`, `delta`, `lift`, plus provenance.
+  - `--dry-run` mode for CI smoke + tests; `--scenario` flag (default `add-feature`); `--output` to override artifact path.
+
+- **`tests/e2e/lib/wizard-installer.sh:install_wizard_into_fixture()`** — single source of truth for "the wizard installed into a project." Replaces the inline `cp -R` lines in `local-shepherd.sh:_build_strip_dir`. Accepts `<source_dir> <target_dir>`, copies `hooks/`, `skills/`, and `settings.json` into `<target_dir>/.claude/`. Errors loudly on missing source or target instead of silently no-op'ing.
+
+### Tests
+
+- New `tests/test-wizard-installer.sh` (17 tests): library exposes `install_wizard_into_fixture()`, runtime check that hooks+skills+settings land in target, error paths for missing source/target, `local-shepherd.sh` sources the lib (single source of truth), `lift-proof.sh` runs claude --print twice / calls evaluator / emits delta / inherits `EVAL_USE_CLI=1` / writes artifact.
+- Wired into `ci.yml` and `CONTRIBUTING.md` test list.
+
+### Files
+
+- `tests/e2e/lib/wizard-installer.sh` (new) — reusable install helper
+- `tests/e2e/lift-proof.sh` (new) — bare-vs-wizard orchestrator
+- `tests/e2e/local-shepherd.sh` — `_build_strip_dir` now sources the lib instead of inlining `cp -R` (DRY)
+- `tests/test-wizard-installer.sh` (new, 17 tests)
+- `.github/workflows/ci.yml` (new test step)
+- `CONTRIBUTING.md` (test list)
+- Version bump 1.59.0 → 1.60.0
+
+### What's still TBD for #96 Phase 3
+
+- **PR 2** — calibration scenarios with subtle bugs to test self-review effectiveness (1-3 focused scenarios proving the harness catches real behavioral misses). Lands as a separate PR per Codex's overnight prioritization recommendation: keep fixture plumbing separate from scenario design.
+
 ## [1.59.0] - 2026-04-30
 
 ### Added
