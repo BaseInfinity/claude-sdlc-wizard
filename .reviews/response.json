@@ -1,14 +1,14 @@
 {
-  "review_id": "install-bugs-254-238-239-001",
-  "round": 2,
+  "review_id": "roadmap-96-phase2-001",
+  "round": 3,
   "responding_to": ".reviews/latest-review.md",
   "responses": [
     {
-      "finding": "1",
+      "finding": "F-01",
       "severity": "P1",
       "action": "FIXED",
-      "summary": "Silence hint command made fresh-install-safe. hooks/instructions-loaded-check.sh:187 now prints `mkdir -p \"$DUAL_CACHE_DIR\" && touch \"$DUAL_ACK_FILE\"` (was bare `touch`). The bare `touch` failed on hosts where `~/.cache/sdlc-wizard/` doesn't yet exist (a fresh consumer install never creates it until the version-cache fetch — the dual-install nudge can fire before that ever happens). Regression test test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent (tests/test-hooks.sh) deletes the cache dir, runs the hook, captures the printed `Keep both:` command, executes it via bash -c, and asserts both rc=0 AND that `$DUAL_CACHE_DIR/dual-channel-acknowledged` was created. test-hooks.sh now 134/134 PASS (was 133).",
-      "verify_at": "hooks/instructions-loaded-check.sh:187 (mkdir -p + touch); tests/test-hooks.sh test_instructions_hook_dual_install_silence_hint_works_when_cache_dir_absent"
+      "summary": "Round 2 nit closed. Added test_strip_paths_gate_uses_candidate_strip_dir which runs shepherd with --compare-baseline AND --strip-paths, mocks ground-truth.sh to log argv, and asserts both paths are tmpdir-rooted: baseline matches `sdlc-baseline-strip.*tests/e2e/fixtures/test-repo$`, candidate matches `sdlc-candidate-strip.*tests/e2e/fixtures/test-repo$`. Without my fix, the candidate path would be cwd-relative `tests/e2e/fixtures/test-repo` — that mutation would fail this test.",
+      "files": ["tests/test-local-shepherd.sh:test_strip_paths_gate_uses_candidate_strip_dir"]
     }
   ]
 }
