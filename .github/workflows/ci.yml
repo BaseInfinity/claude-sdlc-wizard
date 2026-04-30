@@ -130,6 +130,9 @@ jobs:
       - name: Run wizard installer + lift-proof tests (#96 Phase 3)
         run: ./tests/test-wizard-installer.sh
 
+      - name: Run calibration scenario tests (#96 Phase 3 PR 2)
+        run: ./tests/test-calibration-scenarios.sh
+
       - name: Run SDP calculation tests
         run: ./tests/test-sdp-calculation.sh
 
