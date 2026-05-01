@@ -2974,7 +2974,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.62.0 -->
+<!-- SDLC Wizard Version: 1.63.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3657,6 +3657,20 @@ claude_args: "--max-budget-usd 5.00 --max-turns 30"
 
 For organization-wide cost tracking, enable `CLAUDE_CODE_ENABLE_TELEMETRY=1`. This exports per-request `cost_usd`, `input_tokens`, `output_tokens` to any OTLP-compatible backend (Datadog, Honeycomb, Prometheus).
 
+### Cache-Cost Surprises
+
+Anthropic prompt-cache reads bill at ~10% of normal input rate ($1.50/M vs $15/M on Opus). When cache hits drop unexpectedly, the same workload silently costs **10–20×** more — a pattern HN has documented multiple times. Two common triggers:
+
+1. **Mid-session edits to `CLAUDE.md`, `SDLC.md`, project settings, or any file the cached prefix references.** The cache key includes the project context; editing context invalidates the prefix and forces re-upload (`cache_creation` spikes, `cache_read` collapses).
+2. **Upstream caching bugs.** Anthropic's [2026-04-23 post-mortem](https://www.anthropic.com/engineering/april-23-postmortem) documented one bug that "continuously dropped thinking blocks from subsequent requests" — invisible until the invoice arrived.
+
+**Detection:** the wizard's `hooks/token-spike-check.sh` (ROADMAP #220, on-by-default for projects with a `.metrics/` directory) tracks per-session `costly_tokens = input + cache_creation + output` (excluding `cache_read`) and warns at `>2σ` over a rolling baseline. The cache-miss pattern (cache_read collapses → cache_creation spikes) shows up in `costly_tokens` directly. Test coverage in `tests/test-token-spike.sh:test_cache_miss_pattern_triggers_spike_warning` proves the absorption.
+
+**Practices to avoid silent cache-cost blowups:**
+- Avoid editing `CLAUDE.md`/`SDLC.md`/project settings mid-session when cache stability matters. If you must, accept the next request will re-upload the prefix.
+- Run `/usage` (or `/cost`) after long sessions to spot anomalies before they accumulate.
+- Inspect `.metrics/token-history.jsonl` directly when you suspect a regression — fields are documented at the top of `tests/e2e/token-analytics.sh`.
+
 ---
 
 ## CI/CD Gotchas
@@ -4039,7 +4053,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.62.0 -->
+<!-- SDLC Wizard Version: 1.63.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->

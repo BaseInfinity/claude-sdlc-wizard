@@ -265,6 +265,17 @@ Adding a new skill/hook/workflow? Default answer is NO. Prove it: (1) **Absorpti
 
 If you can't write a quality test for it, you can't prove it works.
 
+## Cache-Cost Surprises (Watch For)
+
+If a user mentions a surprise spike in API costs, suspect cache invalidation before model changes. Anthropic prompt-cache reads bill ~10% of normal input rate; a cache miss on a long prefix can cause **10–20× silent cost blowups**. Triggers: mid-session edits to `CLAUDE.md`/`SDLC.md`/project settings (invalidates prefix), idle pruning (drops thinking blocks from cache window), upstream caching bugs.
+
+The wizard's `hooks/token-spike-check.sh` (`.metrics/`-gated, ROADMAP #220) tracks per-session `costly_tokens = input + cache_creation + output` and warns at >2σ over a rolling baseline. The cache-miss pattern surfaces directly in `costly_tokens` because cache_read collapses → cache_creation spikes.
+
+**When the user reports a cost surprise:**
+1. `/usage` (or `/cost`) for the current session breakdown.
+2. Inspect `.metrics/token-history.jsonl` for the spike pattern (cache_creation up, cache_read down).
+3. Avoid mid-session edits to context files (CLAUDE.md, SDLC.md, settings) if cache stability matters for the rest of the session.
+
 ## After Session (Capture Learnings)
 
 | Insight | Destination |
