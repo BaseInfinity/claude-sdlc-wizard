@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.61.0
+Latest:    1.62.0
 
 What changed:
+- [1.62.0] roadmap hygiene + #211 backfill — closes paperwork-stale rows (#207, #211 historical, #215, #217, #78, #79, #80, #219). Backfilled 5 corrupted `score-history.jsonl` rows from `max_score:10` → `max_score:11` (UI scenarios with design_system criterion). Codex strategic review confirmed scope.
 - [1.61.0] calibration scenarios for #96 Phase 3 PR 2 — `tests/e2e/scenarios/calibration-careful-read.md` (parsePrice with 5 edge-case formats) tests whether self-review catches missed requirements. Score delta between SDLC and naive agents on this scenario is a calibration signal for `lift-proof.sh`
 - [1.60.0] wizard-installation lift-proof harness (#96 Phase 3 PR 1) — `tests/e2e/lift-proof.sh` runs same scenario on bare vs wizard-installed fixture, emits score delta. Closes the "does the wizard work?" question. Honestly zero-API (sim + eval on Max)
 - [1.59.0] evaluator on Max via `claude --print` (#228) — `EVAL_USE_CLI=1` swaps `evaluate.sh`'s per-criterion judge transport from `curl` → API to `claude --print --output-format json`. local-shepherd.sh sets it by default, so the local path is honestly zero-API
