@@ -4,6 +4,25 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.63.0] - 2026-04-30
+
+### Added (cache-cost observability closeout — closes ROADMAP #204)
+
+- **Explicit cache-miss regression test in `tests/test-token-spike.sh`.** ROADMAP #204 had a Prove-It Gate: "require at least one quality test proves the hook/skill catches an actual cache-cost regression pattern." This release closes that gate. New `test_cache_miss_pattern_triggers_spike_warning` builds a 20-row baseline of cache-hit-heavy sessions (high cache_read, low cache_creation), appends one cache-miss session (cache_read collapses to 0, cache_creation spikes to 50000), and asserts the >2σ spike warning fires. Negative control `test_high_cache_read_no_warning` confirms the detector keys on cost-bearing fields (`costly_tokens = input + cache_creation + output`), not raw token count — a session with 10× cache reads but unchanged costly_tokens does NOT fire (hot cache is healthy, not expensive).
+
+- **Wizard doc gains "Cache-Cost Surprises" subsection in Token Efficiency.** Quantifies the 10-20× silent blowup pattern, points at `hooks/token-spike-check.sh` as the detection mechanism, references the Anthropic 2026-04-23 post-mortem, and lists practices to avoid silent invalidation. NOT added to `skills/sdlc/SKILL.md` — that file is already at the 5000-token session-load threshold (audit-session-load.sh trim ceiling). The hook itself fires the warning automatically; the wizard doc has the action-focused guidance for when a user explicitly asks.
+
+### Closed (absorbed)
+
+- **#204 — Cache-cost guardrail hook.** Codex strategic-pass-2 review confirmed: the cache-miss pattern surfaces directly in `costly_tokens` (the metric `#220`'s `hooks/token-spike-check.sh` tracks). #204 is absorbed by #220 + the v1.63.0 regression test + docs. No new hook needed — the existing one already covers it.
+
+### Files
+
+- `tests/test-token-spike.sh` (+2 tests, 16 total)
+- `CLAUDE_CODE_SDLC_WIZARD.md` (Cache-Cost Surprises subsection in Token Efficiency)
+- `ROADMAP.md` (#204 marked absorbed v1.63.0)
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json` (1.62.0 → 1.63.0)
+
 ## [1.62.0] - 2026-04-30
 
 ### Fixed
