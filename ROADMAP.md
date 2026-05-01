@@ -175,8 +175,9 @@ Living tracker of projects shipped using this wizard. **Rule:** only list projec
 
 | Project | Repo | Status |
 |---------|------|--------|
-| SDLC Wizard itself | BaseInfinity/claude-sdlc-wizard | Dogfooded, v1.34.0 |
-| Codex SDLC Adapter | BaseInfinity/codex-sdlc-wizard | v1, shipped with SDLC workflow |
+| SDLC Wizard itself | BaseInfinity/claude-sdlc-wizard | Dogfooded, v1.64.0 |
+| Codex SDLC Adapter | BaseInfinity/codex-sdlc-wizard | v0.7.x, shipped with SDLC workflow |
+| GDLC Wizard (games sibling) | BaseInfinity/claude-gdlc-wizard | v0.2.x, persona-driven playtest cycles |
 | _(add as projects are marked)_ | | |
 
 **TODO:** audit Stefan's GitHub projects + production apps, mark the ones that used the wizard, then list them here. Do not populate from memory — only list what's been marked.

@@ -257,6 +257,18 @@ This isn't the only Claude Code SDLC tool. Here's an honest comparison:
 | [CHANGELOG.md](CHANGELOG.md) | Version history, what changed and when |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, evaluation methodology |
 
+## XDLC Ecosystem (Sibling Projects)
+
+This wizard is one of three published siblings. Same enforcement philosophy, different agent / domain:
+
+| Package | Agent / Domain | What It Does |
+|---------|----------------|--------------|
+| [`agentic-sdlc-wizard`](https://www.npmjs.com/package/agentic-sdlc-wizard) ([repo](https://github.com/BaseInfinity/claude-sdlc-wizard)) | Claude Code / SDLC | This repo. Plan → TDD → self-review for code, with hooks + skills + CI scoring |
+| [`codex-sdlc-wizard`](https://www.npmjs.com/package/codex-sdlc-wizard) ([repo](https://github.com/BaseInfinity/codex-sdlc-wizard)) | OpenAI Codex / SDLC | Same SDLC enforcement, ported to Codex CLI (writes `.codex/` + `AGENTS.md`) |
+| [`claude-gdlc-wizard`](https://www.npmjs.com/package/claude-gdlc-wizard) ([repo](https://github.com/BaseInfinity/claude-gdlc-wizard)) | Claude Code / GDLC | Game Development Life Cycle — persona-driven playtest cycles, triangulated findings, ratchet-only-tightens |
+
+All three are part of the broader [XDLC ecosystem](https://github.com/BaseInfinity/xdlc) — generalized lifecycle enforcement across agents and domains.
+
 ## Community
 
 <div align="center">
