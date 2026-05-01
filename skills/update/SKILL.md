@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.62.0
+Latest:    1.63.0
 
 What changed:
+- [1.63.0] cache-cost observability closeout (#204 absorbed by #220) — `tests/test-token-spike.sh` gains explicit cache-miss regression test + negative-control test. SDLC skill + wizard doc gain "Cache-Cost Surprises" sections covering 10-20× silent cost blowups (mid-session CLAUDE.md edits, idle pruning, upstream cache bugs) and detection via `hooks/token-spike-check.sh`'s `costly_tokens` metric.
 - [1.62.0] roadmap hygiene + #211 backfill — closes paperwork-stale rows (#207, #211 historical, #215, #217, #78, #79, #80, #219). Backfilled 5 corrupted `score-history.jsonl` rows from `max_score:10` → `max_score:11` (UI scenarios with design_system criterion). Codex strategic review confirmed scope.
 - [1.61.0] calibration scenarios for #96 Phase 3 PR 2 — `tests/e2e/scenarios/calibration-careful-read.md` (parsePrice with 5 edge-case formats) tests whether self-review catches missed requirements. Score delta between SDLC and naive agents on this scenario is a calibration signal for `lift-proof.sh`
 - [1.60.0] wizard-installation lift-proof harness (#96 Phase 3 PR 1) — `tests/e2e/lift-proof.sh` runs same scenario on bare vs wizard-installed fixture, emits score delta. Closes the "does the wizard work?" question. Honestly zero-API (sim + eval on Max)
