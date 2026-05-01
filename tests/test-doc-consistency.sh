@@ -628,6 +628,68 @@ test_wizard_doc_mentions_less_permission_prompts
 test_wizard_doc_mentions_permissions_command
 
 # ────────────────────────────────────────────
+# XDLC Ecosystem Cross-References
+# ────────────────────────────────────────────
+#
+# This repo is one of three published siblings:
+#   - agentic-sdlc-wizard (this repo, npm) — Claude Code SDLC
+#   - codex-sdlc-wizard (npm) — Codex SDLC adapter
+#   - claude-gdlc-wizard (npm) — Game Development Life Cycle sibling
+#
+# Each package's README and primary docs should cross-reference the others
+# so users landing on one package can discover the family. Without this,
+# discoverability across the 3 packages is weak.
+
+echo ""
+echo "--- XDLC Ecosystem Cross-Refs ---"
+
+# README must reference all 3 sibling packages by name so users on npm/GH
+# can discover the family. Codex sibling = `codex-sdlc-wizard`,
+# GDLC sibling = `claude-gdlc-wizard`. This repo's npm name is
+# `agentic-sdlc-wizard` (already implicit in install commands, but the
+# Ecosystem section should make all three explicit).
+test_readme_references_all_siblings() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+    local missing=()
+    grep -q 'codex-sdlc-wizard' "$README" || missing+=("codex-sdlc-wizard")
+    grep -q 'claude-gdlc-wizard' "$README" || missing+=("claude-gdlc-wizard")
+    if [ ${#missing[@]} -gt 0 ]; then
+        fail "README.md missing sibling refs: ${missing[*]}"
+    else
+        pass "README.md references both sibling packages (codex-sdlc-wizard, claude-gdlc-wizard)"
+    fi
+}
+
+# README should have a discoverable Ecosystem/Family section heading so
+# users skimming the TOC find the cross-references, not just inline mentions.
+test_readme_has_ecosystem_section() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+    if grep -qiE '^##+ (XDLC )?(Ecosystem|Family|Sibling|Related Projects)' "$README"; then
+        pass "README.md has an Ecosystem/Family section heading"
+    else
+        fail "README.md missing an Ecosystem/Family/Siblings section heading"
+    fi
+}
+
+# Wizard doc already mentions Codex sibling (line 501); GDLC was added to
+# the family 2026-04-26 and should be referenced wherever Codex is.
+test_wizard_doc_mentions_gdlc_sibling() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if grep -q 'claude-gdlc-wizard' "$DOC"; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md references claude-gdlc-wizard sibling"
+    else
+        fail "Wizard doc missing claude-gdlc-wizard sibling reference"
+    fi
+}
+
+test_readme_references_all_siblings
+test_readme_has_ecosystem_section
+test_wizard_doc_mentions_gdlc_sibling
+
+# ────────────────────────────────────────────
 # Summary
 # ────────────────────────────────────────────
 

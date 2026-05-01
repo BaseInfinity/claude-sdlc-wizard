@@ -4,6 +4,37 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.64.0] - 2026-04-30
+
+### Added (XDLC ecosystem cross-references)
+
+- **README gets an "XDLC Ecosystem (Sibling Projects)" section.** The wizard ships as one of three published siblings — `agentic-sdlc-wizard` (this repo, Claude Code / SDLC), `codex-sdlc-wizard` (Codex CLI / SDLC), and `claude-gdlc-wizard` (Claude Code / Game Development Life Cycle). Until now, none of the three READMEs cross-referenced the others, so a user landing on one package on npm or GitHub couldn't discover the family. The new section is a 3-row table with package name + GitHub repo + one-line description, plus a pointer to the broader [XDLC ecosystem](https://github.com/BaseInfinity/xdlc) umbrella.
+
+- **Wizard doc references the GDLC sibling.** `CLAUDE_CODE_SDLC_WIZARD.md` already mentioned the Codex sibling in the MCP-tool-hooks audit (portability criterion); now expanded to mention `claude-gdlc-wizard` alongside it. Cross-host portability is reframed as "cross-host / cross-domain portability" since GDLC is a different domain (games), not just a different agent.
+
+- **ROADMAP "Built With SDLC Wizard" table adds the GDLC row.** Previously listed only this repo and `codex-sdlc-wizard`. Now lists all three siblings; status column shows current sibling versions (Codex v0.7.x, GDLC v0.2.x).
+
+### Tests
+
+- **3 new tests in `tests/test-doc-consistency.sh`** prevent drift:
+  - `test_readme_references_all_siblings` — README must mention both sibling package names by literal string match (`codex-sdlc-wizard`, `claude-gdlc-wizard`)
+  - `test_readme_has_ecosystem_section` — README must have a discoverable `## XDLC Ecosystem` / `## Family` / `## Siblings` heading (not just an inline mention)
+  - `test_wizard_doc_mentions_gdlc_sibling` — Wizard doc must reference `claude-gdlc-wizard` wherever Codex sibling is mentioned (regression guard for sibling parity)
+
+  TDD-verified: all three failed before the doc edits, all three pass after. 33/33 doc-consistency tests green.
+
+### Files
+
+- `README.md` (new "XDLC Ecosystem (Sibling Projects)" section)
+- `CLAUDE_CODE_SDLC_WIZARD.md` (line 501 expanded — Codex + GDLC siblings, cross-host/cross-domain portability framing)
+- `ROADMAP.md` ("Built With SDLC Wizard" table — added GDLC row, bumped this repo's status to v1.64.0)
+- `tests/test-doc-consistency.sh` (+3 tests, 33 total)
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json` (1.63.0 → 1.64.0)
+
+### Follow-up
+
+- Mirror issues filed in `BaseInfinity/codex-sdlc-wizard` and `BaseInfinity/claude-gdlc-wizard` so each sibling adds the same Ecosystem section pointing back here. Bidirectional cross-references means any of the 3 npm package pages surfaces the family.
+
 ## [1.63.0] - 2026-04-30
 
 ### Added (cache-cost observability closeout — closes ROADMAP #204)

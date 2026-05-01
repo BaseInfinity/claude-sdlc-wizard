@@ -498,7 +498,7 @@ CC 2.1.118 introduced `type: "mcp_tool"` for hooks — a hook can now directly i
 
 **Decision criteria applied** (any one rules out MCP):
 
-1. **Portability** — bash hooks port to the **shipped** Codex sibling (`~/codex-sdlc-wizard`) and to a **planned** OpenCode sibling (ROADMAP #91, not yet shipped) without rewrite. MCP hooks are CC-specific. Cross-host portability is an XDLC requirement.
+1. **Portability** — bash hooks port to the **shipped** sibling wizards (`codex-sdlc-wizard` for Codex CLI, `claude-gdlc-wizard` for the Game Development Life Cycle variant) and to a **planned** OpenCode sibling (ROADMAP #91, not yet shipped) without rewrite. MCP hooks are CC-specific. Cross-host / cross-domain portability is an XDLC requirement.
 2. **Fail-closed gating** — hooks that block an action (exit 2 from PreCompact) need a fail-closed contract: any error in the hook MUST keep the block in place. CC docs ([code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks)) confirm `mcp_tool` hooks CAN gate via `decision: "block"` JSON output, but **MCP server errors are non-blocking by design** — if the MCP server is down/slow/buggy, the action proceeds. That breaks the fail-closed contract. Bash exit 2 fails closed.
 3. **Local-only state** — hooks that read/write `~/.cache/sdlc-wizard/` or `.reviews/handoff.json` don't surface state across tool boundaries. MCP adds a wire format without consumers.
 
@@ -2974,7 +2974,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.63.0 -->
+<!-- SDLC Wizard Version: 1.64.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -4053,7 +4053,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.63.0 -->
+<!-- SDLC Wizard Version: 1.64.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
