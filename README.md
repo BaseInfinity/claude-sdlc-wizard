@@ -4,6 +4,8 @@ A **self-evolving Software Development Life Cycle (SDLC) enforcement system for 
 
 **Built on 15+ years of software engineering and founding engineering experience** — battle-tested patterns from real production systems, baked into an AI agent that follows tried-and-true software quality practices so you don't have to enforce them manually.
 
+> **Built for Claude Code.** Using OpenAI's Codex CLI instead? Check out [`codex-sdlc-wizard`](https://github.com/BaseInfinity/codex-sdlc-wizard) — same SDLC enforcement, ported. ([Full ecosystem](#xdlc-ecosystem-sibling-projects).)
+
 ## Install
 
 **Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)** (Anthropic's CLI for Claude).
