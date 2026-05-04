@@ -4,6 +4,22 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.67.0] - 2026-05-04
+
+### Closed (paperwork-stale roadmap rows)
+
+- **ROADMAP #99 — AutoGPT integration audit** ✅ DONE 2026-05-04 with NO-GO verdict. Research write-up at `.reviews/research-99-autogpt.md`. Three blockers: (a) AutoGPT is now an agent platform/framework — same layer as Claude Code / Codex / OpenCode, not a target for SDLC enforcement; (b) no hook primitive — AutoGPT's "blocks" system is workflow composition, not pre-tool-call enforcement, so the wizard's TDD/seam/prompt hooks have no place to live; (c) audience mismatch — AutoGPT users build continuous-service agents, not interactive SWE workflows. If a real demand signal ever surfaces, the right layering is "AutoGPT agent invokes Claude Code as a sub-tool" — that inherits the wizard for free without an AutoGPT port. **5/5 external-product audits NO-GO** (continues #76 Promptfoo, #77 constrain-to-playbook, #235 Thoughtworks AI Evals, #95 Nous Research).
+
+### Files
+
+- `.reviews/research-99-autogpt.md` (new — research write-up, force-added past `.reviews/` gitignore)
+- `ROADMAP.md` (#99 marked DONE with verdict reference)
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.66.0 → 1.67.0)
+
+### Notes
+
+Zero code changes. Same pattern as v1.65.0 + v1.66.0 paperwork closes.
+
 ## [1.66.0] - 2026-05-04
 
 ### Closed (paperwork-stale roadmap rows)
