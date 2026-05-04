@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.66.0
+Latest:    1.67.0
 
 What changed:
+- [1.67.0] roadmap hygiene — closed #99 (AutoGPT integration audit — NO-GO; AutoGPT is an agent host like Claude Code / Codex / OpenCode, no hook primitive maps, audience is agent-builders not SWE workflow). Research write-up at `.reviews/research-99-autogpt.md`. 5/5 external-product audits NO-GO (continues #76 + #77 + #235 + #95).
 - [1.66.0] roadmap hygiene — closed #95 (Nous Research competitive audit — NO-GO; different layer of the stack, Nous builds open-weights LLMs + agent frameworks, we enforce SDLC process; pattern continues with #76 + #77 + #235 NO-GOs). Research write-up at `.reviews/research-95-nous.md`. Also rolls in PR #309 (codex sibling callout near top of README + wizard doc) and `gh issue close 308` (4/4 API entries audited, zero wizard changes — Sonnet 1M retirement only affects 4.5/4, our mixed-mode tier pins to 4.6).
 - [1.65.0] roadmap hygiene — closed paperwork-stale rows #210 (Node 24 false-green test, already shipped in PR #217) and #235 (Thoughtworks AI Evals research — NO-GO verdict, methodology already implemented under different naming; pattern continues with #76 + #77 NO-GOs). Research write-up at `.reviews/research-235-ai-evals.md`. No code changes.
 - [1.64.0] XDLC ecosystem cross-references — README, wizard doc, and ROADMAP now cross-reference all three sibling packages (`agentic-sdlc-wizard`, `codex-sdlc-wizard`, `claude-gdlc-wizard`). New "Ecosystem (Sibling Projects)" section in README. 3 new doc-consistency tests prevent drift.
@@ -107,11 +108,7 @@ What changed:
 - [1.58.0] ground-truth gate for E2E benchmark (#96 Phase 2) — `tests/e2e/ground-truth.sh` runs `npm test` post-sim; final score capped at 5 if tests fail. Catches "agent followed protocol but produced broken code"
 - [1.57.0] de-coach E2E benchmark prompt (#96 Phase 1) — remove answer-key leakage that saturated benchmark scores at 10/10; new neutral task framing measures organic SDLC behavior
 - [1.56.0] community feature-discovery fetcher (#207) — `tests/e2e/fetch-community.sh` pulls Reddit + HN; pipe to `scan-community.sh` to surface candidate /slash-commands
-- [1.55.0] shrink weekly-update.yml dead code (#231 Phase 4) — delete env.VERSION_SCENARIO + has_overlap/overlap_paths outputs + placeholder/parse steps; 289 → 161 lines (-44%)
-- [1.54.0] delete check-updates Claude-ranker (#231 Phase 3d) — weekly-update.yml is now zero-API-spend; auto-update PR body links the manual analyze-release.md command
-- [1.53.0] delete scan-community cron (#231 Phase 3c) — manual `claude --print` invocation of analyze-community.md
-- [1.52.0] delete community-e2e-test cron (#231 Phase 3b) — manual local-shepherd review of scan-community digest
-- [1.51.0] delete version-test cron (#231 Phase 3a) — manual local-Max replacement via npm i + local-shepherd
+- [1.55.0–1.51.0] ROADMAP #231 weekly-update.yml dismantle (Phase 2 → Phase 4): five releases, each deleting a cron-API job in favor of manual local-Max replacements. End state: weekly-update.yml shrunk from ~1670 → 161 lines (-90%), zero API spend, only `check-updates` release detection survives.
 ... (older entries omitted — read the full CHANGELOG.md for anything pre-1.51.0)
 ```
 
