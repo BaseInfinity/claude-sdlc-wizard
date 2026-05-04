@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.68.0] - 2026-05-04
+
+### Closed (paperwork-stale roadmap rows)
+
+- **ROADMAP #97 — Anthropic Policy & Research alignment audit** ✅ DONE 2026-05-04 with NO-GO + one validating parallel verdict. Research write-up at `.reviews/research-97-anthropic-policy.md`. RSP, Transparency Hub, and Research page audited. RSP: not applicable (Anthropic's internal model-dev policy). Transparency: tangential (model-card disclosures, security-guidance overlap covered by #101). Research page: the April 2026 "Automated Alignment Researchers" paper is **conceptually parallel** to our cross-model review pattern — independent third-party validation that LLM-as-reviewer-of-LLM works. Our implementation predates the paper (PR #189 / ROADMAP #72 mission-first cross-model review) and already mitigates its noted weaknesses (reward hacking, limited generalization) via vendor-diverse adversarial framing + verification checklist. Constitution + Economic Futures skipped as clearly off-topic. **6/6 external audits NO-GO** (continues #76, #77, #95, #99, #235).
+
+- **ROADMAP #243 — token-spike-check follow-up** ✅ CLOSED 2026-05-04. The 2-week verify-window opened by `hooks/token-spike-check.sh` (shipped v1.43.0, 2026-04-27) has elapsed: `wc -l .metrics/token-history.jsonl` shows 8 rows accumulated on maintainer machine, well above the 5-record rolling-baseline threshold. SessionStart skip-recent filter and transcript-dir resolution are working as designed. No code changes.
+
+### Files
+
+- `.reviews/research-97-anthropic-policy.md` (new — research write-up, force-added past `.reviews/` gitignore)
+- `ROADMAP.md` (#97 marked DONE with verdict + AAR paper reference)
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.67.0 → 1.68.0)
+
+### Notes
+
+Zero code changes. Same pattern as v1.65.0 + v1.66.0 + v1.67.0 paperwork closes. Open backlog after this release: `#302` (user-level setup skill, design-blocked) + ROADMAP top items #212 (multi-day, partial-API), #9 OpenCode (separate session per maintainer).
+
 ## [1.67.0] - 2026-05-04
 
 ### Closed (paperwork-stale roadmap rows)
