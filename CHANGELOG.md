@@ -4,6 +4,28 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.66.0] - 2026-05-04
+
+### Closed (paperwork-stale roadmap rows)
+
+- **ROADMAP #95 — Nous Research competitive audit** ✅ DONE 2026-05-04 with NO-GO verdict. Research write-up at `.reviews/research-95-nous.md`. Nous Research builds open-weights LLMs (Hermes), agent frameworks (Hermes Agent), RL environments (atropos), and distributed-training infra (Psyche) — different layer of the stack from SDLC enforcement. Hermes Agent is the same layer as Claude Code / Codex CLI / OpenCode (a *target* for the wizard, not a competitor); the OpenCode port (#9) is the right vehicle if anyone ever wants the wizard to run against a self-hosted Nous endpoint. Pattern continues with #76 (Promptfoo NO-GO), #77 (constrain-to-playbook NO-GO), #235 (Thoughtworks AI Evals NO-GO): external-product audits keep validating the wizard's niche.
+
+- **`docs/codex-near-top` cross-reference** ✅ DONE 2026-05-04 in PR #309. Surfaced `codex-sdlc-wizard` sibling at the top of README.md (after the tagline, before Install) and `CLAUDE_CODE_SDLC_WIZARD.md` (after the "What This Is" intro), so users on OpenAI's Codex CLI find the alternative without scrolling 250+/500+ lines to the Ecosystem section. Two new doc-consistency tests (head -30 / head -50 grep) keep the callout from drifting out of the top fold. OpenCode sibling intentionally not mentioned yet (per maintainer — bootstrap shipping in a different session).
+
+- **GitHub issue #308 (API features review)** ✅ CLOSED 2026-05-04. 4/4 entries audited (`gh issue view 308#issuecomment-4375055751`): zero wizard changes needed. Sonnet 1M-beta retirement (2026-04-30) only affects Sonnet 4.5 and Sonnet 4 — wizard's `sonnet[1m]` mixed-mode tier resolves to Sonnet 4.6 which keeps 1M GA per [API release notes](https://platform.claude.com/docs/en/release-notes/api.md). Rate Limits API + Memory for Managed Agents are different products. Haiku 3 retirement is irrelevant — `grep -ri "haiku.3\|claude-3-haiku"` returned zero hits across the wizard.
+
+### Files
+
+- `.reviews/research-95-nous.md` (new — research write-up, force-added past `.reviews/` gitignore matching #206 + #235 precedent)
+- `ROADMAP.md` (#95 marked DONE with verdict reference)
+- `README.md` + `CLAUDE_CODE_SDLC_WIZARD.md` (codex sibling callout near top, shipped in PR #309)
+- `tests/test-doc-consistency.sh` (2 new top-of-doc grep tests for codex callout, shipped in PR #309)
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.65.0 → 1.66.0)
+
+### Notes
+
+Zero code changes (research + cross-reference docs only). Backlog after this release: 1 open issue (#302 user-level setup skill — design-blocked) + ROADMAP top items #212 (multi-day), #9 OpenCode (separate session per maintainer).
+
 ## [1.65.0] - 2026-05-04
 
 ### Closed (paperwork-stale roadmap rows)

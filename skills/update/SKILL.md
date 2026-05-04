@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.65.0
+Latest:    1.66.0
 
 What changed:
+- [1.66.0] roadmap hygiene — closed #95 (Nous Research competitive audit — NO-GO; different layer of the stack, Nous builds open-weights LLMs + agent frameworks, we enforce SDLC process; pattern continues with #76 + #77 + #235 NO-GOs). Research write-up at `.reviews/research-95-nous.md`. Also rolls in PR #309 (codex sibling callout near top of README + wizard doc) and `gh issue close 308` (4/4 API entries audited, zero wizard changes — Sonnet 1M retirement only affects 4.5/4, our mixed-mode tier pins to 4.6).
 - [1.65.0] roadmap hygiene — closed paperwork-stale rows #210 (Node 24 false-green test, already shipped in PR #217) and #235 (Thoughtworks AI Evals research — NO-GO verdict, methodology already implemented under different naming; pattern continues with #76 + #77 NO-GOs). Research write-up at `.reviews/research-235-ai-evals.md`. No code changes.
 - [1.64.0] XDLC ecosystem cross-references — README, wizard doc, and ROADMAP now cross-reference all three sibling packages (`agentic-sdlc-wizard`, `codex-sdlc-wizard`, `claude-gdlc-wizard`). New "Ecosystem (Sibling Projects)" section in README. 3 new doc-consistency tests prevent drift.
 - [1.63.0] cache-cost observability closeout (#204 absorbed by #220) — `tests/test-token-spike.sh` gains explicit cache-miss regression test + negative-control test. SDLC skill + wizard doc gain "Cache-Cost Surprises" sections covering 10-20× silent cost blowups (mid-session CLAUDE.md edits, idle pruning, upstream cache bugs) and detection via `hooks/token-spike-check.sh`'s `costly_tokens` metric.
@@ -111,15 +112,7 @@ What changed:
 - [1.53.0] delete scan-community cron (#231 Phase 3c) — manual `claude --print` invocation of analyze-community.md
 - [1.52.0] delete community-e2e-test cron (#231 Phase 3b) — manual local-shepherd review of scan-community digest
 - [1.51.0] delete version-test cron (#231 Phase 3a) — manual local-Max replacement via npm i + local-shepherd
-- [1.50.0] local-shepherd.sh --strip-paths flag (#231 Phase 2 — replaces deleted prove-it-test cron)
-- [1.49.0] local-shepherd.sh --compare-baseline flag (#230)
-- [1.48.0] SKILL.md trim — token bloat audit phase 2 follow-up
-- [1.47.0] Codex review progress wrapper (#259)
-- [1.46.1] npx check surfaces dangling+enabled plugin state (#266)
-- [1.46.0] PreCompact dry-run env vars (#240)
-- [1.45.0] PreCompact path (c) — SHA-ancestry self-heal (#257)
-- [1.44.1] Autocompact compound-misconfig detection (#207)
-... (full entries from fetched CHANGELOG)
+... (older entries omitted — read the full CHANGELOG.md for anything pre-1.51.0)
 ```
 
 Read the actual entries from the fetched CHANGELOG; don't paraphrase. The user wants to see exactly what shipped.
