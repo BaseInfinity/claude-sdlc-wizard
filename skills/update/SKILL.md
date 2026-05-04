@@ -112,15 +112,7 @@ What changed:
 - [1.53.0] delete scan-community cron (#231 Phase 3c) — manual `claude --print` invocation of analyze-community.md
 - [1.52.0] delete community-e2e-test cron (#231 Phase 3b) — manual local-shepherd review of scan-community digest
 - [1.51.0] delete version-test cron (#231 Phase 3a) — manual local-Max replacement via npm i + local-shepherd
-- [1.50.0] local-shepherd.sh --strip-paths flag (#231 Phase 2 — replaces deleted prove-it-test cron)
-- [1.49.0] local-shepherd.sh --compare-baseline flag (#230)
-- [1.48.0] SKILL.md trim — token bloat audit phase 2 follow-up
-- [1.47.0] Codex review progress wrapper (#259)
-- [1.46.1] npx check surfaces dangling+enabled plugin state (#266)
-- [1.46.0] PreCompact dry-run env vars (#240)
-- [1.45.0] PreCompact path (c) — SHA-ancestry self-heal (#257)
-- [1.44.1] Autocompact compound-misconfig detection (#207)
-... (full entries from fetched CHANGELOG)
+... (older entries omitted — read the full CHANGELOG.md for anything pre-1.51.0)
 ```
 
 Read the actual entries from the fetched CHANGELOG; don't paraphrase. The user wants to see exactly what shipped.
