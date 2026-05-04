@@ -685,9 +685,37 @@ test_wizard_doc_mentions_gdlc_sibling() {
     fi
 }
 
+# Codex sibling must surface near the top of README + wizard doc so users
+# landing on either entry point see the alternative-agent option without
+# scrolling 250+ lines to the Ecosystem section. (User feedback
+# 2026-05-04: "mention codex-sdlc-wizard towards the top after mentioning
+# this is for claude — 'this is for Claude but check out codex for
+# alternatives'.")
+test_readme_mentions_codex_near_top() {
+    local README="$REPO_ROOT/README.md"
+    if [ ! -f "$README" ]; then fail "README.md not found"; return; fi
+    if head -30 "$README" | grep -q 'codex-sdlc-wizard'; then
+        pass "README.md mentions codex-sdlc-wizard within first 30 lines"
+    else
+        fail "README.md does not mention codex-sdlc-wizard near top (first 30 lines)"
+    fi
+}
+
+test_wizard_doc_mentions_codex_near_top() {
+    local DOC="$REPO_ROOT/CLAUDE_CODE_SDLC_WIZARD.md"
+    if [ ! -f "$DOC" ]; then fail "CLAUDE_CODE_SDLC_WIZARD.md not found"; return; fi
+    if head -50 "$DOC" | grep -q 'codex-sdlc-wizard'; then
+        pass "CLAUDE_CODE_SDLC_WIZARD.md mentions codex-sdlc-wizard within first 50 lines"
+    else
+        fail "CLAUDE_CODE_SDLC_WIZARD.md does not mention codex-sdlc-wizard near top (first 50 lines)"
+    fi
+}
+
 test_readme_references_all_siblings
 test_readme_has_ecosystem_section
 test_wizard_doc_mentions_gdlc_sibling
+test_readme_mentions_codex_near_top
+test_wizard_doc_mentions_codex_near_top
 
 # ────────────────────────────────────────────
 # Summary

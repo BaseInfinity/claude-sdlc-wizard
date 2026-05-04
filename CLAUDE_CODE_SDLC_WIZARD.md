@@ -22,6 +22,8 @@ You set it up, Claude follows it. The magic is that structured human engineering
 
 **The result:** Claude follows a disciplined engineering process automatically. You just review and approve.
 
+> **Built for Claude Code.** Using OpenAI's Codex CLI instead? See [`codex-sdlc-wizard`](https://github.com/BaseInfinity/codex-sdlc-wizard) — same SDLC enforcement, ported.
+
 ---
 
 ## The Vision
