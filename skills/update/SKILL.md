@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.64.0
+Latest:    1.65.0
 
 What changed:
+- [1.65.0] roadmap hygiene — closed paperwork-stale rows #210 (Node 24 false-green test, already shipped in PR #217) and #235 (Thoughtworks AI Evals research — NO-GO verdict, methodology already implemented under different naming; pattern continues with #76 + #77 NO-GOs). Research write-up at `.reviews/research-235-ai-evals.md`. No code changes.
 - [1.64.0] XDLC ecosystem cross-references — README, wizard doc, and ROADMAP now cross-reference all three sibling packages (`agentic-sdlc-wizard`, `codex-sdlc-wizard`, `claude-gdlc-wizard`). New "Ecosystem (Sibling Projects)" section in README. 3 new doc-consistency tests prevent drift.
 - [1.63.0] cache-cost observability closeout (#204 absorbed by #220) — `tests/test-token-spike.sh` gains explicit cache-miss regression test + negative-control test. SDLC skill + wizard doc gain "Cache-Cost Surprises" sections covering 10-20× silent cost blowups (mid-session CLAUDE.md edits, idle pruning, upstream cache bugs) and detection via `hooks/token-spike-check.sh`'s `costly_tokens` metric.
 - [1.62.0] roadmap hygiene + #211 backfill — closes paperwork-stale rows (#207, #211 historical, #215, #217, #78, #79, #80, #219). Backfilled 5 corrupted `score-history.jsonl` rows from `max_score:10` → `max_score:11` (UI scenarios with design_system criterion). Codex strategic review confirmed scope.

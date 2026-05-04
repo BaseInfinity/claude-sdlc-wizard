@@ -4,6 +4,24 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.65.0] - 2026-05-04
+
+### Closed (paperwork-stale roadmap rows)
+
+- **ROADMAP #210 — Node 24 compliance regression** ✅ DONE 2026-04-23 in PR #217 (commit `045c938`). Defensive `test_no_oven_sh_setup_bun` + committed negative-control fixture both shipped on the original PR; the row was just never paperwork-closed. Audit 2026-05-04 confirms zero workflows use `oven-sh/setup-bun`, all 15 Node 24 compliance tests green, full action surface is Node 24-compatible. Hard deadline 2026-06-02 (GitHub forces Node 24) is comfortably met.
+
+- **ROADMAP #235 — Thoughtworks "AI Evals" methodology audit** ✅ DONE 2026-05-04 with NO-GO verdict. Research write-up at `.reviews/research-235-ai-evals.md`. The Thoughtworks Decoder article is methodology-only; every layer it describes (pre-deployment validation, post-deployment monitoring, quality gates, continuous oversight, performance consistency, output accuracy, error-mode catching, model-evolution tracking) already has a working analog in our pipeline (Tier 1/2 evaluator + score-history + CUSUM + token-spike + adversarial cross-model review + SDP scoring). Only candidate gap is bias/alignment evaluation, which is out of scope (the wizard is SDLC enforcement, not LLM ethics). Pattern continues with prior NO-GO research items #76 (Promptfoo) and #77 (constrain-to-playbook).
+
+### Files
+
+- `.reviews/research-235-ai-evals.md` (new — research write-up, force-added past `.reviews/` gitignore matching #206 precedent)
+- `ROADMAP.md` (#210 + #235 marked DONE with verdict references)
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.64.0 → 1.65.0)
+
+### Notes
+
+Zero code changes. Two paperwork-stale rows closed; no new behavior. Useful for cleaning the active queue heading into the OpenCode Phase B/C planning session.
+
 ## [1.64.0] - 2026-04-30
 
 ### Added (XDLC ecosystem cross-references)

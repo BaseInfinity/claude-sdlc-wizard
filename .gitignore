@@ -31,3 +31,7 @@ scripts/__pycache__/
 # tests/e2e/score-history.txt is recreated by test-cusum.sh on each run
 # (test artifact; canonical store is score-history.jsonl)
 tests/e2e/score-history.txt
+
+# Wizard runtime state (per-machine, not portable)
+.claude/scheduled_tasks.lock
+.metrics/
