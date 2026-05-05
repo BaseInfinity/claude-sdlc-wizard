@@ -93,13 +93,11 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.68.0
+Latest:    1.69.0
 
 What changed:
-- [1.68.0] roadmap hygiene — closed #97 (Anthropic Policy & Research alignment audit — NO-GO with one validating parallel: April 2026 "Automated Alignment Researchers" paper conceptually parallel to our cross-model review, our implementation predates it and mitigates noted weaknesses). Research write-up at `.reviews/research-97-anthropic-policy.md`. Also closes #243 follow-up — `.metrics/token-history.jsonl` accumulating (8 rows on maintainer machine, well over 5-record threshold). 6/6 external audits NO-GO.
-- [1.67.0] roadmap hygiene — closed #99 (AutoGPT integration audit — NO-GO; AutoGPT is an agent host like Claude Code / Codex / OpenCode, no hook primitive maps, audience is agent-builders not SWE workflow). Research write-up at `.reviews/research-99-autogpt.md`. 5/5 external-product audits NO-GO (continues #76 + #77 + #235 + #95).
-- [1.66.0] roadmap hygiene — closed #95 (Nous Research NO-GO — different layer; Nous builds models + agent frameworks, we enforce SDLC process). Rolls in PR #309 codex callout near top + issue #308 close (4/4 API entries audited).
-- [1.65.0] roadmap hygiene — closed #210 (Node 24 false-green, already shipped PR #217) + #235 (Thoughtworks AI Evals NO-GO).
+- [1.69.0] token-bloat fix — `hooks/sdlc-prompt-check.sh` BASELINE block (the ~250-token "TodoWrite FIRST / STATE CONFIDENCE / AUTO-INVOKE" reminder) now fires once per CC `session_id` instead of every prompt. Saves ~12K tokens/session for any user with >3 prompts. SETUP-not-complete + EFFORT-bump warnings still fire every prompt (dynamic state). Sentinel pruned at 7d. No-session-id stdin keeps current behavior (legacy CC + tests).
+- [1.68.0–1.65.0] roadmap hygiene — five paperwork closes: #97 Anthropic Policy NO-GO + AAR-paper validating parallel; #99 AutoGPT NO-GO; #95 Nous NO-GO; #243 token-history liveness verified; #210 Node-24 false-green; #235 Thoughtworks AI Evals NO-GO. **6/6 external-product audits NO-GO** (continues #76, #77). Research write-ups in `.reviews/research-*.md`.
 - [1.64.0] XDLC ecosystem cross-references — README, wizard doc, and ROADMAP now cross-reference all three sibling packages (`agentic-sdlc-wizard`, `codex-sdlc-wizard`, `claude-gdlc-wizard`). New "Ecosystem (Sibling Projects)" section in README. 3 new doc-consistency tests prevent drift.
 - [1.63.0] cache-cost observability closeout (#204 absorbed by #220) — `tests/test-token-spike.sh` gains explicit cache-miss regression test + negative-control test. SDLC skill + wizard doc gain "Cache-Cost Surprises" sections covering 10-20× silent cost blowups (mid-session CLAUDE.md edits, idle pruning, upstream cache bugs) and detection via `hooks/token-spike-check.sh`'s `costly_tokens` metric.
 - [1.62.0] roadmap hygiene + #211 backfill — closes paperwork-stale rows (#207, #211 historical, #215, #217, #78, #79, #80, #219). Backfilled 5 corrupted `score-history.jsonl` rows from `max_score:10` → `max_score:11` (UI scenarios with design_system criterion). Codex strategic review confirmed scope.
