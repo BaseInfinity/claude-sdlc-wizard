@@ -4,6 +4,34 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.70.0] - 2026-05-05
+
+### Token-bloat fix: TDD CHECK nudge fires once per CC session
+
+`hooks/tdd-pretool-check.sh` was emitting a ~50-token JSON nudge ("TDD CHECK: Are you writing IMPLEMENTATION before a FAILING TEST?") on every Write/Edit/MultiEdit touching `src/**`. After the SDLC skill auto-invokes (which already covers TDD RED/GREEN), the per-Edit nudge is duplicate context — typical SDLC session has 10-30 src Edits = ~0.5-1.5K wasted tokens.
+
+Now gated on per-`session_id` sentinel under `$SDLC_WIZARD_CACHE_DIR/tdd-shown-<id>`, atomic-claimed via subshell `set -C` (noclobber). Same pattern as v1.69.0 BASELINE gate.
+
+### Behavior
+
+- **First src/ edit of a CC session** → TDD CHECK emits as before.
+- **Subsequent src/ edits (same session_id)** → TDD CHECK suppressed.
+- **New CC session (different session_id)** → TDD CHECK re-emits.
+- **Non-src/ files** → no output (existing behavior, regardless of sentinel). Editing README first does NOT consume the sentinel slot — TDD CHECK still fires on first src/ edit afterward.
+- **No session_id in stdin** (legacy CC, direct shell tests) → emits every src/ edit (back-compat preserved).
+- **N parallel src/ edits with same session_id** → exactly 1 TDD CHECK emit (atomic claim).
+
+### Files
+
+- `hooks/tdd-pretool-check.sh` — atomic-claim sentinel + jq-decoupled session_id extraction.
+- `tests/test-tdd-pretool-fires-once.sh` (new — 9 cases including 50-parallel concurrency, non-src/ doesn't consume sentinel, suppressed-fire-empty assertion).
+- `.github/workflows/ci.yml`, `CONTRIBUTING.md` — wire new test into validate job + contributor checklist.
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.69.0 → 1.70.0).
+
+### Notes
+
+ROADMAP #236 functional-bloat audit, phase 2. Phase 1 (v1.69.0) trimmed the BASELINE block (~12K tokens/session). Phase 2 trims the per-Edit nudge. Combined savings on a 50-prompt + 20-Edit session: ~13.5K tokens. Audit method continues — measure cost × frequency, judge value, don't blind-delete. Other always-on hooks (`model-effort-check`, `precompact-seam-check`, `token-spike-check`) remain silent at healthy state and are not bloat.
+
 ## [1.69.0] - 2026-05-04
 
 ### Token-bloat fix: BASELINE block fires once per CC session
