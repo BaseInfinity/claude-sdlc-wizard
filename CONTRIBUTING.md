@@ -40,6 +40,7 @@ Thank you for your interest in improving the SDLC Wizard!
    ./tests/test-local-shepherd.sh && \
    ./tests/test-repo-complexity.sh && \
    ./tests/test-prompt-hook-fires-once.sh && \
+   ./tests/test-baseline-fires-once.sh && \
    ./tests/test-community-scanner.sh && \
    ./tests/test-community-fetch.sh && \
    ./tests/test-ground-truth.sh && \
