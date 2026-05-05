@@ -217,6 +217,9 @@ jobs:
       - name: Run baseline-fires-once-per-session tests (token bloat audit)
         run: ./tests/test-baseline-fires-once.sh
 
+      - name: Run tdd-pretool-fires-once tests (token bloat audit)
+        run: ./tests/test-tdd-pretool-fires-once.sh
+
       - name: Run community scanner tests (#207)
         run: ./tests/test-community-scanner.sh
 

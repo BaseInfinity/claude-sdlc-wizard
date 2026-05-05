@@ -1,19 +1,13 @@
 {
-  "review_id": "baseline-fires-once-001",
+  "review_id": "tdd-pretool-fires-once-001",
   "round": 2,
-  "responding_to": ".reviews/baseline-fires-once-001/round-1-review.md",
+  "responding_to": ".reviews/tdd-pretool-fires-once-001/round-1-review.md",
   "responses": [
     {
       "finding": "1",
       "action": "FIXED",
-      "summary": "Atomic claim via subshell `set -C` (noclobber) + `: > sentinel` redirect. Across N parallel fires with the same session_id, exactly one wins the claim and emits; the rest see file-exists and suppress. New regression test (test_concurrency_same_session_emits_once) fires 50 parallel invocations and asserts exactly 1 BASELINE in aggregated stdout.",
-      "evidence": "hooks/sdlc-prompt-check.sh:131 (claim block), tests/test-baseline-fires-once.sh:166-189 (50-parallel test)"
-    },
-    {
-      "finding": "2",
-      "action": "FIXED",
-      "summary": "Decoupled session_id extraction from jq. Stdin is now read whenever stdin is non-tty (regardless of jq); session_id extracted via grep/sed. Prompt extraction still requires jq (multi-line + arbitrary escape content). New regression test (test_session_id_works_without_jq) builds a restricted PATH excluding jq, fires hook twice with valid session_id JSON stdin, asserts first emits / second suppresses.",
-      "evidence": "hooks/sdlc-prompt-check.sh:46-66 (decoupled extraction), tests/test-baseline-fires-once.sh:191-228 (no-jq regression test using type -P for binary-only resolution)"
+      "summary": "Staged the new test file. `git status --short tests/test-tdd-pretool-fires-once.sh` now shows `A  tests/test-tdd-pretool-fires-once.sh`. The file will land on origin in the same commit as the rest of the change.",
+      "evidence": "tests/test-tdd-pretool-fires-once.sh (now staged in git index)"
     }
   ]
 }

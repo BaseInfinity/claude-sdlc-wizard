@@ -93,10 +93,11 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.69.0
+Latest:    1.70.0
 
 What changed:
-- [1.69.0] token-bloat fix — `hooks/sdlc-prompt-check.sh` BASELINE block (the ~250-token "TodoWrite FIRST / STATE CONFIDENCE / AUTO-INVOKE" reminder) now fires once per CC `session_id` instead of every prompt. Saves ~12K tokens/session for any user with >3 prompts. SETUP-not-complete + EFFORT-bump warnings still fire every prompt (dynamic state). Sentinel pruned at 7d. No-session-id stdin keeps current behavior (legacy CC + tests).
+- [1.70.0] token-bloat fix phase 2 — `hooks/tdd-pretool-check.sh` TDD CHECK JSON nudge (the per-`Write/Edit` "Are you writing IMPLEMENTATION before a FAILING TEST?" reminder) now fires once per CC `session_id` instead of every src/ edit. Saves ~0.5-1.5K tokens/session (10-30 src Edits × ~50 tok). Same atomic-noclobber claim pattern as v1.69.0 BASELINE gate. Non-src/ edits don't consume the sentinel slot.
+- [1.69.0] token-bloat fix phase 1 — `hooks/sdlc-prompt-check.sh` BASELINE block (the ~250-token "TodoWrite FIRST / STATE CONFIDENCE / AUTO-INVOKE" reminder) now fires once per CC `session_id`. Saves ~12K tokens/session. SETUP-not-complete + EFFORT-bump warnings still fire every prompt (dynamic state).
 - [1.68.0–1.65.0] roadmap hygiene — five paperwork closes: #97 Anthropic Policy NO-GO + AAR-paper validating parallel; #99 AutoGPT NO-GO; #95 Nous NO-GO; #243 token-history liveness verified; #210 Node-24 false-green; #235 Thoughtworks AI Evals NO-GO. **6/6 external-product audits NO-GO** (continues #76, #77). Research write-ups in `.reviews/research-*.md`.
 - [1.64.0] XDLC ecosystem cross-references — README, wizard doc, and ROADMAP now cross-reference all three sibling packages (`agentic-sdlc-wizard`, `codex-sdlc-wizard`, `claude-gdlc-wizard`). New "Ecosystem (Sibling Projects)" section in README. 3 new doc-consistency tests prevent drift.
 - [1.63.0] cache-cost observability closeout (#204 absorbed by #220) — `tests/test-token-spike.sh` gains explicit cache-miss regression test + negative-control test. SDLC skill + wizard doc gain "Cache-Cost Surprises" sections covering 10-20× silent cost blowups (mid-session CLAUDE.md edits, idle pruning, upstream cache bugs) and detection via `hooks/token-spike-check.sh`'s `costly_tokens` metric.
