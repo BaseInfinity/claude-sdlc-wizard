@@ -214,6 +214,9 @@ jobs:
       - name: Run prompt-hook-fires-once tests (#224)
         run: ./tests/test-prompt-hook-fires-once.sh
 
+      - name: Run baseline-fires-once-per-session tests (token bloat audit)
+        run: ./tests/test-baseline-fires-once.sh
+
       - name: Run community scanner tests (#207)
         run: ./tests/test-community-scanner.sh
 

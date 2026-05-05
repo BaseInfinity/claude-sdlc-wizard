@@ -1,14 +1,19 @@
 {
-  "review_id": "roadmap-96-phase2-001",
-  "round": 3,
-  "responding_to": ".reviews/latest-review.md",
+  "review_id": "baseline-fires-once-001",
+  "round": 2,
+  "responding_to": ".reviews/baseline-fires-once-001/round-1-review.md",
   "responses": [
     {
-      "finding": "F-01",
-      "severity": "P1",
+      "finding": "1",
       "action": "FIXED",
-      "summary": "Round 2 nit closed. Added test_strip_paths_gate_uses_candidate_strip_dir which runs shepherd with --compare-baseline AND --strip-paths, mocks ground-truth.sh to log argv, and asserts both paths are tmpdir-rooted: baseline matches `sdlc-baseline-strip.*tests/e2e/fixtures/test-repo$`, candidate matches `sdlc-candidate-strip.*tests/e2e/fixtures/test-repo$`. Without my fix, the candidate path would be cwd-relative `tests/e2e/fixtures/test-repo` — that mutation would fail this test.",
-      "files": ["tests/test-local-shepherd.sh:test_strip_paths_gate_uses_candidate_strip_dir"]
+      "summary": "Atomic claim via subshell `set -C` (noclobber) + `: > sentinel` redirect. Across N parallel fires with the same session_id, exactly one wins the claim and emits; the rest see file-exists and suppress. New regression test (test_concurrency_same_session_emits_once) fires 50 parallel invocations and asserts exactly 1 BASELINE in aggregated stdout.",
+      "evidence": "hooks/sdlc-prompt-check.sh:131 (claim block), tests/test-baseline-fires-once.sh:166-189 (50-parallel test)"
+    },
+    {
+      "finding": "2",
+      "action": "FIXED",
+      "summary": "Decoupled session_id extraction from jq. Stdin is now read whenever stdin is non-tty (regardless of jq); session_id extracted via grep/sed. Prompt extraction still requires jq (multi-line + arbitrary escape content). New regression test (test_session_id_works_without_jq) builds a restricted PATH excluding jq, fires hook twice with valid session_id JSON stdin, asserts first emits / second suppresses.",
+      "evidence": "hooks/sdlc-prompt-check.sh:46-66 (decoupled extraction), tests/test-baseline-fires-once.sh:191-228 (no-jq regression test using type -P for binary-only resolution)"
     }
   ]
 }

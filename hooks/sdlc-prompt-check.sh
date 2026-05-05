@@ -43,10 +43,25 @@ fi
 EFFORT_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
 EFFORT_SIGNALS="$EFFORT_CACHE_DIR/effort-signals.log"
 PROMPT_TEXT=""
-if [ ! -t 0 ] && command -v jq > /dev/null 2>&1; then
+SESSION_ID=""
+# Read stdin once regardless of jq availability — session_id extraction
+# is jq-independent (Codex round 1 P1: BASELINE gate failed when jq was
+# missing or broken). Prompt extraction still needs jq because prompt
+# content can contain arbitrary multi-line text + escapes.
+if [ ! -t 0 ]; then
     STDIN_JSON=$(cat)
     if [ -n "$STDIN_JSON" ]; then
-        PROMPT_TEXT=$(printf '%s' "$STDIN_JSON" | jq -r '.prompt // empty' 2>/dev/null) || PROMPT_TEXT=""
+        # session_id is a UUID-shaped string with no escapable content
+        # in CC's stdin contract — regex extraction is sufficient.
+        # `tr -cd` later strips anything filename-unsafe, so a malformed
+        # input cannot escape the cache dir.
+        SESSION_ID=$(printf '%s' "$STDIN_JSON" \
+            | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' \
+            | head -1 \
+            | sed 's/.*"\([^"]*\)"$/\1/')
+        if command -v jq > /dev/null 2>&1; then
+            PROMPT_TEXT=$(printf '%s' "$STDIN_JSON" | jq -r '.prompt // empty' 2>/dev/null) || PROMPT_TEXT=""
+        fi
     fi
 fi
 if [ -n "$PROMPT_TEXT" ]; then
@@ -109,7 +124,49 @@ SETUP
     exit 0
 fi
 
-cat << 'EOF'
+# Token-bloat fix: BASELINE block fires once per CC session (~250 tok × 50
+# prompts = ~12K wasted tokens before this gate). Once Claude has the SDLC
+# skill auto-invoked (covers TodoWrite/confidence/workflow), this static
+# block is duplicate context. Sentinel is per-session_id so a fresh CC
+# session re-emits the cold-start nudge. Without session_id (legacy CC, or
+# direct shell tests with no JSON stdin), behavior is unchanged — emits
+# every fire. SETUP-not-complete + EFFORT-bump branches above are NOT
+# gated; they're dynamic state warnings that must fire every prompt.
+#
+# Concurrency: claim is atomic via `set -C` (noclobber) — the redirect
+# `: > "$path"` create-or-fails. Across N parallel fires with the same
+# session_id, exactly one wins the claim and emits BASELINE; the rest
+# see file-exists and suppress. (Codex round 1 P1: previous "check then
+# write after emit" pattern allowed N parallel fires to all emit.)
+SHOULD_EMIT_BASELINE=1
+BASELINE_SENTINEL=""
+if [ -n "$SESSION_ID" ]; then
+    BASELINE_CACHE_DIR="${SDLC_WIZARD_CACHE_DIR:-$HOME/.cache/sdlc-wizard}"
+    # Strip path-traversal chars from session_id before using in filename
+    # (defense-in-depth — CC session_ids are UUIDs, but never trust stdin).
+    SAFE_SID=$(printf '%s' "$SESSION_ID" | tr -cd 'A-Za-z0-9._-')
+    if [ -n "$SAFE_SID" ]; then
+        BASELINE_SENTINEL="$BASELINE_CACHE_DIR/baseline-shown-${SAFE_SID}"
+        mkdir -p "$BASELINE_CACHE_DIR" 2>/dev/null || true
+        # Atomic create-or-fail: subshell sets noclobber so `: > "$path"`
+        # fails (rc≠0) if the file already exists. The full conditional
+        # tree:
+        #   - claim succeeds → emit (we won the race)
+        #   - claim fails AND file exists → suppress (someone else won)
+        #   - claim fails AND file doesn't exist → cache unwritable;
+        #     fall back to emit so user never loses cold-start nudge.
+        if (set -C; : > "$BASELINE_SENTINEL") 2>/dev/null; then
+            SHOULD_EMIT_BASELINE=1
+        elif [ -f "$BASELINE_SENTINEL" ]; then
+            SHOULD_EMIT_BASELINE=0
+        else
+            SHOULD_EMIT_BASELINE=1
+        fi
+    fi
+fi
+
+if [ "$SHOULD_EMIT_BASELINE" -eq 1 ]; then
+    cat << 'EOF'
 SDLC BASELINE:
 1. TodoWrite FIRST (plan tasks before coding)
 2. STATE CONFIDENCE: HIGH/MEDIUM/LOW
@@ -130,3 +187,9 @@ Workflow phases:
 
 Quick refs: SDLC.md | TESTING.md | *_PLAN.md for feature
 EOF
+    # Prune sentinels older than 7d so cache doesn't grow forever.
+    # Best-effort: errors silently swallowed.
+    if [ -n "$BASELINE_SENTINEL" ]; then
+        find "$BASELINE_CACHE_DIR" -name 'baseline-shown-*' -type f -mtime +7 -delete 2>/dev/null || true
+    fi
+fi
