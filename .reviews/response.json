@@ -1,13 +1,13 @@
 {
-  "review_id": "tdd-pretool-fires-once-001",
-  "round": 2,
-  "responding_to": ".reviews/tdd-pretool-fires-once-001/round-1-review.md",
+  "review_id": "skill-cross-model-trim-001",
+  "round": 3,
+  "responding_to": ".reviews/skill-cross-model-trim-001/round-2-review.md",
   "responses": [
     {
       "finding": "1",
       "action": "FIXED",
-      "summary": "Staged the new test file. `git status --short tests/test-tdd-pretool-fires-once.sh` now shows `A  tests/test-tdd-pretool-fires-once.sh`. The file will land on origin in the same commit as the rest of the change.",
-      "evidence": "tests/test-tdd-pretool-fires-once.sh (now staged in git index)"
+      "summary": "Changed `\"pr_number\"` to `\"pr_number\":` (with colon) in SKILL.md handoff key list. Test now matches: 1 PENDING_REVIEW handoff schema marker + 1 `\"pr_number\":` occurrence. Self-heal context (PreCompact self-heal (#209)) is within the same line. tests/test-hooks.sh now 154/154 PASS.",
+      "evidence": "skills/sdlc/SKILL.md handoff key list — `\"pr_number\":` with colon"
     }
   ]
 }

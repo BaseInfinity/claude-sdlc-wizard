@@ -120,76 +120,24 @@ The loop goes back to PLANNING, not TDD RED. Run `/code-review`; issues at confi
 
 ## Cross-Model Review (If Configured)
 
-**When to run:** high-stakes changes (auth, payments, data), releases/publishes, complex refactors.
-**When to skip:** trivial changes, time-sensitive hotfixes, risk < review cost.
-**Prerequisites:** Codex CLI (`npm i -g @openai/codex`) + OpenAI API key.
+**When to run:** high-stakes changes (auth, payments, data), releases/publishes, complex refactors. **When to skip:** trivial changes, time-sensitive hotfixes, risk < review cost. **Prerequisites:** Codex CLI (`npm i -g @openai/codex`) + OpenAI API key. **Reviewer at flagship tier (#233):** even when project pins `sonnet[1m]`, reviewer runs `gpt-5.5` / Opus 4.7 max — adversarial diversity is the point.
 
-The PROTOCOL is universal across domains; only `review_instructions` and `verification_checklist` change. **Reviewer always at flagship tier (#233):** if the project pins `model: "sonnet[1m]"` (mixed-mode), the reviewer still runs `gpt-5.5` or Opus 4.7 max — adversarial diversity is the point.
+PROTOCOL is universal across domains; only `review_instructions` and `verification_checklist` change.
 
-### Step 0: Preflight Self-Review
+1. **Preflight** (`.reviews/preflight-{review_id}.md`) — what you already checked: `/code-review` passed, tests passing, manual verifications, known limits. Reduces reviewer findings to 0-1/round.
+2. **Mission-first handoff** (`.reviews/handoff.json`) — required JSON keys: `"review_id"`, `"status": "PENDING_REVIEW"`, `"round": 1`, `"mission"` / `"success"` / `"failure"` (2-3 sentences each — without them you get "looks good"), `"files_changed"`, `"verification_checklist"` — the **verification checklist** is specific items with file:line refs (NOT a generic "review this"), `"review_instructions"`, `"preflight_path"`. Optional `"pr_number":` opts into the PreCompact self-heal (#209): if PR is MERGED, `/compact` treats handoff as implicit CERTIFIED.
+3. **Run reviewer:** `codex exec -c 'model_reasoning_effort="xhigh"' -s danger-full-access -o .reviews/latest-review.md "<prompt>"`. Always `xhigh`. CC sandbox blocks Codex's Rust binary (`SCDynamicStore`) — use `dangerouslyDisableSandbox: true` on Bash; Codex has its own sandbox. xhigh runs take 1-5 min; for a heartbeat use `scripts/codex-review-with-progress.sh`.
+4. **Dialogue loop:** per-finding response (`{"finding": "1", "action": "FIXED|DISPUTED|ACCEPTED", "summary": "..."}` in `.reviews/response.json`). Bump round, set status `PENDING_RECHECK`, add `fixes_applied` (numbered, file:line). Recheck prompt: "TARGETED RECHECK. FIXED → verify certify condition. DISPUTED → ACCEPT if sound, REJECT with reasoning. ACCEPTED → verify applied. No new findings unless P0."
 
-At `.reviews/preflight-{review_id}.md`, document what you already checked: `/code-review` passed, all tests passing, specific concerns checked, what you verified manually, known limitations. Reduces reviewer findings to 0-1 per round.
+**Convergence:** 2 rounds sweet spot, 3 max (research: 14 repos + 7 papers). After 3 still NOT CERTIFIED → escalate.
 
-### Step 1: Mission-First Handoff
-
-Write `.reviews/handoff.json`:
-```jsonc
-{
-  "review_id": "feature-xyz-001",
-  "status": "PENDING_REVIEW",
-  "round": 1,
-  "mission": "What changed and why — 2-3 sentences",
-  "success": "What 'correctly reviewed' looks like",
-  "failure": "What gets missed if reviewer is superficial",
-  "files_changed": ["src/auth.ts", "tests/auth.test.ts"],
-  "fixes_applied": [],
-  "previous_score": null,
-  "verification_checklist": [
-    "(a) Verify input validation at auth.ts:45 handles empty strings",
-    "(b) Verify test covers null-token edge case"
-  ],
-  "review_instructions": "Focus on security and edge cases. Be strict — assume bugs may be present.",
-  "preflight_path": ".reviews/preflight-feature-xyz-001.md",
-  "pr_number": 205
-}
-```
-
-`mission/success/failure` give context (without them: generic "looks good"). `verification_checklist` is specific (file:line), not "review for correctness." `pr_number` (optional) is the **PreCompact self-heal opt-in (ROADMAP #209)**: when set, `precompact-seam-check.sh` checks `gh pr view N --json state` on `/compact` and, if MERGED, treats handoff as implicit CERTIFIED. Without it, a forgotten PENDING handoff blocks every manual compact until you flip status or hit `SDLC_HANDOFF_STALE_DAYS` (default 14).
-
-### Step 2: Run the Reviewer
-
-```bash
-codex exec -c 'model_reasoning_effort="xhigh"' -s danger-full-access \
-  -o .reviews/latest-review.md \
-  "Independent code reviewer. Read .reviews/handoff.json for context. \
-   Verify each checklist item with evidence (file:line, grep, test output). \
-   Each finding: ID, severity (P0/P1/P2), evidence, certify condition. \
-   End with: score (1-10), CERTIFIED or NOT CERTIFIED."
-```
-
-Always `xhigh` — lower settings miss subtle errors. **Progress (#259):** xhigh runs take 1-5 min; for a heartbeat use `scripts/codex-review-with-progress.sh` (`SDLC_CODEX_HEARTBEAT_INTERVAL` tunes). **Sandbox:** Codex's Rust binary needs `SCDynamicStore`; CC's sandbox blocks this. From CC, use `dangerouslyDisableSandbox: true` — Codex has its own sandbox via `-s danger-full-access`. Known issue: [codex#15640](https://github.com/openai/codex/issues/15640).
-
-CERTIFIED → CI. NOT CERTIFIED → dialogue loop.
-
-### Step 3: Dialogue Loop
-
-Per-finding response in `.reviews/response.json`: `{"finding": "1", "action": "FIXED|DISPUTED|ACCEPTED", "summary": "..."}`. Update `handoff.json`: increment `round`, status `PENDING_RECHECK`, add `fixes_applied` (numbered, file:line refs).
-
-Recheck prompt: "TARGETED RECHECK. For each finding: FIXED → verify certify condition. DISPUTED → ACCEPT if sound, REJECT with reasoning. ACCEPTED → verify applied. Do NOT raise new findings unless P0. End with score, CERTIFIED or NOT CERTIFIED."
-
-**Convergence:** 2 rounds is the sweet spot, 3 max (research: 14 repos + 7 papers). After 3 still NOT CERTIFIED → escalate to user.
-
-**Anti-patterns:** "find at least N problems," "review this," 1-10 without criteria, letting reviewer see author's reasoning (anchoring).
-
-**Multiple reviewers** (Claude review + Codex + human): `gh api repos/OWNER/REPO/pulls/PR/comments` for all feedback, respond to each reviewer independently (different blind spots), pick stronger argument on conflicts, max 3 iterations per reviewer.
-
-**Non-code domains** (research, persuasion, medical): same handoff format, adapt `review_instructions` + `verification_checklist`, add `audience` + `stakes`.
+**Multi-reviewer / non-code domains:** when running multiple reviewers in parallel (e.g. Claude review + Codex + human), respond per-reviewer (different blind spots, no shared anchoring). For non-code domains (research, persuasion, medical), keep the same handoff format and add `"audience"` + `"stakes"` keys.
 
 ### Release Review Focus
 
 Before any release/publish, add to `verification_checklist`: **CHANGELOG consistency** (sections present, no lost entries), **Version parity** (package.json + SDLC.md + CHANGELOG + wizard metadata), **Stale examples** (hardcoded version strings), **Docs accuracy** (README + ARCHITECTURE reflect current features), **CLI-distributed file parity** (live skills/hooks match CLI templates).
 
-(Full protocol with rationale and convergence diagrams: `CLAUDE_CODE_SDLC_WIZARD.md` → Cross-Model Review.)
+**Full protocol** (rationale, full JSON example, anti-patterns like "find at least N", convergence diagrams): `CLAUDE_CODE_SDLC_WIZARD.md` → "Cross-Model Review Loop".
 
 ## Documentation Sync (REQUIRED — During Planning)
 

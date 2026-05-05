@@ -2976,7 +2976,7 @@ If deployment fails or post-deploy verification catches issues:
 
 **SDLC.md:**
 ```markdown
-<!-- SDLC Wizard Version: 1.70.0 -->
+<!-- SDLC Wizard Version: 1.71.0 -->
 <!-- Setup Date: [DATE] -->
 <!-- Completed Steps: step-0.1, step-0.2, step-0.4, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: [PRs or Solo] -->
@@ -3923,6 +3923,21 @@ CLI-distributed file parity (skills, hooks, settings).
 
 **This complements automated tests, not replaces them.** Tests catch exact version mismatches (e.g., `test_package_version_matches_changelog`). Cross-model review catches semantic issues tests cannot — a section silently dropped, examples using outdated but syntactically valid versions, docs describing features that no longer exist.
 
+#### Anti-patterns
+
+- **"Find at least N problems"** — incentivizes false positives. The reviewer will manufacture findings to hit the count.
+- **"Review this"** — too vague. Always pair with `verification_checklist` items that name file:line evidence to verify.
+- **1-10 score with no criteria** — every reviewer scores differently. Either define what 1, 5, 10 mean for *this* review, or drop the score and just produce CERTIFIED / NOT CERTIFIED with findings.
+- **Author reasoning visible to reviewer** — anchoring bias. The reviewer should see code + handoff, not the author's self-assessment of why it's correct.
+
+#### Multiple reviewers (Claude review + Codex + human)
+
+Run them in parallel; collect feedback via `gh api repos/OWNER/REPO/pulls/PR/comments` (single source of truth). Respond per-reviewer (different blind spots — don't merge feedback). On conflicts, pick the stronger argument with reasoning, not the louder voice. Cap iterations at 3 per reviewer to avoid infinite loops.
+
+#### Non-code domains (research, persuasion, medical content)
+
+Same handoff format. Adapt `review_instructions` (e.g. "verify each cited claim links to a primary source") and `verification_checklist` (specific claim → specific source). Add `"audience"` and `"stakes"` keys to the JSON so the reviewer knows what reading level / risk profile to apply.
+
 ---
 
 ## User Understanding and Periodic Feedback
@@ -4055,7 +4070,7 @@ Walk through updates? (y/n)
 Store wizard state in `SDLC.md` as metadata comments (invisible to readers, parseable by Claude):
 
 ```markdown
-<!-- SDLC Wizard Version: 1.70.0 -->
+<!-- SDLC Wizard Version: 1.71.0 -->
 <!-- Setup Date: 2026-01-24 -->
 <!-- Completed Steps: step-0.1, step-0.2, step-1, step-2, step-3, step-4, step-5, step-6, step-7, step-8, step-9 -->
 <!-- Git Workflow: PRs -->
