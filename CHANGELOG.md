@@ -4,6 +4,31 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.69.0] - 2026-05-04
+
+### Token-bloat fix: BASELINE block fires once per CC session
+
+Cuts ~12K tokens/session of duplicate context for users with >3 prompts. The `SDLC BASELINE` block in `hooks/sdlc-prompt-check.sh` (~250 tokens) was firing on every `UserPromptSubmit` — once Claude has the SDLC skill auto-invoked (covers TodoWrite/confidence/workflow phases), every subsequent re-emission is pure duplication. Now gated by a per-`session_id` sentinel under `$SDLC_WIZARD_CACHE_DIR/baseline-shown-<id>`, pruned at 7d.
+
+### Behavior
+
+- **First prompt of a CC session** → BASELINE emits as before (cold-start nudge survives).
+- **Subsequent prompts (same session_id)** → BASELINE suppressed.
+- **New CC session (different session_id)** → BASELINE re-emits.
+- **No session_id in stdin** (legacy CC, direct shell tests) → BASELINE emits every fire (back-compat preserved).
+- `SETUP NOT COMPLETE` warning + `EFFORT BUMP REQUIRED` nudge **continue to fire every prompt** — they're dynamic state warnings, not static reminders.
+
+### Files
+
+- `hooks/sdlc-prompt-check.sh` — extracts `session_id` from stdin JSON; gates the static BASELINE block via per-session sentinel; prunes >7d sentinels on emit.
+- `tests/test-baseline-fires-once.sh` (new — 8 cases covering first-fire, suppression, different-session re-emit, no-session-id back-compat, SETUP-warning persistence, EFFORT-bump persistence, cross-cache-dir isolation, byte-shrink verification).
+- `.github/workflows/ci.yml` — wires new test into `validate` job.
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md`, `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.68.0 → 1.69.0).
+
+### Notes
+
+Discovered during ROADMAP #236 functional-bloat audit. Identified `sdlc-prompt-check.sh` as the #1 amplifier (every-prompt × 22 lines × N prompts). Audit method: measure cost × frequency, judge value — not blind delete-and-see. Per-prompt BASELINE failed cost/value once skill is loaded; conditional warnings + effort-bump detector earned their keep and stayed untouched. Other hooks (`model-effort-check`, `precompact-seam-check`, `token-spike-check`) are silent at healthy state — not bloat.
+
 ## [1.68.0] - 2026-05-04
 
 ### Closed (paperwork-stale roadmap rows)
