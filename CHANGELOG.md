@@ -4,6 +4,47 @@ All notable changes to the SDLC Wizard.
 
 > **Note:** This changelog is for humans to read. Don't manually apply these changes - just run the wizard ("Check for SDLC wizard updates") and it handles everything automatically.
 
+## [1.71.0] - 2026-05-05
+
+### Token-bloat fix: SDLC skill Cross-Model Review section trimmed
+
+`skills/sdlc/SKILL.md` Cross-Model Review section condensed from ~70 lines to ~20 lines. Saves ~427 tokens per SDLC skill auto-invoke (4995 → 4568 tokens). The skill auto-loads on virtually every productive `implement/fix/refactor` task, so this is real per-session cost.
+
+### What stayed in SKILL.md
+
+- Decision-making: when to run / skip / prerequisites / flagship-tier reviewer rule (#233)
+- 4-step protocol summary (preflight → handoff → reviewer → dialogue loop)
+- Required handoff JSON keys + `pr_number` self-heal opt-in note (#209)
+- Convergence rule (2 rounds sweet spot, 3 max)
+- Release-review verification-checklist additions
+- Sandbox flag for Codex from CC
+
+### What moved to canonical wizard doc only
+
+Full JSON example, full codex command example, anti-patterns, multi-reviewer (Claude+Codex+human) workflow, non-code-domain variants. All these live in `CLAUDE_CODE_SDLC_WIZARD.md` → "Cross-Model Review Loop" (194 lines, full canonical protocol). The trimmed SKILL.md ends with an explicit pointer to that section.
+
+### Audit method
+
+ROADMAP #236 phase 3. `scripts/audit-session-load.sh` ranked SKILL.md files at the top of the size table:
+- `skills/sdlc/SKILL.md`: 4995 tokens (sat right at 5K threshold)
+- `skills/update/SKILL.md`: 4931 tokens
+- `skills/setup/SKILL.md`: 4490 tokens
+
+SDLC skill auto-invokes most often (every implement/fix/refactor task), so it earned the cut. Verified 8 test suites that grep for SKILL.md content (mocking table, TDD prove, Memory Audit Protocol heading, opus[1m], autocompact compound, Deployment Tasks, plus `tests/test-self-update.sh` which asserts cross-model-review-specific content: `### Release Review Focus` heading, `Version parity` focus area, `"mission"`/`"success"`/`"failure"` JSON-quoted schema keys, "verification checklist" pattern, "preflight" mention). Codex round 1 caught 3 missed assertions in `test-self-update.sh`; round 2 fixes restored those constraints in tighter prose without re-bloating.
+
+### Files
+
+- `skills/sdlc/SKILL.md` — Cross-Model Review section trimmed
+- `CHANGELOG.md`, `SDLC.md`, `skills/update/SKILL.md` (Latest:), `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `CLAUDE_CODE_SDLC_WIZARD.md` (1.70.0 → 1.71.0)
+
+### Combined savings ROADMAP #236 phases 1-3
+
+- v1.69.0: ~12K tokens/session (BASELINE block fires once)
+- v1.70.0: ~0.5-1.5K tokens/session (TDD CHECK fires once)
+- v1.71.0: ~573 tokens/session (SDLC skill leaner on auto-invoke)
+
+Total on a 50-prompt + 20-Edit + 1 SDLC-skill-invoke session: **~14K tokens/session**.
+
 ## [1.70.0] - 2026-05-05
 
 ### Token-bloat fix: TDD CHECK nudge fires once per CC session
