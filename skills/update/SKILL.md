@@ -93,9 +93,10 @@ Parse CHANGELOG entries between the user's installed version and latest. Present
 
 ```
 Installed: 1.42.0
-Latest:    1.71.0
+Latest:    1.72.0
 
 What changed:
+- [1.72.0] closes #323 fully — `init --force` no longer silently overwrites CUSTOMIZED files. Two parts: (1) `check` recommendation is customization-aware (warns + suggests `init --dry-run` first when CUSTOMIZED files exist; backward-compat for the no-customized path); (2) new `init --force --preserve-customized` flag composes existing semantics — CUSTOMIZED files get action `PRESERVE` (skipped + reported), MATCH files OVERWRITE (no-op refresh), MISSING files CREATE. 8 new tests, 88/88 green.
 - [1.71.0] token-bloat fix phase 3 — `skills/sdlc/SKILL.md` Cross-Model Review section trimmed from ~70 lines to ~20 (4995 → 4568 tokens). Decision-making + 4-step protocol summary + convergence rule kept; full JSON examples / codex commands moved to `CLAUDE_CODE_SDLC_WIZARD.md` "Cross-Model Review Loop" canonical section (which also gained Anti-patterns + Multi-reviewer + Non-code-domain subsections). Saves ~427 tokens per SDLC skill auto-invoke. Codex round 1 caught 3 test assertions broken by initial trim; round 2 fixes restored constraints in tighter prose.
 - [1.70.0] token-bloat fix phase 2 — `hooks/tdd-pretool-check.sh` TDD CHECK JSON nudge fires once per CC `session_id` instead of every src/ edit. Saves ~0.5-1.5K tokens/session.
 - [1.69.0] token-bloat fix phase 1 — `hooks/sdlc-prompt-check.sh` BASELINE block fires once per CC `session_id`. Saves ~12K tokens/session.
