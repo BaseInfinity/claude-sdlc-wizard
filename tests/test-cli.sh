@@ -493,6 +493,59 @@ console.log(lines.join('\n'));
     fi
 }
 
+# Test 22e (#323 option 2): init --force --preserve-customized skips CUSTOMIZED files
+test_init_preserve_customized_skips_customized() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    echo "# user customization" >> "$d/.claude/hooks/sdlc-prompt-check.sh"
+    local before_hash
+    before_hash=$(shasum -a 256 "$d/.claude/hooks/sdlc-prompt-check.sh" | awk '{print $1}')
+    (cd "$d" && node "$CLI" init --force --preserve-customized > /dev/null 2>&1)
+    local after_hash
+    after_hash=$(shasum -a 256 "$d/.claude/hooks/sdlc-prompt-check.sh" | awk '{print $1}')
+    if [ "$before_hash" = "$after_hash" ]; then
+        pass "#323 option 2: init --force --preserve-customized skips CUSTOMIZED files (file hash unchanged)"
+    else
+        fail "#323 option 2: --preserve-customized should NOT overwrite CUSTOMIZED files. Hash changed."
+    fi
+    rm -rf "$d"
+}
+
+# Test 22f (#323 option 2): --preserve-customized still creates MISSING files
+test_init_preserve_customized_creates_missing() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    rm "$d/.claude/hooks/tdd-pretool-check.sh"
+    (cd "$d" && node "$CLI" init --force --preserve-customized > /dev/null 2>&1)
+    if [ -f "$d/.claude/hooks/tdd-pretool-check.sh" ]; then
+        pass "#323 option 2: --preserve-customized creates MISSING files (preserve != skip-everything)"
+    else
+        fail "#323 option 2: --preserve-customized should still create MISSING files"
+    fi
+    rm -rf "$d"
+}
+
+# Test 22g (#323 option 2): regression guard — --force alone still overwrites CUSTOMIZED
+test_init_force_alone_still_overwrites() {
+    local d
+    d=$(make_temp)
+    (cd "$d" && node "$CLI" init > /dev/null 2>&1)
+    echo "# user customization" >> "$d/.claude/hooks/sdlc-prompt-check.sh"
+    local before_hash
+    before_hash=$(shasum -a 256 "$d/.claude/hooks/sdlc-prompt-check.sh" | awk '{print $1}')
+    (cd "$d" && node "$CLI" init --force > /dev/null 2>&1)
+    local after_hash
+    after_hash=$(shasum -a 256 "$d/.claude/hooks/sdlc-prompt-check.sh" | awk '{print $1}')
+    if [ "$before_hash" != "$after_hash" ]; then
+        pass "#323 option 2: regression guard — --force alone (no --preserve-customized) still overwrites CUSTOMIZED"
+    else
+        fail "#323 option 2: --force alone should still overwrite (existing behavior unchanged)"
+    fi
+    rm -rf "$d"
+}
+
 # Test 22: check detects missing .gitignore entries (DRIFT)
 test_check_drift_gitignore() {
     local d
@@ -792,6 +845,9 @@ test_check_drift_permissions
 test_check_drift_gitignore
 test_check_recommends_dry_run_when_customized
 test_check_recommends_force_when_no_customized
+test_init_preserve_customized_skips_customized
+test_init_preserve_customized_creates_missing
+test_init_force_alone_still_overwrites
 test_setup_wizard_frontmatter
 test_merge_settings_output
 test_merge_preserves_keys
