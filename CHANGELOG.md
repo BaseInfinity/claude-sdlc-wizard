@@ -37,7 +37,7 @@ PRESERVED 2 customized file(s) — review with `init --dry-run` to see what diff
 
 #### Test coverage
 
-8 new tests in `tests/test-cli.sh` (88/88 total green): customization-aware recommendation (2), null/undefined edge cases (2 from #326 P2 follow-up), preserve-customized behavior (3), no-force-no-op + settings.json MERGE precedence + WIZARD_DOC parity (3 from round-2 review).
+10 new tests in `tests/test-cli.sh` across 3 PRs (78 → 88 green): customization-aware recommendation (2 from #325), null/undefined edge cases (2 from #326 P2 follow-up), preserve-customized core behavior (3 from #328 round 1), no-force-no-op + settings.json MERGE precedence + WIZARD_DOC parity (3 from #328 round-2).
 
 #### Deferred
 
