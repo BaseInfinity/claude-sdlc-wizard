@@ -47,7 +47,7 @@ Option 3 from #323 (real `update` subcommand with backup directory + per-file di
 
 - `cli/init.js` — `buildUpdateRecommendation()` exported; `--preserve-customized` threaded through `init()` → `planOperations()`; `isCustomized()` hash helper; `PRESERVE` action skipped in `executeOperations()`; `printOps()` adds yellow `PRESERVE` color + summary footer
 - `cli/bin/sdlc-wizard.js` — `--preserve-customized` flag + help text
-- `tests/test-cli.sh` — 8 new tests (existing 80 → 88 green)
+- `tests/test-cli.sh` — 10 new tests across 3 PRs (78 → 88 green)
 - `package.json`, `.claude-plugin/plugin.json` + `marketplace.json`, `SDLC.md`, `skills/update/SKILL.md`, `CLAUDE_CODE_SDLC_WIZARD.md`, `CHANGELOG.md` (1.71.0 → 1.72.0)
 
 ## [1.71.0] - 2026-05-05
